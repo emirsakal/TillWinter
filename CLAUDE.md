@@ -20,6 +20,7 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - **Phases:** `Phase { Year, Winter, Heritage }` gates ticking and purchases. `SkillTree` is generic; `AlmanacData` and `HeritageData` are the two tables; Heritage effects are base modifiers resolved before Almanac effects in `StatResolver`.
 - `[System.Serializable]` on Core classes is fine; `UnityEngine.*` is not. Editor tooling lives in `Assets/TillWinter/Editor/`.
 - **Every node does something.** No `NotImplemented` flag exists; a new node must be applied in `StatResolver` or a `FarmSim` switch and added to the explicit map in `EventsTests` in the same commit.
+- **Onboarding hints are one-shot flags in Core.** `Hint` enum + `OnboardingFlags` on `FarmState` (saved); `FarmSim.MarkHint` returns true only the first time. The Unity layer never invents its own "shown before" bool or reads/writes `PlayerPrefs` for this — a hint that must fire once has to round-trip through Core.
 - Presentation is built in code from one `Bootstrap` object in `Farm.unity` (`GameBootstrap`); programmer art via `Prims`, uGUI via `UiKit`, input via `PointerInput`, strings via `Localize`.
 
 ## Conventions
@@ -34,7 +35,7 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 
 - TextMeshPro only (`UiKit.Label` -> `TMP_Text`, font `UiKit.Font` = Nunito SDF from Resources). Never `UnityEngine.UI.Text` or `LegacyRuntime.ttf`.
 - Every user-facing string comes from `Strings` (`en.json`); Core carries keys only. Node descriptions are templates filled by `NodeText`; a new node needs its `name`/`desc` keys in `en.json` (`StringsTests` fails otherwise).
-- Colours and metrics of the tree screens live in `TreeTheme` (Resources asset); no hard-coded UI colours in views. `UiKit` palette constants are for debug/placeholder panels only.
+- Colours and metrics of the tree screens live in `TreeTheme` (Resources asset, one per tree — e.g. `HeritageTheme` — including its `InitialZoom`); HUD colours/spacing live in `HudTheme` (Resources asset). No hard-coded colours in `HudView`, `SkillTreeView` or `WinterScreen`; `UiKit` palette constants are for debug/placeholder panels only.
 - Skill trees render through the generic `SkillTreeView` + `SkillTreeLayout`; no hand-placed nodes.
 - Scene edits go through editor code (`UiSetup.WireBootstrap` pattern), never by hand-editing YAML.
 
