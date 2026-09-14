@@ -152,6 +152,30 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 
 ---
 
+# Tooling: token hygiene (September 2026)
+
+- **Read-deny rules live in the committed `.claude/settings.json`**: `Library/`, `Temp/`, `Logs/`,
+  `obj/`, `TestResults/`, `UserSettings/`, `Assets/Audio/`, and all
+  `.meta/.unity/.asset/.prefab/.mat/.csproj/.sln/.slnx` files. Reason: generated or binary content
+  that never informs a decision. Scenes/assets that must change are edited by a targeted string
+  replace against a known line, never read whole.
+- **A `PreToolUse` hook (`.claude/hooks/rewrite_test_scripts.py`, matcher `Bash|PowerShell`)
+  rewrites any call to `run-tests.bat` / `smoke-test.bat`** into `run-tests-summary.bat` /
+  `smoke-test-summary.bat` via `updatedInput`. Verified live: the hook rewrote the session's own
+  commands the moment settings.json existed. Raw scripts stay for the developer.
+- **Summaries are produced by small Python scripts** (`.claude/hooks/summarize_tests.py`,
+  `summarize_smoke.py`) because parsing NUnit XML in a .bat is unreadable and Python 3 is on the
+  dev machine. Test summary capped at 100 lines; smoke summary prints only FAIL/CONSOLE lines and
+  never opens screenshots.
+- **Three Sonnet subagents (`test-runner`, `docs-writer`, `repo-scout`) take the verbose work**;
+  the main session keeps its context for design and code edits. Five skills (`session-start`,
+  `run-tests`, `open-pr`, `add-almanac-node`, `save-versioning`) hold the workflow text that used
+  to live in `CLAUDE.md`, which is now 39 lines.
+- **Subagents defined in `.claude/agents/` only register when a session starts**, so the session
+  that created them used general-purpose agents with the same instructions inlined; from the next
+  session on the named agents are available.
+- **`save-versioning` is written as a contract ahead of Session 2 (save/offline)** so the rule
+  "every new state field goes into SaveData + round-trip test" exists before the code does.
 # Session 2 - Heritage (rebirth), save/load, offline
 
 - **Generic `SkillTree`** (table + levels + currency + purchase rules via owner-supplied hooks:
