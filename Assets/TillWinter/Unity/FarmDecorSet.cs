@@ -3,9 +3,9 @@ using UnityEngine;
 
 namespace TillWinter.Unity
 {
-    public enum DecorKind { Tree, FenceSegment, Well, HouseFloor, Windmill, Signpost, Flowerbed, Barrel }
+    public enum DecorKind { Tree, FenceSegment, Well, HouseFloor, Windmill, Signpost, Flowerbed, Barrel, Bush, Rock, LogStack, Mushroom, Stump, PathTile, FenceGate }
 
-    /// <summary>One decor item unlocked from a generation on. Primitives now; <see cref="Prefab"/> is the S6 slot.</summary>
+    /// <summary>One decor item unlocked from a generation on. <see cref="Prefab"/> comes from the VisualCatalog (ArtSetup fills it); the catalogue's entry for <see cref="Kind"/> is the fallback.</summary>
     [System.Serializable]
     public sealed class DecorItem
     {
@@ -42,14 +42,17 @@ namespace TillWinter.Unity
             Add("fence_left_b", DecorKind.FenceSegment, 4, -1.3f, 0.2f, 90f);
             Add("fence_right_a", DecorKind.FenceSegment, 4, 1.3f, -0.6f, 90f);
             Add("fence_right_b", DecorKind.FenceSegment, 4, 1.3f, 0.2f, 90f);
-            Add("house", DecorKind.HouseFloor, 5, -0.6f, 1.6f);
-            Add("windmill", DecorKind.Windmill, 6, 0.9f, 1.8f);
+            Add("log_stack", DecorKind.LogStack, 5, -1.5f, 0.9f, 15f);
+            Add("rock_a", DecorKind.Rock, 5, 1.5f, -1.1f, 30f);
+            Add("windmill", DecorKind.Windmill, 6, 1.1f, 1.9f);
             Add("tree_line_a", DecorKind.Tree, 7, -1.7f, 1.8f, 0f, 0.9f);
             Add("tree_line_b", DecorKind.Tree, 7, -1.1f, 2.0f, 40f, 1.0f);
             Add("tree_line_c", DecorKind.Tree, 7, 1.7f, 2.0f, 70f, 0.95f);
             Add("signpost", DecorKind.Signpost, 8, 1.6f, -0.9f);
             Add("flowerbed", DecorKind.Flowerbed, 8, -1.6f, -1.0f);
-            Add("barrels", DecorKind.Barrel, 9, 0.2f, 1.7f);
+            Add("barrels", DecorKind.Barrel, 9, 1.9f, 1.2f);
+            Add("mushrooms", DecorKind.Mushroom, 9, -1.9f, -1.3f);
+            Add("bush_gate", DecorKind.Bush, 10, 1.7f, 0.2f);
             return set;
         }
 

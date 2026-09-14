@@ -1,10 +1,9 @@
 using TillWinter.Core;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace TillWinter.Unity
 {
-    /// <summary>Rain cloud: flattened grey sphere drifting above the top row; tap target; rain burst on tap.</summary>
+    /// <summary>Rain cloud prefab drifting above the top row; tap target; rain burst on tap.</summary>
     public sealed class CloudView : MonoBehaviour
     {
         private GameController _game;
@@ -14,18 +13,12 @@ namespace TillWinter.Unity
         private float _shown;
         private float _bob;
 
-        public void Init(GameController game, FxManager fx, AudioManager audio)
+        public void Init(GameController game, FxManager fx, AudioManager audio, VisualCatalog catalog)
         {
             _game = game;
             _fx = fx;
             _audio = audio;
-            _body = new GameObject("CloudBody").transform;
-            _body.SetParent(transform, false);
-            var grey = Prims.Lit(new Color(0.62f, 0.66f, 0.72f), 0.1f);
-            Prims.Primitive(PrimitiveType.Sphere, _body, "A", new Vector3(0f, 0f, 0f), new Vector3(1.1f, 0.5f, 0.7f), grey);
-            Prims.Primitive(PrimitiveType.Sphere, _body, "B", new Vector3(-0.4f, 0.1f, 0.05f), new Vector3(0.7f, 0.45f, 0.55f), grey);
-            Prims.Primitive(PrimitiveType.Sphere, _body, "C", new Vector3(0.4f, 0.12f, -0.05f), new Vector3(0.75f, 0.5f, 0.6f), grey);
-            foreach (var r in _body.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
+            _body = catalog.Spawn(catalog.Cloud, transform, "Cloud").transform;
             _body.gameObject.SetActive(false);
             _game.Sim.RainCloudTapped += OnTapped;
             _game.CloudHitTest = HitTest;
@@ -75,7 +68,7 @@ namespace TillWinter.Unity
         }
     }
 
-    /// <summary>Tractor: box with four small cylinders driving along the swept row.</summary>
+    /// <summary>Tractor prefab driving along the swept row; wheels (children named "Wheel") spin.</summary>
     public sealed class TractorView : MonoBehaviour
     {
         private GameController _game;
@@ -83,20 +76,10 @@ namespace TillWinter.Unity
         private float _shown;
         private float _wheelSpin;
 
-        public void Init(GameController game)
+        public void Init(GameController game, VisualCatalog catalog)
         {
             _game = game;
-            _body = new GameObject("TractorBody").transform;
-            _body.SetParent(transform, false);
-            var red = Prims.Lit(new Color(0.8f, 0.2f, 0.15f), 0.3f);
-            var dark = Prims.Lit(new Color(0.15f, 0.15f, 0.17f), 0.2f);
-            Prims.Primitive(PrimitiveType.Cube, _body, "Hull", new Vector3(0f, 0.28f, 0f), new Vector3(0.5f, 0.22f, 0.34f), red);
-            Prims.Primitive(PrimitiveType.Cube, _body, "Cab", new Vector3(-0.1f, 0.48f, 0f), new Vector3(0.22f, 0.2f, 0.28f), red);
-            foreach (var (x, z) in new[] { (-0.17f, -0.17f), (-0.17f, 0.17f), (0.17f, -0.17f), (0.17f, 0.17f) })
-            {
-                var w = Prims.Primitive(PrimitiveType.Cylinder, _body, "Wheel", new Vector3(x, 0.12f, z), new Vector3(0.24f, 0.04f, 0.24f), dark);
-                w.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            }
+            _body = catalog.Spawn(catalog.Tractor, transform, "Tractor").transform;
             _body.gameObject.SetActive(false);
         }
 
@@ -124,7 +107,7 @@ namespace TillWinter.Unity
         }
     }
 
-    /// <summary>Greenhouse: small translucent box beside the field, coin trickle particles while it accrues in Winter.</summary>
+    /// <summary>Greenhouse prefab beside the field, coin trickle particles while it accrues in Winter.</summary>
     public sealed class GreenhouseView : MonoBehaviour
     {
         private GameController _game;
@@ -132,17 +115,11 @@ namespace TillWinter.Unity
         private Transform _body;
         private float _trickle;
 
-        public void Init(GameController game, FxManager fx)
+        public void Init(GameController game, FxManager fx, VisualCatalog catalog)
         {
             _game = game;
             _fx = fx;
-            _body = new GameObject("GreenhouseBody").transform;
-            _body.SetParent(transform, false);
-            var glass = Prims.MakeTransparent(Prims.Lit(new Color(0.7f, 0.9f, 1f, 0.35f), 0.8f));
-            var frame = Prims.Lit(new Color(0.9f, 0.9f, 0.92f), 0.3f);
-            Prims.Primitive(PrimitiveType.Cube, _body, "Glass", new Vector3(0f, 0.35f, 0f), new Vector3(0.9f, 0.7f, 0.7f), glass);
-            Prims.Primitive(PrimitiveType.Cube, _body, "Ridge", new Vector3(0f, 0.72f, 0f), new Vector3(0.95f, 0.05f, 0.08f), frame);
-            Prims.Primitive(PrimitiveType.Cube, _body, "Base", new Vector3(0f, 0.02f, 0f), new Vector3(0.95f, 0.04f, 0.75f), frame);
+            _body = catalog.Spawn(catalog.Greenhouse, transform, "Greenhouse").transform;
             _body.gameObject.SetActive(false);
         }
 
@@ -152,7 +129,7 @@ namespace TillWinter.Unity
             bool owned = s.Stats.GreenhouseLevel > 0;
             if (_body.gameObject.activeSelf != owned) _body.gameObject.SetActive(owned);
             if (!owned) return;
-            _body.position = _game.PlotToWorld(s.GridSize + 0.4f, 0.5f, 0f);
+            _body.position = _game.PlotToWorld(s.GridSize + 0.5f, 0.5f, 0f);
             if (s.Phase == Phase.Winter && s.Greenhouse.SecondsLeftThisWinter > 0f)
             {
                 _trickle += Time.deltaTime;

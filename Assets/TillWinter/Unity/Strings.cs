@@ -59,15 +59,6 @@ namespace TillWinter.Unity
             return r;
         }
 
-        /// <summary>Placeholder glyph until icons exist: first three letters of the id's last word.</summary>
-        public static string Glyph(SkillNode node)
-        {
-            string id = node.Id.StartsWith("h_") ? node.Id.Substring(2) : node.Id;
-            int cut = id.LastIndexOf('_');
-            string word = cut >= 0 ? id.Substring(cut + 1) : id;
-            return (word.Length > 3 ? word.Substring(0, 3) : word).ToUpperInvariant();
-        }
-
         // Flat {"key":"value"} object parser (strings only), with \n and \" escapes.
         private static void Parse(string s)
         {

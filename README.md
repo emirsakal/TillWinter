@@ -90,6 +90,11 @@ One-off setup: `ui-setup.bat` imports TMP essentials, builds the font asset, cre
 `HeritageTheme`, `HudTheme` and `FarmDecor` (all Resources ScriptableObjects) and wires `en.json`
 into the scene (idempotent).
 
+`art-setup.bat` builds everything under "Asset credits" below into prefabs and materials:
+primitive meshes (house, well, windmill, tractor, etc.), per-`PaletteSlot` materials from
+`Palette`, node-icon sprite atlas, and the `VisualCatalog` Resources asset every view spawns
+from. Idempotent; re-run after cloning or after changing a prefab default in code.
+
 ## Project layout
 
 ```
@@ -110,19 +115,36 @@ rendered with TextMeshPro; the TMP essential resources (LiberationSans SDF, also
 code defaults — the ScriptableObject in `Resources/` must be deleted and regenerated).
 
 Screenshots of the current build (Winter, Heritage, HUD, generation card, away card) live in
-`docs/screenshots/` (`s5-*.png`), taken by `smoke-test.bat`.
+`docs/screenshots/` (`s5-*.png`), taken by `smoke-test.bat`. Session 6's art pass adds `s6-*.png`
+(spring 3x3, spring 6x6 generation 3, golden crop, tractor sweep, summer, autumn frost, winter
+tree, heritage icons, winter at 1080x1920, ring harvest).
 
 All tunables live in `FarmConfig` (Core); Almanac nodes and their per-level values live in
 `AlmanacData` (Core) and resolve to numbers through `StatResolver`. `FarmConfigAsset` is an
 optional ScriptableObject wrapper you can assign on the Bootstrap object to tweak numbers in the
 Inspector. Design source of truth: `docs/GDD.md`.
 
+## Asset credits
+
+Low-poly art is Kenney CC0 kits (public domain, no attribution required — credited here anyway),
+under `Assets/Art/Kenney/` with each kit's original `License.txt` kept alongside it
+(index: `Assets/Art/LICENSES.md`):
+
+- [Nature Kit](https://kenney.nl/assets/nature-kit) — crops, trees, bush, rock, fences, flowers, log stack, mushroom, stump
+- [Food Kit](https://kenney.nl/assets/food-kit) — tomato, grapes, barrel
+- [Mini Characters](https://kenney.nl/assets/mini-characters-1) — the six apprentices
+- [Game Icons](https://kenney.nl/assets/game-icons) — Almanac / Heritage node icons
+
+Everything the kits don't cover (house, well, windmill, greenhouse, tractor, crow, cloud, plot,
+path tile, signpost, flowerbed, trellis) is built from primitives by `ArtSetup`/`art-setup.bat`.
+UI font is Nunito (SIL OFL 1.1, see `Assets/Fonts/OFL.txt`), covered under Fonts and licences above.
+
 ## What is intentionally missing
 
-Not yet built (see the GDD roadmap): the Almanac tree canvas, real art
-(everything is Unity primitives + flat URP materials), localization (EN placeholder strings only),
-sound design beyond placeholders (Kenney CC0 clips, generated blips as fallback), performance
-work, store/build settings. No monetization, ever. Balance is a first guess and deliberately untuned.
+Not yet built (see the GDD roadmap): localization (EN placeholder strings only), sound design
+beyond placeholders (Kenney CC0 clips, generated blips as fallback), performance work beyond the
+Session 6 draw-call budget, store/build settings. No monetization, ever. Balance is a first guess
+and deliberately untuned.
 
 See `DECISIONS.md` for choices the design brief left open, and `CLAUDE.md` for the
 architecture rules future sessions must keep.

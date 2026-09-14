@@ -9,7 +9,30 @@ namespace TillWinter.Core
         private static readonly string[] None = new string[0];
 
         private static SkillNode N(string id, Branch b, string[] pre, int max, double cost, EffectType fx, double perLevel) =>
-            new SkillNode(id, b, pre, max, cost, G, fx, perLevel, "heritage." + id + ".name", "heritage." + id + ".desc");
+            new SkillNode(id, b, pre, max, cost, G, fx, perLevel, "heritage." + id + ".name", "heritage." + id + ".desc", null, IconFor(id));
+
+        /// <summary>Node id -> sprite name in the node icon atlas (Kenney Game Icons). Every node must have one (IconTests).</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, string> Icons = new System.Collections.Generic.Dictionary<string, string>
+        {
+            { "h_start_radius", "zoom" },
+            { "h_ring_speeds", "fastForward" },
+            { "h_ring_coins", "star" },
+            { "h_start_irrigation", "import" },
+            { "h_start_sun", "contrast" },
+            { "h_global_growth", "arrowUp" },
+            { "h_unlock_rain_cloud", "export" },
+            { "h_start_field", "larger" },
+            { "h_start_tomato", "plus" },
+            { "h_golden_crop", "trophy" },
+            { "h_free_apprentice", "singleplayer" },
+            { "h_apprentice_yield", "cart" },
+            { "h_scarecrow_immunity", "locked" },
+            { "h_start_year_length", "scrollHorizontal" },
+            { "h_greenhouse_x2", "home" },
+            { "h_almanac_discount", "minus" },
+        };
+
+        private static string IconFor(string id) => Icons.TryGetValue(id, out var k) ? k : "";
 
         public static readonly SkillNode[] Nodes =
         {

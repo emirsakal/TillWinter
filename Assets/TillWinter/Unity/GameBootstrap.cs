@@ -65,35 +65,44 @@ namespace TillWinter.Unity
             fx.transform.SetParent(root.transform, false);
             fx.Init();
 
+            // Everything visual comes from the catalogue (Resources/VisualCatalog, built by art-setup.bat).
+            var catalog = VisualCatalog.Load();
+            Palette.Load().ApplyToMaterials(catalog.SlotMaterials);
+
             var season = new GameObject("Season").AddComponent<SeasonPresenter>();
             season.transform.SetParent(root.transform, false);
-            season.Init(game);
+            season.Init(game, camRig.Cam, catalog);
+            QualityTiers.Init(season.Sun, camRig.Cam);
+
+            var diorama = new GameObject("Diorama").AddComponent<DioramaView>();
+            diorama.transform.SetParent(root.transform, false);
+            diorama.Init(game, catalog);
 
             var field = new GameObject("Field").AddComponent<FieldView>();
             field.transform.SetParent(root.transform, false);
-            field.Init(game, camRig, fx, audio);
+            field.Init(game, camRig, fx, audio, catalog);
 
             var ring = new GameObject("Ring").AddComponent<RingView>();
             ring.transform.SetParent(root.transform, false);
-            ring.Init(game);
+            ring.Init(game, catalog);
 
             var apprentices = new GameObject("Apprentices").AddComponent<ApprenticesView>();
             apprentices.transform.SetParent(root.transform, false);
-            apprentices.Init(game);
+            apprentices.Init(game, catalog);
 
             var cloud = new GameObject("Cloud").AddComponent<CloudView>();
             cloud.transform.SetParent(root.transform, false);
-            cloud.Init(game, fx, audio);
+            cloud.Init(game, fx, audio, catalog);
             var tractor = new GameObject("Tractor").AddComponent<TractorView>();
             tractor.transform.SetParent(root.transform, false);
-            tractor.Init(game);
+            tractor.Init(game, catalog);
             var greenhouse = new GameObject("Greenhouse").AddComponent<GreenhouseView>();
             greenhouse.transform.SetParent(root.transform, false);
-            greenhouse.Init(game, fx);
+            greenhouse.Init(game, fx, catalog);
 
             var crows = new GameObject("Crows").AddComponent<CrowsView>();
             crows.transform.SetParent(root.transform, false);
-            crows.Init(game, fx, audio);
+            crows.Init(game, fx, audio, catalog);
 
             var canvas = BuildCanvas(root.transform);
             var hud = canvas.gameObject.AddComponent<HudView>();

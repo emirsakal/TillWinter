@@ -12,6 +12,8 @@ namespace TillWinter.Unity
         public float TiltFromTopDown = 40f;
         public float Distance = 30f;
         public float SideMargin = 0.45f;
+        /// <summary>World units added to the framed width so the diorama block edges stay on screen.</summary>
+        public float ExtraWidth = 1.7f;
         /// <summary>Where the field centre sits vertically (0 = bottom, 1 = top). Play band is 18%..80%.</summary>
         public float FieldScreenY = 0.49f;
 
@@ -41,7 +43,7 @@ namespace TillWinter.Unity
         public void Frame(int gridSize, bool instant)
         {
             _gridSize = gridSize;
-            float width = gridSize + 2f * SideMargin;
+            float width = gridSize + 2f * SideMargin + ExtraWidth;
             float aspect = Mathf.Max(0.2f, Cam.aspect);
             _targetSize = width / (2f * aspect);
             if (instant) Cam.orthographicSize = _targetSize;
@@ -51,7 +53,7 @@ namespace TillWinter.Unity
         private void LateUpdate()
         {
             // Aspect can change when the Game view preset changes; keep the fit live.
-            float width = _gridSize + 2f * SideMargin;
+            float width = _gridSize + 2f * SideMargin + ExtraWidth;
             float aspect = Mathf.Max(0.2f, Cam.aspect);
             _targetSize = width / (2f * aspect);
             Cam.orthographicSize = Prims.Damp(Cam.orthographicSize, _targetSize, 4f, Time.unscaledDeltaTime);

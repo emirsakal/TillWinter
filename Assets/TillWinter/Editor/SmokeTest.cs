@@ -130,7 +130,7 @@ namespace TillWinter.EditorTools
             switch (_phase)
             {
                 case 0: // spring, idle
-                    if (inPhase > 1.0) { Shot("01-spring-idle"); Next(); }
+                    if (inPhase > 1.0) { Log("Render stats at 3x3 gen 1: " + RenderStats().text); Shot("01-spring-idle"); Next(); }
                     break;
                 case 1: // hold the finger under the field centre so the offset ring covers the 3x3
                     if (inPhase > 0.3)
@@ -375,6 +375,65 @@ namespace TillWinter.EditorTools
                 case 17:
                     if (inPhase > 1.0) { Shot("11-generation2-field"); Next(); }
                     break;
+                // ---- art pass (S6): seasons, golden crop, tractor, six apprentices at 6x6, generation-3 decor, draw-call budget
+                case 18:
+                    if (_sub++ == 0)
+                    {
+                        _game.Sim.DebugSetLevel("expand_field", 3);
+                        _game.Sim.DebugSetLevel("apprentice_count", 6);
+                        _game.Sim.DebugSetLevel("tractor", 1);
+                        _game.Sim.DebugSetGeneration(3);
+                        _game.Sim.DebugSetSeason(Season.Spring);
+                        break;
+                    }
+                    if (inPhase > 2.0)
+                    {
+                        Check(s.GridSize == 6, "field is 6x6 (" + s.GridSize + ")");
+                        Check(s.Apprentices.Count >= 6, "six apprentices (" + s.Apprentices.Count + ")");
+                        var stats = RenderStats();
+                        Log("Render stats at 6x6 gen 3: " + stats.text);
+                        Check(stats.batches <= 150, "batches (GPU draw calls) <= 150 (" + stats.text + ")");
+                        Check(stats.triangles <= 60000, "triangles <= 60k (" + stats.triangles + ")");
+                        Shot("12-art-spring-6x6-gen3");
+                        Next();
+                    }
+                    break;
+                case 19: // golden: force ripe, let an apprentice replant one plot golden, then park the apprentices and ripen again
+                    if (_sub++ == 0) { _game.Sim.DebugNextHarvestGolden(); _game.Sim.DebugForceRipeAll(); break; }
+                    if (inPhase > 1.5) { _game.Sim.DebugSetLevel("apprentice_count", 0); _game.Sim.DebugForceRipeAll(); Next(); }
+                    break;
+                case 20:
+                    if (inPhase > 0.7 && _sub++ == 0) { Shot("13-art-golden-crop"); break; }
+                    if (_sub == 0 || _sub++ < 3) break;
+                    {
+                        bool golden = false;
+                        foreach (var p in s.Plots) if (p.IsGolden) golden = true;
+                        Check(golden, "a golden crop is on the field");
+                        Check(_game.Sim.DebugForceTractorSweep(), "tractor sweep started");
+                        _game.Sim.DebugSetLevel("apprentice_count", 6);
+                        Next();
+                    }
+                    break;
+                case 21:
+                    if (inPhase > 0.35 && _sub++ == 0) { Check(s.Tractor.Sweeping, "tractor sweeping"); Shot("14-art-tractor-sweep"); break; }
+                    if (_sub > 0 && inPhase > 0.6) { _game.Sim.DebugSetSeason(Season.Summer); Next(); }
+                    break;
+                case 22:
+                    if (inPhase > 2.0 && _sub++ == 0) { Check(s.Season == Season.Summer, "summer"); Shot("15-art-summer"); break; }
+                    if (_sub == 0 || _sub++ < 3) break; // capture lands end of frame: change state two frames later
+                    _game.Sim.DebugSetSeason(Season.Autumn);
+                    Log("Autumn set: " + s.SecondsUntilWinter.ToString("0.0") + " s until winter, frost " + s.FrostWarning);
+                    Next();
+                    break;
+                case 23:
+                    if (inPhase > 1.6 && _sub++ == 0) { Check(s.Season == Season.Autumn && s.FrostWarning && s.Phase == Phase.Year, "autumn frost warning (" + s.SecondsUntilWinter.ToString("0.0") + " s left)"); Shot("16-art-autumn-frost"); break; }
+                    if (_sub == 0 || _sub++ < 3) break;
+                    _game.Sim.DebugSkipToWinter();
+                    Next();
+                    break;
+                case 24:
+                    if (inPhase > 1.5) { Check(s.Phase == Phase.Winter, "winter"); Shot("17-art-winter-tree"); Next(); }
+                    break;
                 default:
                     if (inPhase > 1.0) Finish();
                     break;
@@ -408,6 +467,19 @@ namespace TillWinter.EditorTools
             _phase++;
             _sub = 0;
             _phaseStart = EditorApplication.timeSinceStartup;
+        }
+
+        /// <summary>Last rendered frame's Game view statistics (UnityEditor.UnityStats is internal).</summary>
+        private static (int drawCalls, int batches, int triangles, string text) RenderStats()
+        {
+            var type = typeof(EditorApplication).Assembly.GetType("UnityEditor.UnityStats");
+            int Get(string name)
+            {
+                var p = type?.GetProperty(name, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                return p != null ? System.Convert.ToInt32(p.GetValue(null)) : -1;
+            }
+            int dc = Get("drawCalls"), b = Get("batches"), t = Get("triangles"), sp = Get("setPassCalls"), v = Get("vertices");
+            return (dc, b, t, "drawCalls=" + dc + " batches=" + b + " setPass=" + sp + " tris=" + t + " verts=" + v);
         }
 
         private static void Shot(string name)

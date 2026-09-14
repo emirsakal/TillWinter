@@ -380,3 +380,48 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   fading, plots still popping in).
 - Save schema bumped to v3 for `OnboardingBits` and per-tree pan/zoom (`TreeViewMemory`); v2->v3
   migration and `SaveV3Tests` fixture follow the usual save-versioning pattern.
+
+---
+
+# Session 6 - art pass
+
+- **Kenney CC0 kits over authored primitives, per-asset.** The GDD (§11) left the choice open
+  between low-poly Kenney kits and hand-authored primitives; each shipped asset used whichever was
+  cheaper to get right: crops, trees, bush, rock, fences, flowers, log stack, mushroom and stump
+  came from **Nature Kit 2.1**; tomato, grapes and the barrel from **Food Kit 2.0**; the six
+  apprentices from **Mini Characters**; node icons from **Game Icons**. Everything the kits don't
+  cover — house (small/medium/large), well, windmill, greenhouse, tractor, crow, cloud, plot, path
+  tile, signpost, flowerbed, trellis — is still built from primitives, now inside prefabs by
+  `Assets/TillWinter/Editor/ArtSetup.cs` (`art-setup.bat`, idempotent) rather than at runtime.
+  Licenses live next to each kit (`Assets/Art/Kenney/<kit>/License.txt`), indexed in
+  `Assets/Art/LICENSES.md`.
+- **Kits were stripped hard on import**, keeping only what a prefab references: Nature Kit 329 FBX
+  -> 30, Food Kit 200 -> 3, Mini Characters 26 -> 6, Game Icons 105 -> 37. Unused meshes/materials
+  add nothing but repo weight and asmdef/AssetDatabase churn.
+- **Mini Characters play their kit idle clip through an `AnimatorController`** instead of standing
+  in the kit's default T-pose; this is the only animation added this session.
+- **Hand-written HLSL shader instead of Shader Graph.** `Assets/Art/Shaders/TW_Toon.shader` (flat
+  two-step ramp, vertex-colour x tint, optional emission, snow lerp, GPU instancing) plus
+  `TW_Sky.shader` were written directly because Shader Graph's `.shadergraph` JSON could not be
+  authored reliably from code in this session — hand-editing that format is fragile in a way a
+  `.shader` text file is not. Every material under `Assets/Art` is asserted (ArtTests) to use one
+  of these two shaders, or a UI shader.
+- **One material per `PaletteSlot`, not per object.** `Assets/Art/Materials/TW_<Slot>.mat` lets
+  every prefab sharing a slot's mesh GPU-instance; `Palette` (Resources) pushes its colours into
+  those materials at boot, and per-object variation (plot Dry/Wet/ring soil, golden emission, ring
+  lift) goes through a `PaletteBinder` + one `MaterialPropertyBlock` per renderer instead of a
+  second material — per-material-index property blocks were tried first and rejected because they
+  break GPU instancing. Season snow amount and leaf/grass tint are shader globals (`_TW_Snow`,
+  `_TW_SeasonTint`) rather than per-material overrides, so Winter tints everything through the
+  shader with no mesh or material swaps.
+- **Ring stays a textured decal-style disc, not a URP decal projector.** Decal projectors did not
+  render onto the field with this project's orthographic camera setup, so the ring keeps the
+  existing soft-edge + inner-glow texture (`Assets/Art/Textures/RingDecal.png`). The decal code
+  path is kept behind `ArtSetup.UseDecals = false` for a future session with more time to debug
+  the projector, rather than deleted.
+- **Quality tiers gate shadows/post, not mesh detail.** `QualityTiers` Low (no shadows, no post) /
+  Default (soft shadows + colour volume) auto-selects Low on mobile devices under 3 GB RAM or
+  1 GB VRAM; a debug-panel toggle overrides it for testing. Draw-call budgets (measured, not
+  guessed): 3x3 generation 1 is 45 batches / 67 draw calls / 4.7k triangles; the stress case (6x6
+  generation 3, seven apprentices, tractor) is 106 batches / 142 draw calls / 27.8k triangles,
+  against a smoke-test budget of <=150 batches / <=60k triangles.
