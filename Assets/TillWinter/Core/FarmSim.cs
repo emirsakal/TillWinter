@@ -6,14 +6,17 @@ namespace TillWinter.Core
     /// <summary>
     /// The whole game. Pure C#, deterministic for a fixed dt and seed. The Unity layer calls
     /// <see cref="Tick"/> every frame, forwards input via <see cref="Tick"/>/<see cref="TapAt"/>,
-    /// and renders <see cref="State"/>.
+    /// buys Almanac nodes with <see cref="TryBuy"/>, and renders <see cref="State"/>.
     /// </summary>
     public sealed class FarmSim
     {
         public FarmConfig Config { get; }
         public FarmState State { get; }
+        public IReadOnlyList<AlmanacNode> Nodes { get; }
 
         public event Action<HarvestEvent> Harvested;
+        public event Action<GridPos> PlotWatered;
+        public event Action<GridPos> PlotRipened;
         public event Action<CrowEvent> CrowLanded;
         public event Action<CrowEvent> CrowScared;
         public event Action<CrowEvent> CrowAte;
@@ -21,7 +24,7 @@ namespace TillWinter.Core
         public event Action WinterStarted;
         public event Action FrostWarningStarted;
         public event Action YearStarted;
-        public event Action<UpgradeId> Purchased;
+        public event Action<PurchaseEvent> Purchased;
         public event Action FieldExpanded;
 
         private readonly Random _rng;
@@ -29,14 +32,16 @@ namespace TillWinter.Core
         private float _crowSpawnTimer;
         private float? _ringRadiusOverride;
 
-        public FarmSim(FarmConfig config, int seed)
+        public FarmSim(FarmConfig config, int seed, IReadOnlyList<AlmanacNode> nodes = null)
         {
             Config = config ?? throw new ArgumentNullException(nameof(config));
+            Nodes = nodes ?? AlmanacData.Nodes;
+            var errors = AlmanacData.Validate(Nodes);
+            if (errors.Count > 0) throw new InvalidOperationException("Almanac table invalid: " + string.Join("; ", errors));
             State = new FarmState();
             _rng = new Random(seed);
             BuildField(config.StartGridSize);
-            RecomputeDerived();
-            ResetApprenticePosition();
+            ResolveStats();
         }
 
         // ------------------------------------------------------------------ public API
@@ -52,54 +57,82 @@ namespace TillWinter.Core
             AdvanceYear(dt);
             if (State.IsWinter) return;
 
-            UpdateGrowth(dt);
-            UpdateApprentice(dt);
+            UpdatePlots(dt);
+            UpdateApprentices(dt);
             UpdateCrows(dt);
         }
 
-        /// <summary>Tap a plot. Scares a crow if one is there. Returns true if something happened.</summary>
+        /// <summary>Tap a plot. Scares a crow (dropping coins) if one is there. Returns true if something happened.</summary>
         public bool TapAt(GridPos pos)
         {
             if (State.IsWinter || !State.InBounds(pos)) return false;
             var plot = State.GetPlot(pos);
             if (!plot.HasCrow) return false;
+            double coins = Config.CrowScareValueMultiplier * Crop(plot).Value;
+            AddCoins(coins);
             RemoveCrowAt(pos);
-            CrowScared?.Invoke(new CrowEvent(pos));
+            CrowScared?.Invoke(new CrowEvent(pos, coins));
             return true;
         }
 
-        public double GetCost(UpgradeId id)
+        public AlmanacNode GetNode(string id)
         {
-            var def = Config.GetUpgrade(id);
-            if (def == null) return double.PositiveInfinity;
-            return Math.Round(def.BaseCost * Math.Pow(Config.CostGrowth, State.GetLevel(id)));
+            foreach (var n in Nodes) if (n.Id == id) return n;
+            return null;
         }
 
-        public int GetMaxLevel(UpgradeId id)
+        public double CostOf(string nodeId)
         {
-            if (id == UpgradeId.UpgradePlot)
-                return State.GridSize * State.GridSize * Config.MaxTier;
-            var def = Config.GetUpgrade(id);
-            return def == null ? 0 : def.MaxLevel;
+            var node = GetNode(nodeId);
+            if (node == null) return double.PositiveInfinity;
+            return Math.Round(node.BaseCost * Math.Pow(node.CostGrowth, State.GetLevel(nodeId)));
         }
 
-        public bool IsMaxed(UpgradeId id) => State.GetLevel(id) >= GetMaxLevel(id);
-
-        public bool CanBuy(UpgradeId id) =>
-            State.IsWinter && !IsMaxed(id) && State.Coins >= GetCost(id);
-
-        public bool TryBuy(UpgradeId id)
+        public int GetMaxLevel(string nodeId)
         {
-            if (!CanBuy(id)) return false;
-            State.Coins -= GetCost(id);
-            State.LevelMap[id] = State.GetLevel(id) + 1;
-            ApplyUpgrade(id);
-            RecomputeDerived();
-            Purchased?.Invoke(id);
+            var node = GetNode(nodeId);
+            if (node == null) return 0;
+            if (node.Effect == EffectType.UpgradePlot)
+                return State.GridSize * State.GridSize * State.Stats.MaxTierUnlocked;
+            return node.MaxLevel;
+        }
+
+        public bool IsMaxed(string nodeId)
+        {
+            var node = GetNode(nodeId);
+            if (node == null) return true;
+            if (node.Effect == EffectType.UpgradePlot) return FindLowestUpgradablePlot() == null;
+            return State.GetLevel(nodeId) >= node.MaxLevel;
+        }
+
+        /// <summary>GDD §6: available when it has no prerequisites or at least one prerequisite is at level ≥ 1.</summary>
+        public bool IsAvailable(string nodeId)
+        {
+            var node = GetNode(nodeId);
+            if (node == null) return false;
+            if (node.Prerequisites.Length == 0) return true;
+            foreach (var p in node.Prerequisites)
+                if (State.GetLevel(p) >= 1) return true;
+            return false;
+        }
+
+        public bool CanBuy(string nodeId) =>
+            State.IsWinter && IsAvailable(nodeId) && !IsMaxed(nodeId) && State.Coins >= CostOf(nodeId);
+
+        public bool TryBuy(string nodeId)
+        {
+            if (!CanBuy(nodeId)) return false;
+            var node = GetNode(nodeId);
+            State.Coins -= CostOf(nodeId);
+            int level = State.GetLevel(nodeId) + 1;
+            State.LevelMap[nodeId] = level;
+            ApplyPurchase(node);
+            ResolveStats();
+            Purchased?.Invoke(new PurchaseEvent(nodeId, level));
             return true;
         }
 
-        /// <summary>Leave the winter shop and start Spring of the next year.</summary>
+        /// <summary>Leave the winter Almanac and start Spring of the next year.</summary>
         public void StartNextYear()
         {
             if (!State.IsWinter) return;
@@ -109,8 +142,8 @@ namespace TillWinter.Core
             State.Season = Season.Spring;
             _crowSpawnTimer = 0f;
             ClearCrows();
-            foreach (var p in State.PlotArray) p.Growth = 0f;
-            ResetApprenticePosition();
+            foreach (var p in State.PlotArray) p.Reset();
+            ResetApprentices();
             SeasonChanged?.Invoke(Season.Spring);
             YearStarted?.Invoke();
         }
@@ -136,16 +169,43 @@ namespace TillWinter.Core
                     if (!p.HasCrow) _scratch.Add(p);
             if (_scratch.Count == 0) return false;
             var plot = _scratch[_rng.Next(_scratch.Count)];
-            plot.Growth = 1f;
+            plot.State = PlotState.Ripe;
+            plot.Progress = 0f;
             SpawnCrowAt(plot.Pos);
             return true;
         }
 
-        /// <summary>null restores the upgrade-driven radius.</summary>
+        public void DebugForceRipeAll()
+        {
+            if (State.IsWinter) return;
+            foreach (var p in State.PlotArray)
+            {
+                p.State = PlotState.Ripe;
+                p.Progress = 0f;
+            }
+        }
+
+        /// <summary>Sets a node level directly (clamped to its max), applying field/tier side effects.</summary>
+        public void DebugSetLevel(string nodeId, int level)
+        {
+            var node = GetNode(nodeId);
+            if (node == null) return;
+            int max = node.MaxLevel < 0 ? int.MaxValue : node.MaxLevel;
+            level = Math.Max(0, Math.Min(max, level));
+            State.LevelMap[nodeId] = level;
+            ResolveStats();
+            if (node.Effect == EffectType.ExpandField && State.GridSize != State.Stats.TargetGridSize)
+            {
+                BuildField(State.Stats.TargetGridSize);
+                FieldExpanded?.Invoke();
+            }
+        }
+
+        /// <summary>null restores the Almanac-driven radius.</summary>
         public void DebugSetRingRadiusOverride(float? radius)
         {
             _ringRadiusOverride = radius;
-            RecomputeDerived();
+            ResolveStats();
         }
 
         public float? DebugRingRadiusOverride => _ringRadiusOverride;
@@ -155,20 +215,21 @@ namespace TillWinter.Core
         private void AdvanceYear(float dt)
         {
             State.YearTime += dt;
+            float length = State.Stats.YearLength;
 
-            if (!State.FrostWarning && State.YearTime >= State.YearLength - Config.FrostWarningSeconds)
+            if (!State.FrostWarning && State.YearTime >= length - State.Stats.FrostWarningSeconds)
             {
                 State.FrostWarning = true;
                 FrostWarningStarted?.Invoke();
             }
 
-            if (State.YearTime >= State.YearLength)
+            if (State.YearTime >= length)
             {
                 EnterWinter();
                 return;
             }
 
-            var season = SeasonAt(State.YearTime, State.YearLength);
+            var season = SeasonAt(State.YearTime, length);
             if (season != State.Season)
             {
                 State.Season = season;
@@ -187,132 +248,210 @@ namespace TillWinter.Core
         private void EnterWinter()
         {
             State.Season = Season.Winter;
-            State.YearTime = State.YearLength;
+            State.YearTime = State.Stats.YearLength;
             State.FrostWarning = false;
             State.Ring = null;
             ClearCrows();
-            foreach (var p in State.PlotArray) p.Growth = 0f;
-            var a = State.Apprentice;
-            a.HasTarget = false;
-            a.IsHarvesting = false;
-            a.HarvestProgress = 0f;
+            foreach (var p in State.PlotArray) p.Reset();
+            ResetApprentices();
             SeasonChanged?.Invoke(Season.Winter);
             WinterStarted?.Invoke();
         }
 
-        // ------------------------------------------------------------------ growth & harvest
+        // ------------------------------------------------------------------ plots
 
-        private void UpdateGrowth(float dt)
+        private CropDef Crop(Plot plot) => Config.Crops[Math.Max(0, Math.Min(Config.MaxTier, plot.Tier))];
+
+        private void UpdatePlots(float dt)
         {
-            float soil = 1f + Config.SoilPerLevel * State.GetLevel(UpgradeId.Soil);
-            float natural = Config.IrrigationPerLevel * State.GetLevel(UpgradeId.Irrigation);
-
+            var st = State.Stats;
             foreach (var plot in State.PlotArray)
             {
                 bool under = State.IsUnderRing(plot.Pos);
-                if (!plot.IsRipe)
+                var crop = Crop(plot);
+                switch (plot.State)
                 {
-                    float factor = under ? 1f : natural;
-                    if (factor > 0f)
+                    case PlotState.Dry:
                     {
-                        float rate = soil * factor / Config.RipeTimes[(int)plot.Tier];
-                        plot.Growth = Math.Min(1f, plot.Growth + rate * dt);
+                        // Ring rate replaces the passive rate; passive uses the crop's base speed (no ring upgrades).
+                        float speed = under ? st.RingWaterMult : st.IrrigationFactor;
+                        if (speed <= 0f) break;
+                        plot.Progress += speed / crop.Water * dt;
+                        if (plot.Progress >= 1f)
+                        {
+                            plot.State = PlotState.Wet;
+                            plot.Progress = 0f;
+                            PlotWatered?.Invoke(plot.Pos);
+                        }
+                        break;
+                    }
+                    case PlotState.Wet:
+                    {
+                        float speed = (under ? st.RingGrowMult : st.SunFactor) * st.SoilMultiplier;
+                        if (speed <= 0f) break;
+                        plot.Progress += speed / crop.Grow * dt;
+                        if (plot.Progress >= 1f)
+                        {
+                            plot.State = PlotState.Ripe;
+                            plot.Progress = 0f;
+                            PlotRipened?.Invoke(plot.Pos);
+                        }
+                        break;
+                    }
+                    case PlotState.Ripe:
+                    {
+                        if (!under) break;
+                        plot.Progress += st.RingHarvestMult / crop.Harvest * dt;
+                        if (plot.Progress >= 1f)
+                            Harvest(plot, HarvestSource.Ring, -1);
+                        break;
                     }
                 }
-                if (plot.IsRipe && under)
-                    Harvest(plot, HarvestSource.Ring);
             }
         }
 
-        private void Harvest(Plot plot, HarvestSource source)
+        private void Harvest(Plot plot, HarvestSource source, int apprenticeIndex)
         {
-            double coins = Config.CropValues[(int)plot.Tier];
-            State.Coins += coins;
-            plot.Growth = 0f;
+            var st = State.Stats;
+            double coins = Crop(plot).Value * st.CropValueMult;
+            coins *= source == HarvestSource.Ring ? st.RingBonusMult : st.ApprenticeYield;
+            AddCoins(coins);
+            int tier = plot.Tier;
+            plot.Reset();
             if (plot.HasCrow)
             {
                 RemoveCrowAt(plot.Pos);
-                CrowScared?.Invoke(new CrowEvent(plot.Pos));
+                CrowScared?.Invoke(new CrowEvent(plot.Pos, 0));
             }
-            Harvested?.Invoke(new HarvestEvent(plot.Pos, plot.Tier, coins, source));
+            Harvested?.Invoke(new HarvestEvent(plot.Pos, tier, coins, source, apprenticeIndex));
         }
 
-        // ------------------------------------------------------------------ apprentice
-
-        private void UpdateApprentice(float dt)
+        private void AddCoins(double coins)
         {
-            var a = State.Apprentice;
-            if (!a.Owned) return;
+            State.Coins += coins;
+            State.LifetimeCoins += coins;
+        }
 
-            if (a.HasTarget && !State.GetPlot(a.Target).IsRipe)
+        // ------------------------------------------------------------------ apprentices
+
+        private void SyncApprenticeCount()
+        {
+            var list = State.ApprenticeList;
+            int want = State.Stats.ApprenticeCount;
+            while (list.Count < want)
             {
-                // Someone else (the ring) got it first.
+                var a = new ApprenticeState { Index = list.Count };
+                list.Add(a);
+                PlaceIdle(a);
+                a.X = a.IdleX;
+                a.Y = a.IdleY;
+            }
+            while (list.Count > want) list.RemoveAt(list.Count - 1);
+            foreach (var a in list) PlaceIdle(a);
+        }
+
+        private void PlaceIdle(ApprenticeState a)
+        {
+            int count = Math.Max(1, State.ApprenticeList.Count);
+            float span = State.GridSize - 1f;
+            a.IdleX = count == 1 ? span * 0.5f : span * a.Index / (count - 1f);
+            a.IdleY = -Config.ApprenticeIdleOffset;
+        }
+
+        private void ResetApprentices()
+        {
+            foreach (var a in State.ApprenticeList)
+            {
+                PlaceIdle(a);
+                a.X = a.IdleX;
+                a.Y = a.IdleY;
                 a.HasTarget = false;
                 a.IsHarvesting = false;
                 a.HarvestProgress = 0f;
-            }
-
-            if (!a.HasTarget)
-            {
-                Plot best = null;
-                float bestDist = float.MaxValue;
-                foreach (var p in State.PlotArray)
-                {
-                    if (!p.IsRipe) continue;
-                    float dx = p.Pos.X - a.X, dy = p.Pos.Y - a.Y;
-                    float d = dx * dx + dy * dy;
-                    if (d < bestDist)
-                    {
-                        bestDist = d;
-                        best = p;
-                    }
-                }
-                if (best == null) return;
-                a.Target = best.Pos;
-                a.HasTarget = true;
-            }
-
-            if (a.IsHarvesting)
-            {
-                a.HarvestProgress += Config.ApprenticeHarvestTime <= 0f ? 1f : dt / Config.ApprenticeHarvestTime;
-                if (a.HarvestProgress >= 1f)
-                {
-                    Harvest(State.GetPlot(a.Target), HarvestSource.Apprentice);
-                    a.IsHarvesting = false;
-                    a.HasTarget = false;
-                    a.HarvestProgress = 0f;
-                }
-                return;
-            }
-
-            int level = State.GetLevel(UpgradeId.Apprentice);
-            float speed = Config.ApprenticeBaseSpeed + Config.ApprenticeSpeedPerLevel * Math.Max(0, level - 1);
-            float tx = a.Target.X, ty = a.Target.Y;
-            float ddx = tx - a.X, ddy = ty - a.Y;
-            float dist = (float)Math.Sqrt(ddx * ddx + ddy * ddy);
-            float step = speed * dt;
-            if (dist <= step || dist < 1e-4f)
-            {
-                a.X = tx;
-                a.Y = ty;
-                a.IsHarvesting = true;
-                a.HarvestProgress = 0f;
-            }
-            else
-            {
-                a.X += ddx / dist * step;
-                a.Y += ddy / dist * step;
+                a.IsWalking = false;
             }
         }
 
-        private void ResetApprenticePosition()
+        private bool IsTargetedByOther(GridPos pos, ApprenticeState self)
         {
-            var a = State.Apprentice;
-            a.X = (State.GridSize - 1) * 0.5f;
-            a.Y = -1.2f;
-            a.HasTarget = false;
-            a.IsHarvesting = false;
-            a.HarvestProgress = 0f;
+            foreach (var o in State.ApprenticeList)
+                if (o != self && o.HasTarget && o.Target == pos) return true;
+            return false;
+        }
+
+        private void UpdateApprentices(float dt)
+        {
+            var st = State.Stats;
+            foreach (var a in State.ApprenticeList)
+            {
+                if (a.HasTarget && !State.GetPlot(a.Target).IsRipe)
+                {
+                    // The ring (or another helper) took it first.
+                    a.HasTarget = false;
+                    a.IsHarvesting = false;
+                    a.HarvestProgress = 0f;
+                }
+
+                if (!a.HasTarget)
+                {
+                    Plot best = null;
+                    float bestDist = float.MaxValue;
+                    foreach (var p in State.PlotArray)
+                    {
+                        if (!p.IsRipe || IsTargetedByOther(p.Pos, a)) continue;
+                        float dx = p.Pos.X - a.X, dy = p.Pos.Y - a.Y;
+                        float d = dx * dx + dy * dy;
+                        if (d < bestDist)
+                        {
+                            bestDist = d;
+                            best = p;
+                        }
+                    }
+                    if (best != null)
+                    {
+                        a.Target = best.Pos;
+                        a.HasTarget = true;
+                    }
+                }
+
+                if (a.IsHarvesting)
+                {
+                    float time = st.ApprenticeHarvestTime;
+                    a.HarvestProgress += time <= 0f ? 1f : dt / time;
+                    a.IsWalking = false;
+                    if (a.HarvestProgress >= 1f)
+                    {
+                        Harvest(State.GetPlot(a.Target), HarvestSource.Apprentice, a.Index);
+                        a.IsHarvesting = false;
+                        a.HasTarget = false;
+                        a.HarvestProgress = 0f;
+                    }
+                    continue;
+                }
+
+                float tx = a.HasTarget ? a.Target.X : a.IdleX;
+                float ty = a.HasTarget ? a.Target.Y : a.IdleY;
+                float ddx = tx - a.X, ddy = ty - a.Y;
+                float dist = (float)Math.Sqrt(ddx * ddx + ddy * ddy);
+                float step = st.ApprenticeSpeed * dt;
+                if (dist <= step || dist < 1e-4f)
+                {
+                    a.X = tx;
+                    a.Y = ty;
+                    a.IsWalking = false;
+                    if (a.HasTarget)
+                    {
+                        a.IsHarvesting = true;
+                        a.HarvestProgress = 0f;
+                    }
+                }
+                else
+                {
+                    a.X += ddx / dist * step;
+                    a.Y += ddy / dist * step;
+                    a.IsWalking = true;
+                }
+            }
         }
 
         // ------------------------------------------------------------------ crows
@@ -327,7 +466,7 @@ namespace TillWinter.Core
                 if (crow.Timer >= crow.EatTime)
                 {
                     var plot = State.GetPlot(crow.Pos);
-                    plot.Growth = 0f;
+                    plot.Reset();
                     plot.HasCrow = false;
                     crows.RemoveAt(i);
                     CrowAte?.Invoke(new CrowEvent(crow.Pos));
@@ -335,7 +474,6 @@ namespace TillWinter.Core
             }
 
             if (State.Year < Config.CrowFirstYear) return;
-            if (State.GetLevel(UpgradeId.Scarecrow) > 0) return;
 
             _crowSpawnTimer += dt;
             while (_crowSpawnTimer >= Config.CrowSpawnInterval)
@@ -352,7 +490,7 @@ namespace TillWinter.Core
             foreach (var p in State.PlotArray)
                 if (p.IsRipe && !p.HasCrow && !State.IsUnderRing(p.Pos)) _scratch.Add(p);
             if (_scratch.Count == 0) return;
-            if (_rng.NextDouble() >= Config.CrowSpawnChance) return;
+            if (_rng.NextDouble() >= State.Stats.CrowSpawnChance) return;
             SpawnCrowAt(_scratch[_rng.Next(_scratch.Count)].Pos);
         }
 
@@ -377,7 +515,7 @@ namespace TillWinter.Core
             State.CrowList.Clear();
         }
 
-        // ------------------------------------------------------------------ field & shop
+        // ------------------------------------------------------------------ field & almanac
 
         private void BuildField(int size)
         {
@@ -387,57 +525,47 @@ namespace TillWinter.Core
             for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++)
             {
-                var pos = new GridPos(x, y);
-                // Existing plots keep their index (field is anchored bottom-left); new ring starts at tier 0.
-                if (old != null && x < oldSize && y < oldSize)
-                {
-                    var p = old[y * oldSize + x];
-                    plots[y * size + x] = p;
-                }
-                else
-                {
-                    plots[y * size + x] = new Plot(pos, CropTier.Carrot);
-                }
+                // Existing plots keep their index (field is anchored bottom-left); new ones start at tier 0, Dry.
+                plots[y * size + x] = old != null && x < oldSize && y < oldSize
+                    ? old[y * oldSize + x]
+                    : new Plot(new GridPos(x, y), 0);
             }
             State.PlotArray = plots;
             State.GridSize = size;
+            foreach (var a in State.ApprenticeList) PlaceIdle(a);
         }
 
-        private void ApplyUpgrade(UpgradeId id)
+        private Plot FindLowestUpgradablePlot()
         {
-            switch (id)
+            int cap = State.Stats.MaxTierUnlocked;
+            Plot lowest = null;
+            foreach (var p in State.PlotArray) // row-major: first lowest wins ties
+                if (p.Tier < cap && (lowest == null || p.Tier < lowest.Tier)) lowest = p;
+            return lowest;
+        }
+
+        private void ApplyPurchase(AlmanacNode node)
+        {
+            switch (node.Effect)
             {
-                case UpgradeId.ExpandField:
+                case EffectType.ExpandField:
                     BuildField(Math.Min(Config.MaxGridSize, State.GridSize + 1));
                     FieldExpanded?.Invoke();
                     break;
-                case UpgradeId.UpgradePlot:
+                case EffectType.UpgradePlot:
                 {
-                    Plot lowest = null;
-                    foreach (var p in State.PlotArray) // row-major: first lowest wins ties
-                        if (lowest == null || p.Tier < lowest.Tier) lowest = p;
-                    if (lowest != null && (int)lowest.Tier < Config.MaxTier)
-                        lowest.Tier = lowest.Tier + 1;
+                    var plot = FindLowestUpgradablePlot();
+                    if (plot != null) plot.Tier++;
                     break;
                 }
-                case UpgradeId.Apprentice:
-                    if (!State.Apprentice.Owned)
-                    {
-                        State.Apprentice.Owned = true;
-                        ResetApprenticePosition();
-                    }
-                    break;
             }
         }
 
-        private void RecomputeDerived()
+        private void ResolveStats()
         {
-            float radius = Config.BaseRingRadius + Config.RingRadiusPerLevel * State.GetLevel(UpgradeId.RingRadius);
-            radius = Math.Min(Config.MaxRingRadius, radius);
-            State.RingRadius = _ringRadiusOverride ?? radius;
-
-            float length = Config.BaseYearLength + Config.CalendarPerLevel * State.GetLevel(UpgradeId.Calendar);
-            State.YearLength = Math.Min(Config.MaxYearLength, length);
+            State.Stats = StatResolver.Resolve(Config, State.LevelMap, Nodes);
+            State.RingRadius = _ringRadiusOverride ?? State.Stats.RingRadius;
+            SyncApprenticeCount();
         }
     }
 }

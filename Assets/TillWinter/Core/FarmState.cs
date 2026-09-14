@@ -4,18 +4,26 @@ namespace TillWinter.Core
 {
     public sealed class Plot
     {
-        public GridPos Pos { get; internal set; }
-        public CropTier Tier { get; internal set; }
-        /// <summary>0..1; clamped to 1 while the plot waits ripe outside the ring.</summary>
-        public float Growth { get; internal set; }
-        public bool IsRipe => Growth >= 1f;
+        public GridPos Pos { get; }
+        public int Tier { get; internal set; }
+        public PlotState State { get; internal set; }
+        /// <summary>0..1 progress of the current state (Dry: watering, Wet: growing, Ripe: ring harvest).</summary>
+        public float Progress { get; internal set; }
+        public bool IsRipe => State == PlotState.Ripe;
         public bool HasCrow { get; internal set; }
 
-        internal Plot(GridPos pos, CropTier tier)
+        internal Plot(GridPos pos, int tier)
         {
             Pos = pos;
             Tier = tier;
-            Growth = 0f;
+            State = PlotState.Dry;
+            Progress = 0f;
+        }
+
+        internal void Reset()
+        {
+            State = PlotState.Dry;
+            Progress = 0f;
         }
     }
 
@@ -30,26 +38,32 @@ namespace TillWinter.Core
 
     public sealed class ApprenticeState
     {
-        public bool Owned { get; internal set; }
+        public int Index { get; internal set; }
         /// <summary>Position in plot space.</summary>
         public float X { get; internal set; }
         public float Y { get; internal set; }
+        /// <summary>Where it waits when nothing is Ripe.</summary>
+        public float IdleX { get; internal set; }
+        public float IdleY { get; internal set; }
         public bool HasTarget { get; internal set; }
         public GridPos Target { get; internal set; }
         public bool IsHarvesting { get; internal set; }
         public float HarvestProgress { get; internal set; }
-        public bool IsWalking => Owned && HasTarget && !IsHarvesting;
+        /// <summary>True while moving (toward a target or back to the idle spot).</summary>
+        public bool IsWalking { get; internal set; }
     }
 
     /// <summary>Read-only view of the simulation for the presentation layer.</summary>
     public sealed class FarmState
     {
         public double Coins { get; internal set; }
+        /// <summary>Coins earned in this generation (for Heritage later).</summary>
+        public double LifetimeCoins { get; internal set; }
         public int Year { get; internal set; } = 1;
         public Season Season { get; internal set; } = Season.Spring;
         /// <summary>Seconds elapsed in the current year (frozen in Winter).</summary>
         public float YearTime { get; internal set; }
-        public float YearLength { get; internal set; }
+        public float YearLength => Stats.YearLength;
         public bool IsWinter => Season == Season.Winter;
         public bool FrostWarning { get; internal set; }
         public float SecondsUntilWinter => System.Math.Max(0f, YearLength - YearTime);
@@ -62,15 +76,21 @@ namespace TillWinter.Core
         public bool InBounds(GridPos pos) => pos.X >= 0 && pos.Y >= 0 && pos.X < GridSize && pos.Y < GridSize;
 
         public RingInput? Ring { get; internal set; }
+        /// <summary>Effective radius (debug override or <see cref="Stats"/>).</summary>
         public float RingRadius { get; internal set; }
 
         internal readonly List<Crow> CrowList = new List<Crow>();
         public IReadOnlyList<Crow> Crows => CrowList;
 
-        public ApprenticeState Apprentice { get; } = new ApprenticeState();
+        internal readonly List<ApprenticeState> ApprenticeList = new List<ApprenticeState>();
+        public IReadOnlyList<ApprenticeState> Apprentices => ApprenticeList;
 
-        internal readonly Dictionary<UpgradeId, int> LevelMap = new Dictionary<UpgradeId, int>();
-        public int GetLevel(UpgradeId id) => LevelMap.TryGetValue(id, out var l) ? l : 0;
+        internal readonly Dictionary<string, int> LevelMap = new Dictionary<string, int>();
+        public IReadOnlyDictionary<string, int> AlmanacLevels => LevelMap;
+        public int GetLevel(string nodeId) => LevelMap.TryGetValue(nodeId, out var l) ? l : 0;
+
+        /// <summary>Derived numbers; recomputed after every purchase.</summary>
+        public Stats Stats { get; internal set; } = new Stats();
 
         /// <summary>Is the centre of this plot inside the ring right now?</summary>
         public bool IsUnderRing(GridPos pos)

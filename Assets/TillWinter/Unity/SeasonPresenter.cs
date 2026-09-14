@@ -156,7 +156,7 @@ namespace TillWinter.Unity
             var state = _game.State;
             float frost = 0f;
             if (state.FrostWarning && !state.IsWinter)
-                frost = Mathf.Clamp01(1f - state.SecondsUntilWinter / Mathf.Max(0.01f, _game.Sim.Config.FrostWarningSeconds));
+                frost = Mathf.Clamp01(1f - state.SecondsUntilWinter / Mathf.Max(0.01f, _game.State.Stats.FrostWarningSeconds));
 
             Apply(_current, frost);
 

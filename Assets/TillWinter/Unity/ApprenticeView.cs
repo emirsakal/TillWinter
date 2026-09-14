@@ -1,43 +1,76 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TillWinter.Unity
 {
-    /// <summary>Capsule with a straw hat. Bobs while walking, squashes while harvesting.</summary>
-    public sealed class ApprenticeView : MonoBehaviour
+    /// <summary>Renders every apprentice in <see cref="TillWinter.Core.FarmState.Apprentices"/>: one capsule each, different hat colours.</summary>
+    public sealed class ApprenticesView : MonoBehaviour
     {
+        private static readonly Color[] HatColors =
+        {
+            new Color(0.9f, 0.78f, 0.4f), new Color(0.85f, 0.35f, 0.3f), new Color(0.35f, 0.6f, 0.85f),
+            new Color(0.5f, 0.75f, 0.35f), new Color(0.75f, 0.45f, 0.8f), new Color(0.95f, 0.6f, 0.2f),
+        };
+
         private GameController _game;
-        private Transform _body;
-        private Vector3 _lastPos;
-        private float _bob;
-        private float _facing;
+        private readonly List<ApprenticeView> _views = new List<ApprenticeView>();
+        private Material _shirt, _skin;
 
         public void Init(GameController game)
         {
             _game = game;
-            _body = new GameObject("Body").transform;
-            _body.SetParent(transform, false);
-            var shirt = Prims.Lit(new Color(0.32f, 0.5f, 0.8f), 0.2f);
-            var skin = Prims.Lit(new Color(0.95f, 0.8f, 0.65f), 0.2f);
-            var straw = Prims.Lit(new Color(0.9f, 0.78f, 0.4f), 0.1f);
-            Prims.Primitive(PrimitiveType.Capsule, _body, "Torso", new Vector3(0f, 0.3f, 0f), new Vector3(0.24f, 0.24f, 0.24f), shirt);
-            Prims.Primitive(PrimitiveType.Sphere, _body, "Head", new Vector3(0f, 0.6f, 0f), new Vector3(0.2f, 0.2f, 0.2f), skin);
-            Prims.Primitive(PrimitiveType.Cylinder, _body, "Brim", new Vector3(0f, 0.68f, 0f), new Vector3(0.34f, 0.015f, 0.34f), straw);
-            Prims.Primitive(PrimitiveType.Cylinder, _body, "Crown", new Vector3(0f, 0.73f, 0f), new Vector3(0.16f, 0.05f, 0.16f), straw);
-            _body.gameObject.SetActive(false);
+            _shirt = Prims.Lit(new Color(0.32f, 0.5f, 0.8f), 0.2f);
+            _skin = Prims.Lit(new Color(0.95f, 0.8f, 0.65f), 0.2f);
         }
 
         private void LateUpdate()
         {
-            var a = _game.State.Apprentice;
-            if (!a.Owned)
+            var list = _game.State.Apprentices;
+            while (_views.Count < list.Count)
             {
-                if (_body.gameObject.activeSelf) _body.gameObject.SetActive(false);
-                return;
+                var go = new GameObject("Apprentice " + _views.Count);
+                go.transform.SetParent(transform, false);
+                var v = go.AddComponent<ApprenticeView>();
+                v.Build(_shirt, _skin, Prims.Lit(HatColors[_views.Count % HatColors.Length], 0.1f));
+                _views.Add(v);
             }
-            if (!_body.gameObject.activeSelf) _body.gameObject.SetActive(true);
+            while (_views.Count > list.Count)
+            {
+                Destroy(_views[_views.Count - 1].gameObject);
+                _views.RemoveAt(_views.Count - 1);
+            }
+            for (int i = 0; i < list.Count; i++)
+                _views[i].Tick(_game, list[i], Time.deltaTime);
+        }
+    }
 
-            float dt = Time.deltaTime;
-            var target = _game.PlotToWorld(a.X, a.Y, 0.16f);
+    /// <summary>Capsule with a hat. Bobs while walking, squashes while harvesting.</summary>
+    public sealed class ApprenticeView : MonoBehaviour
+    {
+        private Transform _body;
+        private Vector3 _lastPos;
+        private float _bob;
+        private float _facing;
+        private bool _placed;
+
+        public void Build(Material shirt, Material skin, Material hat)
+        {
+            _body = new GameObject("Body").transform;
+            _body.SetParent(transform, false);
+            Prims.Primitive(PrimitiveType.Capsule, _body, "Torso", new Vector3(0f, 0.3f, 0f), new Vector3(0.24f, 0.24f, 0.24f), shirt);
+            Prims.Primitive(PrimitiveType.Sphere, _body, "Head", new Vector3(0f, 0.6f, 0f), new Vector3(0.2f, 0.2f, 0.2f), skin);
+            Prims.Primitive(PrimitiveType.Cylinder, _body, "Brim", new Vector3(0f, 0.68f, 0f), new Vector3(0.34f, 0.015f, 0.34f), hat);
+            Prims.Primitive(PrimitiveType.Cylinder, _body, "Crown", new Vector3(0f, 0.73f, 0f), new Vector3(0.16f, 0.05f, 0.16f), hat);
+        }
+
+        public void Tick(GameController game, TillWinter.Core.ApprenticeState a, float dt)
+        {
+            var target = game.PlotToWorld(a.X, a.Y, 0.16f);
+            if (!_placed)
+            {
+                _lastPos = target;
+                _placed = true;
+            }
             var delta = target - _lastPos;
             transform.position = target;
 

@@ -35,11 +35,12 @@ namespace TillWinter.Core
         }
     }
 
-    public enum CropTier
+    /// <summary>GDD §2.2. Each state has its own 0..1 progress.</summary>
+    public enum PlotState
     {
-        Carrot = 0,
-        Tomato = 1,
-        Corn = 2,
+        Dry = 0,
+        Wet = 1,
+        Ripe = 2,
     }
 
     public enum Season
@@ -50,16 +51,46 @@ namespace TillWinter.Core
         Winter = 3,
     }
 
-    public enum UpgradeId
+    public enum Branch
     {
+        Hand,
+        Soil,
+        Field,
+        Helpers,
+        Calendar,
+    }
+
+    /// <summary>What an Almanac node does. See <see cref="AlmanacData.Implemented"/> for which ones the sim applies.</summary>
+    public enum EffectType
+    {
+        RingRadius,
+        RingWaterSpeed,
+        RingGrowSpeed,
+        RingHarvestSpeed,
+        RingBonusCoins,
+        RingCombo,
+        Irrigation,
+        Sun,
+        SoilQuality,
+        CropValue,
+        FertileStart,
         ExpandField,
         UpgradePlot,
-        Soil,
-        Irrigation,
-        RingRadius,
-        Calendar,
-        Apprentice,
+        UnlockTier,
+        BulkUpgrade,
+        ApprenticeCount,
+        ApprenticeSpeed,
+        ApprenticeHarvestTime,
+        ApprenticeYield,
+        Tractor,
         Scarecrow,
+        HelperWater,
+        YearLength,
+        FrostWarning,
+        LateFrost,
+        Greenhouse,
+        CrowBounty,
+        SpringHeadStart,
     }
 
     public enum HarvestSource
@@ -71,26 +102,44 @@ namespace TillWinter.Core
     public readonly struct HarvestEvent
     {
         public readonly GridPos Pos;
-        public readonly CropTier Tier;
+        public readonly int Tier;
         public readonly double Coins;
         public readonly HarvestSource Source;
+        /// <summary>Index into <see cref="FarmState.Apprentices"/>, or -1 for the ring.</summary>
+        public readonly int ApprenticeIndex;
 
-        public HarvestEvent(GridPos pos, CropTier tier, double coins, HarvestSource source)
+        public HarvestEvent(GridPos pos, int tier, double coins, HarvestSource source, int apprenticeIndex)
         {
             Pos = pos;
             Tier = tier;
             Coins = coins;
             Source = source;
+            ApprenticeIndex = apprenticeIndex;
         }
     }
 
     public readonly struct CrowEvent
     {
         public readonly GridPos Pos;
+        /// <summary>Coins dropped (only for a tap-scare; 0 otherwise).</summary>
+        public readonly double Coins;
 
-        public CrowEvent(GridPos pos)
+        public CrowEvent(GridPos pos, double coins = 0)
         {
             Pos = pos;
+            Coins = coins;
+        }
+    }
+
+    public readonly struct PurchaseEvent
+    {
+        public readonly string NodeId;
+        public readonly int Level;
+
+        public PurchaseEvent(string nodeId, int level)
+        {
+            NodeId = nodeId;
+            Level = level;
         }
     }
 }

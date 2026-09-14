@@ -15,6 +15,7 @@ namespace TillWinter.Unity
         WinterChime,
         UiClick,
         Denied,
+        WaterSplash,
     }
 
     /// <summary>
@@ -68,6 +69,8 @@ namespace TillWinter.Unity
                 "click1", "click2", "click3");
             Register(SfxId.Denied, 0.5f, 0.0f, ref loaded, () => Gen("denied", 0.15f, t => Mathf.Sin(2f * Mathf.PI * 160f * t) * Mathf.Exp(-t * 12f)),
                 "impactMetal_light_000");
+            Register(SfxId.WaterSplash, 0.35f, 0.15f, ref loaded, () => Gen("splash", 0.12f, t => (float)(_rng.NextDouble() * 2 - 1) * Mathf.Exp(-t * 30f) * 0.6f),
+                "impactSoft_medium_001", "impactSoft_medium_003");
             UsingKenneyClips = loaded > 0;
             Debug.Log("[TillWinter] Audio: " + (UsingKenneyClips ? loaded + " Kenney clips loaded from Resources/Kenney" : "no Kenney clips found, using generated placeholders"));
         }

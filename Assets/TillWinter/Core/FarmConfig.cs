@@ -1,87 +1,76 @@
 namespace TillWinter.Core
 {
-    /// <summary>Static description of one shop entry.</summary>
+    /// <summary>One crop tier. Times are seconds under the ring at level 0 (GDD §2.3).</summary>
     [System.Serializable]
-    public sealed class UpgradeDef
+    public sealed class CropDef
     {
-        public UpgradeId Id;
-        public string Name;
-        public string Effect;
-        public double BaseCost;
-        /// <summary>-1 means "dynamic": <see cref="FarmSim.GetMaxLevel"/> decides (used by UpgradePlot).</summary>
-        public int MaxLevel;
+        /// <summary>Localization key, e.g. "crop.carrot". Core holds no user-facing strings.</summary>
+        public string Key;
+        public float Water;
+        public float Grow;
+        public float Harvest;
+        public double Value;
 
-        public UpgradeDef(UpgradeId id, string name, string effect, double baseCost, int maxLevel)
+        public CropDef(string key, float water, float grow, float harvest, double value)
         {
-            Id = id;
-            Name = name;
-            Effect = effect;
-            BaseCost = baseCost;
-            MaxLevel = maxLevel;
+            Key = key;
+            Water = water;
+            Grow = grow;
+            Harvest = harvest;
+            Value = value;
         }
     }
 
     /// <summary>
-    /// Every tunable number in the game. Plain C# so Core stays engine-free; the Unity layer may
-    /// wrap it in a ScriptableObject for tweaking.
+    /// Every tunable number that is not an Almanac node value. Plain C# so Core stays engine-free;
+    /// the Unity layer may wrap it in a ScriptableObject for tweaking. Per-level node values live in
+    /// <see cref="AlmanacData"/>.
     /// </summary>
     [System.Serializable]
     public sealed class FarmConfig
     {
-        // Field
+        // Field (GDD §2.4)
         public int StartGridSize = 3;
-        public int MaxGridSize = 5;
+        public int MaxGridSize = 6;
 
-        // Crops, indexed by tier
-        public string[] CropNames = { "Carrot", "Tomato", "Corn" };
-        public float[] RipeTimes = { 3f, 6f, 10f };
-        public double[] CropValues = { 1, 4, 12 };
-        public int MaxTier => RipeTimes.Length - 1;
+        // Crops (GDD §2.3), indexed by tier
+        public CropDef[] Crops =
+        {
+            new CropDef("crop.carrot", 1.0f, 1.5f, 0.5f, 1),
+            new CropDef("crop.tomato", 1.5f, 3.5f, 0.5f, 4),
+            new CropDef("crop.corn", 2.0f, 6.0f, 0.7f, 12),
+            new CropDef("crop.pumpkin", 3.0f, 10f, 1.0f, 35),
+            new CropDef("crop.grapes", 4.0f, 15f, 1.0f, 100),
+            new CropDef("crop.golden_wheat", 5.0f, 22f, 1.2f, 300),
+        };
+        public int MaxTier => Crops.Length - 1;
 
-        // Growth
-        public float SoilPerLevel = 0.25f;
-        public float IrrigationPerLevel = 0.15f;
-        public float BaseRingRadius = 1.5f;
-        public float RingRadiusPerLevel = 0.5f;
-        public float MaxRingRadius = 3f;
+        // Ring (GDD §2.1)
+        public float BaseRingRadius = 0.7f;
+        public float MaxRingRadius = 2.5f;
 
-        // Year
+        // Year (GDD §3)
         public float BaseYearLength = 90f;
-        public float CalendarPerLevel = 15f;
-        public float MaxYearLength = 150f;
-        public float FrostWarningSeconds = 10f;
+        public float MaxYearLength = 180f;
+        public float BaseFrostWarningSeconds = 10f;
 
-        // Crows
+        // Crows (GDD §5.1)
         public int CrowFirstYear = 2;
         public float CrowSpawnInterval = 4f;
-        public float CrowSpawnChance = 0.25f;
+        /// <summary>Indexed by scarecrow level. Never 0 in the Almanac.</summary>
+        public float[] CrowSpawnChanceByScarecrow = { 0.25f, 0.15f, 0.08f };
         public int MaxCrows = 2;
         public float CrowEatTime = 4f;
+        /// <summary>A tap-scared crow drops this × crop value.</summary>
+        public double CrowScareValueMultiplier = 2;
 
-        // Apprentice
+        // Apprentices (GDD §4)
         public float ApprenticeBaseSpeed = 1.5f;
-        public float ApprenticeSpeedPerLevel = 0.5f;
-        public float ApprenticeHarvestTime = 0.5f;
-
-        // Shop
-        public double CostGrowth = 1.6;
-        public UpgradeDef[] Upgrades =
-        {
-            new UpgradeDef(UpgradeId.ExpandField, "Expand Field", "Adds a ring of plots (3x3 to 4x4 to 5x5)", 60, 2),
-            new UpgradeDef(UpgradeId.UpgradePlot, "Upgrade Plot", "Raises the lowest-tier plot by one crop tier", 15, -1),
-            new UpgradeDef(UpgradeId.Soil, "Soil", "+25% growth speed", 25, 5),
-            new UpgradeDef(UpgradeId.Irrigation, "Irrigation", "Crops grow outside the ring (+15% of ring speed)", 40, 3),
-            new UpgradeDef(UpgradeId.RingRadius, "Ring Radius", "+0.5 plots ring radius", 30, 3),
-            new UpgradeDef(UpgradeId.Calendar, "Calendar", "+15 s year length", 35, 4),
-            new UpgradeDef(UpgradeId.Apprentice, "Apprentice", "Helper harvests ripe plots (then +speed)", 80, 3),
-            new UpgradeDef(UpgradeId.Scarecrow, "Scarecrow", "No crows", 50, 1),
-        };
-
-        public UpgradeDef GetUpgrade(UpgradeId id)
-        {
-            foreach (var u in Upgrades)
-                if (u.Id == id) return u;
-            return null;
-        }
+        public float ApprenticeBaseHarvestTime = 1.0f;
+        public float ApprenticeMinHarvestTime = 0.4f;
+        /// <summary>Indexed by apprentice_yield level.</summary>
+        public double[] ApprenticeYieldByLevel = { 0.5, 0.75, 1.0, 1.15, 1.3 };
+        /// <summary>How far below the field's bottom row apprentices idle (plot units).</summary>
+        public float ApprenticeIdleOffset = 1.2f;
     }
 }
