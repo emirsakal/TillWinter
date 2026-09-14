@@ -185,8 +185,35 @@ When every Heritage node is maxed, the next year is the **Golden Year**: the fie
 - 2.5D: orthographic camera ~40° tilt, portrait, flat/toon shading, no textures.
 - Plot states must read at a glance: Dry = cracked light brown; Wet = dark soil + sprout; growing = scaling plant; Ripe = wobble + warm emissive.
 - Seasons via one directional light, ambient colour, colour-adjust volume; frost/winter vignette; snow.
-- Asset decision (after core is done): (a) Kenney CC0 low-poly kits, or (b) authored primitives in a consistent "toy farm" style. Paid packs only if cheap. Licenses live in the repo.
 - Feel checklist: harvest pop + coin arc to counter + counter punch; wet splash on watering; sprout pop on Wet; crow flap; purchase punch; node-unlock burst on the tree; season lerps 1.5 s.
+
+*(v1.4, Session 6)* Asset decision resolved per-asset rather than kit-vs-primitives wholesale:
+Kenney CC0 kits (Nature Kit, Food Kit, Mini Characters, Game Icons — stripped to only the files
+used, licenses in `Assets/Art/LICENSES.md`) for crops, trees/decor, apprentices and node icons;
+everything the kits don't cover (houses, well, windmill, greenhouse, tractor, crow, cloud, plot,
+path tile, signpost, flowerbed, trellis) is built from primitives, generated into prefabs by
+`ArtSetup`/`art-setup.bat` rather than at runtime. Every spawned object comes from one
+`VisualCatalog` (Resources) through `VisualCatalog.Spawn`.
+
+Look is unified by one hand-written URP shader, `TW_Toon` (flat two-step ramp, vertex-colour x
+tint, optional emission, snow lerp, GPU instancing) plus `TW_Sky` for the diorama backdrop — Shader
+Graph's file format proved unreliable to author from code, so these are HLSL text. One material
+per `PaletteSlot` keeps identical meshes GPU-instanced; `Palette` (Resources) pushes colours into
+those materials at boot, and per-object variation (plot Dry/Wet/ring soil, golden emission, ring
+lift) goes through `PaletteBinder` + a `MaterialPropertyBlock` per renderer instead of extra
+materials. `SeasonPalette` (Resources) holds per-season light, ambient, fog, grass/leaf tint, sky
+and snow amount; `SeasonPresenter` lerps between them (1.5 s) and drives snow/tint as shader
+globals, so Winter recolours everything through the shader with no mesh swaps. The diorama
+(`DioramaView`) builds the soil block, path, fence and farmhouse (small/medium/large by
+generation) around the field from the same catalogue. The ring stays a textured decal-style disc
+(URP decal projectors did not render correctly on the orthographic camera in this project).
+
+Quality tiers (`QualityTiers`): Low (no shadows, no post) auto-selected on mobile devices under
+3 GB RAM / 1 GB VRAM, Default (soft shadows + colour volume) otherwise; a debug-panel toggle
+overrides it. Measured draw-call budgets (Editor Game view, 1080x2340): 3x3 generation 1 is 45
+batches / 67 draw calls / 4.7k triangles; 6x6 generation 3 with seven apprentices and the tractor
+is 106 batches / 142 draw calls / 27.8k triangles, against a smoke-test budget of <=150 batches /
+<=60k triangles.
 
 ---
 

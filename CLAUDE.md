@@ -21,7 +21,7 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - `[System.Serializable]` on Core classes is fine; `UnityEngine.*` is not. Editor tooling lives in `Assets/TillWinter/Editor/`.
 - **Every node does something.** No `NotImplemented` flag exists; a new node must be applied in `StatResolver` or a `FarmSim` switch and added to the explicit map in `EventsTests` in the same commit.
 - **Onboarding hints are one-shot flags in Core.** `Hint` enum + `OnboardingFlags` on `FarmState` (saved); `FarmSim.MarkHint` returns true only the first time. The Unity layer never invents its own "shown before" bool or reads/writes `PlayerPrefs` for this — a hint that must fire once has to round-trip through Core.
-- Presentation is built in code from one `Bootstrap` object in `Farm.unity` (`GameBootstrap`); programmer art via `Prims`, uGUI via `UiKit`, input via `PointerInput`, strings via `Localize`.
+- Presentation is built in code from one `Bootstrap` object in `Farm.unity` (`GameBootstrap`); visuals via `VisualCatalog`, uGUI via `UiKit`, input via `PointerInput`, strings via `Localize`.
 
 ## Conventions
 
@@ -38,6 +38,14 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - Colours and metrics of the tree screens live in `TreeTheme` (Resources asset, one per tree — e.g. `HeritageTheme` — including its `InitialZoom`); HUD colours/spacing live in `HudTheme` (Resources asset). No hard-coded colours in `HudView`, `SkillTreeView` or `WinterScreen`; `UiKit` palette constants are for debug/placeholder panels only.
 - Skill trees render through the generic `SkillTreeView` + `SkillTreeLayout`; no hand-placed nodes.
 - Scene edits go through editor code (`UiSetup.WireBootstrap` pattern), never by hand-editing YAML.
+
+## Art rules
+
+- All visuals are spawned through `VisualCatalog.Spawn` (Resources asset); `GameBootstrap` and views never build primitives at runtime — primitive builders live only in `Assets/TillWinter/Editor/ArtSetup.cs`.
+- All colours come from `Palette`, `PaletteBinder` or `SeasonPalette`; no literal `Color` in a view. `PaletteBinder` (one `MaterialPropertyBlock` per renderer) is the only place per-object colour variation happens.
+- Only `TW_Toon.shader` (+ `TW_Sky.shader`, UI shaders) may appear on a material under `Assets/Art`; no Standard/Lit materials, no Shader Graph.
+- Kenney assets are imported only through `ArtSetup`/`art-setup.bat`, with each kit's `License.txt` kept next to it and indexed in `Assets/Art/LICENSES.md`. Strip unused kit files on import.
+- `art-setup.bat` regenerates prefabs, per-slot materials and `VisualCatalog`; it is idempotent — re-run after changing a prefab default in code.
 
 ## Token rules
 
