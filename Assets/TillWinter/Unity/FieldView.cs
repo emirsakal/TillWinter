@@ -36,6 +36,7 @@ namespace TillWinter.Unity
             _game.Sim.CrowAte += OnCrowAte;
             _game.Sim.FieldExpanded += Rebuild;
             _game.Sim.GenerationStarted += RebuildTrees;
+            _game.Sim.Retired += _ => Rebuild();
             _trunk = Prims.Lit(new Color(0.45f, 0.3f, 0.18f), 0.05f);
             _canopy = Prims.Lit(new Color(0.25f, 0.55f, 0.28f), 0.1f);
             RebuildTrees();
@@ -75,6 +76,13 @@ namespace TillWinter.Unity
         private void Rebuild()
         {
             var state = _game.State;
+            var gone = new List<GridPos>();
+            foreach (var kv in _plots) if (!state.InBounds(kv.Key)) gone.Add(kv.Key);
+            foreach (var pos in gone)
+            {
+                Destroy(_plots[pos].gameObject);
+                _plots.Remove(pos);
+            }
             foreach (var plot in state.Plots)
             {
                 if (_plots.ContainsKey(plot.Pos)) continue;

@@ -50,6 +50,9 @@ namespace TillWinter.EditorTools
             Directory.CreateDirectory(OutDir);
             foreach (var f in Directory.GetFiles(OutDir))
                 if (f.EndsWith(".png") || f.EndsWith("report.txt")) File.Delete(f);
+            var savePath = Path.Combine(Application.persistentDataPath, SaveController.FileName);
+            foreach (var f in new[] { savePath, savePath + ".bak", savePath + ".tmp" })
+                if (File.Exists(f)) File.Delete(f);
             SessionState.SetBool(ActiveKey, true);
             SessionState.SetInt(StepKey, 0);
             EditorApplication.update += Tick;
@@ -111,7 +114,17 @@ namespace TillWinter.EditorTools
             if (elapsed > 180) { Fail("Timed out"); return; }
 
             if (_holding && _mouse != null)
+            {
                 InputSystem.QueueStateEvent(_mouse, new MouseState { position = _holdPos }.WithButton(MouseButton.Left));
+                // Editor focus can swallow injected input; after 1 s without a ring, drive the pointer directly.
+                _holdFrames++;
+                if (_holdFrames > 60 && _game.CurrentRing == null && !_fallback)
+                {
+                    _fallback = true;
+                    Log("Input System injection not reaching the game; using GameController.DebugPointerScreen");
+                }
+                if (_fallback) _game.DebugPointerScreen = _holdPos;
+            }
 
             var s = _game.State;
             switch (_phase)
@@ -130,15 +143,16 @@ namespace TillWinter.EditorTools
                     }
                     break;
                 case 2:
-                    if (inPhase > 2.0 && _game.CurrentRing == null)
+                    if (inPhase > 2.0 && _game.CurrentRing == null && !_warnedInput)
                     {
-                        Log("Input System injection did not reach the game; is the Game view focused? Falling back to direct ring.");
+                        _warnedInput = true;
+                        Log("Ring still off 2 s after the virtual press (Game view focus?)");
                     }
-                    if (inPhase > 4.0)
+                    if (inPhase > 6.0)
                     {
                         Shot("02-harvesting");
                         Log("After 4 s of ring: coins=" + s.Coins + " harvests=" + _harvests + " ring=" + (_game.CurrentRing.HasValue ? "on" : "off"));
-                        Check(s.Coins >= 1, "at least one carrot harvested after 4 s under the 0.7 ring (got " + s.Coins + ")");
+                        Check(s.Coins >= 1, "at least one carrot harvested after 6 s under the 0.7 ring (got " + s.Coins + ", ring " + (_game.CurrentRing.HasValue ? "on" : "off") + ", pointer=" + (Pointer.current == null ? "null" : Pointer.current.name) + " down=" + _game.Pointer.Current.IsDown + " blocked=" + _game.InputBlocked + " overUi=" + (UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) + " phase=" + s.Phase + ")");
                         Check(_harvests >= 1, "Harvested fired");
                         Next();
                     }
@@ -215,6 +229,7 @@ namespace TillWinter.EditorTools
                             var pos = s.Crows[0].Pos;
                             var sp = ScreenOf(pos.X, pos.Y);
                             InputSystem.QueueStateEvent(_mouse, new MouseState { position = sp }.WithButton(MouseButton.Left));
+                            if (_fallback) _game.DebugTapScreen = sp;
                             _tapPos = sp;
                             _tapState = 1;
                         }
@@ -280,6 +295,9 @@ namespace TillWinter.EditorTools
         }
 
         private static Vector2 _tapPos;
+        private static bool _warnedInput;
+        private static bool _fallback;
+        private static int _holdFrames;
         private static int _tapState;
 
         private static Vector2 ScreenOf(float plotX, float plotY)
@@ -292,6 +310,8 @@ namespace TillWinter.EditorTools
         private static void Release()
         {
             if (_mouse != null) InputSystem.QueueStateEvent(_mouse, new MouseState { position = _holdPos });
+            _game.DebugPointerScreen = null;
+            _holdFrames = 0;
         }
 
         private static void Next()

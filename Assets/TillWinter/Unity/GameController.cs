@@ -20,6 +20,10 @@ namespace TillWinter.Unity
         public bool InputBlocked;
         public Camera Cam;
         public PointerInput Pointer;
+        /// <summary>Debug/smoke-test hook: a held pointer at this screen position (bypasses the Input System).</summary>
+        public Vector2? DebugPointerScreen;
+        /// <summary>Debug/smoke-test hook: a one-shot tap at this screen position; cleared after use.</summary>
+        public Vector2? DebugTapScreen;
 
         /// <summary>Sim seconds elapsed (respects TimeScale). Use for animation that should follow the sim.</summary>
         public float SimTime { get; private set; }
@@ -69,6 +73,17 @@ namespace TillWinter.Unity
             if (!InputBlocked && Pointer != null)
             {
                 var s = Pointer.Current;
+                if (DebugPointerScreen.HasValue)
+                {
+                    s.IsDown = true;
+                    s.Position = DebugPointerScreen.Value;
+                }
+                if (DebugTapScreen.HasValue)
+                {
+                    s.Tapped = true;
+                    s.TapPosition = DebugTapScreen.Value;
+                    DebugTapScreen = null;
+                }
                 if (s.IsDown && TryScreenToPlot(s.Position, out var p))
                     ring = new RingInput(p.x, p.y + RingOffsetPlots);
                 if (s.Tapped && TryScreenToPlot(s.TapPosition, out var tp))
