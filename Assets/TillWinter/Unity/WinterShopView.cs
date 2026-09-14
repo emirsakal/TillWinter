@@ -6,14 +6,15 @@ using UnityEngine.UI;
 namespace TillWinter.Unity
 {
     /// <summary>
-    /// Placeholder Almanac: a scrolling list generated from <see cref="AlmanacData"/>, grouped by branch,
-    /// showing locked / available / maxed / not-implemented states. The tree canvas comes in a later session.
+    /// Placeholder winter panel: Almanac and Heritage lists (grouped by branch) as two tabs,
+    /// "Next Year", "Pass on the farm" (with confirm) and "Start new generation". Shown whenever the
+    /// phase is not Year. The tree canvas comes in a later session.
     /// </summary>
     public sealed class WinterShopView : MonoBehaviour
     {
         private sealed class Row
         {
-            public AlmanacNode Node;
+            public SkillNode Node;
             public Image Box;
             public Text Name, Effect, Level, Cost;
             public Button Buy;
@@ -30,12 +31,19 @@ namespace TillWinter.Unity
         private AudioManager _audio;
         private GameObject _panel;
         private CanvasGroup _group;
-        private Text _title, _coins;
+        private Text _title, _sub, _coins;
         private RectTransform _coinsRt;
         private readonly List<Row> _rows = new List<Row>();
+        private GameObject _almanacList, _heritageList;
+        private Button _almanacTab, _heritageTab;
+        private Button _nextYear, _retire, _startGen;
+        private Text _retireLabel;
+        private GameObject _confirm;
+        private Text _confirmText;
         private float _coinPunch;
         private float _open;
         private bool _visible;
+        private bool _showingHeritage;
 
         public bool IsOpen => _visible;
 
@@ -49,24 +57,49 @@ namespace TillWinter.Unity
             _group = _panel.AddComponent<CanvasGroup>();
             var rt = bg.rectTransform;
 
-            _title = UiKit.Label(rt, "Title", "Winter", 76, UiKit.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Box(_title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -90f), new Vector2(900f, 90f));
-            var sub = UiKit.Label(rt, "Sub", "The Almanac. Spend your coins.", 32, new Color(0.8f, 0.86f, 0.95f), TextAnchor.MiddleCenter);
-            UiKit.Box(sub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -150f), new Vector2(900f, 44f));
-            _coins = UiKit.Label(rt, "Coins", "0", 54, UiKit.CoinYellow, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _title = UiKit.Label(rt, "Title", "Winter", 72, UiKit.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(_title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -80f), new Vector2(900f, 84f));
+            _sub = UiKit.Label(rt, "Sub", "", 30, new Color(0.8f, 0.86f, 0.95f), TextAnchor.MiddleCenter);
+            UiKit.Box(_sub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -136f), new Vector2(1000f, 40f));
+            _coins = UiKit.Label(rt, "Coins", "0", 50, UiKit.CoinYellow, TextAnchor.MiddleCenter, FontStyle.Bold);
             _coinsRt = _coins.rectTransform;
-            UiKit.Box(_coinsRt, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -210f), new Vector2(600f, 64f));
+            UiKit.Box(_coinsRt, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -190f), new Vector2(900f, 60f));
 
-            // Scroll view between the header and the Next Year button.
-            var viewport = UiKit.Rect("Viewport", rt);
-            UiKit.Stretch(viewport, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(30f, 260f), new Vector2(-30f, -250f));
+            _almanacTab = UiKit.Button(rt, "TabAlmanac", "ALMANAC", 30, UiKit.Accent, UiKit.Ink, () => ShowTab(false));
+            UiKit.Box(_almanacTab.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(1f, 0.5f), new Vector2(-10f, -260f), new Vector2(420f, 70f));
+            _heritageTab = UiKit.Button(rt, "TabHeritage", "HERITAGE", 30, UiKit.Muted, UiKit.Paper, () => ShowTab(true));
+            UiKit.Box(_heritageTab.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0f, 0.5f), new Vector2(10f, -260f), new Vector2(420f, 70f));
+
+            _almanacList = BuildList(rt, "AlmanacList", _game.Sim.Nodes);
+            _heritageList = BuildList(rt, "HeritageList", _game.Sim.HeritageNodes);
+
+            _nextYear = UiKit.Button(rt, "NextYear", "Next Year ▶", 44, UiKit.Accent, UiKit.Ink, OnNextYear);
+            UiKit.Box(_nextYear.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(-12f, 60f), new Vector2(500f, 130f));
+            _retire = UiKit.Button(rt, "Retire", "Pass on the farm", 34, new Color(0.55f, 0.35f, 0.7f), UiKit.Paper, OnRetirePressed);
+            UiKit.Box(_retire.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(12f, 60f), new Vector2(500f, 130f));
+            _retireLabel = _retire.GetComponentInChildren<Text>();
+            _startGen = UiKit.Button(rt, "StartGeneration", "Start new generation ▶", 44, UiKit.Accent, UiKit.Ink, OnStartGeneration);
+            UiKit.Box(_startGen.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 60f), new Vector2(900f, 130f));
+
+            BuildConfirm(rt);
+
+            _panel.SetActive(false);
+            _game.Sim.WinterStarted += Open;
+            _game.Sim.Purchased += _ => Refresh();
+            _game.Sim.Retired += _ => { _showingHeritage = true; Refresh(); };
+        }
+
+        private GameObject BuildList(RectTransform rt, string name, IReadOnlyList<SkillNode> nodes)
+        {
+            var viewport = UiKit.Rect(name, rt);
+            UiKit.Stretch(viewport, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(30f, 210f), new Vector2(-30f, -305f));
             viewport.gameObject.AddComponent<RectMask2D>();
             var viewportImg = viewport.gameObject.AddComponent<Image>();
             viewportImg.color = new Color(0f, 0f, 0f, 0.01f);
             var content = UiKit.Rect("Content", viewport);
             UiKit.Stretch(content, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
             content.pivot = new Vector2(0.5f, 1f);
-            var scroll = rt.gameObject.AddComponent<ScrollRect>();
+            var scroll = viewport.gameObject.AddComponent<ScrollRect>();
             scroll.viewport = viewport;
             scroll.content = content;
             scroll.horizontal = false;
@@ -77,7 +110,7 @@ namespace TillWinter.Unity
             float y = 0f;
             const float rowH = 118f, headerH = 64f;
             Branch? current = null;
-            foreach (var node in _game.Sim.Nodes)
+            foreach (var node in nodes)
             {
                 if (current != node.Branch)
                 {
@@ -90,16 +123,10 @@ namespace TillWinter.Unity
                 y -= rowH;
             }
             content.sizeDelta = new Vector2(0f, -y + 20f);
-
-            var next = UiKit.Button(rt, "NextYear", "Next Year ▶", 52, UiKit.Accent, UiKit.Ink, OnNextYear);
-            UiKit.Box(next.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 70f), new Vector2(760f, 140f));
-
-            _panel.SetActive(false);
-            _game.Sim.WinterStarted += Open;
-            _game.Sim.Purchased += OnPurchased;
+            return viewport.gameObject;
         }
 
-        private Row BuildRow(RectTransform content, AlmanacNode node, float y, float rowH)
+        private Row BuildRow(RectTransform content, SkillNode node, float y, float rowH)
         {
             var row = new Row { Node = node };
             row.Box = UiKit.Panel(content, "Row " + node.Id, Available, true, false);
@@ -124,20 +151,52 @@ namespace TillWinter.Unity
             return row;
         }
 
+        private void BuildConfirm(RectTransform rt)
+        {
+            var dim = UiKit.Panel(rt, "ConfirmDim", new Color(0f, 0f, 0f, 0.6f), false, true);
+            _confirm = dim.gameObject;
+            var box = UiKit.Panel(dim.transform, "ConfirmBox", new Color(0.12f, 0.14f, 0.2f, 0.98f), true, true);
+            UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 640f));
+            var title = UiKit.Label(box.transform, "Title", "Pass on the farm?", 52, UiKit.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(860f, 70f));
+            _confirmText = UiKit.Label(box.transform, "Text", "", 30, new Color(0.85f, 0.88f, 0.95f), TextAnchor.UpperLeft);
+            UiKit.Stretch(_confirmText.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 170f), new Vector2(-50f, -120f));
+            var yes = UiKit.Button(box.transform, "Yes", "Retire", 36, new Color(0.55f, 0.35f, 0.7f), UiKit.Paper, OnRetireConfirmed);
+            UiKit.Box(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(20f, 40f), new Vector2(380f, 110f));
+            var no = UiKit.Button(box.transform, "No", "Cancel", 36, UiKit.Muted, UiKit.Paper, () => { _audio.Play(SfxId.UiClick); _confirm.SetActive(false); });
+            UiKit.Box(no.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(-20f, 40f), new Vector2(380f, 110f));
+            _confirm.SetActive(false);
+        }
+
         private void OnDestroy()
         {
             if (_game == null || _game.Sim == null) return;
             _game.Sim.WinterStarted -= Open;
-            _game.Sim.Purchased -= OnPurchased;
         }
 
-        private void Open()
+        /// <summary>Also used on load when the save is not in the Year phase.</summary>
+        public void Open()
         {
             _visible = true;
             _open = 0f;
             _panel.SetActive(true);
             _game.InputBlocked = true;
-            _title.text = "Winter — Year " + _game.State.Year;
+            _showingHeritage = _game.State.Phase == Phase.Heritage;
+            Refresh();
+        }
+
+        private void Close()
+        {
+            _visible = false;
+            _panel.SetActive(false);
+            _confirm.SetActive(false);
+            _game.InputBlocked = false;
+        }
+
+        private void ShowTab(bool heritage)
+        {
+            _audio.Play(SfxId.UiClick);
+            _showingHeritage = heritage;
             Refresh();
         }
 
@@ -145,9 +204,37 @@ namespace TillWinter.Unity
         {
             _audio.Play(SfxId.UiClick);
             _game.Sim.StartNextYear();
-            _visible = false;
-            _panel.SetActive(false);
-            _game.InputBlocked = false;
+            Close();
+        }
+
+        private void OnStartGeneration()
+        {
+            _audio.Play(SfxId.UiClick);
+            _game.Sim.StartNewGeneration();
+            Close();
+        }
+
+        private void OnRetirePressed()
+        {
+            _audio.Play(SfxId.UiClick);
+            if (!_game.Sim.CanRetire) return;
+            var s = _game.State;
+            _confirmText.text =
+                "You earn " + _game.Sim.SeedsIfRetiredNow + " Heritage Seeds and start generation " + (s.Generation.Generation + 1) + ".\n\n" +
+                "You keep: the Heritage tree, banked seeds, statistics.\n\n" +
+                "You lose: " + NumberFormat.Short(s.Coins) + " coins, every Almanac level, the field (" + s.GridSize + "x" + s.GridSize + ", crop tiers), helpers, the year counter.";
+            _confirm.SetActive(true);
+        }
+
+        private void OnRetireConfirmed()
+        {
+            _confirm.SetActive(false);
+            if (_game.Sim.Retire())
+            {
+                _audio.Play(SfxId.WinterChime);
+                _showingHeritage = true;
+            }
+            Refresh();
         }
 
         private void OnBuy(string id)
@@ -166,16 +253,43 @@ namespace TillWinter.Unity
             Refresh();
         }
 
-        private void OnPurchased(PurchaseEvent e) => Refresh();
-
         private void Refresh()
         {
+            if (!_visible) return;
             var sim = _game.Sim;
-            _coins.text = NumberFormat.Short(sim.State.Coins) + " coins";
+            var s = sim.State;
+            bool heritagePhase = s.Phase == Phase.Heritage;
+            if (heritagePhase) _showingHeritage = true;
+
+            _title.text = heritagePhase ? "Heritage — Generation " + s.Generation.Generation : "Winter — Year " + s.Year;
+            _sub.text = heritagePhase ? "The farm changes hands. Spend your seeds, then begin." : "The Almanac. Spend your coins.";
+            _coins.text = _showingHeritage ? s.Seeds + " seeds" : NumberFormat.Short(s.Coins) + " coins";
+            _coins.color = _showingHeritage ? new Color(0.75f, 0.55f, 0.95f) : UiKit.CoinYellow;
+
+            _almanacList.SetActive(!_showingHeritage);
+            _heritageList.SetActive(_showingHeritage);
+            _almanacTab.interactable = !heritagePhase;
+            _almanacTab.GetComponent<Image>().color = _showingHeritage ? UiKit.Muted : UiKit.Accent;
+            _heritageTab.GetComponent<Image>().color = _showingHeritage ? new Color(0.65f, 0.45f, 0.85f) : UiKit.Muted;
+
+            _nextYear.gameObject.SetActive(!heritagePhase);
+            _retire.gameObject.SetActive(!heritagePhase);
+            _startGen.gameObject.SetActive(heritagePhase);
+            if (!heritagePhase)
+            {
+                bool can = sim.CanRetire;
+                _retire.interactable = can;
+                double need = sim.Config.HeritageThreshold - s.Generation.LifetimeCoinsThisGeneration;
+                _retireLabel.text = can
+                    ? "Pass on the farm\n+" + sim.SeedsIfRetiredNow + " seeds"
+                    : "Pass on the farm\nearn " + NumberFormat.Short(need) + " more coins";
+                _retireLabel.fontSize = 28;
+            }
+
             foreach (var row in _rows)
             {
                 string id = row.Node.Id;
-                int level = sim.State.GetLevel(id);
+                int level = s.GetLevel(id);
                 int max = sim.GetMaxLevel(id);
                 bool maxed = sim.IsMaxed(id);
                 bool available = sim.IsAvailable(id);

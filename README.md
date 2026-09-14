@@ -17,14 +17,23 @@ Unity **6000.3.22f1**, Universal RP, Input System, portrait 1080×2340.
 Everything in the scene is built in code from one `Bootstrap` object, so there are no prefabs
 or materials to keep in sync.
 
+### Save file
+
+The game saves to `%USERPROFILE%\AppData\LocalLow\DefaultCompany\TillWinter\tillwinter.json`
+(Unity's `persistentDataPath`) with a `.bak` next to it; it saves at Winter, every purchase,
+retire, new generation, next year, on pause/focus loss/quit and every 30 s during a year.
+Loading resumes mid-year and shows a "While you were away" card when passive systems earned
+coins (max 8 h). To reset: press `DBG` -> "Delete save" and restart Play, or delete the file.
+
 ## Controls
 
 | Input | Effect |
 |---|---|
 | Hold / drag (mouse or finger) | The ring follows the pointer, offset **0.8 plots toward the top of the screen** so your finger doesn't hide it. Every plot under the ring advances its own phase: **Dry -> Wet** (watering), **Wet -> Ripe** (growing), **Ripe -> coins** (harvest, takes the crop's harvest time). The starting ring (radius 0.7) covers one plot. |
 | Tap a plot with a crow (< 0.2 s, < 20 px) | Scares the crow and drops 2x the crop's value. A tap is also a one-frame ring, so it no longer harvests by itself. |
-| `DBG` button (top-right) | Debug panel: time scale 0.5x-8x, ring offset, ring radius override, +1000 coins, skip to Winter, spawn crow, Ripe all, per-node Almanac level editor (- / +), resolved stats. |
+| `DBG` button (top-right) | Debug panel: time scale 0.5x-8x, ring offset, ring radius override, +1000 coins, skip to Winter, spawn crow, Ripe all, per-node Almanac level editor (- / +), resolved stats, +50 seeds, Force CanRetire, Offline 1 h, Delete save. |
 | Winter Almanac | Scrolling list of every node grouped by branch (LOCKED / BUY / MAX, "not implemented yet" for table-only effects), then **Next Year**. Pointer input is ignored while it is open. |
+| Winter panel: Pass on the farm | Unlocks at 5 000 lifetime coins this generation; shows the seed preview; confirm dialog lists what you keep (Heritage tree, seeds, stats) and lose (coins, Almanac, field, helpers). Heritage tab: spend seeds on permanent nodes; Start new generation begins year 1 with the bonuses. |
 
 Plot states read at a glance: Dry = light cracked soil, Wet = dark soil + sprout, growing = the
 plant scales with progress, Ripe = wobble + warm glow. Passive systems (Irrigation, Sun, apprentices)
@@ -40,7 +49,7 @@ the timer bar and a tick each second.
 run-tests.bat
 ```
 
-Runs the `TillWinter.Tests` EditMode suite (61 NUnit tests against `TillWinter.Core` only) in
+Runs the `TillWinter.Tests` EditMode suite (80 NUnit tests against `TillWinter.Core` only) in
 Unity batchmode and writes `TestResults\EditMode.xml` + `EditMode.log`. Exit code 0 = pass,
 2 = failures, 3 = Unity could not run (compile error, or the project is already open in an
 editor). Override the editor path with `set UNITY_PATH=...`.
@@ -86,7 +95,7 @@ Inspector. Design source of truth: `docs/GDD.md`.
 
 ## What is intentionally missing
 
-Not yet built (see the GDD roadmap): Heritage/rebirth, save/offline, rain cloud, golden crop,
+Not yet built (see the GDD roadmap): rain cloud, golden crop,
 tractor/greenhouse/combo behaviour (table entries only), the Almanac tree canvas, real art
 (everything is Unity primitives + flat URP materials), localization (EN placeholder strings only),
 sound design beyond placeholders (Kenney CC0 clips, generated blips as fallback), performance

@@ -7,8 +7,8 @@ namespace TillWinter.Tests
 {
     public class AlmanacTests
     {
-        private static AlmanacNode Node(string id, params string[] pre) =>
-            new AlmanacNode(id, Branch.Hand, pre, 1, 10, 1.6, EffectType.RingRadius, 0.25, id, id);
+        private static SkillNode Node(string id, params string[] pre) =>
+            new SkillNode(id, Branch.Hand, pre, 1, 10, 1.6, EffectType.RingRadius, 0.25, id, id);
 
         [Test]
         public void Table_IsValid()

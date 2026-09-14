@@ -50,6 +50,9 @@ namespace TillWinter.EditorTools
             Directory.CreateDirectory(OutDir);
             foreach (var f in Directory.GetFiles(OutDir))
                 if (f.EndsWith(".png") || f.EndsWith("report.txt")) File.Delete(f);
+            var savePath = Path.Combine(Application.persistentDataPath, SaveController.FileName);
+            foreach (var f in new[] { savePath, savePath + ".bak", savePath + ".tmp" })
+                if (File.Exists(f)) File.Delete(f);
             SessionState.SetBool(ActiveKey, true);
             SessionState.SetInt(StepKey, 0);
             EditorApplication.update += Tick;
@@ -111,7 +114,17 @@ namespace TillWinter.EditorTools
             if (elapsed > 180) { Fail("Timed out"); return; }
 
             if (_holding && _mouse != null)
+            {
                 InputSystem.QueueStateEvent(_mouse, new MouseState { position = _holdPos }.WithButton(MouseButton.Left));
+                // Editor focus can swallow injected input; after 1 s without a ring, drive the pointer directly.
+                _holdFrames++;
+                if (_holdFrames > 60 && _game.CurrentRing == null && !_fallback)
+                {
+                    _fallback = true;
+                    Log("Input System injection not reaching the game; using GameController.DebugPointerScreen");
+                }
+                if (_fallback) _game.DebugPointerScreen = _holdPos;
+            }
 
             var s = _game.State;
             switch (_phase)
@@ -130,15 +143,16 @@ namespace TillWinter.EditorTools
                     }
                     break;
                 case 2:
-                    if (inPhase > 2.0 && _game.CurrentRing == null)
+                    if (inPhase > 2.0 && _game.CurrentRing == null && !_warnedInput)
                     {
-                        Log("Input System injection did not reach the game; is the Game view focused? Falling back to direct ring.");
+                        _warnedInput = true;
+                        Log("Ring still off 2 s after the virtual press (Game view focus?)");
                     }
-                    if (inPhase > 4.0)
+                    if (inPhase > 6.0)
                     {
                         Shot("02-harvesting");
                         Log("After 4 s of ring: coins=" + s.Coins + " harvests=" + _harvests + " ring=" + (_game.CurrentRing.HasValue ? "on" : "off"));
-                        Check(s.Coins >= 1, "at least one carrot harvested after 4 s under the 0.7 ring (got " + s.Coins + ")");
+                        Check(s.Coins >= 1, "at least one carrot harvested after 6 s under the 0.7 ring (got " + s.Coins + ", ring " + (_game.CurrentRing.HasValue ? "on" : "off") + ", pointer=" + (Pointer.current == null ? "null" : Pointer.current.name) + " down=" + _game.Pointer.Current.IsDown + " blocked=" + _game.InputBlocked + " overUi=" + (UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) + " phase=" + s.Phase + ")");
                         Check(_harvests >= 1, "Harvested fired");
                         Next();
                     }
@@ -215,6 +229,7 @@ namespace TillWinter.EditorTools
                             var pos = s.Crows[0].Pos;
                             var sp = ScreenOf(pos.X, pos.Y);
                             InputSystem.QueueStateEvent(_mouse, new MouseState { position = sp }.WithButton(MouseButton.Left));
+                            if (_fallback) _game.DebugTapScreen = sp;
                             _tapPos = sp;
                             _tapState = 1;
                         }
@@ -230,9 +245,48 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 12:
-                    Shot("08-end");
+                case 12: // retire: threshold via debug, winter, Retire(), Heritage buys, new generation
+                    _game.Sim.DebugAddLifetimeCoins(_game.Sim.Config.HeritageThreshold);
+                    Check(_game.Sim.CanRetire, "CanRetire after threshold");
+                    _game.Sim.DebugSkipToWinter();
                     Next();
+                    break;
+                case 13:
+                    if (inPhase > 0.8)
+                    {
+                        Shot("08-winter-retire-button");
+                        int gen = s.Generation.Generation;
+                        Check(_game.Sim.Retire(), "Retire()");
+                        Check(s.Phase == Phase.Heritage, "phase Heritage");
+                        Check(s.Generation.Generation == gen + 1, "generation incremented");
+                        Check(s.Coins == 0 && s.AlmanacLevels.Count == 0, "coins and almanac reset");
+                        _game.Sim.DebugAddSeeds(20);
+                        Check(_game.Sim.TryBuy("h_start_radius"), "buy h_start_radius");
+                        Check(_game.Sim.TryBuy("h_free_apprentice"), "buy h_free_apprentice");
+                        Next();
+                    }
+                    break;
+                case 14:
+                    if (inPhase > 0.8)
+                    {
+                        Shot("09-heritage-panel");
+                        var btn = GameObject.Find("StartGeneration")?.GetComponent<Button>();
+                        Check(btn != null, "Start new generation button exists");
+                        btn?.onClick.Invoke();
+                        Check(s.Phase == Phase.Year && s.Year == 1, "new generation year 1");
+                        Check(s.Apprentices.Count == 1, "free apprentice present");
+                        Check(Mathf.Abs(s.RingRadius - 0.95f) < 1e-3f, "heritage radius bonus applied");
+                        var save = UnityEngine.Object.FindFirstObjectByType<SaveController>();
+                        save.SaveNow();
+                        var data = SaveController.Load(save.Path);
+                        Check(data != null, "save file readable");
+                        var loaded = data != null ? FarmSim.FromSave(data, new FarmConfig()) : null;
+                        Check(loaded != null && loaded.State.Generation.Generation == s.Generation.Generation && loaded.State.Apprentices.Count == 1, "loaded save matches");
+                        Next();
+                    }
+                    break;
+                case 15:
+                    if (inPhase > 1.5) { Shot("10-generation2"); Next(); }
                     break;
                 default:
                     if (inPhase > 1.0) Finish();
@@ -241,6 +295,9 @@ namespace TillWinter.EditorTools
         }
 
         private static Vector2 _tapPos;
+        private static bool _warnedInput;
+        private static bool _fallback;
+        private static int _holdFrames;
         private static int _tapState;
 
         private static Vector2 ScreenOf(float plotX, float plotY)
@@ -253,6 +310,8 @@ namespace TillWinter.EditorTools
         private static void Release()
         {
             if (_mouse != null) InputSystem.QueueStateEvent(_mouse, new MouseState { position = _holdPos });
+            _game.DebugPointerScreen = null;
+            _holdFrames = 0;
         }
 
         private static void Next()

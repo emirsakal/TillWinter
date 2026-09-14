@@ -13,7 +13,7 @@ namespace TillWinter.Unity
     {
         private sealed class NodeRow
         {
-            public AlmanacNode Node;
+            public SkillNode Node;
             public Text Label;
         }
 
@@ -23,17 +23,22 @@ namespace TillWinter.Unity
         private Text _timeLabel, _offsetLabel, _radiusLabel, _info, _stats;
         private readonly List<NodeRow> _nodeRows = new List<NodeRow>();
 
-        public void Init(GameController game, AudioManager audio, RectTransform canvas)
+        private SaveController _save;
+        private AwayCard _away;
+
+        public void Init(GameController game, AudioManager audio, RectTransform canvas, SaveController save, AwayCard away)
         {
             _game = game;
             _audio = audio;
+            _save = save;
+            _away = away;
 
             var toggle = UiKit.Button(canvas, "DebugToggle", "DBG", 30, new Color(0f, 0f, 0f, 0.45f), UiKit.Paper, Toggle);
             UiKit.Box(toggle.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -30f), new Vector2(120f, 80f));
 
             var panel = UiKit.Panel(canvas, "DebugPanel", new Color(0.06f, 0.06f, 0.08f, 0.92f), true, true);
             _panel = panel.gameObject;
-            UiKit.Stretch(panel.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(30f, 30f), new Vector2(-30f, 1250f));
+            UiKit.Stretch(panel.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(30f, 30f), new Vector2(-30f, 1350f));
             var rt = panel.rectTransform;
 
             float y = -24f;
@@ -48,10 +53,15 @@ namespace TillWinter.Unity
             ButtonAt(rt, "Spawn crow", 2, y, bw, () => _game.Sim.DebugSpawnCrow());
             ButtonAt(rt, "Ripe all", 3, y, bw, () => _game.Sim.DebugForceRipeAll());
             y -= 100f;
+            ButtonAt(rt, "+50 seeds", 0, y, bw, () => _game.Sim.DebugAddSeeds(50));
+            ButtonAt(rt, "Force CanRetire", 1, y, bw, () => _game.Sim.DebugAddLifetimeCoins(_game.Sim.Config.HeritageThreshold));
+            ButtonAt(rt, "Offline 1 h", 2, y, bw, () => { var r = _game.Sim.SimulateOffline(3600); if (r.CoinsEarned > 0) _away.Show(r); });
+            ButtonAt(rt, "Delete save", 3, y, bw, () => _save.DeleteSave());
+            y -= 100f;
 
             _info = UiKit.Label(rt, "Info", "", 24, new Color(0.75f, 0.75f, 0.8f), TextAnchor.UpperLeft);
-            UiKit.Stretch(_info.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 60f), new Vector2(-30f, y));
-            y -= 66f;
+            UiKit.Stretch(_info.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 110f), new Vector2(-30f, y));
+            y -= 116f;
 
             // Two columns below: node level editor (left, scrolling) and resolved stats (right).
             var listTitle = UiKit.Label(rt, "NodesTitle", "ALMANAC LEVELS  (tap - / +)", 24, new Color(0.75f, 0.82f, 0.92f), TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -141,7 +151,9 @@ namespace TillWinter.Unity
             _offsetLabel.text = "Ring offset  " + _game.RingOffsetPlots.ToString("0.00") + " plots (toward top)";
             var ov = sim.DebugRingRadiusOverride;
             _radiusLabel.text = "Ring radius override  " + (ov.HasValue ? ov.Value.ToString("0.0") + " plots" : "off (almanac " + st.RingRadius.ToString("0.00") + ")");
-            _info.text = "Year " + s.Year + "  " + s.Season + "  t=" + s.YearTime.ToString("0.0") + "/" + s.YearLength.ToString("0") + "s"
+            _info.text = s.Phase + "  gen " + s.Generation.Generation + "  seeds " + s.Seeds + "  lifetime " + s.Generation.LifetimeCoinsThisGeneration.ToString("0") + "/" + sim.Config.HeritageThreshold.ToString("0")
+                         + "\nsave: " + _save.Path + "  (" + _save.LastResult + ")"
+                         + "\nYear " + s.Year + "  " + s.Season + "  t=" + s.YearTime.ToString("0.0") + "/" + s.YearLength.ToString("0") + "s"
                          + "   coins " + s.Coins.ToString("0") + "   field " + s.GridSize + "x" + s.GridSize + "   crows " + s.Crows.Count
                          + "\napprentices " + s.Apprentices.Count + "   audio " + (_audio.UsingKenneyClips ? "kenney" : "generated")
                          + "   fps " + (1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime)).ToString("0");

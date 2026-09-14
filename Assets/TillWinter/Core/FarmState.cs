@@ -53,18 +53,33 @@ namespace TillWinter.Core
         public bool IsWalking { get; internal set; }
     }
 
+    /// <summary>Counters that survive a retire (GDD §7): generation, seeds, lifetime totals.</summary>
+    public sealed class GenerationStats
+    {
+        public int Generation { get; internal set; } = 1;
+        public double LifetimeCoinsThisGeneration { get; internal set; }
+        public double LifetimeCoinsTotal { get; internal set; }
+        public int YearsThisGeneration { get; internal set; }
+        public int SeedsBanked { get; internal set; }
+        public int SeedsEarnedTotal { get; internal set; }
+        public int CrowsScared { get; internal set; }
+        public int Harvests { get; internal set; }
+    }
+
     /// <summary>Read-only view of the simulation for the presentation layer.</summary>
     public sealed class FarmState
     {
+        public Phase Phase { get; internal set; } = Phase.Year;
         public double Coins { get; internal set; }
-        /// <summary>Coins earned in this generation (for Heritage later).</summary>
-        public double LifetimeCoins { get; internal set; }
+        public GenerationStats Generation { get; } = new GenerationStats();
+        /// <summary>Heritage Seeds available to spend.</summary>
+        public int Seeds => Generation.SeedsBanked;
         public int Year { get; internal set; } = 1;
         public Season Season { get; internal set; } = Season.Spring;
-        /// <summary>Seconds elapsed in the current year (frozen in Winter).</summary>
+        /// <summary>Seconds elapsed in the current year (frozen outside <see cref="Phase.Year"/>).</summary>
         public float YearTime { get; internal set; }
         public float YearLength => Stats.YearLength;
-        public bool IsWinter => Season == Season.Winter;
+        public bool IsWinter => Phase != Phase.Year;
         public bool FrostWarning { get; internal set; }
         public float SecondsUntilWinter => System.Math.Max(0f, YearLength - YearTime);
 
@@ -85,9 +100,12 @@ namespace TillWinter.Core
         internal readonly List<ApprenticeState> ApprenticeList = new List<ApprenticeState>();
         public IReadOnlyList<ApprenticeState> Apprentices => ApprenticeList;
 
-        internal readonly Dictionary<string, int> LevelMap = new Dictionary<string, int>();
-        public IReadOnlyDictionary<string, int> AlmanacLevels => LevelMap;
-        public int GetLevel(string nodeId) => LevelMap.TryGetValue(nodeId, out var l) ? l : 0;
+        public SkillTree Almanac { get; internal set; }
+        public SkillTree Heritage { get; internal set; }
+        public IReadOnlyDictionary<string, int> AlmanacLevels => Almanac.Levels;
+        public IReadOnlyDictionary<string, int> HeritageLevels => Heritage.Levels;
+        /// <summary>Level of a node in whichever tree owns the id (0 if unknown).</summary>
+        public int GetLevel(string nodeId) => Almanac.Contains(nodeId) ? Almanac.GetLevel(nodeId) : Heritage.GetLevel(nodeId);
 
         /// <summary>Derived numbers; recomputed after every purchase.</summary>
         public Stats Stats { get; internal set; } = new Stats();

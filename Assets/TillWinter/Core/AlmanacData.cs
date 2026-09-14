@@ -2,49 +2,16 @@ using System.Collections.Generic;
 
 namespace TillWinter.Core
 {
-    /// <summary>One row of the Almanac table (GDD §6). Adding a node is data, not code.</summary>
-    public sealed class AlmanacNode
-    {
-        public string Id { get; }
-        public Branch Branch { get; }
-        public string[] Prerequisites { get; }
-        /// <summary>-1 = dynamic (upgrade_plot: until every plot is at the highest unlocked tier).</summary>
-        public int MaxLevel { get; }
-        public double BaseCost { get; }
-        public double CostGrowth { get; }
-        public EffectType Effect { get; }
-        public double ValuePerLevel { get; }
-        public string NameKey { get; }
-        public string DescKey { get; }
-
-        public AlmanacNode(string id, Branch branch, string[] prerequisites, int maxLevel, double baseCost, double costGrowth,
-            EffectType effect, double valuePerLevel, string nameKey, string descKey)
-        {
-            Id = id;
-            Branch = branch;
-            Prerequisites = prerequisites ?? new string[0];
-            MaxLevel = maxLevel;
-            BaseCost = baseCost;
-            CostGrowth = costGrowth;
-            Effect = effect;
-            ValuePerLevel = valuePerLevel;
-            NameKey = nameKey;
-            DescKey = descKey;
-        }
-
-        public bool IsImplemented => AlmanacData.IsImplemented(Effect);
-    }
-
-    /// <summary>Static Almanac table. Costs are placeholders (GDD §6: tune from playtests).</summary>
+    /// <summary>Static Almanac table (GDD §6). Costs in coins, placeholders to tune. Reset on retire.</summary>
     public static class AlmanacData
     {
         private const double G = 1.6;
         private static readonly string[] None = new string[0];
 
-        private static AlmanacNode N(string id, Branch b, string[] pre, int max, double cost, EffectType fx, double perLevel) =>
-            new AlmanacNode(id, b, pre, max, cost, G, fx, perLevel, "almanac." + id + ".name", "almanac." + id + ".desc");
+        private static SkillNode N(string id, Branch b, string[] pre, int max, double cost, EffectType fx, double perLevel) =>
+            new SkillNode(id, b, pre, max, cost, G, fx, perLevel, "almanac." + id + ".name", "almanac." + id + ".desc");
 
-        public static readonly AlmanacNode[] Nodes =
+        public static readonly SkillNode[] Nodes =
         {
             // Hand
             N("ring_radius", Branch.Hand, None, 5, 30, EffectType.RingRadius, 0.25),
@@ -101,59 +68,21 @@ namespace TillWinter.Core
 
         public static bool IsImplemented(EffectType effect) => Implemented.Contains(effect);
 
-        private static Dictionary<string, AlmanacNode> _byId;
+        private static Dictionary<string, SkillNode> _byId;
 
-        public static bool TryGet(string id, out AlmanacNode node)
+        public static bool TryGet(string id, out SkillNode node)
         {
             if (_byId == null)
             {
-                var map = new Dictionary<string, AlmanacNode>();
+                var map = new Dictionary<string, SkillNode>();
                 foreach (var n in Nodes) map[n.Id] = n;
                 _byId = map;
             }
             return _byId.TryGetValue(id ?? "", out node);
         }
 
-        public static AlmanacNode Get(string id) => TryGet(id, out var n) ? n : null;
+        public static SkillNode Get(string id) => TryGet(id, out var n) ? n : null;
 
-        /// <summary>Returns a list of problems (empty when the table is valid): duplicate ids, missing prerequisites, cycles.</summary>
-        public static List<string> Validate(IReadOnlyList<AlmanacNode> nodes)
-        {
-            var errors = new List<string>();
-            var ids = new Dictionary<string, AlmanacNode>();
-            foreach (var n in nodes)
-            {
-                if (string.IsNullOrEmpty(n.Id)) { errors.Add("node with empty id"); continue; }
-                if (ids.ContainsKey(n.Id)) errors.Add("duplicate id: " + n.Id);
-                else ids[n.Id] = n;
-                if (n.MaxLevel == 0 || n.MaxLevel < -1) errors.Add(n.Id + ": invalid MaxLevel " + n.MaxLevel);
-                if (n.BaseCost < 0 || n.CostGrowth <= 0) errors.Add(n.Id + ": invalid cost");
-            }
-            foreach (var n in nodes)
-            foreach (var p in n.Prerequisites)
-            {
-                if (!ids.ContainsKey(p)) errors.Add(n.Id + ": unknown prerequisite " + p);
-                else if (p == n.Id) errors.Add(n.Id + ": depends on itself");
-            }
-
-            // Cycle detection (DFS with colours).
-            var colour = new Dictionary<string, int>();
-            foreach (var n in nodes)
-                if (ids.ContainsKey(n.Id) && Visit(n.Id, ids, colour))
-                    errors.Add("cycle through " + n.Id);
-            return errors;
-        }
-
-        private static bool Visit(string id, Dictionary<string, AlmanacNode> ids, Dictionary<string, int> colour)
-        {
-            colour.TryGetValue(id, out int c);
-            if (c == 1) return true;  // grey: back edge
-            if (c == 2) return false; // black
-            colour[id] = 1;
-            foreach (var p in ids[id].Prerequisites)
-                if (ids.ContainsKey(p) && Visit(p, ids, colour)) return true;
-            colour[id] = 2;
-            return false;
-        }
+        public static List<string> Validate(IReadOnlyList<SkillNode> nodes) => SkillTree.Validate(nodes);
     }
 }

@@ -176,3 +176,60 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   session on the named agents are available.
 - **`save-versioning` is written as a contract ahead of Session 2 (save/offline)** so the rule
   "every new state field goes into SaveData + round-trip test" exists before the code does.
+# Session 2 - Heritage (rebirth), save/load, offline
+
+- **Generic `SkillTree`** (table + levels + currency + purchase rules via owner-supplied hooks:
+  currency getter, spend, phase gate, dynamic-max override, cost multiplier). Almanac = coins,
+  Winter only, reset on retire. Heritage = seeds, Winter + Heritage phase, never reset. Ids are
+  unique across both trees (`SkillTree.ValidateAll`). `AlmanacNode` was renamed `SkillNode`.
+- **Heritage table has the 16 nodes GDD 7 lists** (GDD says about 25); edges: Hand
+  h_start_radius -> h_ring_speeds -> h_ring_coins; Soil h_start_irrigation -> h_start_sun ->
+  h_global_growth -> h_unlock_rain_cloud; Field h_start_field -> h_start_tomato -> h_golden_crop;
+  Helpers h_free_apprentice -> h_apprentice_yield -> h_scarecrow_immunity; Calendar
+  h_start_year_length -> {h_greenhouse_x2, h_almanac_discount}. Seed costs 3-15, growth 1.5
+  (placeholders).
+- **Heritage effects are base modifiers applied before Almanac effects** in `StatResolver`: ring
+  speeds x(1+0.1L), ring coins x(1+0.05L), global growth multiplies the soil multiplier,
+  apprentice yield x(1+0.05L), start radius/year length add to the base, start field 4x4 sets
+  `Stats.StartGridSize` (Almanac expansions add on top), free apprentice adds one to the count.
+  "Start with Irrigation 1 / Sun 1" is a floor on the Almanac level (max, not additive). Almanac
+  discount is a cost multiplier `1 - 0.05L` (floor 5%), applied only to Almanac nodes.
+- **Not-implemented Heritage effects** (`h_unlock_rain_cloud`, `h_golden_crop`,
+  `h_scarecrow_immunity`, `h_greenhouse_x2`) are purchasable and resolve to flags/values on
+  `Stats` (RainCloudUnlocked, GoldenCropChance, ScarecrowImmunity, GreenhouseX2Level) for Session 3.
+- **`Phase { Year, Winter, Heritage }` is explicit on `FarmState`**; `IsWinter` now means "phase
+  != Year". In the Heritage phase nothing ticks; `Season` stays Winter.
+- **`Retire()` rebuilds the field from scratch** at `Stats.StartGridSize` (no plot survives),
+  clears Almanac, crows, helpers (helpers come back from stats, so a Heritage free apprentice is
+  present immediately), resets year/coins/lifetime-this-generation/years-this-generation; keeps
+  generation counter (+1), seeds, Heritage levels, lifetime total, crows scared, harvests.
+  `StartNewGeneration()` re-resolves stats and rebuilds the field if a Heritage node bought in
+  the Heritage phase changed the start size.
+- **`GenerationStats` replaces the old `LifetimeCoins`**; `Harvests` and `CrowsScared` are
+  counted in Core.
+- **Save: `SaveData` is arrays of `{Id, Level}` pairs and `PlotSave` rows** (Unity `JsonUtility`,
+  no Newtonsoft). Crow timers are stored on the plot row. Apprentices store positions only and
+  retarget on load. RNG is a xorshift32 (`Rng`) whose state is saved, replacing `System.Random`,
+  so a loaded game is deterministic and platform-independent. Unknown or malformed data (wrong
+  plot count, out-of-bounds plot) returns null from `FromSave`. `SaveMigrations.Migrate` is the
+  version hook (no migrations yet).
+- **`SavedAtUnixSeconds` is stamped by the Unity `SaveController`**, not by Core (Core has no
+  clock). Save file `Application.persistentDataPath/tillwinter.json`, atomic write via `.tmp` +
+  rotate to `.bak`, corrupt files renamed `.corrupt-<timestamp>`. Triggers: Winter start, every
+  purchase, retire, new generation, next year, pause/focus loss/quit, autosave every 30 s in the
+  Year phase.
+- **Offline: `SimulateOffline` runs `UpdatePlots` + `UpdateApprentices`** with the ring forced
+  off at a 1 s step, capped at 8 h and a guarded loop count; no crows, no year timer, no seasons;
+  no-op outside Phase.Year or for elapsed <= 0. Clock going backwards is treated as 0 elapsed by
+  the Unity layer. The away card shows only when coins were earned.
+- **Presentation: the winter panel now has Almanac/Heritage tabs**; the Almanac tab is disabled
+  in the Heritage phase. "Pass on the farm" shows the seed preview or the coins still needed, and
+  a confirm dialog listing what is kept and lost. Generation N shows N-1 cone trees around the
+  field (placeholder). HUD shows "Year N - Gen G" and a "seeds if you retire" hint once CanRetire.
+- **Smoke test: input injected through the Input System did not reach the game** in this editor
+  session (Game view focus), so `GameController.DebugPointerScreen`/`DebugTapScreen` were added
+  as a debug-only fallback the smoke test switches to after 1 s without a ring. The smoke test
+  deletes the save file at start so runs are deterministic, and now exercises retire, two
+  Heritage purchases, a new generation, and a save round-trip through `SaveController`.
+- **Session ran on a branch from `main`** while the token-hygiene PR was still open, so the
+  `.claude/` tooling was kept locally (git-excluded) and is not part of this branch.
