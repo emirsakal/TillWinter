@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TillWinter.Core;
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 namespace TillWinter.Unity
@@ -11,17 +12,10 @@ namespace TillWinter.Unity
     /// </summary>
     public sealed class DebugPanel : MonoBehaviour
     {
-        private sealed class NodeRow
-        {
-            public SkillNode Node;
-            public Text Label;
-        }
-
         private GameController _game;
         private AudioManager _audio;
         private GameObject _panel;
-        private Text _timeLabel, _offsetLabel, _radiusLabel, _info, _stats;
-        private readonly List<NodeRow> _nodeRows = new List<NodeRow>();
+        private TMP_Text _timeLabel, _offsetLabel, _radiusLabel, _info, _stats, _nodeLevel;
 
         private SaveController _save;
         private AwayCard _away;
@@ -70,49 +64,33 @@ namespace TillWinter.Unity
             UiKit.Stretch(_info.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 110f), new Vector2(-30f, y));
             y -= 116f;
 
-            // Two columns below: node level editor (left, scrolling) and resolved stats (right).
-            var listTitle = UiKit.Label(rt, "NodesTitle", "ALMANAC LEVELS  (tap - / +)", 24, new Color(0.75f, 0.82f, 0.92f), TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.Stretch(listTitle.rectTransform, new Vector2(0f, 1f), new Vector2(0.58f, 1f), new Vector2(30f, y - 34f), new Vector2(0f, y));
-            var statsTitle = UiKit.Label(rt, "StatsTitle", "RESOLVED STATS", 24, new Color(0.75f, 0.82f, 0.92f), TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.Stretch(statsTitle.rectTransform, new Vector2(0.6f, 1f), new Vector2(1f, 1f), new Vector2(0f, y - 34f), new Vector2(-30f, y));
-            y -= 40f;
-
-            var viewport = UiKit.Rect("NodeViewport", rt);
-            UiKit.Stretch(viewport, new Vector2(0f, 0f), new Vector2(0.58f, 1f), new Vector2(30f, 20f), new Vector2(0f, y));
-            viewport.gameObject.AddComponent<RectMask2D>();
-            var viewportImg = viewport.gameObject.AddComponent<Image>();
-            viewportImg.color = new Color(1f, 1f, 1f, 0.03f);
-            var content = UiKit.Rect("NodeContent", viewport);
-            UiKit.Stretch(content, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
-            content.pivot = new Vector2(0.5f, 1f);
-            var scroll = viewport.gameObject.AddComponent<ScrollRect>();
-            scroll.viewport = viewport;
-            scroll.content = content;
-            scroll.horizontal = false;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 40f;
-
-            float cy = 0f;
-            const float rowH = 52f;
-            foreach (var node in _game.Sim.Nodes)
-            {
-                var row = new NodeRow { Node = node };
-                row.Label = UiKit.Label(content, node.Id, node.Id, 22, UiKit.Paper, TextAnchor.MiddleLeft);
-                UiKit.Stretch(row.Label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(10f, cy - rowH), new Vector2(-150f, cy));
-                var id = node.Id;
-                var minus = UiKit.Button(content, "-", "-", 26, new Color(0.35f, 0.3f, 0.3f), UiKit.Paper, () => Adjust(id, -1));
-                UiKit.Box(minus.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-80f, cy - rowH * 0.5f), new Vector2(60f, 44f));
-                var plus = UiKit.Button(content, "+", "+", 26, new Color(0.3f, 0.4f, 0.32f), UiKit.Paper, () => Adjust(id, +1));
-                UiKit.Box(plus.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-12f, cy - rowH * 0.5f), new Vector2(60f, 44f));
-                _nodeRows.Add(row);
-                cy -= rowH;
-            }
-            content.sizeDelta = new Vector2(0f, -cy + 10f);
+            // Node level editor: dropdown + - / +, then the resolved stats.
+            var ids = new List<string>();
+            foreach (var n in _game.Sim.Nodes) ids.Add(n.Id);
+            foreach (var n in _game.Sim.HeritageNodes) ids.Add(n.Id);
+            _nodeIds = ids;
+            var dd = UiKit.Dropdown(rt, "NodeDropdown", ids, i => { _nodeIndex = i; });
+            UiKit.Box(dd.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, y), new Vector2(560f, 64f));
+            _nodeLevel = UiKit.Label(rt, "NodeLevel", "", 26, UiKit.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(_nodeLevel.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(690f, y - 32f), new Vector2(160f, 64f));
+            var minus = UiKit.Button(rt, "-", "-", 30, new Color(0.35f, 0.3f, 0.3f), UiKit.Paper, () => AdjustSelected(-1));
+            UiKit.Box(minus.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(860f, y - 32f), new Vector2(80f, 64f));
+            var plus = UiKit.Button(rt, "+", "+", 30, new Color(0.3f, 0.4f, 0.32f), UiKit.Paper, () => AdjustSelected(+1));
+            UiKit.Box(plus.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(950f, y - 32f), new Vector2(80f, 64f));
+            y -= 80f;
 
             _stats = UiKit.Label(rt, "Stats", "", 21, new Color(0.85f, 0.88f, 0.92f), TextAnchor.UpperLeft);
-            UiKit.Stretch(_stats.rectTransform, new Vector2(0.6f, 0f), new Vector2(1f, 1f), new Vector2(0f, 20f), new Vector2(-30f, y));
+            UiKit.Stretch(_stats.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(30f, 20f), new Vector2(-30f, y));
 
             _panel.SetActive(false);
+        }
+
+        private List<string> _nodeIds = new List<string>();
+        private int _nodeIndex;
+
+        private void AdjustSelected(int delta)
+        {
+            if (_nodeIndex >= 0 && _nodeIndex < _nodeIds.Count) Adjust(_nodeIds[_nodeIndex], delta);
         }
 
         private void Adjust(string id, int delta)
@@ -123,7 +101,7 @@ namespace TillWinter.Unity
             sim.DebugSetLevel(id, level);
         }
 
-        private Text SliderRow(RectTransform parent, ref float y, string label, float min, float max, float value, UnityEngine.Events.UnityAction<float> onChanged)
+        private TMP_Text SliderRow(RectTransform parent, ref float y, string label, float min, float max, float value, UnityEngine.Events.UnityAction<float> onChanged)
         {
             var text = UiKit.Label(parent, label, label, 28, UiKit.Paper, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Stretch(text.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 40f), new Vector2(-30f, y));
@@ -175,12 +153,8 @@ namespace TillWinter.Unity
                          + "\napprentices " + s.Apprentices.Count + "   audio " + (_audio.UsingKenneyClips ? "kenney" : "generated")
                          + "   fps " + (1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime)).ToString("0");
 
-            foreach (var row in _nodeRows)
-            {
-                int level = s.GetLevel(row.Node.Id);
-                int max = sim.GetMaxLevel(row.Node.Id);
-                row.Label.text = row.Node.Id + "  " + level + "/" + max;
-            }
+            if (_nodeIndex >= 0 && _nodeIndex < _nodeIds.Count)
+                _nodeLevel.text = s.GetLevel(_nodeIds[_nodeIndex]) + " / " + sim.GetMaxLevel(_nodeIds[_nodeIndex]);
 
             _stats.text =
                 "ring radius " + st.RingRadius.ToString("0.00") +

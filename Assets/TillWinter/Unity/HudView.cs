@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TillWinter.Core;
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 namespace TillWinter.Unity
@@ -21,11 +22,11 @@ namespace TillWinter.Unity
         private AudioManager _audio;
         private RectTransform _canvas;
         private RectTransform _coinGroup;
-        private Text _coinText;
-        private Text _yearText;
-        private Text _seedsHint;
-        private Text _combo;
-        private Text _seasonText;
+        private TMP_Text _coinText;
+        private TMP_Text _yearText;
+        private TMP_Text _seedsHint;
+        private TMP_Text _combo;
+        private TMP_Text _seasonText;
         private RectTransform _timerBar;
         private RectTransform _timerFill;
         private Image _timerFillImage;
@@ -112,12 +113,7 @@ namespace TillWinter.Unity
             _game.Sim.WinterStarted -= OnWinter;
         }
 
-        private static void AddShadow(Text t)
-        {
-            var s = t.gameObject.AddComponent<Shadow>();
-            s.effectColor = new Color(0f, 0f, 0f, 0.5f);
-            s.effectDistance = new Vector2(2f, -3f);
-        }
+        private static void AddShadow(TMP_Text t) => UiKit.Outline(t);
 
         private static void Segment(RectTransform bar, string name, float from, float to, Color color)
         {

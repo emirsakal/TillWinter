@@ -179,6 +179,9 @@ namespace TillWinter.Tests
     {
         public static T To<T>(string json) where T : new() => (T)Map(Parse(json), typeof(T));
 
+        /// <summary>Top-level object as a dictionary (values: string, double, bool, List, Dictionary, null).</summary>
+        public static Dictionary<string, object> ParseObject(string json) => (Dictionary<string, object>)Parse(json);
+
         public static string From(object obj)
         {
             var sb = new StringBuilder();

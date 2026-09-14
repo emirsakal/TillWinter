@@ -187,13 +187,55 @@ namespace TillWinter.EditorTools
                 case 7:
                     if (inPhase > 0.8)
                     {
-                        Shot("05-winter-shop-after-buys");
+                        Shot("05-winter-tree-after-buys");
+                        var screen = UnityEngine.Object.FindFirstObjectByType<WinterScreen>();
+                        Check(screen != null && screen.IsOpen, "winter screen open");
+                        var view = screen.AlmanacView;
+                        var panBefore = view.Pan;
+                        view.PanBy(new Vector2(120f, 80f));
+                        Check((view.Pan - panBefore).magnitude > 1f, "pan moved the canvas");
+                        float zoomBefore = view.Zoom;
+                        view.ZoomBy(1.3f);
+                        Check(view.Zoom > zoomBefore, "zoom changed");
+                        view.Select("ring_radius");
+                        Check(screen.SelectedId == "ring_radius", "ring_radius selected");
+                        _selectedAt = EditorApplication.timeSinceStartup;
+                        _game.Sim.DebugAddCoins(100);
+                        int lvBefore = s.GetLevel("ring_radius");
+                        Check(_game.Sim.TryBuy("ring_radius"), "buy ring_radius via sim while selected");
+                        Check(s.GetLevel("ring_radius") == lvBefore + 1, "ring_radius level +1");
+                        Check(view.StateOf("ring_water_speed") != SkillTreeView.NodeState.Locked, "child ring_water_speed now available (edge lit)");
                         var btn = GameObject.Find("NextYear")?.GetComponent<Button>();
                         Check(btn != null, "Next Year button exists");
+                        _phase = 70;
+                        Next();
+                    }
+                    break;
+                case 71:
+                    if (inPhase > 0.7)
+                    {
+                        Shot("05b-winter-tree-selected");
+                        GameViewPresets.Select("1080x1920 (Portrait)");
+                        Next();
+                    }
+                    break;
+                case 72:
+                    if (inPhase > 0.7)
+                    {
+                        Shot("05c-winter-tree-1080x1920");
+                        Next();
+                    }
+                    break;
+                case 73:
+                    if (inPhase > 0.3)
+                    {
+                        GameViewPresets.Select("1080x2340 (Portrait)");
+                        var btn = GameObject.Find("NextYear")?.GetComponent<Button>();
                         btn?.onClick.Invoke();
                         Check(s.Year == 2 && s.Season == Season.Spring, "year 2 spring after Next Year");
                         Check(!_game.InputBlocked, "input unblocked after Next Year");
                         _game.TimeScale = 1f;
+                        _phase = 7;
                         Next();
                     }
                     break;
@@ -297,6 +339,7 @@ namespace TillWinter.EditorTools
         private static Vector2 _tapPos;
         private static bool _warnedInput;
         private static bool _fallback;
+        private static double _selectedAt;
         private static int _holdFrames;
         private static int _tapState;
 
