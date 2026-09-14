@@ -51,6 +51,20 @@ namespace TillWinter.Core
         Winter = 3,
     }
 
+    /// <summary>Top-level game phase. Year = the sim ticks; Winter = Almanac + Heritage open; Heritage = after a retire, before Spring.</summary>
+    public enum Phase
+    {
+        Year = 0,
+        Winter = 1,
+        Heritage = 2,
+    }
+
+    public enum TreeKind
+    {
+        Almanac,
+        Heritage,
+    }
+
     public enum Branch
     {
         Hand,
@@ -60,9 +74,10 @@ namespace TillWinter.Core
         Calendar,
     }
 
-    /// <summary>What an Almanac node does. See <see cref="AlmanacData.Implemented"/> for which ones the sim applies.</summary>
+    /// <summary>What a tree node does. See <see cref="AlmanacData.Implemented"/> / <see cref="HeritageData.Implemented"/>.</summary>
     public enum EffectType
     {
+        // Almanac
         RingRadius,
         RingWaterSpeed,
         RingGrowSpeed,
@@ -91,6 +106,24 @@ namespace TillWinter.Core
         Greenhouse,
         CrowBounty,
         SpringHeadStart,
+
+        // Heritage (GDD §7): base modifiers applied before Almanac effects
+        HeritageStartRadius,
+        HeritageRingSpeeds,
+        HeritageRingCoins,
+        HeritageStartIrrigation,
+        HeritageStartSun,
+        HeritageGlobalGrowth,
+        UnlockRainCloud,
+        HeritageStartField,
+        HeritageStartTomato,
+        GoldenCropChance,
+        FreeApprentice,
+        HeritageApprenticeYield,
+        ScarecrowImmunity,
+        HeritageStartYearLength,
+        GreenhouseX2,
+        AlmanacDiscount,
     }
 
     public enum HarvestSource
@@ -135,11 +168,42 @@ namespace TillWinter.Core
     {
         public readonly string NodeId;
         public readonly int Level;
+        public readonly TreeKind Tree;
 
-        public PurchaseEvent(string nodeId, int level)
+        public PurchaseEvent(string nodeId, int level, TreeKind tree)
         {
             NodeId = nodeId;
             Level = level;
+            Tree = tree;
+        }
+    }
+
+    public readonly struct RetireEvent
+    {
+        public readonly int SeedsEarned;
+        public readonly int Generation;
+
+        public RetireEvent(int seedsEarned, int generation)
+        {
+            SeedsEarned = seedsEarned;
+            Generation = generation;
+        }
+    }
+
+    /// <summary>Result of <see cref="FarmSim.SimulateOffline"/>.</summary>
+    public readonly struct OfflineReport
+    {
+        public readonly double SecondsSimulated;
+        public readonly double CoinsEarned;
+        public readonly int Harvests;
+        public readonly bool Capped;
+
+        public OfflineReport(double secondsSimulated, double coinsEarned, int harvests, bool capped)
+        {
+            SecondsSimulated = secondsSimulated;
+            CoinsEarned = coinsEarned;
+            Harvests = harvests;
+            Capped = capped;
         }
     }
 }

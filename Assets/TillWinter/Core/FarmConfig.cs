@@ -72,5 +72,15 @@ namespace TillWinter.Core
         public double[] ApprenticeYieldByLevel = { 0.5, 0.75, 1.0, 1.15, 1.3 };
         /// <summary>How far below the field's bottom row apprentices idle (plot units).</summary>
         public float ApprenticeIdleOffset = 1.2f;
+
+        // Heritage (GDD §7)
+        /// <summary>Lifetime coins in this generation needed before "Pass on the farm" unlocks.</summary>
+        public double HeritageThreshold = 5000;
+        /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 5 000 coins ≈ 10 seeds.</summary>
+        public double SeedDivisor = 50;
+
+        // Offline (GDD §9)
+        public double OfflineCapSeconds = 8 * 3600;
+        public float OfflineStepSeconds = 1f;
     }
 }

@@ -50,18 +50,35 @@ namespace TillWinter.Unity
             ["almanac.greenhouse.name"] = "Greenhouse", ["almanac.greenhouse.desc"] = "Earns coins during Winter",
             ["almanac.crow_bounty.name"] = "Crow Bounty", ["almanac.crow_bounty.desc"] = "Scared crows drop more coins",
             ["almanac.spring_head_start.name"] = "Head Start", ["almanac.spring_head_start.desc"] = "The year starts with all plots Wet",
+
+            ["heritage.h_start_radius.name"] = "Wide Hands", ["heritage.h_start_radius.desc"] = "Every generation starts with +0.25 ring radius",
+            ["heritage.h_ring_speeds.name"] = "Practiced Hands", ["heritage.h_ring_speeds.desc"] = "+10% to all ring speeds",
+            ["heritage.h_ring_coins.name"] = "Family Recipe", ["heritage.h_ring_coins.desc"] = "+5% coins on ring harvests",
+            ["heritage.h_start_irrigation.name"] = "Old Well", ["heritage.h_start_irrigation.desc"] = "Start every generation with Irrigation 1",
+            ["heritage.h_start_sun.name"] = "Sunny Slope", ["heritage.h_start_sun.desc"] = "Start every generation with Sun 1",
+            ["heritage.h_global_growth.name"] = "Rich Land", ["heritage.h_global_growth.desc"] = "+5% growth everywhere",
+            ["heritage.h_unlock_rain_cloud.name"] = "Rain Cloud", ["heritage.h_unlock_rain_cloud.desc"] = "A tappable cloud waters the field once a year",
+            ["heritage.h_start_field.name"] = "Bigger Barn", ["heritage.h_start_field.desc"] = "Start every generation at 4x4",
+            ["heritage.h_start_tomato.name"] = "Tomato Seeds", ["heritage.h_start_tomato.desc"] = "Start every generation with tomato unlocked",
+            ["heritage.h_golden_crop.name"] = "Golden Crop", ["heritage.h_golden_crop.desc"] = "+1% chance a replanted crop is golden (10x)",
+            ["heritage.h_free_apprentice.name"] = "Family Helper", ["heritage.h_free_apprentice.desc"] = "The first apprentice is free",
+            ["heritage.h_apprentice_yield.name"] = "Trusted Hands", ["heritage.h_apprentice_yield.desc"] = "+5% apprentice yield",
+            ["heritage.h_scarecrow_immunity.name"] = "Old Scarecrow", ["heritage.h_scarecrow_immunity.desc"] = "Scarecrow level 3: no crows",
+            ["heritage.h_start_year_length.name"] = "Long Summers", ["heritage.h_start_year_length.desc"] = "+10 s starting year length",
+            ["heritage.h_greenhouse_x2.name"] = "Glass Roof", ["heritage.h_greenhouse_x2.desc"] = "Greenhouse earns x2",
+            ["heritage.h_almanac_discount.name"] = "Old Notes", ["heritage.h_almanac_discount.desc"] = "Almanac costs -5%",
         };
 
         public static string Get(string key) => key != null && En.TryGetValue(key, out var s) ? s : key;
-        public static string Name(AlmanacNode node) => Get(node.NameKey);
-        public static string Desc(AlmanacNode node) => Get(node.DescKey);
+        public static string Name(SkillNode node) => Get(node.NameKey);
+        public static string Desc(SkillNode node) => Get(node.DescKey);
         public static string Crop(CropDef crop) => Get(crop.Key);
 
         public static string[] Names(string[] nodeIds)
         {
             var result = new string[nodeIds.Length];
             for (int i = 0; i < nodeIds.Length; i++)
-                result[i] = Get("almanac." + nodeIds[i] + ".name");
+                result[i] = nodeIds[i].StartsWith("h_") ? Get("heritage." + nodeIds[i] + ".name") : Get("almanac." + nodeIds[i] + ".name");
             return result;
         }
     }

@@ -6,13 +6,17 @@ namespace TillWinter.Core
     /// <summary>
     /// The whole game. Pure C#, deterministic for a fixed dt and seed. The Unity layer calls
     /// <see cref="Tick"/> every frame, forwards input via <see cref="Tick"/>/<see cref="TapAt"/>,
-    /// buys Almanac nodes with <see cref="TryBuy"/>, and renders <see cref="State"/>.
+    /// buys tree nodes with <see cref="TryBuy"/>, and renders <see cref="State"/>.
     /// </summary>
     public sealed class FarmSim
     {
         public FarmConfig Config { get; }
         public FarmState State { get; }
-        public IReadOnlyList<AlmanacNode> Nodes { get; }
+        public SkillTree Almanac { get; }
+        public SkillTree Heritage { get; }
+        /// <summary>Almanac nodes (kept for the list UI).</summary>
+        public IReadOnlyList<SkillNode> Nodes => Almanac.Nodes;
+        public IReadOnlyList<SkillNode> HeritageNodes => Heritage.Nodes;
 
         public event Action<HarvestEvent> Harvested;
         public event Action<GridPos> PlotWatered;
@@ -26,21 +30,43 @@ namespace TillWinter.Core
         public event Action YearStarted;
         public event Action<PurchaseEvent> Purchased;
         public event Action FieldExpanded;
+        public event Action<RetireEvent> Retired;
+        public event Action GenerationStarted;
 
-        private readonly Random _rng;
+        private Rng _rng;
         private readonly List<Plot> _scratch = new List<Plot>();
         private float _crowSpawnTimer;
         private float? _ringRadiusOverride;
+        private bool _offline;
 
-        public FarmSim(FarmConfig config, int seed, IReadOnlyList<AlmanacNode> nodes = null)
+        public FarmSim(FarmConfig config, int seed, IReadOnlyList<SkillNode> almanacNodes = null, IReadOnlyList<SkillNode> heritageNodes = null)
         {
             Config = config ?? throw new ArgumentNullException(nameof(config));
-            Nodes = nodes ?? AlmanacData.Nodes;
-            var errors = AlmanacData.Validate(Nodes);
-            if (errors.Count > 0) throw new InvalidOperationException("Almanac table invalid: " + string.Join("; ", errors));
+            almanacNodes = almanacNodes ?? AlmanacData.Nodes;
+            heritageNodes = heritageNodes ?? HeritageData.Nodes;
+            var errors = SkillTree.ValidateAll(almanacNodes, heritageNodes);
+            if (errors.Count > 0) throw new InvalidOperationException("Skill tree table invalid: " + string.Join("; ", errors));
+
             State = new FarmState();
-            _rng = new Random(seed);
-            BuildField(config.StartGridSize);
+            _rng = new Rng(seed);
+            Almanac = new SkillTree(TreeKind.Almanac, almanacNodes)
+            {
+                GetCurrency = () => State.Coins,
+                Spend = c => State.Coins -= c,
+                PurchaseAllowed = () => State.Phase == Phase.Winter,
+                IsMaxedOverride = n => n.Effect == EffectType.UpgradePlot && FindLowestUpgradablePlot() == null,
+                CostMultiplier = () => State.Stats.AlmanacCostMult,
+            };
+            Heritage = new SkillTree(TreeKind.Heritage, heritageNodes)
+            {
+                GetCurrency = () => State.Generation.SeedsBanked,
+                Spend = c => State.Generation.SeedsBanked -= (int)Math.Round(c),
+                PurchaseAllowed = () => State.Phase == Phase.Winter || State.Phase == Phase.Heritage,
+            };
+            State.Almanac = Almanac;
+            State.Heritage = Heritage;
+            ResolveStats();
+            BuildField(State.Stats.StartGridSize);
             ResolveStats();
         }
 
@@ -51,11 +77,11 @@ namespace TillWinter.Core
         public void Tick(float dt, RingInput? ring)
         {
             if (dt < 0f) dt = 0f;
-            State.Ring = State.IsWinter ? null : ring;
-            if (State.IsWinter) return;
+            State.Ring = State.Phase == Phase.Year ? ring : null;
+            if (State.Phase != Phase.Year) return;
 
             AdvanceYear(dt);
-            if (State.IsWinter) return;
+            if (State.Phase != Phase.Year) return;
 
             UpdatePlots(dt);
             UpdateApprentices(dt);
@@ -65,28 +91,24 @@ namespace TillWinter.Core
         /// <summary>Tap a plot. Scares a crow (dropping coins) if one is there. Returns true if something happened.</summary>
         public bool TapAt(GridPos pos)
         {
-            if (State.IsWinter || !State.InBounds(pos)) return false;
+            if (State.Phase != Phase.Year || !State.InBounds(pos)) return false;
             var plot = State.GetPlot(pos);
             if (!plot.HasCrow) return false;
             double coins = Config.CrowScareValueMultiplier * Crop(plot).Value;
             AddCoins(coins);
             RemoveCrowAt(pos);
+            State.Generation.CrowsScared++;
             CrowScared?.Invoke(new CrowEvent(pos, coins));
             return true;
         }
 
-        public AlmanacNode GetNode(string id)
-        {
-            foreach (var n in Nodes) if (n.Id == id) return n;
-            return null;
-        }
+        private SkillTree TreeOf(string nodeId) => Almanac.Contains(nodeId) ? Almanac : Heritage.Contains(nodeId) ? Heritage : null;
 
-        public double CostOf(string nodeId)
-        {
-            var node = GetNode(nodeId);
-            if (node == null) return double.PositiveInfinity;
-            return Math.Round(node.BaseCost * Math.Pow(node.CostGrowth, State.GetLevel(nodeId)));
-        }
+        public SkillNode GetNode(string id) => TreeOf(id)?.GetNode(id);
+        public double CostOf(string nodeId) => TreeOf(nodeId)?.CostOf(nodeId) ?? double.PositiveInfinity;
+        public bool IsMaxed(string nodeId) => TreeOf(nodeId)?.IsMaxed(nodeId) ?? true;
+        public bool IsAvailable(string nodeId) => TreeOf(nodeId)?.IsAvailable(nodeId) ?? false;
+        public bool CanBuy(string nodeId) => TreeOf(nodeId)?.CanBuy(nodeId) ?? false;
 
         public int GetMaxLevel(string nodeId)
         {
@@ -97,46 +119,81 @@ namespace TillWinter.Core
             return node.MaxLevel;
         }
 
-        public bool IsMaxed(string nodeId)
-        {
-            var node = GetNode(nodeId);
-            if (node == null) return true;
-            if (node.Effect == EffectType.UpgradePlot) return FindLowestUpgradablePlot() == null;
-            return State.GetLevel(nodeId) >= node.MaxLevel;
-        }
-
-        /// <summary>GDD §6: available when it has no prerequisites or at least one prerequisite is at level ≥ 1.</summary>
-        public bool IsAvailable(string nodeId)
-        {
-            var node = GetNode(nodeId);
-            if (node == null) return false;
-            if (node.Prerequisites.Length == 0) return true;
-            foreach (var p in node.Prerequisites)
-                if (State.GetLevel(p) >= 1) return true;
-            return false;
-        }
-
-        public bool CanBuy(string nodeId) =>
-            State.IsWinter && IsAvailable(nodeId) && !IsMaxed(nodeId) && State.Coins >= CostOf(nodeId);
-
         public bool TryBuy(string nodeId)
         {
-            if (!CanBuy(nodeId)) return false;
-            var node = GetNode(nodeId);
-            State.Coins -= CostOf(nodeId);
-            int level = State.GetLevel(nodeId) + 1;
-            State.LevelMap[nodeId] = level;
-            ApplyPurchase(node);
+            var tree = TreeOf(nodeId);
+            if (tree == null) return false;
+            int level = tree.Buy(nodeId);
+            if (level <= 0) return false;
+            ApplyPurchase(tree.GetNode(nodeId));
             ResolveStats();
-            Purchased?.Invoke(new PurchaseEvent(nodeId, level));
+            Purchased?.Invoke(new PurchaseEvent(nodeId, level, tree.Kind));
             return true;
         }
 
         /// <summary>Leave the winter Almanac and start Spring of the next year.</summary>
         public void StartNextYear()
         {
-            if (!State.IsWinter) return;
+            if (State.Phase != Phase.Winter) return;
             State.Year++;
+            State.Generation.YearsThisGeneration++;
+            BeginSpring();
+        }
+
+        // ------------------------------------------------------------------ heritage (GDD §7)
+
+        public bool CanRetire => State.Generation.LifetimeCoinsThisGeneration >= Config.HeritageThreshold;
+
+        /// <summary>floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)).</summary>
+        public int SeedsIfRetiredNow => SeedsFor(State.Generation.LifetimeCoinsThisGeneration);
+
+        public int SeedsFor(double lifetimeCoins) =>
+            Config.SeedDivisor <= 0 ? 0 : (int)Math.Floor(Math.Sqrt(Math.Max(0, lifetimeCoins) / Config.SeedDivisor));
+
+        /// <summary>Hand the farm to the next generation. Winter only, and only once <see cref="CanRetire"/>.</summary>
+        public bool Retire()
+        {
+            if (State.Phase != Phase.Winter || !CanRetire) return false;
+            var g = State.Generation;
+            int seeds = SeedsIfRetiredNow;
+            g.SeedsBanked += seeds;
+            g.SeedsEarnedTotal += seeds;
+            g.Generation++;
+            g.LifetimeCoinsThisGeneration = 0;
+            g.YearsThisGeneration = 0;
+
+            State.Coins = 0;
+            Almanac.Reset();
+            ClearCrows();
+            State.Year = 1;
+            State.YearTime = 0f;
+            State.FrostWarning = false;
+            _crowSpawnTimer = 0f;
+            ResolveStats();
+            State.PlotArray = null;
+            State.GridSize = 0;
+            BuildField(State.Stats.StartGridSize);
+            ResolveStats();
+            State.Phase = Phase.Heritage;
+            State.Season = Season.Winter;
+            Retired?.Invoke(new RetireEvent(seeds, g.Generation));
+            return true;
+        }
+
+        /// <summary>Leave the Heritage screen: Spring of year 1 with the Heritage starting bonuses applied.</summary>
+        public void StartNewGeneration()
+        {
+            if (State.Phase != Phase.Heritage) return;
+            State.Year = 1;
+            ResolveStats();
+            if (State.GridSize != State.Stats.TargetGridSize) BuildField(State.Stats.TargetGridSize);
+            BeginSpring();
+            GenerationStarted?.Invoke();
+        }
+
+        private void BeginSpring()
+        {
+            State.Phase = Phase.Year;
             State.YearTime = 0f;
             State.FrostWarning = false;
             State.Season = Season.Spring;
@@ -148,19 +205,165 @@ namespace TillWinter.Core
             YearStarted?.Invoke();
         }
 
+        // ------------------------------------------------------------------ save / load (GDD §9)
+
+        public SaveData ToSave()
+        {
+            var s = State;
+            var d = new SaveData
+            {
+                SchemaVersion = SaveData.CurrentSchemaVersion,
+                SavedAtUnixSeconds = 0,
+                Phase = (int)s.Phase,
+                Year = s.Year,
+                Season = (int)s.Season,
+                YearTime = s.YearTime,
+                FrostWarning = s.FrostWarning,
+                Coins = s.Coins,
+                CrowSpawnTimer = _crowSpawnTimer,
+                RngState = _rng.State,
+                Generation = s.Generation.Generation,
+                LifetimeCoinsThisGeneration = s.Generation.LifetimeCoinsThisGeneration,
+                LifetimeCoinsTotal = s.Generation.LifetimeCoinsTotal,
+                YearsThisGeneration = s.Generation.YearsThisGeneration,
+                SeedsBanked = s.Generation.SeedsBanked,
+                SeedsEarnedTotal = s.Generation.SeedsEarnedTotal,
+                CrowsScared = s.Generation.CrowsScared,
+                Harvests = s.Generation.Harvests,
+                GridSize = s.GridSize,
+                Plots = new PlotSave[s.PlotArray.Length],
+                Apprentices = new ApprenticeSave[s.ApprenticeList.Count],
+                AlmanacLevels = Pairs(Almanac.Levels),
+                HeritageLevels = Pairs(Heritage.Levels),
+            };
+            for (int i = 0; i < s.PlotArray.Length; i++)
+            {
+                var p = s.PlotArray[i];
+                float crowTimer = 0f;
+                foreach (var c in s.CrowList) if (c.Pos == p.Pos) crowTimer = c.Timer;
+                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.Tier, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer };
+            }
+            for (int i = 0; i < s.ApprenticeList.Count; i++)
+                d.Apprentices[i] = new ApprenticeSave { X = s.ApprenticeList[i].X, Y = s.ApprenticeList[i].Y };
+            return d;
+        }
+
+        /// <summary>Rebuilds a sim from a save. Returns null for an unknown schema version or malformed data.</summary>
+        public static FarmSim FromSave(SaveData data, FarmConfig config, IReadOnlyList<SkillNode> almanacNodes = null, IReadOnlyList<SkillNode> heritageNodes = null)
+        {
+            data = SaveMigrations.Migrate(data);
+            if (data == null || config == null) return null;
+            if (data.GridSize < 1 || data.Plots == null || data.Plots.Length != data.GridSize * data.GridSize) return null;
+
+            var sim = new FarmSim(config, 0, almanacNodes, heritageNodes);
+            var s = sim.State;
+            sim._rng = new Rng(data.RngState);
+            sim._crowSpawnTimer = data.CrowSpawnTimer;
+            s.Phase = (Phase)data.Phase;
+            s.Year = data.Year;
+            s.Season = (Season)data.Season;
+            s.YearTime = data.YearTime;
+            s.FrostWarning = data.FrostWarning;
+            s.Coins = data.Coins;
+            var g = s.Generation;
+            g.Generation = Math.Max(1, data.Generation);
+            g.LifetimeCoinsThisGeneration = data.LifetimeCoinsThisGeneration;
+            g.LifetimeCoinsTotal = data.LifetimeCoinsTotal;
+            g.YearsThisGeneration = data.YearsThisGeneration;
+            g.SeedsBanked = data.SeedsBanked;
+            g.SeedsEarnedTotal = data.SeedsEarnedTotal;
+            g.CrowsScared = data.CrowsScared;
+            g.Harvests = data.Harvests;
+
+            foreach (var pair in data.AlmanacLevels ?? new LevelPair[0]) sim.Almanac.SetLevel(pair.Id, pair.Level);
+            foreach (var pair in data.HeritageLevels ?? new LevelPair[0]) sim.Heritage.SetLevel(pair.Id, pair.Level);
+
+            s.PlotArray = null;
+            s.GridSize = 0;
+            sim.BuildField(data.GridSize);
+            foreach (var ps in data.Plots)
+            {
+                var pos = new GridPos(ps.X, ps.Y);
+                if (!s.InBounds(pos)) return null;
+                var plot = s.GetPlot(pos);
+                plot.Tier = Math.Max(0, Math.Min(config.MaxTier, ps.Tier));
+                plot.State = (PlotState)ps.State;
+                plot.Progress = ps.Progress;
+                if (ps.HasCrow)
+                {
+                    plot.HasCrow = true;
+                    s.CrowList.Add(new Crow { Pos = pos, Timer = ps.CrowTimer, EatTime = config.CrowEatTime });
+                }
+            }
+            sim.ResolveStats();
+            var saved = data.Apprentices ?? new ApprenticeSave[0];
+            for (int i = 0; i < s.ApprenticeList.Count && i < saved.Length; i++)
+            {
+                s.ApprenticeList[i].X = saved[i].X;
+                s.ApprenticeList[i].Y = saved[i].Y;
+            }
+            return sim;
+        }
+
+        private static LevelPair[] Pairs(IReadOnlyDictionary<string, int> levels)
+        {
+            var list = new List<LevelPair>();
+            foreach (var kv in levels) list.Add(new LevelPair { Id = kv.Key, Level = kv.Value });
+            list.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
+            return list.ToArray();
+        }
+
+        // ------------------------------------------------------------------ offline (GDD §9)
+
+        /// <summary>
+        /// Advances passive systems only (Irrigation → Sun → apprentices) for min(elapsed, cap) at a
+        /// coarse fixed step. No ring, no crows, no year timer, no season change. No-op outside Phase.Year.
+        /// </summary>
+        public OfflineReport SimulateOffline(double elapsedSeconds)
+        {
+            if (State.Phase != Phase.Year || elapsedSeconds <= 0 || double.IsNaN(elapsedSeconds))
+                return new OfflineReport(0, 0, 0, false);
+            bool capped = elapsedSeconds > Config.OfflineCapSeconds;
+            double total = Math.Min(elapsedSeconds, Config.OfflineCapSeconds);
+            float step = Math.Max(0.05f, Config.OfflineStepSeconds);
+            int steps = (int)Math.Floor(total / step);
+            int maxSteps = (int)Math.Ceiling(Config.OfflineCapSeconds / step) + 1;
+            if (steps > maxSteps) steps = maxSteps;
+
+            double coinsBefore = State.Coins;
+            int harvestsBefore = State.Generation.Harvests;
+            var ringBefore = State.Ring;
+            State.Ring = null;
+            _offline = true;
+            for (int i = 0; i < steps; i++)
+            {
+                UpdatePlots(step);
+                UpdateApprentices(step);
+            }
+            _offline = false;
+            State.Ring = ringBefore;
+            return new OfflineReport(steps * (double)step, State.Coins - coinsBefore, State.Generation.Harvests - harvestsBefore, capped);
+        }
+
         // ------------------------------------------------------------------ debug hooks
 
         public void DebugAddCoins(double amount) => State.Coins += amount;
+        public void DebugAddSeeds(int amount) => State.Generation.SeedsBanked += amount;
+        public void DebugAddLifetimeCoins(double amount)
+        {
+            State.Generation.LifetimeCoinsThisGeneration += amount;
+            State.Generation.LifetimeCoinsTotal += amount;
+        }
 
         public void DebugSkipToWinter()
         {
-            if (!State.IsWinter) EnterWinter();
+            if (State.Phase == Phase.Year) EnterWinter();
         }
 
         /// <summary>Force a crow onto a plot (ripening it if needed). Ignores year/scarecrow rules.</summary>
         public bool DebugSpawnCrow()
         {
-            if (State.IsWinter) return false;
+            if (State.Phase != Phase.Year) return false;
             _scratch.Clear();
             foreach (var p in State.PlotArray)
                 if (!p.HasCrow && p.IsRipe && !State.IsUnderRing(p.Pos)) _scratch.Add(p);
@@ -177,7 +380,7 @@ namespace TillWinter.Core
 
         public void DebugForceRipeAll()
         {
-            if (State.IsWinter) return;
+            if (State.Phase != Phase.Year) return;
             foreach (var p in State.PlotArray)
             {
                 p.State = PlotState.Ripe;
@@ -188,20 +391,20 @@ namespace TillWinter.Core
         /// <summary>Sets a node level directly (clamped to its max), applying field/tier side effects.</summary>
         public void DebugSetLevel(string nodeId, int level)
         {
-            var node = GetNode(nodeId);
+            var tree = TreeOf(nodeId);
+            var node = tree?.GetNode(nodeId);
             if (node == null) return;
             int max = node.MaxLevel < 0 ? int.MaxValue : node.MaxLevel;
-            level = Math.Max(0, Math.Min(max, level));
-            State.LevelMap[nodeId] = level;
+            tree.SetLevel(nodeId, Math.Max(0, Math.Min(max, level)));
             ResolveStats();
-            if (node.Effect == EffectType.ExpandField && State.GridSize != State.Stats.TargetGridSize)
+            if (State.GridSize < State.Stats.TargetGridSize)
             {
                 BuildField(State.Stats.TargetGridSize);
                 FieldExpanded?.Invoke();
             }
         }
 
-        /// <summary>null restores the Almanac-driven radius.</summary>
+        /// <summary>null restores the tree-driven radius.</summary>
         public void DebugSetRingRadiusOverride(float? radius)
         {
             _ringRadiusOverride = radius;
@@ -247,6 +450,7 @@ namespace TillWinter.Core
 
         private void EnterWinter()
         {
+            State.Phase = Phase.Winter;
             State.Season = Season.Winter;
             State.YearTime = State.Stats.YearLength;
             State.FrostWarning = false;
@@ -267,13 +471,12 @@ namespace TillWinter.Core
             var st = State.Stats;
             foreach (var plot in State.PlotArray)
             {
-                bool under = State.IsUnderRing(plot.Pos);
+                bool under = !_offline && State.IsUnderRing(plot.Pos);
                 var crop = Crop(plot);
                 switch (plot.State)
                 {
                     case PlotState.Dry:
                     {
-                        // Ring rate replaces the passive rate; passive uses the crop's base speed (no ring upgrades).
                         float speed = under ? st.RingWaterMult : st.IrrigationFactor;
                         if (speed <= 0f) break;
                         plot.Progress += speed / crop.Water * dt;
@@ -316,6 +519,7 @@ namespace TillWinter.Core
             double coins = Crop(plot).Value * st.CropValueMult;
             coins *= source == HarvestSource.Ring ? st.RingBonusMult : st.ApprenticeYield;
             AddCoins(coins);
+            State.Generation.Harvests++;
             int tier = plot.Tier;
             plot.Reset();
             if (plot.HasCrow)
@@ -329,7 +533,8 @@ namespace TillWinter.Core
         private void AddCoins(double coins)
         {
             State.Coins += coins;
-            State.LifetimeCoins += coins;
+            State.Generation.LifetimeCoinsThisGeneration += coins;
+            State.Generation.LifetimeCoinsTotal += coins;
         }
 
         // ------------------------------------------------------------------ apprentices
@@ -386,7 +591,6 @@ namespace TillWinter.Core
             {
                 if (a.HasTarget && !State.GetPlot(a.Target).IsRipe)
                 {
-                    // The ring (or another helper) took it first.
                     a.HasTarget = false;
                     a.IsHarvesting = false;
                     a.HarvestProgress = 0f;
@@ -515,7 +719,7 @@ namespace TillWinter.Core
             State.CrowList.Clear();
         }
 
-        // ------------------------------------------------------------------ field & almanac
+        // ------------------------------------------------------------------ field & trees
 
         private void BuildField(int size)
         {
@@ -544,7 +748,7 @@ namespace TillWinter.Core
             return lowest;
         }
 
-        private void ApplyPurchase(AlmanacNode node)
+        private void ApplyPurchase(SkillNode node)
         {
             switch (node.Effect)
             {
@@ -563,9 +767,9 @@ namespace TillWinter.Core
 
         private void ResolveStats()
         {
-            State.Stats = StatResolver.Resolve(Config, State.LevelMap, Nodes);
+            State.Stats = StatResolver.Resolve(Config, Almanac.Levels, Heritage.Levels, Almanac.Nodes, Heritage.Nodes);
             State.RingRadius = _ringRadiusOverride ?? State.Stats.RingRadius;
-            SyncApprenticeCount();
+            if (State.PlotArray != null) SyncApprenticeCount();
         }
     }
 }

@@ -23,6 +23,7 @@ namespace TillWinter.Unity
         private RectTransform _coinGroup;
         private Text _coinText;
         private Text _yearText;
+        private Text _seedsHint;
         private Text _seasonText;
         private RectTransform _timerBar;
         private RectTransform _timerFill;
@@ -71,6 +72,9 @@ namespace TillWinter.Unity
             _seasonText = UiKit.Label(top, "Season", "Spring", 44, UiKit.Paper, TextAnchor.MiddleRight, FontStyle.Bold);
             UiKit.Box(_seasonText.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-60f, -290f), new Vector2(400f, 60f));
             AddShadow(_seasonText);
+            _seedsHint = UiKit.Label(top, "SeedsHint", "", 30, new Color(0.85f, 0.7f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(_seedsHint.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -400f), new Vector2(900f, 44f));
+            AddShadow(_seedsHint);
 
             // Timer bar with season segments
             _timerBar = UiKit.Rect("TimerBar", top);
@@ -232,7 +236,8 @@ namespace TillWinter.Unity
             _counterPunch = Mathf.Max(0f, _counterPunch - dt * 5f);
             _coinGroup.localScale = Vector3.one * (1f + 0.22f * Prims.EaseOutQuad(_counterPunch));
 
-            _yearText.text = "Year " + state.Year;
+            _yearText.text = "Year " + state.Year + "  \u00B7  Gen " + state.Generation.Generation;
+            _seedsHint.text = _game.Sim.CanRetire ? "seeds if you retire: " + _game.Sim.SeedsIfRetiredNow : "";
             _seasonText.text = state.Season.ToString();
 
             // Timer

@@ -26,7 +26,26 @@ namespace TillWinter.Unity
 
             var root = new GameObject("TillWinter");
             var game = root.AddComponent<GameController>();
-            game.Init(config, Seed);
+            var saveGo = new GameObject("Save");
+            saveGo.transform.SetParent(root.transform, false);
+            var save = saveGo.AddComponent<SaveController>();
+            var loaded = SaveController.Load(save.Path);
+            FarmSim sim = loaded != null ? FarmSim.FromSave(loaded, config) : null;
+            OfflineReport offline = default;
+            if (sim != null)
+            {
+                game.InitFrom(sim);
+                long now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                double elapsed = System.Math.Max(0, now - loaded.SavedAtUnixSeconds); // clock went backwards -> 0
+                offline = sim.SimulateOffline(elapsed);
+                Debug.Log("[TillWinter] Loaded save (gen " + sim.State.Generation.Generation + ", year " + sim.State.Year + ", " + sim.State.Phase + "); offline " + offline.SecondsSimulated + " s, +" + offline.CoinsEarned + " coins");
+            }
+            else
+            {
+                if (loaded != null) Debug.LogWarning("[TillWinter] Save could not be restored (schema " + loaded.SchemaVersion + "); starting fresh");
+                game.Init(config, Seed);
+            }
+            save.Attach(game);
             game.RingOffsetPlots = RingOffsetPlots;
             game.Pointer = root.AddComponent<PointerInput>();
 
@@ -68,8 +87,12 @@ namespace TillWinter.Unity
             hud.Init(game, audio, canvas);
             var shop = canvas.gameObject.AddComponent<WinterShopView>();
             shop.Init(game, audio, canvas);
+            var away = canvas.gameObject.AddComponent<AwayCard>();
+            away.Init(game, audio, canvas);
             var debug = canvas.gameObject.AddComponent<DebugPanel>();
-            debug.Init(game, audio, canvas);
+            debug.Init(game, audio, canvas, save, away);
+            if (game.State.Phase != Phase.Year) shop.Open();
+            if (offline.CoinsEarned > 0) away.Show(offline);
         }
 
         private static RectTransform BuildCanvas(Transform parent)

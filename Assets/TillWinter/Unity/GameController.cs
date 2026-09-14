@@ -31,6 +31,11 @@ namespace TillWinter.Unity
             Sim = new FarmSim(config, seed);
         }
 
+        public void InitFrom(FarmSim sim)
+        {
+            Sim = sim;
+        }
+
         public Vector3 PlotToWorld(float px, float py, float y = 0f)
         {
             float c = (State.GridSize - 1) * 0.5f;

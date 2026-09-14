@@ -230,9 +230,48 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 12:
-                    Shot("08-end");
+                case 12: // retire: threshold via debug, winter, Retire(), Heritage buys, new generation
+                    _game.Sim.DebugAddLifetimeCoins(_game.Sim.Config.HeritageThreshold);
+                    Check(_game.Sim.CanRetire, "CanRetire after threshold");
+                    _game.Sim.DebugSkipToWinter();
                     Next();
+                    break;
+                case 13:
+                    if (inPhase > 0.8)
+                    {
+                        Shot("08-winter-retire-button");
+                        int gen = s.Generation.Generation;
+                        Check(_game.Sim.Retire(), "Retire()");
+                        Check(s.Phase == Phase.Heritage, "phase Heritage");
+                        Check(s.Generation.Generation == gen + 1, "generation incremented");
+                        Check(s.Coins == 0 && s.AlmanacLevels.Count == 0, "coins and almanac reset");
+                        _game.Sim.DebugAddSeeds(20);
+                        Check(_game.Sim.TryBuy("h_start_radius"), "buy h_start_radius");
+                        Check(_game.Sim.TryBuy("h_free_apprentice"), "buy h_free_apprentice");
+                        Next();
+                    }
+                    break;
+                case 14:
+                    if (inPhase > 0.8)
+                    {
+                        Shot("09-heritage-panel");
+                        var btn = GameObject.Find("StartGeneration")?.GetComponent<Button>();
+                        Check(btn != null, "Start new generation button exists");
+                        btn?.onClick.Invoke();
+                        Check(s.Phase == Phase.Year && s.Year == 1, "new generation year 1");
+                        Check(s.Apprentices.Count == 1, "free apprentice present");
+                        Check(Mathf.Abs(s.RingRadius - 0.95f) < 1e-3f, "heritage radius bonus applied");
+                        var save = UnityEngine.Object.FindFirstObjectByType<SaveController>();
+                        save.SaveNow();
+                        var data = SaveController.Load(save.Path);
+                        Check(data != null, "save file readable");
+                        var loaded = data != null ? FarmSim.FromSave(data, new FarmConfig()) : null;
+                        Check(loaded != null && loaded.State.Generation.Generation == s.Generation.Generation && loaded.State.Apprentices.Count == 1, "loaded save matches");
+                        Next();
+                    }
+                    break;
+                case 15:
+                    if (inPhase > 1.5) { Shot("10-generation2"); Next(); }
                     break;
                 default:
                     if (inPhase > 1.0) Finish();

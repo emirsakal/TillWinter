@@ -19,6 +19,8 @@ namespace TillWinter.Unity
         private AudioManager _audio;
         private readonly Dictionary<GridPos, PlotView> _plots = new Dictionary<GridPos, PlotView>();
         private CropMaterials _materials;
+        private Transform _trees;
+        private Material _trunk, _canopy;
 
         public void Init(GameController game, CameraRig camera, FxManager fx, AudioManager audio)
         {
@@ -33,6 +35,30 @@ namespace TillWinter.Unity
             _game.Sim.PlotRipened += OnRipened;
             _game.Sim.CrowAte += OnCrowAte;
             _game.Sim.FieldExpanded += Rebuild;
+            _game.Sim.GenerationStarted += RebuildTrees;
+            _trunk = Prims.Lit(new Color(0.45f, 0.3f, 0.18f), 0.05f);
+            _canopy = Prims.Lit(new Color(0.25f, 0.55f, 0.28f), 0.1f);
+            RebuildTrees();
+        }
+
+        /// <summary>Generation N shows N-1 small trees around the field (placeholder for the art phase).</summary>
+        private void RebuildTrees()
+        {
+            if (_trees != null) Destroy(_trees.gameObject);
+            _trees = new GameObject("GenerationTrees").transform;
+            _trees.SetParent(transform, false);
+            int count = Mathf.Clamp(_game.State.Generation.Generation - 1, 0, 24);
+            float radius = _game.State.GridSize * 0.5f + 1.4f;
+            for (int i = 0; i < count; i++)
+            {
+                float a = (i / (float)Mathf.Max(1, count)) * Mathf.PI * 2f + 0.4f;
+                var pos = new Vector3(Mathf.Cos(a) * radius, 0f, Mathf.Sin(a) * radius * 0.8f + 0.3f);
+                var tree = new GameObject("Tree " + i).transform;
+                tree.SetParent(_trees, false);
+                tree.localPosition = pos;
+                Prims.Primitive(PrimitiveType.Cylinder, tree, "Trunk", new Vector3(0f, 0.25f, 0f), new Vector3(0.12f, 0.25f, 0.12f), _trunk);
+                Prims.MeshObject(Prims.Cone(false), tree, "Canopy", new Vector3(0f, 0.45f, 0f), new Vector3(0.45f, 0.9f, 0.45f), _canopy);
+            }
         }
 
         private void OnDestroy()
@@ -43,6 +69,7 @@ namespace TillWinter.Unity
             _game.Sim.PlotRipened -= OnRipened;
             _game.Sim.CrowAte -= OnCrowAte;
             _game.Sim.FieldExpanded -= Rebuild;
+            _game.Sim.GenerationStarted -= RebuildTrees;
         }
 
         private void Rebuild()
@@ -60,6 +87,7 @@ namespace TillWinter.Unity
             foreach (var kv in _plots)
                 kv.Value.transform.localPosition = _game.PlotToWorld(kv.Key);
             _camera.Frame(state.GridSize, false);
+            if (_trees != null) RebuildTrees();
         }
 
         private void OnHarvested(HarvestEvent e)
