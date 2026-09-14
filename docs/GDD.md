@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 1.0 — September 2026.** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 1.1 — September 2026 (1.0 + Session 1 clarifications, marked *(v1.1)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -40,7 +40,7 @@ Each plot holds a crop of a given **tier** and is in one of three states. Harves
 | **Ripe → harvested** (harvest) | progresses at ring harvest speed; on completion coins pop | *Apprentices* walk to Ripe plots and harvest |
 
 Rules:
-- Each state has its own progress 0..1. Ring rate replaces (does not stack with) the passive rate while the plot is under the ring.
+- Each state has its own progress 0..1. Ring rate replaces (does not stack with) the passive rate while the plot is under the ring. *(v1.1)* Passive rates are fractions of the crop's *base* speed (Hand-branch ring upgrades do not speed up Irrigation/Sun); Soil multiplies growing only. Progress resets to 0 on each state change.
 - A Wet plot stays Wet until harvested (no drying out in v1; a "summer drought" event is a later option).
 - A Ripe plot outside the ring waits, visibly wobbling. Ripe plots are crow targets.
 - Ring harvest completing on a plot with a crow scares the crow first, then harvests.
@@ -98,7 +98,7 @@ Apprentices: each has its own position and target; they never target the same pl
 
 ### 5.1 Crows
 - From year 2. Spawn check every 4 s; roll at the Scarecrow-modified chance only when a Ripe, unprotected, crow-free plot exists outside the ring. Max 2 at once.
-- A crow eats the crop after 4 s. Tap scares it: the crop stays and the crow drops **coins = 2 × crop value** *(tune)*. Being harvested also scares it.
+- A crow eats the crop after 4 s. Tap scares it: the crop stays and the crow drops **coins = 2 × crop value** *(tune)*. Being harvested also scares it *(v1.1: no coins dropped)*.
 - Eaten crop → plot to Dry, progress 0.
 
 ### 5.2 Rain cloud *(unlocked in Heritage)*
@@ -115,7 +115,7 @@ Apprentices: each has its own position and target; they never target the same pl
 - **Data-driven.** Nodes are rows in a data table (`AlmanacNode`: id, branch, prerequisites, maxLevel, baseCost, costGrowth, effect type, effect value per level, EN/TR name keys). Adding a node is data, not code.
 - Cost of level *n* = `baseCost × costGrowth^n`, default growth **1.6** *(tune)*.
 
-Branches and initial node set (≈45 nodes). Levels/costs are placeholders to be tuned.
+Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.md`, Session 1). Levels/costs are placeholders to be tuned. *(v1.1)* `upgrade_plot` requires `unlock_tomato` (it does nothing before a second tier exists). Ring speed nodes are +20 % per level *(tune)*.
 
 **Hand** (the ring)
 - `ring_radius` (5) · `ring_water_speed` (5) · `ring_grow_speed` (5) · `ring_harvest_speed` (3) · `ring_bonus_coins` +10%/lvl on ring harvests (4) · `ring_combo` consecutive ring harvests within 1 s add a small stacking bonus (3)

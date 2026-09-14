@@ -21,10 +21,14 @@ or materials to keep in sync.
 
 | Input | Effect |
 |---|---|
-| Hold / drag (mouse or finger) | The ring follows the pointer, offset **0.8 plots toward the top of the screen** so your finger doesn't hide it. Plots under the ring grow; ripe ones are harvested instantly. |
-| Tap a plot with a crow (< 0.2 s, < 20 px) | Scares the crow. A tap is also a one-frame ring, so tapping a ripe plot harvests it. |
-| `DBG` button (top-right) | Debug panel: time scale 0.5×–8×, ring offset, ring radius override, +1000 coins, skip to Winter, spawn crow, live sim readout. |
-| Winter shop | Buy upgrades, then **Next Year ▶**. Pointer input is ignored while the shop is open. |
+| Hold / drag (mouse or finger) | The ring follows the pointer, offset **0.8 plots toward the top of the screen** so your finger doesn't hide it. Every plot under the ring advances its own phase: **Dry -> Wet** (watering), **Wet -> Ripe** (growing), **Ripe -> coins** (harvest, takes the crop's harvest time). The starting ring (radius 0.7) covers one plot. |
+| Tap a plot with a crow (< 0.2 s, < 20 px) | Scares the crow and drops 2x the crop's value. A tap is also a one-frame ring, so it no longer harvests by itself. |
+| `DBG` button (top-right) | Debug panel: time scale 0.5x-8x, ring offset, ring radius override, +1000 coins, skip to Winter, spawn crow, Ripe all, per-node Almanac level editor (- / +), resolved stats. |
+| Winter Almanac | Scrolling list of every node grouped by branch (LOCKED / BUY / MAX, "not implemented yet" for table-only effects), then **Next Year**. Pointer input is ignored while it is open. |
+
+Plot states read at a glance: Dry = light cracked soil, Wet = dark soil + sprout, growing = the
+plant scales with progress, Ripe = wobble + warm glow. Passive systems (Irrigation, Sun, apprentices)
+are Almanac nodes; at level 0 nothing happens without the ring.
 
 Season colours, light angle, frost vignette and snow are the only "season" presentation.
 The last 10 s of Autumn is the frost warning: cold vignette, blue light shift, heartbeat on
@@ -36,7 +40,7 @@ the timer bar and a tick each second.
 run-tests.bat
 ```
 
-Runs the `TillWinter.Tests` EditMode suite (44 NUnit tests against `TillWinter.Core` only) in
+Runs the `TillWinter.Tests` EditMode suite (61 NUnit tests against `TillWinter.Core` only) in
 Unity batchmode and writes `TestResults\EditMode.xml` + `EditMode.log`. Exit code 0 = pass,
 2 = failures, 3 = Unity could not run (compile error, or the project is already open in an
 editor). Override the editor path with `set UNITY_PATH=...`.
@@ -47,8 +51,8 @@ smoke-test.bat
 
 Play-mode smoke test. Opens the real editor (not batchmode), enters Play, injects a virtual
 Input System mouse that holds the ring over the field, fast-forwards to frost and Winter,
-buys Apprentice/Irrigation/Expand Field, presses Next Year, runs year 2 with the apprentice,
-spawns a crow, taps it, and exits. Screenshots and `report.txt` land in `TestResults\smoke\`.
+buys apprentices/irrigation/expand field/ring radius, presses Next Year, runs year 2 with two
+apprentices, spawns a crow, taps it, and exits. Screenshots and `report.txt` land in `TestResults\smoke\`.
 Exit code 0 = all checks passed and no console errors. Handy after any presentation change.
 
 Both scripts need the project to be closed in the editor.
@@ -64,15 +68,18 @@ Assets/TillWinter/Scenes/  Farm.unity (one Bootstrap object)
 Assets/Audio/Kenney/       CC0 clips from kenney.nl + licenses (loaded via Resources/Kenney)
 ```
 
-All tunables live in `FarmConfig` (Core). `FarmConfigAsset` is an optional ScriptableObject
-wrapper you can assign on the Bootstrap object to tweak numbers in the Inspector.
+All tunables live in `FarmConfig` (Core); Almanac nodes and their per-level values live in
+`AlmanacData` (Core) and resolve to numbers through `StatResolver`. `FarmConfigAsset` is an
+optional ScriptableObject wrapper you can assign on the Bootstrap object to tweak numbers in the
+Inspector. Design source of truth: `docs/GDD.md`.
 
 ## What is intentionally missing
 
-Out of scope for this demo: rebirth/prestige, saving, offline income, localization, real art
-or models (everything is Unity primitives + flat URP materials), additional crops or helpers,
+Not yet built (see the GDD roadmap): Heritage/rebirth, save/offline, rain cloud, golden crop,
+tractor/greenhouse/combo behaviour (table entries only), the Almanac tree canvas, real art
+(everything is Unity primitives + flat URP materials), localization (EN placeholder strings only),
 sound design beyond placeholders (Kenney CC0 clips, generated blips as fallback), performance
-work, store/build settings, monetization. Balance is a first guess and deliberately untuned.
+work, store/build settings. No monetization, ever. Balance is a first guess and deliberately untuned.
 
 See `DECISIONS.md` for choices the design brief left open, and `CLAUDE.md` for the
 architecture rules future sessions must keep.

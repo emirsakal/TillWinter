@@ -183,13 +183,13 @@ namespace TillWinter.Unity
                 bool implemented = row.Node.IsImplemented;
 
                 row.Level.text = "Lv " + level + "/" + max;
-                row.Cost.text = maxed ? "MAX" : NumberFormat.Short(sim.CostOf(id));
+                row.Cost.text = !available ? NumberFormat.Short(sim.CostOf(id)) : maxed ? "MAX" : NumberFormat.Short(sim.CostOf(id));
                 row.Box.color = available ? Available : Locked;
                 row.Name.color = available ? UiKit.Paper : new Color(0.6f, 0.62f, 0.68f);
                 row.Effect.text = (implemented ? "" : "[not implemented yet] ") + (available ? Localize.Desc(row.Node) : "Needs: " + string.Join(" or ", Localize.Names(row.Node.Prerequisites)));
                 row.Buy.interactable = can;
-                row.BuyLabel.text = maxed ? "MAX" : !available ? "LOCKED" : "BUY";
-                row.BuyImage.color = maxed ? UiKit.Muted : !available ? new Color(0.3f, 0.32f, 0.36f) : can ? (implemented ? UiKit.Good : new Color(0.55f, 0.6f, 0.45f)) : new Color(0.35f, 0.4f, 0.45f);
+                row.BuyLabel.text = !available ? "LOCKED" : maxed ? "MAX" : "BUY";
+                row.BuyImage.color = !available ? new Color(0.3f, 0.32f, 0.36f) : maxed ? UiKit.Muted : can ? (implemented ? UiKit.Good : new Color(0.55f, 0.6f, 0.45f)) : new Color(0.35f, 0.4f, 0.45f);
             }
         }
 

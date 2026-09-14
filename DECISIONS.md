@@ -1,5 +1,8 @@
 # Decisions not covered by the kickoff brief
 
+> **Demo section (September 2026).** Entries below that talk about a single `Growth` value, `UpgradeId`,
+> instant ring harvest or a single apprentice were superseded by Session 1 (see the section at the end).
+
 Each entry: what was open, what was chosen, why. Balance-affecting ones are exposed in `FarmConfig`.
 
 ## Setup
@@ -83,3 +86,66 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   added beyond the brief because it was the only way to verify the Unity layer runs without
   an interactive editor. It doubles as a quick regression check for the developer.
 - `TestResults/` is git-ignored.
+
+---
+
+# Session 1 - three-phase core + data-driven Almanac
+
+## Conflicts with the session prompt (GDD wins)
+
+- **Prerequisites are any-of.** The prompt says a purchase is rejected "when a prerequisite is at
+  level 0"; GDD 6 says a node is available when *at least one* prerequisite is >= 1. Implemented
+  any-of (`FarmSim.IsAvailable`). `ring_harvest_speed` therefore opens after Ring Watering *or* Ring Growing.
+- **Node count.** GDD 6 says "about 45 nodes" but lists 32; the table has exactly the 32 listed. More can
+  be added as data.
+
+## Core
+
+- **Tree edges** (GDD lists nodes per branch, not edges). Chosen chains:
+  Hand: ring_radius -> {ring_water_speed, ring_grow_speed} -> ring_harvest_speed -> ring_bonus_coins -> ring_combo.
+  Soil: irrigation -> sun -> soil_quality -> {crop_value, fertile_start}.
+  Field: expand_field -> unlock_tomato -> upgrade_plot -> unlock_corn -> unlock_pumpkin -> unlock_grapes -> unlock_golden_wheat; bulk_upgrade <- unlock_corn.
+  Helpers: apprentice_count -> {apprentice_speed, apprentice_harvest_time, scarecrow}; apprentice_yield <- {speed, harvest_time}; tractor <- yield; helper_water <- harvest_time.
+  Calendar: year_length -> {frost_warning, greenhouse}; late_frost, crow_bounty <- frost_warning; spring_head_start <- greenhouse.
+  `upgrade_plot` sits behind `unlock_tomato` because it does nothing until a second tier exists.
+- **Placeholder costs**: roots 30/40/60/80/50, deeper nodes 100-2000, growth 1.6 everywhere (prompt ranges). `upgrade_plot` base 25.
+- **Ring speed nodes are +20 % per level** (multiplier `1 + 0.2 x L` over the crop's base time). The
+  prompt only said "multipliers, level 0 = 1.0x"; 20 % makes five levels double the speed.
+- **Passive rates use the crop's base speed, not the ring multipliers.** Irrigation L waters at
+  `0.15 x L / Water`; Sun at `0.15 x L x soil / Grow`. Hand-branch upgrades do not leak into passive.
+  Soil multiplies growing (ring and Sun) only, never watering or harvesting.
+- **Progress does not carry over** between states (a transition resets to 0). At 60 fps this loses at
+  most one frame per transition.
+- **Harvest-scare pays nothing.** Only a tap-scare drops `2 x value` (base value, not x crop_value).
+  `CrowScared.Coins` is 0 for a harvest-scare so the UI can tell them apart.
+- **`upgrade_plot` level = number of purchases; max = plots x highest unlocked tier**; `IsMaxed` is
+  "no plot below the unlocked cap", so expanding or unlocking a tier re-opens it.
+- **`AlmanacNode` is a sealed class, not a C# record.** Records need `IsExternalInit`, which is not
+  guaranteed in Unity's .NET profile; the shape is otherwise identical to the prompt.
+- **`DebugSetLevel`** sets a level directly (tests use it instead of buying) and applies the
+  field-size side effect; it does not retroactively upgrade plots for `upgrade_plot`.
+- **Apprentice idle spots** are spread along the bottom edge at y = -1.2; they walk home when nothing
+  is Ripe. Reservation: an apprentice never targets a plot another one is targeting; if the ring or
+  another helper harvests the target first it retargets next tick.
+- **`LifetimeCoins`** is tracked now (for Heritage in S2), not shown.
+- **Not-implemented effects** (`ring_combo, helper_water, late_frost, fertile_start,
+  spring_head_start, bulk_upgrade, tractor, greenhouse, crow_bounty`) are in the table, purchasable,
+  resolve to a level/flag on `Stats`, and are flagged `[not implemented yet]` in the list.
+
+## Presentation
+
+- **Placeholder EN strings live in `TillWinter.Unity.Localize`** keyed by Core's `NameKey`/`DescKey`
+  and crop keys. Core has no user-facing text. The TR table arrives with the localization session.
+- **Almanac list is a `ScrollRect`** grouped by branch (headers); rows show LOCKED / BUY / MAX and the
+  prerequisite names when locked. LOCKED takes priority over MAX in the label.
+- **Dry plots show three crack slivers** (thin dark cubes) instead of a texture; they hide when Wet.
+  Wet = dark soil + sprout that shrinks as the plant grows. Ring harvest squashes the plant with
+  progress so the 0.5 s reads.
+- **Apprentice hat colours** cycle through six presets by index.
+- **Crop visuals for tiers 3-5** (pumpkin, grapes, golden wheat) are new primitive builds; no art.
+- The **HUD clears in-flight coins on Winter** (review follow-up 5).
+
+## Docs
+
+- `docs/GDD.md` was found in `Assets/TillWinter/docs/` (Unity had generated a .meta); moved to the
+  repo-root `docs/` the prompt asked for.
