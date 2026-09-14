@@ -478,6 +478,32 @@ namespace TillWinter.Core
             if (State.Phase == Phase.Year) EnterWinter();
         }
 
+        /// <summary>Jumps the year clock to a season (start of it; Autumn lands just inside the frost warning). Smoke/art hook.</summary>
+        public void DebugSetSeason(Season season)
+        {
+            if (State.Phase != Phase.Year) return;
+            float length = State.Stats.YearLength;
+            switch (season)
+            {
+                case Season.Spring: State.YearTime = 0f; break;
+                case Season.Summer: State.YearTime = length * 0.4f; break;
+                default: State.YearTime = Math.Max(length * 2f / 3f + 0.01f, length - State.Stats.FrostWarningSeconds * 0.9f); break;
+            }
+            var s = SeasonAt(State.YearTime, length);
+            if (s != State.Season)
+            {
+                State.Season = s;
+                SeasonChanged?.Invoke(s);
+            }
+        }
+
+        /// <summary>Sets the generation number (decor/house progression) without touching seeds or trees. Smoke/art hook.</summary>
+        public void DebugSetGeneration(int generation)
+        {
+            State.Generation.Generation = Math.Max(1, generation);
+            GenerationStarted?.Invoke();
+        }
+
         /// <summary>Force a crow onto a plot (ripening it if needed). Ignores year/scarecrow rules.</summary>
         public bool DebugSpawnCrow()
         {
