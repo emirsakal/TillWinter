@@ -35,6 +35,7 @@ namespace TillWinter.Unity
         private bool _showingHeritage;
         private float _open;
         private float _sheetShown;
+        private Vector2 _sheetHome;
         private double _coinsShown;
         private float _coinPunch;
         private float _coinTick;
@@ -75,16 +76,18 @@ namespace TillWinter.Unity
             var top = UiKit.Rect("TopBar", _safe);
             UiKit.Stretch(top, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(40f, -220f), new Vector2(-40f, -30f));
             _title = UiKit.Label(top, "Title", "", 56, _theme.Ink, TextAnchor.UpperLeft, FontStyle.Bold);
-            UiKit.Stretch(_title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.7f, 1f), Vector2.zero, Vector2.zero);
+            UiKit.Stretch(_title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.58f, 1f), Vector2.zero, Vector2.zero);
+            _title.fontSize = 44;
             _coins = UiKit.Label(top, "Coins", "0", 52, _theme.Ink, TextAnchor.UpperRight, FontStyle.Bold);
             _coinsRt = _coins.rectTransform;
-            UiKit.Stretch(_coinsRt, new Vector2(0.55f, 0.5f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            UiKit.Stretch(_coinsRt, new Vector2(0.58f, 0.5f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-130f, 0f));
+            _coins.fontSize = 42;
             _greenhouse = UiKit.Label(top, "Greenhouse", "", 26, _theme.InkMuted, TextAnchor.LowerLeft);
             UiKit.Stretch(_greenhouse.rectTransform, new Vector2(0f, 0f), new Vector2(0.6f, 0.5f), Vector2.zero, Vector2.zero);
             _retireHint = UiKit.Label(top, "RetireHint", "", 26, _theme.Seed, TextAnchor.LowerRight, FontStyle.Bold);
-            UiKit.Stretch(_retireHint.rectTransform, new Vector2(0.4f, 0f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+            UiKit.Stretch(_retireHint.rectTransform, new Vector2(0.4f, 0f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(-210f, 0f));
             _treeToggle = UiKit.Button(top, "TreeToggle", Strings.Get("ui.heritage"), 24, _theme.Seed, _theme.Paper, ToggleTree);
-            UiKit.Box(_treeToggle.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0f, -8f), new Vector2(220f, 56f));
+            UiKit.Box(_treeToggle.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0f, -30f), new Vector2(200f, 52f));
 
             // Tree canvases.
             var almanacRt = UiKit.Rect("AlmanacTree", _safe);
@@ -101,11 +104,11 @@ namespace TillWinter.Unity
             BuildSheet();
 
             // Bottom buttons.
-            _nextYear = UiKit.Button(_safe, "NextYear", Strings.Get("ui.next_year") + "  ▶", 40, _theme.Accent, _theme.Ink, OnNextYear);
+            _nextYear = UiKit.Button(_safe, "NextYear", Strings.Get("ui.next_year") + "  »", 40, _theme.Accent, _theme.Ink, OnNextYear);
             UiKit.Box(_nextYear.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(12f, 40f), new Vector2(490f, 120f));
             _retire = UiKit.Button(_safe, "Retire", Strings.Get("ui.pass_on"), 30, _theme.Seed, _theme.Paper, OnRetirePressed);
             UiKit.Box(_retire.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(-12f, 40f), new Vector2(490f, 120f));
-            _startGen = UiKit.Button(_safe, "StartGeneration", Strings.Get("ui.start_generation") + "  ▶", 40, _theme.Accent, _theme.Ink, OnStartGeneration);
+            _startGen = UiKit.Button(_safe, "StartGeneration", Strings.Get("ui.start_generation") + "  »", 40, _theme.Accent, _theme.Ink, OnStartGeneration);
             UiKit.Box(_startGen.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(900f, 120f));
 
             BuildConfirm();
@@ -118,10 +121,15 @@ namespace TillWinter.Unity
 
         private void ApplySafeArea()
         {
-            var sa = Screen.safeArea;
-            var min = new Vector2(sa.xMin / Screen.width, sa.yMin / Screen.height);
-            var max = new Vector2(sa.xMax / Screen.width, sa.yMax / Screen.height);
-            if (float.IsNaN(min.x) || Screen.width == 0) { min = Vector2.zero; max = Vector2.one; }
+            // Device notches/home bars only; the editor Game view reports window-sized safe areas that would shift the page.
+            var min = Vector2.zero;
+            var max = Vector2.one;
+            if (Application.isMobilePlatform && Screen.width > 0 && Screen.height > 0)
+            {
+                var sa = Screen.safeArea;
+                min = new Vector2(Mathf.Clamp01(sa.xMin / Screen.width), Mathf.Clamp01(sa.yMin / Screen.height));
+                max = new Vector2(Mathf.Clamp01(sa.xMax / Screen.width), Mathf.Clamp01(sa.yMax / Screen.height));
+            }
             UiKit.Stretch(_safe, min, max, Vector2.zero, Vector2.zero);
         }
 
@@ -152,6 +160,7 @@ namespace TillWinter.Unity
             UiKit.Box(_sheetCost.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-24f, 150f), new Vector2(280f, 44f));
             _sheetReason = UiKit.Label(_sheet, "Reason", "", 22, _theme.Danger, TextAnchor.MiddleRight);
             UiKit.Box(_sheetReason.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-24f, 120f), new Vector2(330f, 30f));
+            _sheetHome = _sheet.anchoredPosition;
             _sheet.gameObject.SetActive(false);
         }
 
@@ -294,7 +303,7 @@ namespace TillWinter.Unity
             if (heritagePhase) _showingHeritage = true;
             _title.text = heritagePhase
                 ? Strings.Format("ui.heritage_title", ("gen", s.Generation.Generation))
-                : Strings.Format("ui.winter_title", ("year", s.Year)) + "  ·  " + Strings.Get("ui.heritage").ToLowerInvariant() + " " + s.Generation.Generation;
+                : Strings.Format("ui.winter_title", ("year", s.Year)) + "  ·  Gen " + s.Generation.Generation;
             _almanac.gameObject.SetActive(!_showingHeritage);
             _heritage.gameObject.SetActive(_showingHeritage);
             _almanac.Refresh(false);
@@ -391,7 +400,7 @@ namespace TillWinter.Unity
             // Bottom sheet slide.
             bool want = _selectedId != null && _sheet.gameObject.activeSelf;
             _sheetShown = Prims.Damp(_sheetShown, want ? 1f : 0f, 12f, dt);
-            _sheet.anchoredPosition = new Vector2(0f, Mathf.Lerp(-420f, 0f, Prims.EaseOutQuad(_sheetShown)));
+            _sheet.anchoredPosition = _sheetHome + new Vector2(0f, Mathf.Lerp(-420f, 0f, Prims.EaseOutQuad(_sheetShown)));
         }
     }
 }

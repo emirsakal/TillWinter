@@ -199,6 +199,7 @@ namespace TillWinter.EditorTools
                         Check(view.Zoom > zoomBefore, "zoom changed");
                         view.Select("ring_radius");
                         Check(screen.SelectedId == "ring_radius", "ring_radius selected");
+                        _selectedAt = EditorApplication.timeSinceStartup;
                         _game.Sim.DebugAddCoins(100);
                         int lvBefore = s.GetLevel("ring_radius");
                         Check(_game.Sim.TryBuy("ring_radius"), "buy ring_radius via sim while selected");
@@ -206,16 +207,28 @@ namespace TillWinter.EditorTools
                         Check(view.StateOf("ring_water_speed") != SkillTreeView.NodeState.Locked, "child ring_water_speed now available (edge lit)");
                         var btn = GameObject.Find("NextYear")?.GetComponent<Button>();
                         Check(btn != null, "Next Year button exists");
-                        Shot("05b-winter-tree-selected");
-                        GameViewPresets.Select("1080x1920 (Portrait)");
                         _phase = 70;
                         Next();
                     }
                     break;
                 case 71:
-                    if (inPhase > 0.6)
+                    if (inPhase > 0.7)
+                    {
+                        Shot("05b-winter-tree-selected");
+                        GameViewPresets.Select("1080x1920 (Portrait)");
+                        Next();
+                    }
+                    break;
+                case 72:
+                    if (inPhase > 0.7)
                     {
                         Shot("05c-winter-tree-1080x1920");
+                        Next();
+                    }
+                    break;
+                case 73:
+                    if (inPhase > 0.3)
+                    {
                         GameViewPresets.Select("1080x2340 (Portrait)");
                         var btn = GameObject.Find("NextYear")?.GetComponent<Button>();
                         btn?.onClick.Invoke();
@@ -326,6 +339,7 @@ namespace TillWinter.EditorTools
         private static Vector2 _tapPos;
         private static bool _warnedInput;
         private static bool _fallback;
+        private static double _selectedAt;
         private static int _holdFrames;
         private static int _tapState;
 

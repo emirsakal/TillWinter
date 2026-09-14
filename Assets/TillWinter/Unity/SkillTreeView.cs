@@ -135,8 +135,8 @@ namespace TillWinter.Unity
                 {
                     float a = Mathf.PI * (0.5f + 0.5f) + (i + 0.5f) / max * Mathf.PI * 2f; // start at the bottom, clockwise
                     a = -Mathf.PI * 0.5f + (i + 0.5f) / max * Mathf.PI * 2f;
-                    var pos = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (size * 0.5f + 12f);
-                    nv.Pips[i] = UiKit.CircleImage(nv.Rt, "Pip" + i, _theme.EdgeDim, pos, 16f);
+                    var pos = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (size * 0.5f + 9f);
+                    nv.Pips[i] = UiKit.CircleImage(nv.Rt, "Pip" + i, _theme.EdgeDim, pos, 12f);
                 }
                 nv.Lock = UiKit.CircleImage(nv.Rt, "Lock", _theme.InkMuted, new Vector2(size * 0.32f, -size * 0.32f), size * 0.3f);
                 var lockGlyph = UiKit.Label(nv.Lock.transform, "L", "×", Mathf.RoundToInt(size * 0.2f), _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -267,10 +267,10 @@ namespace TillWinter.Unity
                 n++;
             }
             if (n == 0) return;
-            _zoom = 1f;
-            _content.localScale = Vector3.one;
-            var focus = new Vector2(sumX / n, minY + _theme.NodeSize * 1.2f);
-            _content.anchoredPosition = -focus;
+            _zoom = Mathf.Clamp(_theme.InitialZoom, _theme.ZoomMin, _theme.ZoomMax);
+            _content.localScale = Vector3.one * _zoom;
+            var focus = new Vector2(sumX / n, minY + _theme.NodeSize * 1.6f) * _zoom;
+            _content.anchoredPosition = -focus + new Vector2(0f, -_viewport.rect.height * 0.28f);
             ClampPan(true);
             _viewInitialised = true;
         }

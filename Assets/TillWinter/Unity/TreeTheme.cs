@@ -11,7 +11,7 @@ namespace TillWinter.Unity
     public sealed class TreeTheme : ScriptableObject
     {
         [Header("Almanac page")]
-        public Color Paper = new Color(0.97f, 0.93f, 0.84f);
+        public Color Paper = new Color(0.97f, 0.93f, 0.84f, 0.93f);
         public Color PaperVignette = new Color(0.62f, 0.5f, 0.34f, 0.35f);
         public Color Ink = new Color(0.16f, 0.12f, 0.08f);
         public Color InkMuted = new Color(0.45f, 0.4f, 0.34f);
@@ -30,15 +30,16 @@ namespace TillWinter.Unity
         public Color Calendar = new Color(0.6f, 0.4f, 0.8f);
 
         [Header("Nodes")]
-        public float NodeSize = 150f;
-        public float UnitPixels = 210f;
+        public float NodeSize = 112f;
+        public float UnitPixels = 108f;
         public float LockedSaturation = 0.25f;
         public float LockedAlpha = 0.75f;
-        public float EdgeWidth = 8f;
+        public float EdgeWidth = 6f;
         public Color EdgeDim = new Color(0.55f, 0.48f, 0.4f, 0.45f);
         public float PulseAmplitude = 0.05f;
-        public float ZoomMin = 0.6f;
+        public float ZoomMin = 0.5f;
         public float ZoomMax = 1.6f;
+        public float InitialZoom = 0.85f;
 
         public Color BranchColor(Branch b)
         {
