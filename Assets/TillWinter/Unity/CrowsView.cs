@@ -4,24 +4,22 @@ using UnityEngine;
 
 namespace TillWinter.Unity
 {
-    /// <summary>Spawns, animates and retires crow visuals from sim events.</summary>
+    /// <summary>One crow prefab per landed crow; lands from above, hops, pecks harder as it eats, flies off when scared or done.</summary>
     public sealed class CrowsView : MonoBehaviour
     {
         private GameController _game;
         private FxManager _fx;
         private AudioManager _audio;
+        private VisualCatalog _catalog;
         private readonly Dictionary<GridPos, CrowView> _crows = new Dictionary<GridPos, CrowView>();
         private readonly List<CrowView> _leaving = new List<CrowView>();
-        private Material _black, _beak, _eye;
 
-        public void Init(GameController game, FxManager fx, AudioManager audio)
+        public void Init(GameController game, FxManager fx, AudioManager audio, VisualCatalog catalog)
         {
             _game = game;
             _fx = fx;
             _audio = audio;
-            _black = Prims.Lit(new Color(0.08f, 0.08f, 0.1f), 0.35f);
-            _beak = Prims.Lit(new Color(0.95f, 0.65f, 0.15f), 0.3f);
-            _eye = Prims.Lit(Color.white, 0.6f);
+            _catalog = catalog;
             _game.Sim.CrowLanded += OnLanded;
             _game.Sim.CrowScared += OnScared;
             _game.Sim.CrowAte += OnAte;
@@ -43,7 +41,7 @@ namespace TillWinter.Unity
             var go = new GameObject("Crow " + e.Pos);
             go.transform.SetParent(transform, false);
             var view = go.AddComponent<CrowView>();
-            view.Build(_black, _beak, _eye);
+            view.Build(_catalog);
             view.Land(_game.PlotToWorld(e.Pos, 0.16f));
             _crows.Add(e.Pos, view);
             _audio.Play(SfxId.CrowCaw);
@@ -99,6 +97,7 @@ namespace TillWinter.Unity
         }
     }
 
+    /// <summary>Crow prefab (children "WingL"/"WingR" flap). Lands from above, hops, shakes while eating.</summary>
     public sealed class CrowView : MonoBehaviour
     {
         private Transform _body, _wingL, _wingR;
@@ -108,18 +107,11 @@ namespace TillWinter.Unity
         private float _leaveT = -1f;
         private float _phase;
 
-        public void Build(Material black, Material beak, Material eye)
+        public void Build(VisualCatalog catalog)
         {
-            _body = new GameObject("Body").transform;
-            _body.SetParent(transform, false);
-            Prims.Primitive(PrimitiveType.Sphere, _body, "Torso", new Vector3(0f, 0.16f, 0f), new Vector3(0.26f, 0.22f, 0.3f), black);
-            Prims.Primitive(PrimitiveType.Sphere, _body, "Head", new Vector3(0f, 0.3f, 0.1f), new Vector3(0.15f, 0.15f, 0.15f), black);
-            var beakGo = Prims.MeshObject(Prims.Cone(false), _body, "Beak", new Vector3(0f, 0.3f, 0.16f), new Vector3(0.035f, 0.12f, 0.035f), beak);
-            beakGo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            Prims.Primitive(PrimitiveType.Sphere, _body, "EyeL", new Vector3(-0.05f, 0.33f, 0.14f), new Vector3(0.035f, 0.035f, 0.035f), eye);
-            Prims.Primitive(PrimitiveType.Sphere, _body, "EyeR", new Vector3(0.05f, 0.33f, 0.14f), new Vector3(0.035f, 0.035f, 0.035f), eye);
-            _wingL = Prims.Primitive(PrimitiveType.Cube, _body, "WingL", new Vector3(-0.14f, 0.2f, 0f), new Vector3(0.16f, 0.03f, 0.2f), black).transform;
-            _wingR = Prims.Primitive(PrimitiveType.Cube, _body, "WingR", new Vector3(0.14f, 0.2f, 0f), new Vector3(0.16f, 0.03f, 0.2f), black).transform;
+            _body = catalog.Spawn(catalog.Crow, transform, "Crow").transform;
+            _wingL = _body.Find("WingL") ?? _body;
+            _wingR = _body.Find("WingR") ?? _body;
             _phase = Random.value * 10f;
         }
 

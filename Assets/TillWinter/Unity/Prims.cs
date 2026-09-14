@@ -10,7 +10,6 @@ namespace TillWinter.Unity
         public static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
 
         private static Shader _lit, _unlit;
-        private static Mesh _cone, _coneDown;
 
         public static Shader LitShader => _lit != null ? _lit : (_lit = Shader.Find("Universal Render Pipeline/Lit"));
         public static Shader UnlitShader => _unlit != null ? _unlit : (_unlit = Shader.Find("Universal Render Pipeline/Unlit"));
@@ -52,73 +51,6 @@ namespace TillWinter.Unity
             m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             m.renderQueue = (int)RenderQueue.Transparent;
             return m;
-        }
-
-        public static GameObject Primitive(PrimitiveType type, Transform parent, string name, Vector3 localPos, Vector3 localScale, Material material)
-        {
-            var go = GameObject.CreatePrimitive(type);
-            go.name = name;
-            var col = go.GetComponent<Collider>();
-            if (col != null) Object.Destroy(col);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = localScale;
-            var r = go.GetComponent<Renderer>();
-            r.sharedMaterial = material;
-            r.shadowCastingMode = ShadowCastingMode.On;
-            r.receiveShadows = true;
-            return go;
-        }
-
-        public static GameObject MeshObject(Mesh mesh, Transform parent, string name, Vector3 localPos, Vector3 localScale, Material material)
-        {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = localScale;
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var r = go.AddComponent<MeshRenderer>();
-            r.sharedMaterial = material;
-            return go;
-        }
-
-        /// <summary>Unit cone: base radius 1 at y=0, apex at y=1 (or flipped: base at y=1, apex at y=0).</summary>
-        public static Mesh Cone(bool apexDown = false)
-        {
-            if (!apexDown && _cone != null) return _cone;
-            if (apexDown && _coneDown != null) return _coneDown;
-            const int segments = 16;
-            var verts = new Vector3[segments * 3 + segments * 3];
-            var normals = new Vector3[verts.Length];
-            var tris = new int[segments * 6];
-            float apexY = apexDown ? 0f : 1f;
-            float baseY = apexDown ? 1f : 0f;
-            for (int i = 0; i < segments; i++)
-            {
-                float a0 = i / (float)segments * Mathf.PI * 2f;
-                float a1 = (i + 1) / (float)segments * Mathf.PI * 2f;
-                var p0 = new Vector3(Mathf.Cos(a0), baseY, Mathf.Sin(a0));
-                var p1 = new Vector3(Mathf.Cos(a1), baseY, Mathf.Sin(a1));
-                var apex = new Vector3(0f, apexY, 0f);
-                int v = i * 3;
-                // side
-                verts[v] = p0; verts[v + 1] = apex; verts[v + 2] = p1;
-                var n = Vector3.Cross(apex - p0, p1 - p0).normalized;
-                if (apexDown) n = -n;
-                normals[v] = normals[v + 1] = normals[v + 2] = n;
-                tris[i * 6 + 0] = v; tris[i * 6 + 1] = apexDown ? v + 2 : v + 1; tris[i * 6 + 2] = apexDown ? v + 1 : v + 2;
-                // cap
-                int c = segments * 3 + i * 3;
-                var centre = new Vector3(0f, baseY, 0f);
-                verts[c] = p0; verts[c + 1] = centre; verts[c + 2] = p1;
-                var cn = apexDown ? Vector3.up : Vector3.down;
-                normals[c] = normals[c + 1] = normals[c + 2] = cn;
-                tris[i * 6 + 3] = c; tris[i * 6 + 4] = apexDown ? c + 1 : c + 2; tris[i * 6 + 5] = apexDown ? c + 2 : c + 1;
-            }
-            var mesh = new Mesh { name = apexDown ? "ConeDown" : "Cone", vertices = verts, normals = normals, triangles = tris };
-            mesh.RecalculateBounds();
-            if (apexDown) _coneDown = mesh; else _cone = mesh;
-            return mesh;
         }
 
         /// <summary>Radial alpha gradient: fully opaque up to <paramref name="inner"/>, fading to 0 at <paramref name="outer"/> (0..1 of half-size).</summary>

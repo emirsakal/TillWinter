@@ -16,6 +16,7 @@ namespace TillWinter.Unity
         private AudioManager _audio;
         private GameObject _panel;
         private TMP_Text _timeLabel, _offsetLabel, _radiusLabel, _info, _stats, _nodeLevel;
+        private UnityEngine.UI.Button _qualityBtn;
 
         private SaveController _save;
         private AwayCard _away;
@@ -58,6 +59,7 @@ namespace TillWinter.Unity
             ButtonAt(rt, "+30 s greenhouse", 3, y, bw, () => _game.Sim.DebugAddGreenhouseSeconds(30f));
             y -= 100f;
             ButtonAt(rt, "Balance table", 0, y, bw, PrintBalance);
+            _qualityBtn = ButtonAt(rt, "Quality: " + QualityTiers.Current, 1, y, bw, () => { QualityTiers.Toggle(); UiKit.ButtonLabel(_qualityBtn).text = "Quality: " + QualityTiers.Current; });
             y -= 100f;
 
             _info = UiKit.Label(rt, "Info", "", 24, new Color(0.75f, 0.75f, 0.8f), TextAnchor.UpperLeft);
@@ -112,12 +114,13 @@ namespace TillWinter.Unity
             return text;
         }
 
-        private void ButtonAt(RectTransform parent, string label, int column, float y, float width, UnityEngine.Events.UnityAction action)
+        private UnityEngine.UI.Button ButtonAt(RectTransform parent, string label, int column, float y, float width, UnityEngine.Events.UnityAction action)
         {
             var b = UiKit.Button(parent, label, label, 26, UiKit.Accent, UiKit.Ink, () => { _audio.Play(SfxId.UiClick); action(); });
             var rt = b.GetComponent<RectTransform>();
             UiKit.Box(rt, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f + column * (width + 20f), y), new Vector2(width, 84f));
             rt.pivot = new Vector2(0f, 1f);
+            return b;
         }
 
         /// <summary>Plays one generation from a copy of the current state and logs the year table.</summary>

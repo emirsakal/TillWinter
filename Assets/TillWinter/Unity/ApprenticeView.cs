@@ -3,24 +3,17 @@ using UnityEngine;
 
 namespace TillWinter.Unity
 {
-    /// <summary>Renders every apprentice in <see cref="TillWinter.Core.FarmState.Apprentices"/>: one capsule each, different hat colours.</summary>
+    /// <summary>Renders every apprentice in <see cref="TillWinter.Core.FarmState.Apprentices"/> from the catalogue's six character prefabs.</summary>
     public sealed class ApprenticesView : MonoBehaviour
     {
-        private static readonly Color[] HatColors =
-        {
-            new Color(0.9f, 0.78f, 0.4f), new Color(0.85f, 0.35f, 0.3f), new Color(0.35f, 0.6f, 0.85f),
-            new Color(0.5f, 0.75f, 0.35f), new Color(0.75f, 0.45f, 0.8f), new Color(0.95f, 0.6f, 0.2f),
-        };
-
         private GameController _game;
+        private VisualCatalog _catalog;
         private readonly List<ApprenticeView> _views = new List<ApprenticeView>();
-        private Material _shirt, _skin;
 
-        public void Init(GameController game)
+        public void Init(GameController game, VisualCatalog catalog)
         {
             _game = game;
-            _shirt = Prims.Lit(new Color(0.32f, 0.5f, 0.8f), 0.2f);
-            _skin = Prims.Lit(new Color(0.95f, 0.8f, 0.65f), 0.2f);
+            _catalog = catalog;
         }
 
         private void LateUpdate()
@@ -28,11 +21,11 @@ namespace TillWinter.Unity
             var list = _game.State.Apprentices;
             while (_views.Count < list.Count)
             {
-                var go = new GameObject("Apprentice " + _views.Count);
-                go.transform.SetParent(transform, false);
-                var v = go.AddComponent<ApprenticeView>();
-                v.Build(_shirt, _skin, Prims.Lit(HatColors[_views.Count % HatColors.Length], 0.1f));
-                _views.Add(v);
+                int i = _views.Count;
+                var prefab = _catalog.Apprentices != null && _catalog.Apprentices.Length > 0 ? _catalog.Apprentices[i % _catalog.Apprentices.Length] : null;
+                var go = _catalog.Spawn(prefab, transform, "Apprentice");
+                go.name = "Apprentice " + i;
+                _views.Add(go.AddComponent<ApprenticeView>().Setup());
             }
             while (_views.Count > list.Count)
             {
@@ -44,7 +37,7 @@ namespace TillWinter.Unity
         }
     }
 
-    /// <summary>Capsule with a hat. Bobs while walking, squashes while harvesting.</summary>
+    /// <summary>Character prefab with a hat. Bobs while walking, squashes while harvesting.</summary>
     public sealed class ApprenticeView : MonoBehaviour
     {
         private Transform _body;
@@ -53,14 +46,15 @@ namespace TillWinter.Unity
         private float _facing;
         private bool _placed;
 
-        public void Build(Material shirt, Material skin, Material hat)
+        public ApprenticeView Setup()
         {
+            // Everything spawned from the prefab moves under one body pivot so bob/squash apply to model + hat.
             _body = new GameObject("Body").transform;
             _body.SetParent(transform, false);
-            Prims.Primitive(PrimitiveType.Capsule, _body, "Torso", new Vector3(0f, 0.3f, 0f), new Vector3(0.24f, 0.24f, 0.24f), shirt);
-            Prims.Primitive(PrimitiveType.Sphere, _body, "Head", new Vector3(0f, 0.6f, 0f), new Vector3(0.2f, 0.2f, 0.2f), skin);
-            Prims.Primitive(PrimitiveType.Cylinder, _body, "Brim", new Vector3(0f, 0.68f, 0f), new Vector3(0.34f, 0.015f, 0.34f), hat);
-            Prims.Primitive(PrimitiveType.Cylinder, _body, "Crown", new Vector3(0f, 0.73f, 0f), new Vector3(0.16f, 0.05f, 0.16f), hat);
+            var children = new List<Transform>();
+            foreach (Transform c in transform) if (c != _body) children.Add(c);
+            foreach (var c in children) c.SetParent(_body, false);
+            return this;
         }
 
         public void Tick(GameController game, TillWinter.Core.ApprenticeState a, float dt)

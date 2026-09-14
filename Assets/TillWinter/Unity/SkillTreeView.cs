@@ -23,7 +23,8 @@ namespace TillWinter.Unity
             public SkillNode Node;
             public RectTransform Rt;
             public Image Ring, Inner, Lock;
-            public TMP_Text Glyph, LevelText;
+            public TMP_Text LevelText;
+            public Image Icon;
             public Image[] Pips;
             public NodeState State;
             public Color BranchColor;
@@ -125,8 +126,8 @@ namespace TillWinter.Unity
                 string id = node.Id;
                 btn.onClick.AddListener(() => Select(id));
                 nv.Inner = UiKit.CircleImage(nv.Rt, "Inner", _theme.Paper, Vector2.zero, size * 0.74f);
-                nv.Glyph = UiKit.Label(nv.Rt, "Glyph", Strings.Glyph(node), Mathf.RoundToInt(size * 0.26f), _theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UiKit.Stretch(nv.Glyph.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 10f), new Vector2(-4f, -8f));
+                nv.Icon = NodeIcons.Image(nv.Rt, node.IconKey, _theme.Ink);
+                UiKit.Box(nv.Icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, size * 0.04f), Vector2.one * (size * 0.42f));
                 nv.LevelText = UiKit.Label(nv.Rt, "Level", "", Mathf.RoundToInt(size * 0.16f), _theme.InkMuted, TextAnchor.LowerCenter);
                 UiKit.Stretch(nv.LevelText.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 18f), new Vector2(0f, 0f));
 
@@ -206,7 +207,7 @@ namespace TillWinter.Unity
                 if (state == NodeState.Maxed) col = _theme.Gold;
                 nv.Ring.color = col;
                 nv.Inner.color = available ? _theme.Paper : TreeTheme.Desaturate(_theme.Paper, 0.6f);
-                nv.Glyph.color = available ? _theme.Ink : _theme.InkMuted;
+                nv.Icon.color = available ? _theme.Ink : _theme.InkMuted;
                 nv.Lock.gameObject.SetActive(!available);
                 int max = _game.Sim.GetMaxLevel(nv.Node.Id);
                 nv.LevelText.text = nv.Pips.Length == 0 || state == NodeState.Maxed ? (max > 0 ? level + "/" + max : "") : "";
