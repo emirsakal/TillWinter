@@ -32,7 +32,7 @@ coins (max 8 h). To reset: press `DBG` -> "Delete save" and restart Play, or del
 | Hold / drag (mouse or finger) | The ring follows the pointer, offset **0.8 plots toward the top of the screen** so your finger doesn't hide it. Every plot under the ring advances its own phase: **Dry -> Wet** (watering), **Wet -> Ripe** (growing), **Ripe -> coins** (harvest, takes the crop's harvest time). The starting ring (radius 0.7) covers one plot. |
 | Tap a plot with a crow (< 0.2 s, < 20 px) | Scares the crow and drops 2x the crop's value. A tap is also a one-frame ring, so it no longer harvests by itself. |
 | `DBG` button (top-right) | Debug panel: time scale 0.5x-8x, ring offset, ring radius override, +1000 coins, skip to Winter, spawn crow, Ripe all, per-node Almanac level editor (- / +), resolved stats, +50 seeds, Force CanRetire, Offline 1 h, Delete save, Spawn cloud, Next golden, Tractor sweep, +30 s greenhouse, Balance table. |
-| Winter Almanac | Scrolling list of every node grouped by branch (LOCKED / BUY / MAX, "not implemented yet" for table-only effects), then **Next Year**. Pointer input is ignored while it is open. |
+| Winter Almanac | Pannable/zoomable skill tree (drag, wheel or pinch). Tap a node to open its card; Buy keeps the card open. Heritage toggle in the top bar, Next Year and Pass on the farm below. |
 | Winter panel: Pass on the farm | Unlocks at 5 000 lifetime coins this generation; shows the seed preview; confirm dialog lists what you keep (Heritage tree, seeds, stats) and lose (coins, Almanac, field, helpers). Heritage tab: spend seeds on permanent nodes; Start new generation begins year 1 with the bonuses. |
 
 Plot states read at a glance: Dry = light cracked soil, Wet = dark soil + sprout, growing = the
@@ -49,7 +49,7 @@ the timer bar and a tick each second.
 run-tests.bat
 ```
 
-Runs the `TillWinter.Tests` EditMode suite (104 NUnit tests against `TillWinter.Core` only) in
+Runs the `TillWinter.Tests` EditMode suite (115 NUnit tests against `TillWinter.Core` only) in
 Unity batchmode and writes `TestResults\EditMode.xml` + `EditMode.log`. Exit code 0 = pass,
 2 = failures, 3 = Unity could not run (compile error, or the project is already open in an
 editor). Override the editor path with `set UNITY_PATH=...`.
@@ -86,6 +86,9 @@ table into the design chat when tuning.
 
 All four scripts need the project to be closed in the editor.
 
+One-off setup: `ui-setup.bat` imports TMP essentials, builds the font asset, creates `TreeTheme`
+and wires `en.json` into the scene (idempotent).
+
 ## Project layout
 
 ```
@@ -95,7 +98,14 @@ Assets/TillWinter/Tests/   TillWinter.Tests  EditMode NUnit tests, references Co
 Assets/TillWinter/Editor/  Game view presets, play-mode smoke test (Assembly-CSharp-Editor)
 Assets/TillWinter/Scenes/  Farm.unity (one Bootstrap object)
 Assets/Audio/Kenney/       CC0 clips from kenney.nl + licenses (loaded via Resources/Kenney)
+Assets/Fonts/              Nunito (OFL, `OFL.txt`) + the generated `NunitoSDF` TMP font asset
+Assets/TillWinter/Unity/Localization/en.json   the EN string table
 ```
+
+Fonts and licences: UI text uses Nunito (SIL Open Font License 1.1, see `Assets/Fonts/OFL.txt`)
+rendered with TextMeshPro; the TMP essential resources (LiberationSans SDF, also OFL) are in
+`Assets/TextMesh Pro/`. Re-run `ui-setup.bat` after cloning if the font asset or `TreeTheme` is
+missing.
 
 All tunables live in `FarmConfig` (Core); Almanac nodes and their per-level values live in
 `AlmanacData` (Core) and resolve to numbers through `StatResolver`. `FarmConfigAsset` is an

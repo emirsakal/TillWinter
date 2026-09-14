@@ -293,3 +293,54 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   (`GameController.CloudHitTest`) that takes priority over plot taps; tractor is a red box with
   four wheels parked left of the field; greenhouse is a translucent box right of the field with a
   coin trickle in Winter; golden plots pulse a gold emissive tint; HUD shows "combo xN" from 2.
+
+---
+
+# Session 4 - the Almanac tree screen
+
+- **TextMeshPro everywhere**: `UiKit.Label` returns `TMP_Text`; the built-in `LegacyRuntime.ttf`
+  is gone. TMP Essential Resources could not be imported in batchmode (`AssetDatabase.ImportPackage`
+  is asynchronous and the editor exits first), so the `.unitypackage` (a tar.gz) was extracted into
+  `Assets/TextMesh Pro/` with a Python script; the files are committed like any other asset.
+- **Font: Nunito** (variable `Nunito[wght].ttf`, OFL) from google/fonts in `Assets/Fonts/` with
+  `OFL.txt`. `ui-setup.bat` builds `Assets/Fonts/Resources/NunitoSDF.asset` (SDFAA, 1024 atlas,
+  sampling 72, Latin + `ÇçĞğİıÖöŞşÜü` + a few symbols, static atlas). Nunito lacks `→` and `▶`;
+  the TMP default font (LiberationSans SDF) is registered as fallback and the "next" arrows use `»`.
+- **Strings: Core keeps `NameKey`/`DescKey`**; `TillWinter.Unity.Strings` loads
+  `Assets/TillWinter/Unity/Localization/en.json` (flat JSON, own 60-line parser, no Newtonsoft)
+  from a `TextAsset` assigned to `GameBootstrap.StringTable`. The scene reference was set by
+  `UiSetup.WireBootstrap` (editor code opens Farm.unity and saves it) rather than by hand-editing
+  YAML. Descriptions are templates with `{cur}`, `{next}`, `{level}`, `{max}`, `{cost}` filled by
+  Core `NodeText.Values` (which resolves stats at the current and next level) and `NodeText.Fill`
+  (unknown placeholders are left visible, never throw). `StringsTests` reads the JSON with the
+  test-only `MiniJson` and checks every node key and every template at level 0 and max. TR only
+  needs a `tr.json` with the same keys.
+- **Layout**: `SkillTreeLayout.Compute` puts the five branch roots on a bottom arc
+  (`0.25 x (lane-2)^2`), lanes 2.8 units apart, layer = prerequisite depth inside the branch
+  (cross-branch prerequisites ignored for placement), siblings 0.9 apart around the lane centre,
+  layer height 1.3; guaranteed minimum distance 0.85. `SkillNode.LayoutOverride` nudges a node.
+  The Heritage table lays out with the same code.
+- **`SkillTreeView` is generic** (tree + layout + `TreeTheme`): pan by drag with inertia, wheel
+  zoom in the editor, pinch via `Touchscreen.current`, zoom 0.5-1.6x, soft-clamped pan (pull-back
+  per frame), node prefab-less objects driven by a `NodeState` machine (Locked / Unaffordable /
+  Affordable / Maxed), pips for max level <= 8 else a level text, edges in one `UILines` mesh,
+  "flow" segments when a node becomes available, purchase punch and one-by-one pip fill. Tap
+  selection also works on locked nodes. First open of a Winter centres on the roots at 0.85x;
+  later opens restore the session's last pan/zoom.
+- **`WinterScreen` replaces the list panel**: overlay + paper page (0.93 alpha so the frozen field
+  shows through), top bar (title, coins with drain ticks and punch, greenhouse line, retire hint),
+  the canvas, a bottom sheet that stays open after a purchase, Next Year / Pass on the farm (the
+  S2 confirm dialog stays). The Heritage tree is reachable through a small toggle in Winter and is
+  shown in the Heritage phase; S5 will build the dedicated screen on the same view.
+- **Safe area is applied only on mobile platforms**: in the editor Game view `Screen.safeArea`
+  returned window-sized values that shifted the whole page.
+- **`TreeTheme` ScriptableObject** in `Resources/TreeTheme` (created by `ui-setup.bat`) holds
+  every colour and metric; the defaults in code are only used when the asset is missing. Changing
+  a default in code requires deleting the asset and re-running `ui-setup.bat`.
+- **The list-style `WinterShopView` and the old `Localize` table are deleted**; the debug panel
+  keeps a node dropdown with -/+.
+- **`TillWinter.Tests.Unity` is a second EditMode test assembly** (references Unity + TMP) for
+  presentation checks (theme colours per branch, node state enum, Turkish glyphs in the font
+  asset); Core tests stay engine-free.
+- **Smoke test now pans, zooms, selects `ring_radius`, buys it, asserts the child is available**,
+  and screenshots the Winter screen at 1080x2340 and 1080x1920 (`docs/screenshots/`).

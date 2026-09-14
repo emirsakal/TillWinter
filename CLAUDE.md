@@ -30,6 +30,14 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - Scenes, `.asset`, `.meta`, `.prefab`, `.mat` files are never read whole. If one must change, edit it with a targeted string replace against a known line (grep the line first).
 - Out of scope unless a session prompt asks: monetization (never), performance work, real art, new mechanics.
 
+## UI rules
+
+- TextMeshPro only (`UiKit.Label` -> `TMP_Text`, font `UiKit.Font` = Nunito SDF from Resources). Never `UnityEngine.UI.Text` or `LegacyRuntime.ttf`.
+- Every user-facing string comes from `Strings` (`en.json`); Core carries keys only. Node descriptions are templates filled by `NodeText`; a new node needs its `name`/`desc` keys in `en.json` (`StringsTests` fails otherwise).
+- Colours and metrics of the tree screens live in `TreeTheme` (Resources asset); no hard-coded UI colours in views. `UiKit` palette constants are for debug/placeholder panels only.
+- Skill trees render through the generic `SkillTreeView` + `SkillTreeLayout`; no hand-placed nodes.
+- Scene edits go through editor code (`UiSetup.WireBootstrap` pattern), never by hand-editing YAML.
+
 ## Token rules
 
 - Run tests only through the `test-runner` subagent, which uses `run-tests-summary.bat` / `smoke-test-summary.bat`. A hook rewrites the raw scripts; never look at `TestResults/`.
