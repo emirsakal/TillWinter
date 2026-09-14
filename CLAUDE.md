@@ -29,6 +29,17 @@ Working title in UI: "Till Winter".
 - Core holds no user-facing strings: crops and nodes carry keys; `TillWinter.Unity.Localize` maps them.
 - `[System.Serializable]` on Core classes is fine; `UnityEngine.*` is not.
 - Editor-only tooling goes in `Assets/TillWinter/Editor/` (plain Assembly-CSharp-Editor).
+- **Save schema**: `SaveData` (Core) is the only persistent DTO. Every new persistent field on
+  `FarmState`/`FarmSim` goes into `SaveData`, `ToSave`, `FromSave` and the round-trip test in
+  `SaveTests` in the same commit. Bump `SaveData.CurrentSchemaVersion` and add a `SaveMigrations`
+  step when a field changes meaning; unknown versions return null (start fresh), never throw.
+  Arrays only, no dictionaries (JsonUtility).
+- **Offline**: `FarmSim.SimulateOffline` advances passive systems only (Irrigation, Sun,
+  apprentices), never the ring, crows, year timer or seasons; capped at
+  `FarmConfig.OfflineCapSeconds`. Nothing else may simulate time while the app is closed.
+- **Trees**: `SkillTree` is generic; `AlmanacData` and `HeritageData` are the two tables.
+  Heritage effects are base modifiers resolved before Almanac effects in `StatResolver`.
+  `Phase { Year, Winter, Heritage }` gates ticking and purchases.
 
 ## Presentation conventions
 
@@ -47,5 +58,5 @@ Working title in UI: "Till Winter".
 - `smoke-test.bat` = play-mode smoke run with screenshots. Run it after touching the Unity layer.
 - Both need the project closed in the editor.
 - Branch per feature, PR into `main`. Commit in small logical steps (`type: summary`). Record uncovered design choices in `DECISIONS.md` (one section per session); `docs/GDD.md` is the source of truth and is updated only when implementation forces a rule change.
-- Out of scope unless asked: rebirth, saving, offline income, localization, monetization,
-  real assets, new crops/helpers, performance work, store builds.
+- Out of scope unless asked: localization, monetization, real assets, new crops/helpers,
+  performance work, store builds.
