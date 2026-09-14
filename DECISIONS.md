@@ -233,3 +233,63 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   Heritage purchases, a new generation, and a save round-trip through `SaveController`.
 - **Session ran on a branch from `main`** while the token-hygiene PR was still open, so the
   `.claude/` tooling was kept locally (git-excluded) and is not part of this branch.
+
+---
+
+# Session 3 - every node does something
+
+- **Rain cloud spawn time is chosen at Spring (`ScheduleCloud`)** as a random point in the middle
+  third of the year; the RNG is consumed only when the node is owned so seeds stay stable for
+  existing tests. Winter, Retire and Spring reset it; position, time left, spawned flag and spawn
+  time are saved.
+- **`TapCloud` waters Dry plots to Wet/0** and adds +0.25 to Wet progress (clamped into Ripe/0,
+  firing PlotRipened). Tapping does not affect Ripe plots.
+- **Golden crops: the chance is rolled at every replant (`Replant`)** after any harvest source;
+  the roll consumes RNG only when the chance is > 0. `DebugNextHarvestGolden` forces the next
+  replant golden (tests and debug panel). Golden pays `value x 10` before CropValue/ring/apprentice
+  multipliers; the flag is cleared by `Plot.Reset` (harvest, crow eat, winter, retire).
+- **Tractor: parked between sweeps (`X = -0.5`)**; a sweep starts only if some row has a Ripe
+  plot, otherwise it waits a full interval again. Plots are processed as the front passes their
+  index (`Passed` counter is saved), so plots ripening mid-sweep ahead of the front are taken. A
+  crow on a swept plot is scared with the tap bounty. Tractor harvests use no ring bonus and no
+  apprentice yield. The tractor also runs in `SimulateOffline`.
+- **Greenhouse accrues only while `Phase.Winter` ticks** (`Tick` now runs `UpdateGreenhouse` in
+  Winter and returns). Rate = `level x 0.02 x sum(crop value of every plot)`, x2 with the Heritage
+  node; cap 60 s per winter, counters reset at each Winter start and saved. Nothing accrues in the
+  Heritage phase.
+- **Ring combo: the multiplier applies to the harvest that raises the combo** (first hit = combo
+  1), `1 + level x 0.01 x min(combo, 10)`; the timer runs during the year only and the combo
+  resets at Winter/Spring.
+- **late_frost harvests happen at the start of `EnterWinter`** before plots reset, at half value,
+  source `LateFrost`; ring bonus, yield and combo do not apply. Threshold `>= 0.8` Wet progress or
+  Ripe.
+- **fertile_start applies to plots created by `expand_field`** (purchase or debug level); the
+  starting field and retire rebuilds stay Dry. spring_head_start sets every plot Wet/0 in
+  `BeginSpring` (Next Year and new generation).
+- **bulk_upgrade: `ApplyPurchase` raises the lowest plot**, then the next lowest if one exists;
+  the purchase still counts as one level.
+- **crow_bounty adds to the base multiplier**: drop = `(2 + level) x crop value`, paid by tap and
+  by the tractor.
+- **scarecrow_immunity is resolved in `StatResolver`**: Almanac `scarecrow` 2 plus the node sets
+  `CrowSpawnChance` to 0; `TrySpawnCrow` returns early on 0 so no RNG is consumed.
+- **The `NotImplemented` mechanism (`AlmanacData.Implemented`, `HeritageData.Implemented`,
+  `SkillNode.IsImplemented`) is deleted.** `EventsTests.EveryNodeInBothTables_IsAppliedByStatResolverOrAFeatureSwitch`
+  keeps an explicit id -> kind map ("stat" changes a `Stats` field at level 1, "purchase" =
+  `ApplyPurchase`, "stat+scarecrow2" for the immunity node); table and map must match exactly.
+- **Save schema v2**: fields for cloud, tractor, combo, greenhouse and `PlotSave.Golden`.
+  `SaveMigrations.V1ToV2` sets defaults (tractor waits a full interval if owned; greenhouse cap
+  only if the save was in Winter). Every schema bump ships a hand-written JSON fixture of the
+  previous version; because Core has no JSON library, the Tests assembly carries a ~100-line
+  `MiniJson` (parser + writer + reflection mapper) used only by tests.
+- **`AutoPlayer` (Core.Balance)**: ring target = highest urgency (Ripe > Wet progress > Dry,
+  nearest wins ties) re-evaluated every 0.3 s, ring moves at 6 plots/s; taps crows and the cloud
+  after the reaction delay; Winter = greedy `weight / cost` over an exposed weight table, waits
+  for the greenhouse cap, retires at >= 10 seeds, then greedy Heritage. One row per year; `ToCsv` /
+  `ToTable`. `balance-sim.bat [seed] [generations]` runs it in batchmode via
+  `TillWinter.EditorTools.BalanceSim` and writes `TestResults/balance.csv` + `balance.txt`; the
+  debug panel's "Balance table" button plays one generation from a copy of the current state and
+  logs the table.
+- **Presentation**: cloud is a three-sphere blob above the top row with a screen-space hit test
+  (`GameController.CloudHitTest`) that takes priority over plot taps; tractor is a red box with
+  four wheels parked left of the field; greenhouse is a translucent box right of the field with a
+  coin trickle in Winter; golden plots pulse a gold emissive tint; HUD shows "combo xN" from 2.
