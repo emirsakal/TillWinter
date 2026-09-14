@@ -101,7 +101,9 @@ namespace TillWinter.Unity
             var shop = canvas.gameObject.AddComponent<WinterScreen>();
             shop.Init(game, audio, canvas);
             var away = canvas.gameObject.AddComponent<AwayCard>();
-            away.Init(game, audio, canvas);
+            away.Init(game, audio, canvas, hud);
+            var onboarding = canvas.gameObject.AddComponent<OnboardingView>();
+            onboarding.Init(game, canvas);
             var debug = canvas.gameObject.AddComponent<DebugPanel>();
             debug.Init(game, audio, canvas, save, away);
             if (game.State.Phase != Phase.Year) shop.Open();

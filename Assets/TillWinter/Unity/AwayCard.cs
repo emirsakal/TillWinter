@@ -1,31 +1,47 @@
 using TillWinter.Core;
-using UnityEngine;
 using TMPro;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace TillWinter.Unity
 {
-    /// <summary>Placeholder "While you were away" card (GDD §9): seconds, coins, OK.</summary>
+    /// <summary>
+    /// "While you were away" (GDD §9): duration, coins, harvests, a line per source, OK. The coins are already
+    /// in the sim; the HUD holds them back until OK so the counter punch is visible. Tapping the field applies OK.
+    /// </summary>
     public sealed class AwayCard : MonoBehaviour
     {
         private GameController _game;
         private AudioManager _audio;
+        private HudView _hud;
         private GameObject _panel;
-        private TMP_Text _text;
+        private TMP_Text _duration, _coins, _sources, _capped;
+        private bool _open;
 
-        public void Init(GameController game, AudioManager audio, RectTransform canvas)
+        public bool IsOpen => _open;
+
+        public void Init(GameController game, AudioManager audio, RectTransform canvas, HudView hud)
         {
             _game = game;
             _audio = audio;
-            var dim = UiKit.Panel(canvas, "AwayCard", new Color(0f, 0f, 0f, 0.6f), false, true);
+            _hud = hud;
+            var theme = HudTheme.Load();
+            var dim = UiKit.Panel(canvas, "AwayCard", new Color(0f, 0f, 0f, 0.55f), false, true);
             _panel = dim.gameObject;
             var box = UiKit.Panel(dim.transform, "Box", new Color(0.12f, 0.14f, 0.2f, 0.98f), true, true);
-            UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(880f, 520f));
-            var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.away_title"), 50, UiKit.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(840f, 70f));
-            _text = UiKit.Label(box.transform, "Text", "", 32, new Color(0.85f, 0.88f, 0.95f), TextAnchor.MiddleCenter);
-            UiKit.Stretch(_text.rectTransform, Vector2.zero, Vector2.one, new Vector2(40f, 160f), new Vector2(-40f, -120f));
-            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("ui.ok"), 38, UiKit.Accent, UiKit.Ink, () => { _audio.Play(SfxId.UiClick); Hide(); });
+            UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 640f));
+            var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.away_title"), 48, theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(860f, 70f));
+            _duration = UiKit.Label(box.transform, "Duration", "", 32, theme.TextMuted, TextAnchor.MiddleCenter);
+            UiKit.Box(_duration.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -125f), new Vector2(860f, 44f));
+            UiKit.CircleImage(box.transform, "CoinIcon", theme.Coin, new Vector2(-150f, 40f), 56f);
+            _coins = UiKit.Label(box.transform, "Coins", "", 64, theme.Coin, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(_coins.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40f, 40f), new Vector2(400f, 80f));
+            _sources = UiKit.Label(box.transform, "Sources", "", 28, theme.TextMuted, TextAnchor.UpperCenter);
+            UiKit.Box(_sources.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(800f, 110f));
+            _capped = UiKit.Label(box.transform, "Capped", "", 24, theme.HintAccent, TextAnchor.MiddleCenter);
+            UiKit.Box(_capped.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 170f), new Vector2(800f, 34f));
+            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("ui.ok"), 38, theme.HintAccent, new Color(0.12f, 0.1f, 0.08f), Apply);
             UiKit.Box(ok.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(400f, 110f));
             _panel.SetActive(false);
         }
@@ -33,16 +49,37 @@ namespace TillWinter.Unity
         public void Show(OfflineReport report)
         {
             int minutes = Mathf.RoundToInt((float)report.SecondsSimulated / 60f);
-            string time = minutes >= 60 ? (minutes / 60) + " h " + (minutes % 60) + " min" : minutes + " min";
-            _text.text = Strings.Format("ui.away_body", ("time", time + (report.Capped ? " (8 h cap)" : "")), ("coins", NumberFormat.Short(report.CoinsEarned)), ("harvests", report.Harvests));
+            _duration.text = Strings.Format("away.duration", ("hours", minutes / 60), ("minutes", minutes % 60));
+            _coins.text = "+" + NumberFormat.Short(report.CoinsEarned);
+            string lines = "";
+            if (report.HarvestsApprentice > 0) lines += Strings.Format("away.apprentices", ("count", report.HarvestsApprentice)) + "\n";
+            if (report.HarvestsTractor > 0) lines += Strings.Format("away.tractor", ("count", report.HarvestsTractor)) + "\n";
+            if (lines.Length == 0) lines = Strings.Get("away.nothing");
+            _sources.text = lines.TrimEnd();
+            _capped.text = report.Capped ? Strings.Get("away.capped") : "";
+            _hud.HeldCoins = report.CoinsEarned;
             _panel.SetActive(true);
+            _open = true;
             _game.InputBlocked = true;
         }
 
-        private void Hide()
+        /// <summary>OK: release the held coins into the counter with a punch.</summary>
+        public void Apply()
         {
+            if (!_open) return;
+            _audio.Play(SfxId.UiClick);
+            _hud.HeldCoins = 0;
+            _hud.Punch();
+            _audio.Play(SfxId.Purchase);
             _panel.SetActive(false);
+            _open = false;
             _game.InputBlocked = _game.State.Phase != Phase.Year;
+        }
+
+        private void Update()
+        {
+            // Tapping anywhere (the field) applies OK.
+            if (_open && _game.Pointer != null && _game.Pointer.Current.Tapped) Apply();
         }
     }
 }

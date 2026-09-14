@@ -59,15 +59,42 @@ namespace TillWinter.Unity
             return new Color(Mathf.Lerp(grey, c.r, saturation), Mathf.Lerp(grey, c.g, saturation), Mathf.Lerp(grey, c.b, saturation), c.a);
         }
 
-        private static TreeTheme _loaded;
+        private static readonly System.Collections.Generic.Dictionary<string, TreeTheme> _loaded = new System.Collections.Generic.Dictionary<string, TreeTheme>();
 
-        /// <summary>The theme asset from Resources, or a default instance when it is missing.</summary>
-        public static TreeTheme Load()
+        /// <summary>A theme asset from Resources ("TreeTheme" = Almanac, "HeritageTheme" = Heritage), or defaults when missing.</summary>
+        public static TreeTheme Load(string name = "TreeTheme")
         {
-            if (_loaded != null) return _loaded;
-            _loaded = Resources.Load<TreeTheme>("TreeTheme");
-            if (_loaded == null) _loaded = CreateInstance<TreeTheme>();
-            return _loaded;
+            if (_loaded.TryGetValue(name, out var t) && t != null) return t;
+            t = Resources.Load<TreeTheme>(name);
+            if (t == null)
+            {
+                t = CreateInstance<TreeTheme>();
+                if (name == "HeritageTheme") ApplyHeritageDefaults(t);
+            }
+            _loaded[name] = t;
+            return t;
+        }
+
+        /// <summary>Heirloom look: deep green page, gold accents, seed currency, darker branch colours.</summary>
+        public static void ApplyHeritageDefaults(TreeTheme t)
+        {
+            t.Paper = new Color(0.09f, 0.2f, 0.14f, 0.97f);
+            t.PaperVignette = new Color(0f, 0.05f, 0.02f, 0.5f);
+            t.Ink = new Color(0.96f, 0.9f, 0.72f);
+            t.InkMuted = new Color(0.75f, 0.72f, 0.6f);
+            t.Overlay = new Color(0.03f, 0.08f, 0.05f, 0.98f);
+            t.Accent = new Color(0.9f, 0.72f, 0.28f);
+            t.Danger = new Color(0.95f, 0.45f, 0.35f);
+            t.Gold = new Color(1f, 0.85f, 0.4f);
+            t.Coin = new Color(0.78f, 0.6f, 0.95f);
+            t.Seed = new Color(0.78f, 0.6f, 0.95f);
+            t.Hand = new Color(0.75f, 0.42f, 0.14f);
+            t.Soil = new Color(0.48f, 0.3f, 0.16f);
+            t.Field = new Color(0.28f, 0.5f, 0.24f);
+            t.InitialZoom = 0.62f; // five branches side by side: show the whole row
+            t.Helpers = new Color(0.22f, 0.42f, 0.66f);
+            t.Calendar = new Color(0.46f, 0.3f, 0.62f);
+            t.EdgeDim = new Color(0.55f, 0.6f, 0.5f, 0.4f);
         }
     }
 }

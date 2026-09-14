@@ -64,6 +64,7 @@ namespace TillWinter.Unity
         private Vector2 _savedPan;
         private float _savedZoom = 1f;
         private bool _hasSavedView;
+        private readonly HashSet<string> _highlight = new HashSet<string>();
 
         public SkillTree Tree => _tree;
         public string SelectedId => _selectedId;
@@ -275,14 +276,16 @@ namespace TillWinter.Unity
             _viewInitialised = true;
         }
 
-        /// <summary>First open: roots; later opens this session: last pan/zoom.</summary>
+        /// <summary>First open ever: roots; later opens (saved in Core): last pan/zoom.</summary>
         public void OnOpened()
         {
-            if (_hasSavedView)
+            var mem = _tree.Kind == TreeKind.Almanac ? _game.State.AlmanacView : _game.State.HeritageView;
+            if (mem.HasView)
             {
-                _zoom = _savedZoom;
+                _zoom = Mathf.Clamp(mem.Zoom, _theme.ZoomMin, _theme.ZoomMax);
                 _content.localScale = Vector3.one * _zoom;
-                _content.anchoredPosition = _savedPan;
+                _content.anchoredPosition = new Vector2(mem.PanX, mem.PanY);
+                _hasSavedView = true;
             }
             else CenterOnRoots();
             _velocity = Vector2.zero;
@@ -293,6 +296,28 @@ namespace TillWinter.Unity
             _savedPan = _content.anchoredPosition;
             _savedZoom = _zoom;
             _hasSavedView = true;
+            _game.Sim.RememberTreeView(_tree.Kind, _savedPan.x, _savedPan.y, _zoom);
+        }
+
+        /// <summary>Onboarding: these nodes pulse until <see cref="ClearHighlight"/>.</summary>
+        public void Highlight(params string[] ids)
+        {
+            _highlight.Clear();
+            foreach (var id in ids) if (_nodes.ContainsKey(id)) _highlight.Add(id);
+        }
+
+        public void ClearHighlight() => _highlight.Clear();
+        public bool HasHighlight => _highlight.Count > 0;
+
+        /// <summary>Centres the canvas on the average position of the given nodes.</summary>
+        public void CenterOn(params string[] ids)
+        {
+            Vector2 sum = Vector2.zero;
+            int n = 0;
+            foreach (var id in ids) if (_layout.ContainsKey(id)) { sum += ToPixels(_layout[id]); n++; }
+            if (n == 0) return;
+            _content.anchoredPosition = -(sum / n) * _zoom;
+            ClampPan(true);
         }
 
         public void PanBy(Vector2 delta)
@@ -403,6 +428,7 @@ namespace TillWinter.Unity
             {
                 float s = 1f;
                 if (nv.State == NodeState.Affordable) s *= pulse;
+                if (_highlight.Contains(nv.Node.Id)) s *= 1f + 0.12f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 3f));
                 if (nv.Node.Id == _selectedId) s *= 1.12f;
                 if (nv.Punch > 0f)
                 {

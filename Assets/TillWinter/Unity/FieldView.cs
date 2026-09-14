@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace TillWinter.Unity
 {
-    /// <summary>Creates and updates one <see cref="PlotView"/> per plot; rebuilds when the field expands.</summary>
+    /// <summary>Creates and updates one <see cref="PlotView"/> per plot; rebuilds when the field changes; owns the generation decor.</summary>
     public sealed class FieldView : MonoBehaviour
     {
         public static readonly Color SoilDry = new Color(0.66f, 0.52f, 0.34f);
@@ -19,8 +19,8 @@ namespace TillWinter.Unity
         private AudioManager _audio;
         private readonly Dictionary<GridPos, PlotView> _plots = new Dictionary<GridPos, PlotView>();
         private CropMaterials _materials;
-        private Transform _trees;
-        private Material _trunk, _canopy;
+        private FarmDecorView _decor;
+        private float _reveal = 99f;
 
         public void Init(GameController game, CameraRig camera, FxManager fx, AudioManager audio)
         {
@@ -35,31 +35,11 @@ namespace TillWinter.Unity
             _game.Sim.PlotRipened += OnRipened;
             _game.Sim.CrowAte += OnCrowAte;
             _game.Sim.FieldExpanded += Rebuild;
-            _game.Sim.GenerationStarted += RebuildTrees;
             _game.Sim.Retired += _ => Rebuild();
-            _trunk = Prims.Lit(new Color(0.45f, 0.3f, 0.18f), 0.05f);
-            _canopy = Prims.Lit(new Color(0.25f, 0.55f, 0.28f), 0.1f);
-            RebuildTrees();
-        }
-
-        /// <summary>Generation N shows N-1 small trees around the field (placeholder for the art phase).</summary>
-        private void RebuildTrees()
-        {
-            if (_trees != null) Destroy(_trees.gameObject);
-            _trees = new GameObject("GenerationTrees").transform;
-            _trees.SetParent(transform, false);
-            int count = Mathf.Clamp(_game.State.Generation.Generation - 1, 0, 24);
-            float radius = _game.State.GridSize * 0.5f + 1.4f;
-            for (int i = 0; i < count; i++)
-            {
-                float a = (i / (float)Mathf.Max(1, count)) * Mathf.PI * 2f + 0.4f;
-                var pos = new Vector3(Mathf.Cos(a) * radius, 0f, Mathf.Sin(a) * radius * 0.8f + 0.3f);
-                var tree = new GameObject("Tree " + i).transform;
-                tree.SetParent(_trees, false);
-                tree.localPosition = pos;
-                Prims.Primitive(PrimitiveType.Cylinder, tree, "Trunk", new Vector3(0f, 0.25f, 0f), new Vector3(0.12f, 0.25f, 0.12f), _trunk);
-                Prims.MeshObject(Prims.Cone(false), tree, "Canopy", new Vector3(0f, 0.45f, 0f), new Vector3(0.45f, 0.9f, 0.45f), _canopy);
-            }
+            _game.Sim.GenerationStarted += OnGenerationStarted;
+            _decor = new GameObject("FarmDecor").AddComponent<FarmDecorView>();
+            _decor.transform.SetParent(transform, false);
+            _decor.Init(game);
         }
 
         private void OnDestroy()
@@ -70,7 +50,7 @@ namespace TillWinter.Unity
             _game.Sim.PlotRipened -= OnRipened;
             _game.Sim.CrowAte -= OnCrowAte;
             _game.Sim.FieldExpanded -= Rebuild;
-            _game.Sim.GenerationStarted -= RebuildTrees;
+            _game.Sim.GenerationStarted -= OnGenerationStarted;
         }
 
         private void Rebuild()
@@ -95,11 +75,26 @@ namespace TillWinter.Unity
             foreach (var kv in _plots)
                 kv.Value.transform.localPosition = _game.PlotToWorld(kv.Key);
             _camera.Frame(state.GridSize, false);
-            if (_trees != null) RebuildTrees();
+        }
+
+        /// <summary>New generation: plots appear one by one bottom-left to top-right (0.03 s stagger). Tap after 0.5 s skips.</summary>
+        private void OnGenerationStarted()
+        {
+            Rebuild();
+            _reveal = 0f;
+            foreach (var kv in _plots) kv.Value.transform.localScale = Vector3.one * 0.001f;
+        }
+
+        public void SkipReveal()
+        {
+            _reveal = 99f;
+            foreach (var kv in _plots) kv.Value.transform.localScale = Vector3.one;
+            _decor.CompleteReveal();
         }
 
         private void OnHarvested(HarvestEvent e)
         {
+            if (_game.Sim.IsSimulatingOffline) return;
             if (_plots.TryGetValue(e.Pos, out var view))
             {
                 view.Pop();
@@ -131,6 +126,21 @@ namespace TillWinter.Unity
             var state = _game.State;
             float dt = Time.deltaTime;
             float t = _game.SimTime;
+            if (_reveal < 99f)
+            {
+                _reveal += dt;
+                int n = state.GridSize;
+                bool done = true;
+                foreach (var kv in _plots)
+                {
+                    float delay = (kv.Key.Y * n + kv.Key.X) * 0.03f;
+                    float p = Mathf.Clamp01((_reveal - delay) / 0.25f);
+                    if (p < 1f) done = false;
+                    kv.Value.transform.localScale = Vector3.one * Mathf.Max(0.001f, p < 1f ? Mathf.Lerp(0.001f, 1.1f, Prims.EaseOutQuad(p)) : 1f);
+                }
+                if (_reveal > 0.5f && _game.Pointer != null && _game.Pointer.Current.Tapped) SkipReveal();
+                else if (done) _reveal = 99f;
+            }
             foreach (var kv in _plots)
             {
                 var plot = state.GetPlot(kv.Key);
@@ -150,12 +160,12 @@ namespace TillWinter.Unity
         public readonly Material Sprout = Prims.Lit(new Color(0.45f, 0.75f, 0.3f), 0.1f, true);
         public readonly Material[] Fruit =
         {
-            Prims.Lit(new Color(0.95f, 0.5f, 0.12f), 0.25f, true), // carrot orange
-            Prims.Lit(new Color(0.88f, 0.16f, 0.14f), 0.4f, true), // tomato red
-            Prims.Lit(new Color(0.98f, 0.82f, 0.2f), 0.3f, true),  // corn yellow
-            Prims.Lit(new Color(0.95f, 0.55f, 0.1f), 0.3f, true),  // pumpkin
-            Prims.Lit(new Color(0.45f, 0.2f, 0.55f), 0.45f, true), // grapes
-            Prims.Lit(new Color(1f, 0.85f, 0.35f), 0.5f, true),    // golden wheat
+            Prims.Lit(new Color(0.95f, 0.5f, 0.12f), 0.25f, true),
+            Prims.Lit(new Color(0.88f, 0.16f, 0.14f), 0.4f, true),
+            Prims.Lit(new Color(0.98f, 0.82f, 0.2f), 0.3f, true),
+            Prims.Lit(new Color(0.95f, 0.55f, 0.1f), 0.3f, true),
+            Prims.Lit(new Color(0.45f, 0.2f, 0.55f), 0.45f, true),
+            Prims.Lit(new Color(1f, 0.85f, 0.35f), 0.5f, true),
         };
     }
 
@@ -197,7 +207,6 @@ namespace TillWinter.Unity
             var soilGo = Prims.Primitive(PrimitiveType.Cube, transform, "Soil", new Vector3(0f, 0.08f, 0f), new Vector3(0.92f, 0.16f, 0.92f), mats.Soil);
             _soil = soilGo.GetComponent<Renderer>();
 
-            // Cracks: a few thin dark slivers that only show while Dry.
             var seed = new System.Random(plot.Pos.X * 31 + plot.Pos.Y * 17);
             for (int i = 0; i < 3; i++)
             {
@@ -234,17 +243,17 @@ namespace TillWinter.Unity
             Material fruit = _mats.Fruit[Mathf.Clamp(tier, 0, _mats.Fruit.Length - 1)];
             switch (tier)
             {
-                case 0: // carrot
+                case 0:
                     Add(Prims.MeshObject(Prims.Cone(true), _cropRoot, "Root", Vector3.zero, new Vector3(0.17f, 0.42f, 0.17f), fruit));
                     Add(Prims.Primitive(PrimitiveType.Sphere, _cropRoot, "Leaves", new Vector3(0f, 0.5f, 0f), new Vector3(0.3f, 0.16f, 0.3f), leaf));
                     Add(Prims.Primitive(PrimitiveType.Sphere, _cropRoot, "Leaves2", new Vector3(0.06f, 0.58f, -0.04f), new Vector3(0.16f, 0.12f, 0.16f), leaf));
                     break;
-                case 1: // tomato
+                case 1:
                     Add(Prims.Primitive(PrimitiveType.Cylinder, _cropRoot, "Stem", new Vector3(0f, 0.2f, 0f), new Vector3(0.06f, 0.2f, 0.06f), stem));
                     Add(Prims.Primitive(PrimitiveType.Sphere, _cropRoot, "Fruit", new Vector3(0f, 0.5f, 0f), new Vector3(0.36f, 0.34f, 0.36f), fruit));
                     Add(Prims.Primitive(PrimitiveType.Sphere, _cropRoot, "Cap", new Vector3(0f, 0.66f, 0f), new Vector3(0.16f, 0.07f, 0.16f), leaf));
                     break;
-                case 2: // corn
+                case 2:
                 {
                     Add(Prims.Primitive(PrimitiveType.Cylinder, _cropRoot, "Stalk", new Vector3(0f, 0.42f, 0f), new Vector3(0.07f, 0.42f, 0.07f), stem));
                     Add(Prims.Primitive(PrimitiveType.Capsule, _cropRoot, "Cob", new Vector3(0.1f, 0.6f, 0f), new Vector3(0.17f, 0.2f, 0.17f), fruit));
@@ -256,13 +265,13 @@ namespace TillWinter.Unity
                     Add(leafB);
                     break;
                 }
-                case 3: // pumpkin: fat squashed sphere + stem
+                case 3:
                     Add(Prims.Primitive(PrimitiveType.Sphere, _cropRoot, "Body", new Vector3(0f, 0.22f, 0f), new Vector3(0.5f, 0.38f, 0.5f), fruit));
                     Add(Prims.Primitive(PrimitiveType.Sphere, _cropRoot, "Body2", new Vector3(0.12f, 0.2f, 0.1f), new Vector3(0.36f, 0.32f, 0.36f), fruit));
                     Add(Prims.Primitive(PrimitiveType.Cylinder, _cropRoot, "Stem", new Vector3(0f, 0.46f, 0f), new Vector3(0.06f, 0.06f, 0.06f), stem));
                     Add(Prims.Primitive(PrimitiveType.Cube, _cropRoot, "Leaf", new Vector3(-0.2f, 0.3f, 0.1f), new Vector3(0.22f, 0.02f, 0.14f), leaf));
                     break;
-                case 4: // grapes: trellis stick + cluster of small spheres
+                case 4:
                 {
                     Add(Prims.Primitive(PrimitiveType.Cylinder, _cropRoot, "Trellis", new Vector3(0f, 0.4f, 0f), new Vector3(0.05f, 0.4f, 0.05f), stem));
                     Add(Prims.Primitive(PrimitiveType.Cube, _cropRoot, "Bar", new Vector3(0f, 0.7f, 0f), new Vector3(0.5f, 0.03f, 0.03f), stem));
@@ -272,7 +281,7 @@ namespace TillWinter.Unity
                     Add(Prims.Primitive(PrimitiveType.Cube, _cropRoot, "Leaf", new Vector3(0.18f, 0.68f, 0.06f), new Vector3(0.16f, 0.02f, 0.12f), leaf));
                     break;
                 }
-                default: // golden wheat: three tall stalks with capsule heads
+                default:
                 {
                     var xs = new[] { -0.14f, 0.02f, 0.15f };
                     for (int i = 0; i < xs.Length; i++)
@@ -288,31 +297,21 @@ namespace TillWinter.Unity
 
         private void Add(GameObject go) => _cropRenderers.Add(go.GetComponent<Renderer>());
 
-        /// <summary>Harvest: scale punch 1.3 then to 0.</summary>
         public void Pop()
         {
             _pop = 0f;
             _vanish = false;
         }
 
-        /// <summary>Crow ate it: shrink away quickly.</summary>
         public void Vanish()
         {
             _vanish = true;
             _pop = -1f;
         }
 
-        /// <summary>Dry→Wet: the sprout pops in.</summary>
-        public void SproutPop()
-        {
-            _sproutScale = 1.4f;
-        }
+        public void SproutPop() => _sproutScale = 1.4f;
 
-        /// <summary>Wet→Ripe: a small punch so ripening reads.</summary>
-        public void RipePop()
-        {
-            _ripePunch = 1f;
-        }
+        public void RipePop() => _ripePunch = 1f;
 
         public void Tick(Plot plot, bool winter, bool underRing, float dt, float simTime)
         {
@@ -322,7 +321,6 @@ namespace TillWinter.Unity
             bool wet = plot.State == PlotState.Wet;
             bool ripe = plot.State == PlotState.Ripe && !winter;
 
-            // --- crop scale
             float scale;
             if (_pop >= 0f)
             {
@@ -343,25 +341,19 @@ namespace TillWinter.Unity
                     _visualScale = Mathf.MoveTowards(_visualScale, 0f, dt / VanishSeconds);
                     if (_visualScale <= 0.001f) _vanish = false;
                 }
-                else
-                {
-                    _visualScale = Prims.Damp(_visualScale, target, winter ? 3f : 16f, dt);
-                }
+                else _visualScale = Prims.Damp(_visualScale, target, winter ? 3f : 16f, dt);
                 scale = _visualScale;
             }
             _ripePunch = Mathf.Max(0f, _ripePunch - dt * 4f);
             float punch = 1f + 0.18f * Mathf.Sin(_ripePunch * Mathf.PI);
-            // Ring harvest in progress: squash a little so the 0.5 s reads.
             float squash = ripe && underRing ? 1f - 0.2f * plot.Progress : 1f;
             float xz = Mathf.Lerp(0.55f, 1f, scale) * punch / Mathf.Sqrt(squash);
             _cropRoot.localScale = new Vector3(xz, Mathf.Max(0.0001f, scale * punch * squash), xz);
 
-            // --- sprout (Wet only, shrinks as the crop grows)
             float sproutTarget = wet && !winter ? Mathf.Lerp(1f, 0f, Mathf.Clamp01(plot.Progress * 2f)) : 0f;
             _sproutScale = _sproutScale > sproutTarget + 0.3f ? Prims.Damp(_sproutScale, sproutTarget, 6f, dt) : Prims.Damp(_sproutScale, sproutTarget, 14f, dt);
             _sprout.localScale = Vector3.one * Mathf.Max(0.0001f, _sproutScale);
 
-            // --- ripe wobble + glow
             _ripeGlow = Prims.Damp(_ripeGlow, ripe ? 1f : 0f, 8f, dt);
             float wobble = ripe ? Mathf.Sin(simTime * 6f + _phase) * 7f : 0f;
             float wobble2 = ripe ? Mathf.Sin(simTime * 4.3f + _phase * 1.7f) * 4f : 0f;
@@ -380,7 +372,6 @@ namespace TillWinter.Unity
                 r.SetPropertyBlock(_mpb);
             }
 
-            // --- soil: dry/wet, ring glow, winter pale; cracks only while dry
             _wetBlend = Prims.Damp(_wetBlend, dry || winter ? 0f : 1f, 10f, dt);
             _ringGlow = Prims.Damp(_ringGlow, underRing ? 1f : 0f, 12f, dt);
             _winterBlend = Prims.Damp(_winterBlend, winter ? 1f : 0f, 4f, dt);

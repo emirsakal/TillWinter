@@ -15,7 +15,11 @@ namespace TillWinter.Unity
     {
         private GameController _game;
         private AudioManager _audio;
-        private TreeTheme _theme;
+        private TreeTheme _theme, _heritageTheme;
+        private GenerationCard _card;
+        private Image _overlay, _page;
+        private TMP_Text _hintCaption;
+        private GameObject _retireSheet;
         private GameObject _root;
         private CanvasGroup _group;
         private RectTransform _safe;
@@ -51,8 +55,10 @@ namespace TillWinter.Unity
             _game = game;
             _audio = audio;
             _theme = TreeTheme.Load();
+            _heritageTheme = TreeTheme.Load("HeritageTheme");
 
             var overlay = UiKit.Panel(canvas, "WinterScreen", _theme.Overlay, false, true);
+            _overlay = overlay;
             _root = overlay.gameObject;
             _group = _root.AddComponent<CanvasGroup>();
             _safe = UiKit.Rect("SafeArea", overlay.transform);
@@ -60,6 +66,7 @@ namespace TillWinter.Unity
 
             // Paper page with a soft vignette.
             var page = UiKit.Panel(_safe, "Page", _theme.Paper, true, false);
+            _page = page;
             UiKit.Stretch(page.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 20f), new Vector2(-20f, -20f));
             var vignette = UiKit.Panel(page.transform, "Vignette", _theme.PaperVignette, true, false);
             vignette.sprite = Prims.CircleSprite(256);
@@ -69,8 +76,6 @@ namespace TillWinter.Unity
             var edge = UiKit.Panel(page.transform, "Edge", new Color(0f, 0f, 0f, 0f), true, false);
             edge.color = new Color(_theme.PaperVignette.r, _theme.PaperVignette.g, _theme.PaperVignette.b, 0.18f);
             UiKit.Stretch(edge.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            var inner = UiKit.Panel(page.transform, "Inner", _theme.Paper, true, false);
-            UiKit.Stretch(inner.rectTransform, Vector2.zero, Vector2.one, new Vector2(14f, 14f), new Vector2(-14f, -14f));
 
             // Top bar.
             var top = UiKit.Rect("TopBar", _safe);
@@ -80,7 +85,7 @@ namespace TillWinter.Unity
             _title.fontSize = 44;
             _coins = UiKit.Label(top, "Coins", "0", 52, _theme.Ink, TextAnchor.UpperRight, FontStyle.Bold);
             _coinsRt = _coins.rectTransform;
-            UiKit.Stretch(_coinsRt, new Vector2(0.58f, 0.5f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-130f, 0f));
+            UiKit.Stretch(_coinsRt, new Vector2(0.58f, 0.5f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-200f, 0f));
             _coins.fontSize = 42;
             _greenhouse = UiKit.Label(top, "Greenhouse", "", 26, _theme.InkMuted, TextAnchor.LowerLeft);
             UiKit.Stretch(_greenhouse.rectTransform, new Vector2(0f, 0f), new Vector2(0.6f, 0.5f), Vector2.zero, Vector2.zero);
@@ -98,7 +103,7 @@ namespace TillWinter.Unity
             var heritageRt = UiKit.Rect("HeritageTree", _safe);
             UiKit.Stretch(heritageRt, Vector2.zero, Vector2.one, new Vector2(34f, 330f), new Vector2(-34f, -240f));
             _heritage = heritageRt.gameObject.AddComponent<SkillTreeView>();
-            _heritage.Init(game, game.Sim.Heritage, _theme, SkillTreeLayout.Compute(game.Sim.Heritage.Nodes));
+            _heritage.Init(game, game.Sim.Heritage, _heritageTheme, SkillTreeLayout.Compute(game.Sim.Heritage.Nodes));
             _heritage.Selected += OnSelected;
 
             BuildSheet();
@@ -112,6 +117,15 @@ namespace TillWinter.Unity
             UiKit.Box(_startGen.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(900f, 120f));
 
             BuildConfirm();
+
+            var cap = UiKit.Panel(_safe, "HintCaption", new Color(0.1f, 0.08f, 0.06f, 0.85f), true, false);
+            UiKit.Box(cap.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 190f), new Vector2(960f, 70f));
+            _hintCaption = UiKit.Label(cap.transform, "Text", "", 28, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+            cap.gameObject.SetActive(false);
+            BuildRetireSheet();
+
+            _card = canvas.gameObject.AddComponent<GenerationCard>();
+            _card.Init(game, audio, canvas);
 
             _root.SetActive(false);
             _game.Sim.WinterStarted += Open;
@@ -164,6 +178,27 @@ namespace TillWinter.Unity
             _sheet.gameObject.SetActive(false);
         }
 
+        /// <summary>One-time sheet at the first Winter with CanRetire (GDD §10.5).</summary>
+        private void BuildRetireSheet()
+        {
+            var dim = UiKit.Panel(_safe, "RetireHintDim", new Color(0f, 0f, 0f, 0.5f), false, true);
+            _retireSheet = dim.gameObject;
+            var box = UiKit.Panel(dim.transform, "Box", _theme.Paper, true, true);
+            UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 420f));
+            var text = UiKit.Label(box.transform, "Text", Strings.Get("hint.first_can_retire"), 32, _theme.Ink, TextAnchor.MiddleCenter);
+            UiKit.Stretch(text.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 150f), new Vector2(-50f, -40f));
+            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("hint.got_it"), 32, _theme.Seed, _theme.Paper, () => { _audio.Play(SfxId.UiClick); _retireSheet.SetActive(false); });
+            UiKit.Box(ok.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 36f), new Vector2(360f, 96f));
+            _retireSheet.SetActive(false);
+        }
+
+        private void ShowCaption(string key, bool show)
+        {
+            var go = _hintCaption.transform.parent.gameObject;
+            if (show) _hintCaption.text = Strings.Get(key);
+            if (go.activeSelf != show) go.SetActive(show);
+        }
+
         private void BuildConfirm()
         {
             var dim = UiKit.Panel(_safe, "ConfirmDim", new Color(0f, 0f, 0f, 0.6f), false, true);
@@ -203,10 +238,24 @@ namespace TillWinter.Unity
             ApplySafeArea();
             RefreshAll();
             ActiveView.OnOpened();
+
+            var sim = _game.Sim;
+            if (_game.State.Phase == Phase.Winter && sim.MarkHint(Hint.FirstWinter))
+            {
+                _almanac.CenterOn("ring_radius", "irrigation");
+                _almanac.Highlight("ring_radius", "irrigation");
+                ShowCaption("hint.first_winter", true);
+            }
+            if (_game.State.Phase == Phase.Winter && sim.CanRetire && sim.MarkHint(Hint.FirstCanRetire)) _retireSheet.SetActive(true);
+            if (_game.State.Phase == Phase.Heritage && sim.MarkHint(Hint.FirstHeritage)) ShowCaption("hint.first_heritage", true);
         }
 
         private void Close()
         {
+            ShowCaption("", false);
+            _retireSheet.SetActive(false);
+            _confirm.SetActive(false);
+            _almanac.ClearHighlight();
             ActiveView.OnClosed();
             _visible = false;
             _root.SetActive(false);
@@ -262,12 +311,24 @@ namespace TillWinter.Unity
         private void OnRetireConfirmed()
         {
             _confirm.SetActive(false);
-            if (_game.Sim.Retire())
+            _retireSheet.SetActive(false);
+            var sim = _game.Sim;
+            int gen = sim.State.Generation.Generation;
+            int seeds = sim.SeedsIfRetiredNow;
+            if (sim.Retire())
             {
                 _audio.Play(SfxId.WinterChime);
                 _showingHeritage = true;
                 _selectedId = null;
-                ActiveView.OnOpened();
+                _group.alpha = 0f;
+                _card.Show(new RetireEvent(seeds, gen + 1), () =>
+                {
+                    _open = 0f;
+                    _game.InputBlocked = true;
+                    RefreshAll();
+                    ActiveView.OnOpened();
+                    if (sim.MarkHint(Hint.FirstHeritage)) ShowCaption("hint.first_heritage", true);
+                });
             }
             RefreshAll();
         }
@@ -289,6 +350,7 @@ namespace TillWinter.Unity
         private void OnPurchased(PurchaseEvent e)
         {
             (e.Tree == TreeKind.Almanac ? _almanac : _heritage).OnPurchased(e.NodeId);
+            if (_almanac.HasHighlight) { _almanac.ClearHighlight(); ShowCaption("hint.first_winter", false); }
             if (e.Tree == TreeKind.Almanac) _coinPunch = 1f;
             RefreshAll();
         }
@@ -301,6 +363,10 @@ namespace TillWinter.Unity
             var s = _game.State;
             bool heritagePhase = s.Phase == Phase.Heritage;
             if (heritagePhase) _showingHeritage = true;
+            _overlay.color = heritagePhase ? _heritageTheme.Overlay : _theme.Overlay;
+            _page.color = _showingHeritage ? _heritageTheme.Paper : _theme.Paper;
+            _title.color = _showingHeritage ? _heritageTheme.Ink : _theme.Ink;
+            _coins.color = _showingHeritage ? _heritageTheme.Seed : _theme.Ink;
             _title.text = heritagePhase
                 ? Strings.Format("ui.heritage_title", ("gen", s.Generation.Generation))
                 : Strings.Format("ui.winter_title", ("year", s.Year)) + "  ·  Gen " + s.Generation.Generation;
@@ -373,6 +439,7 @@ namespace TillWinter.Unity
         private void LateUpdate()
         {
             if (!_visible) return;
+            if (_card.IsOpen) { _group.alpha = 0f; return; }
             float dt = Time.unscaledDeltaTime;
             _open = Mathf.Min(1f, _open + dt / 0.3f);
             _group.alpha = Prims.EaseOutQuad(_open);

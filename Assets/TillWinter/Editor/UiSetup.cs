@@ -45,6 +45,7 @@ namespace TillWinter.EditorTools
             ImportTmpEssentials();
             CreateFontAsset();
             CreateTheme();
+            CreateExtraAssets();
             WireBootstrap();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -120,6 +121,28 @@ namespace TillWinter.EditorTools
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
             UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
             Debug.Log("[UiSetup] string table wired into Farm.unity");
+        }
+
+        private static void CreateExtraAssets()
+        {
+            const string dir = "Assets/TillWinter/Unity/Resources/";
+            if (!File.Exists(dir + "HeritageTheme.asset"))
+            {
+                var t = ScriptableObject.CreateInstance<TreeTheme>();
+                TreeTheme.ApplyHeritageDefaults(t);
+                AssetDatabase.CreateAsset(t, dir + "HeritageTheme.asset");
+                Debug.Log("[UiSetup] HeritageTheme created");
+            }
+            if (!File.Exists(dir + "HudTheme.asset"))
+            {
+                AssetDatabase.CreateAsset(ScriptableObject.CreateInstance<HudTheme>(), dir + "HudTheme.asset");
+                Debug.Log("[UiSetup] HudTheme created");
+            }
+            if (!File.Exists(dir + "FarmDecor.asset"))
+            {
+                AssetDatabase.CreateAsset(FarmDecorSet.Defaults(), dir + "FarmDecor.asset");
+                Debug.Log("[UiSetup] FarmDecor created");
+            }
         }
 
         private static void CreateTheme()
