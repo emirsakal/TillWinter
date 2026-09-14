@@ -344,3 +344,39 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   asset); Core tests stay engine-free.
 - **Smoke test now pans, zooms, selects `ring_radius`, buys it, asserts the child is available**,
   and screenshots the Winter screen at 1080x2340 and 1080x1920 (`docs/screenshots/`).
+
+---
+
+# Session 5 - Heritage screen, HUD, onboarding
+
+- **Onboarding hints are Core flags, not UI state.** `Hint` enum + `OnboardingFlags` bitfield live
+  on `FarmState`/saved; `FarmSim.MarkHint` returns true only the first time a hint fires. The UI
+  never keeps its own "have I shown this" bool or touches `PlayerPrefs` — a hint that should only
+  play once must round-trip through Core so it survives quit/relaunch and offline sim.
+- **Themes are the only colour source, for both trees.** Heritage reuses `SkillTreeView` with a
+  second `TreeTheme` asset (`HeritageTheme`: deep green paper, gold accents, seed currency, darker
+  branch colours) rather than a fork of the view; `InitialZoom` moved onto `TreeTheme` per-tree
+  (0.62 for Heritage so all five branches fit) instead of a shared constant. `HudTheme` does the
+  same job for the HUD. No view class holds a literal `Color` for anything a designer would want
+  to retune.
+- **`GenerationCard` is a separate full-screen step, not a Heritage-screen overlay.** Retire ->
+  confirm -> `Retire()` -> `GenerationCard` (flavour line, seeds counting up, skip after 0.5 s,
+  auto-finish at 6 s) -> Heritage screen. Keeping it a distinct step means the seed-count beat and
+  the flavour text don't have to coexist with the tree canvas's own animation (plots appearing,
+  decor pop-in) on the same frame.
+- **Away-card coins are held back from the HUD, not animated in before the card is read.**
+  `HudView.HeldCoins` withholds offline earnings from the visible counter until the player taps OK
+  on `AwayCard`; per-source lines (apprentices, tractor) come from the same offline-sim breakdown
+  `SimulateOffline` already produced, so the card needed no new Core surface. Per-event FX are
+  skipped while `FarmSim.IsSimulatingOffline` so the field doesn't visibly celebrate hours of
+  harvests in one frame.
+- **Decor is data, like Almanac/Heritage nodes.** `FarmDecorSet` (Resources) with `DecorItem
+  {Id, Kind, MinGeneration, Offset, Rotation, Scale, Prefab}` replaces the placeholder cone trees;
+  `FarmDecorView` builds primitives when no prefab is set and rebuilds on generation change. Adding
+  a new decoration is a table row, matching the "trees are data" rule for skill nodes.
+- **Smoke-test screenshots must not share a frame with a state change.** `ScreenCapture
+  .CaptureScreenshot` captures at end of frame; the smoke test now separates "change state" and
+  "take shot" into distinct steps so a screenshot never lands mid-transition (e.g. generation card
+  fading, plots still popping in).
+- Save schema bumped to v3 for `OnboardingBits` and per-tree pan/zoom (`TreeViewMemory`); v2->v3
+  migration and `SaveV3Tests` fixture follow the usual save-versioning pattern.

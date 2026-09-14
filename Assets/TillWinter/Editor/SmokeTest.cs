@@ -151,6 +151,7 @@ namespace TillWinter.EditorTools
                     if (inPhase > 6.0)
                     {
                         Shot("02-harvesting");
+                        Check(!_game.Sim.HintPending(Hint.FirstTouch) && !_game.Sim.HintPending(Hint.Hold), "first-touch and hold hints consumed by the ring");
                         Log("After 4 s of ring: coins=" + s.Coins + " harvests=" + _harvests + " ring=" + (_game.CurrentRing.HasValue ? "on" : "off"));
                         Check(s.Coins >= 1, "at least one carrot harvested after 6 s under the 0.7 ring (got " + s.Coins + ", ring " + (_game.CurrentRing.HasValue ? "on" : "off") + ", pointer=" + (Pointer.current == null ? "null" : Pointer.current.name) + " down=" + _game.Pointer.Current.IsDown + " blocked=" + _game.InputBlocked + " overUi=" + (UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) + " phase=" + s.Phase + ")");
                         Check(_harvests >= 1, "Harvested fired");
@@ -172,6 +173,9 @@ namespace TillWinter.EditorTools
                     {
                         Shot("04-winter-shop");
                         Check(_game.InputBlocked, "input blocked while shop open");
+                        Check(!_game.Sim.HintPending(Hint.FirstFrost), "frost hint consumed");
+                        Check(!_game.Sim.HintPending(Hint.FirstWinter), "first-winter hint shown");
+                        Check(GameObject.Find("TreeToggle") != null, "Heritage tab visible in Winter");
                         double before = s.Coins;
                         _game.Sim.DebugAddCoins(600);
                         Check(_game.Sim.TryBuy("apprentice_count"), "buy apprentice_count");
@@ -296,27 +300,57 @@ namespace TillWinter.EditorTools
                 case 13:
                     if (inPhase > 0.8)
                     {
-                        Shot("08-winter-retire-button");
+                        if (_sub++ == 0) { Shot("08-winter-retire-button"); break; } // capture lands end of frame
+                        if (_sub < 3) break;
                         int gen = s.Generation.Generation;
-                        Check(_game.Sim.Retire(), "Retire()");
+                        var winter = UnityEngine.Object.FindFirstObjectByType<WinterScreen>();
+                        Check(winter != null && winter.IsOpen, "winter screen open before retire");
+                        // Drive the real flow: Pass on -> confirm -> Generation card -> Heritage screen.
+                        GameObject.Find("Retire")?.GetComponent<Button>()?.onClick.Invoke();
+                        var yes = GameObject.Find("Yes")?.GetComponent<Button>();
+                        Check(yes != null, "retire confirm dialog shown");
+                        yes?.onClick.Invoke();
                         Check(s.Phase == Phase.Heritage, "phase Heritage");
                         Check(s.Generation.Generation == gen + 1, "generation incremented");
                         Check(s.Coins == 0 && s.AlmanacLevels.Count == 0, "coins and almanac reset");
+                        var card = UnityEngine.Object.FindFirstObjectByType<GenerationCard>();
+                        Check(card != null && card.IsOpen, "generation card open");
+                        Next();
+                    }
+                    break;
+                case 14: // let the seeds count up, screenshot, then tap to skip
+                    if (inPhase > 1.6)
+                    {
+                        if (_sub++ == 0) { Shot("08b-generation-card"); break; }
+                        if (_sub < 3) break;
+                        var card = UnityEngine.Object.FindFirstObjectByType<GenerationCard>();
+                        card.Skip();
+                        Check(card != null && !card.IsOpen, "generation card skipped by tap");
+                        var winter = UnityEngine.Object.FindFirstObjectByType<WinterScreen>();
+                        Check(winter != null && winter.IsOpen, "heritage screen open after card");
                         _game.Sim.DebugAddSeeds(20);
                         Check(_game.Sim.TryBuy("h_start_radius"), "buy h_start_radius");
                         Check(_game.Sim.TryBuy("h_free_apprentice"), "buy h_free_apprentice");
                         Next();
                     }
                     break;
-                case 14:
+                case 15:
                     if (inPhase > 0.8)
                     {
-                        Shot("09-heritage-panel");
+                        if (_sub++ == 0) { Shot("09-heritage-panel"); break; }
+                        if (_sub < 3) break;
                         var btn = GameObject.Find("StartGeneration")?.GetComponent<Button>();
                         Check(btn != null, "Start new generation button exists");
                         btn?.onClick.Invoke();
                         Check(s.Phase == Phase.Year && s.Year == 1, "new generation year 1");
                         Check(s.Apprentices.Count == 1, "free apprentice present");
+                        Check(!_game.Sim.HintPending(Hint.FirstHeritage), "heritage hint shown");
+                        var away = UnityEngine.Object.FindFirstObjectByType<AwayCard>();
+                        _game.Sim.DebugSetLevel("irrigation", 2);
+                        _game.Sim.DebugSetLevel("sun", 2);
+                        var report = _game.Sim.SimulateOffline(600);
+                        away.Show(report);
+                        Check(away.IsOpen, "away card open (10 min offline)");
                         Check(Mathf.Abs(s.RingRadius - 0.95f) < 1e-3f, "heritage radius bonus applied");
                         var save = UnityEngine.Object.FindFirstObjectByType<SaveController>();
                         save.SaveNow();
@@ -327,8 +361,19 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 15:
-                    if (inPhase > 1.5) { Shot("10-generation2"); Next(); }
+                case 16:
+                    if (inPhase > 1.0)
+                    {
+                        if (_sub++ == 0) { Shot("10-away-card"); break; }
+                        if (_sub < 3) break;
+                        var away = UnityEngine.Object.FindFirstObjectByType<AwayCard>();
+                        away.Apply();
+                        Check(!away.IsOpen, "away card closed by OK");
+                        Next();
+                    }
+                    break;
+                case 17:
+                    if (inPhase > 1.0) { Shot("11-generation2-field"); Next(); }
                     break;
                 default:
                     if (inPhase > 1.0) Finish();
@@ -342,6 +387,7 @@ namespace TillWinter.EditorTools
         private static double _selectedAt;
         private static int _holdFrames;
         private static int _tapState;
+        private static int _sub;
 
         private static Vector2 ScreenOf(float plotX, float plotY)
         {
@@ -360,6 +406,7 @@ namespace TillWinter.EditorTools
         private static void Next()
         {
             _phase++;
+            _sub = 0;
             _phaseStart = EditorApplication.timeSinceStartup;
         }
 

@@ -73,6 +73,7 @@ namespace TillWinter.Unity
         {
             _game = game;
             _mpb = new MaterialPropertyBlock();
+            _game.Sim.GenerationStarted += OnGenerationStarted;
 
             var sunGo = new GameObject("Sun");
             sunGo.transform.SetParent(transform, false);
@@ -122,8 +123,11 @@ namespace TillWinter.Unity
 
         private void OnDestroy()
         {
-            if (_game != null && _game.Sim != null) _game.Sim.SeasonChanged -= OnSeasonChanged;
+            if (_game != null && _game.Sim != null) { _game.Sim.SeasonChanged -= OnSeasonChanged; _game.Sim.GenerationStarted -= OnGenerationStarted; }
         }
+
+        /// <summary>New generation: the snow melts at once instead of lingering for a particle lifetime.</summary>
+        private void OnGenerationStarted() => _snow.Clear();
 
         private void OnSeasonChanged(Season s)
         {

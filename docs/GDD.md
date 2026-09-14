@@ -172,11 +172,11 @@ When every Heritage node is maxed, the next year is the **Golden Year**: the fie
 
 ## 10. Screens
 
-1. **Farm** — field, ring, HUD (coins, year, season bar with frost segment, seeds-on-retire hint after threshold). No bottom bar during the year.
-2. **Almanac** (Winter) — tree canvas, node detail card, "Next Year" and "Pass on the farm" buttons.
-3. **Heritage** — after rebirth, before Spring of the new generation; also viewable from the pause menu.
+1. **Farm** — field, ring, HUD. *(v1.3, Session 5)* HUD (`HudView`, every colour/spacing from `HudTheme`): coins big and centred with a punch on change, "Year N · Gen G" small underneath, a four-segment season bar (Spring/Summer/Autumn/Winter) filling left-to-right with a frost span and the season name fading in at each boundary, a combo "xN" readout from combo ≥ 2, and a seed chip "Retire now: N seeds" once `CanRetire`. Safe area is applied to the HUD only on mobile platforms (editor `Screen.safeArea` is unreliable). No bottom bar during the year.
+2. **Almanac** (Winter) — tree canvas (`SkillTreeView` + `TreeTheme`), node detail card, "Next Year" and "Pass on the farm" buttons. A "Heritage" tab in the Winter top bar opens the Heritage tree without leaving Winter.
+3. **Heritage** — *(v1.3, Session 5)* the same `SkillTreeView` shown full screen, themed by a second asset (`HeritageTheme`: deep green paper, gold accents, seed currency, darker branch colours, tighter initial zoom so all five branches fit). Reached after rebirth (Retire on the farm -> confirm dialog -> `Retire()` -> a full-screen **Generation card**: "Generation N", one flavour line, seeds counting up, skip after 0.5 s / auto-continue at 6 s -> Heritage screen), before Spring of the new generation; also reachable as the Winter tab above. Starting the new generation reveals plots one by one bottom-left to top-right, clears snow, and pops in generation-appropriate decor (`FarmDecorSet`/`FarmDecorView`, data-driven, `MinGeneration`-gated). Pan/zoom is remembered per tree (Almanac and Heritage separately) across sessions.
 4. **Pause / Settings** — language, sound, haptics, reset save, credits. Last.
-5. **Onboarding** — no tutorial screen. Year 1: a hand icon pulses on a Dry plot; first Winter: the Almanac highlights `ring_radius` and `irrigation`. That's all.
+5. **Onboarding** — no tutorial screen; a `Hint` enum + `OnboardingFlags` in Core make every hint fire once and only once, saved. *(v1.3, Session 5)* Shipped hints: first touch on a Dry plot (pulsing hand + hold caption), first Ripe plot outside the ring, first frost warning, first crow; first Winter (the tree centres on `ring_radius`/`irrigation` with a pulse and caption until the first purchase); the first time `CanRetire` (a one-time explanatory sheet); first entry to Heritage ("Seeds never reset."). Hints never block input. **While-you-were-away card** (`AwayCard`, shown on resume when offline sim earned coins): duration in h/min, total coins, a line per source (apprentices, tractor), a note when capped at the 8 h offline cap; the HUD coin counter withholds the earned coins (`HudView.HeldCoins`) until the card is dismissed.
 
 ---
 

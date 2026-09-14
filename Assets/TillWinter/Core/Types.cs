@@ -200,14 +200,31 @@ namespace TillWinter.Core
         public readonly double SecondsSimulated;
         public readonly double CoinsEarned;
         public readonly int Harvests;
+        public readonly int HarvestsApprentice;
+        public readonly int HarvestsTractor;
         public readonly bool Capped;
 
-        public OfflineReport(double secondsSimulated, double coinsEarned, int harvests, bool capped)
+        public OfflineReport(double secondsSimulated, double coinsEarned, int harvests, bool capped, int harvestsApprentice = 0, int harvestsTractor = 0)
         {
             SecondsSimulated = secondsSimulated;
             CoinsEarned = coinsEarned;
             Harvests = harvests;
             Capped = capped;
+            HarvestsApprentice = harvestsApprentice;
+            HarvestsTractor = harvestsTractor;
         }
+    }
+
+    /// <summary>One-shot onboarding hints (GDD §10.5). Each fires once, ever; the flag lives in Core and is saved.</summary>
+    public enum Hint
+    {
+        FirstTouch = 0,
+        Hold = 1,
+        FirstRipeOutside = 2,
+        FirstFrost = 3,
+        FirstWinter = 4,
+        FirstCrow = 5,
+        FirstCanRetire = 6,
+        FirstHeritage = 7,
     }
 }

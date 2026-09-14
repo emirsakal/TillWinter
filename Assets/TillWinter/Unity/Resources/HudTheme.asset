@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e152de1fc27b6d4f8d103a5bb4612c2, type: 3}
+  m_Name: HudTheme
+  m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.HudTheme
+  Text: {r: 1, g: 0.97, b: 0.9, a: 1}
+  TextMuted: {r: 1, g: 0.97, b: 0.9, a: 0.8}
+  Coin: {r: 1, g: 0.82, b: 0.2, a: 1}
+  CoinInner: {r: 0.85, g: 0.6, b: 0.1, a: 1}
+  Combo: {r: 1, g: 0.9, b: 0.5, a: 1}
+  Seed: {r: 0.78, g: 0.6, b: 0.95, a: 1}
+  SeedChip: {r: 0.35, g: 0.2, b: 0.5, a: 0.85}
+  Spring: {r: 0.55, g: 0.8, b: 0.4, a: 1}
+  Summer: {r: 0.95, g: 0.85, b: 0.35, a: 1}
+  Autumn: {r: 0.92, g: 0.55, b: 0.25, a: 1}
+  Winter: {r: 0.7, g: 0.82, b: 0.95, a: 1}
+  Frost: {r: 0.4, g: 0.6, b: 1, a: 1}
+  BarBackground: {r: 0, g: 0, b: 0, a: 0.35}
+  BarElapsed: {r: 0.1, g: 0.08, b: 0.06, a: 0.5}
+  BarMarker: {r: 1, g: 0.97, b: 0.9, a: 1}
+  HintBackground: {r: 0.1, g: 0.08, b: 0.06, a: 0.8}
+  HintText: {r: 1, g: 0.97, b: 0.9, a: 1}
+  HintAccent: {r: 0.95, g: 0.62, b: 0.2, a: 1}
+  TopPadding: 40
+  CoinFontSize: 96
+  SubFontSize: 38
+  BarWidth: 960
+  BarHeight: 18
+  BarY: -330
+  SeasonNameY: -380

@@ -1,0 +1,113 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4cc6327fb9554d44ba37f736e289b878, type: 3}
+  m_Name: FarmDecor
+  m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.FarmDecorSet
+  Items:
+  - Id: well
+    Kind: 2
+    MinGeneration: 2
+    Offset: {x: -1.4, y: 1.1}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: tree_gate
+    Kind: 0
+    MinGeneration: 3
+    Offset: {x: 1.5, y: 1.3}
+    Rotation: 20
+    Scale: 1.1
+    Prefab: {fileID: 0}
+  - Id: fence_left_a
+    Kind: 1
+    MinGeneration: 4
+    Offset: {x: -1.3, y: -0.6}
+    Rotation: 90
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: fence_left_b
+    Kind: 1
+    MinGeneration: 4
+    Offset: {x: -1.3, y: 0.2}
+    Rotation: 90
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: fence_right_a
+    Kind: 1
+    MinGeneration: 4
+    Offset: {x: 1.3, y: -0.6}
+    Rotation: 90
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: fence_right_b
+    Kind: 1
+    MinGeneration: 4
+    Offset: {x: 1.3, y: 0.2}
+    Rotation: 90
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: house
+    Kind: 3
+    MinGeneration: 5
+    Offset: {x: -0.6, y: 1.6}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: windmill
+    Kind: 4
+    MinGeneration: 6
+    Offset: {x: 0.9, y: 1.8}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: tree_line_a
+    Kind: 0
+    MinGeneration: 7
+    Offset: {x: -1.7, y: 1.8}
+    Rotation: 0
+    Scale: 0.9
+    Prefab: {fileID: 0}
+  - Id: tree_line_b
+    Kind: 0
+    MinGeneration: 7
+    Offset: {x: -1.1, y: 2}
+    Rotation: 40
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: tree_line_c
+    Kind: 0
+    MinGeneration: 7
+    Offset: {x: 1.7, y: 2}
+    Rotation: 70
+    Scale: 0.95
+    Prefab: {fileID: 0}
+  - Id: signpost
+    Kind: 5
+    MinGeneration: 8
+    Offset: {x: 1.6, y: -0.9}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: flowerbed
+    Kind: 6
+    MinGeneration: 8
+    Offset: {x: -1.6, y: -1}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 0}
+  - Id: barrels
+    Kind: 7
+    MinGeneration: 9
+    Offset: {x: 0.2, y: 1.7}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 0}

@@ -36,12 +36,16 @@ namespace TillWinter.Core
         public event Action RainCloudTapped;
         public event Action RainCloudLeft;
         public event Action<int> TractorSweepStarted;
+        public event Action<Hint> HintShown;
 
         private Rng _rng;
         private readonly List<Plot> _scratch = new List<Plot>();
         private float _crowSpawnTimer;
         private float? _ringRadiusOverride;
         private bool _offline;
+
+        /// <summary>True while <see cref="SimulateOffline"/> runs; presentation skips per-event FX.</summary>
+        public bool IsSimulatingOffline => _offline;
         private bool _forceGoldenNext;
 
         public FarmSim(FarmConfig config, int seed, IReadOnlyList<SkillNode> almanacNodes = null, IReadOnlyList<SkillNode> heritageNodes = null)
@@ -180,6 +184,29 @@ namespace TillWinter.Core
             BeginSpring();
         }
 
+        // ------------------------------------------------------------------ onboarding (GDD §10.5)
+
+        /// <summary>Marks a hint as shown. Returns true the first time only.</summary>
+        public bool MarkHint(Hint hint)
+        {
+            if (State.Onboarding.Has(hint)) return false;
+            State.Onboarding.Set(hint);
+            HintShown?.Invoke(hint);
+            return true;
+        }
+
+        public bool HintPending(Hint hint) => !State.Onboarding.Has(hint);
+
+        /// <summary>Remembers a tree canvas pan/zoom (saved).</summary>
+        public void RememberTreeView(TreeKind tree, float panX, float panY, float zoom)
+        {
+            var m = tree == TreeKind.Almanac ? State.AlmanacView : State.HeritageView;
+            m.HasView = true;
+            m.PanX = panX;
+            m.PanY = panY;
+            m.Zoom = zoom;
+        }
+
         // ------------------------------------------------------------------ heritage (GDD §7)
 
         public bool CanRetire => State.Generation.LifetimeCoinsThisGeneration >= Config.HeritageThreshold;
@@ -299,6 +326,9 @@ namespace TillWinter.Core
                 ComboTimer = s.ComboTimer,
                 GreenhouseSecondsLeft = s.Greenhouse.SecondsLeftThisWinter,
                 GreenhouseCoinsThisWinter = s.Greenhouse.CoinsThisWinter,
+                OnboardingBits = s.Onboarding.Bits,
+                AlmanacViewHas = s.AlmanacView.HasView, AlmanacViewX = s.AlmanacView.PanX, AlmanacViewY = s.AlmanacView.PanY, AlmanacViewZoom = s.AlmanacView.Zoom,
+                HeritageViewHas = s.HeritageView.HasView, HeritageViewX = s.HeritageView.PanX, HeritageViewY = s.HeritageView.PanY, HeritageViewZoom = s.HeritageView.Zoom,
             };
             for (int i = 0; i < s.PlotArray.Length; i++)
             {
@@ -381,6 +411,9 @@ namespace TillWinter.Core
             s.ComboTimer = data.ComboTimer;
             s.Greenhouse.SecondsLeftThisWinter = data.GreenhouseSecondsLeft;
             s.Greenhouse.CoinsThisWinter = data.GreenhouseCoinsThisWinter;
+            s.Onboarding.Bits = data.OnboardingBits;
+            s.AlmanacView.HasView = data.AlmanacViewHas; s.AlmanacView.PanX = data.AlmanacViewX; s.AlmanacView.PanY = data.AlmanacViewY; s.AlmanacView.Zoom = data.AlmanacViewZoom <= 0f ? 1f : data.AlmanacViewZoom;
+            s.HeritageView.HasView = data.HeritageViewHas; s.HeritageView.PanX = data.HeritageViewX; s.HeritageView.PanY = data.HeritageViewY; s.HeritageView.Zoom = data.HeritageViewZoom <= 0f ? 1f : data.HeritageViewZoom;
             sim.UpdateGreenhouseRate();
             return sim;
         }
@@ -412,6 +445,9 @@ namespace TillWinter.Core
 
             double coinsBefore = State.Coins;
             int harvestsBefore = State.Generation.Harvests;
+            int apprentice = 0, tractor = 0;
+            Action<HarvestEvent> count = e => { if (e.Source == HarvestSource.Apprentice) apprentice++; else if (e.Source == HarvestSource.Tractor) tractor++; };
+            Harvested += count;
             var ringBefore = State.Ring;
             State.Ring = null;
             _offline = true;
@@ -422,8 +458,9 @@ namespace TillWinter.Core
                 UpdateTractor(step);
             }
             _offline = false;
+            Harvested -= count;
             State.Ring = ringBefore;
-            return new OfflineReport(steps * (double)step, State.Coins - coinsBefore, State.Generation.Harvests - harvestsBefore, capped);
+            return new OfflineReport(steps * (double)step, State.Coins - coinsBefore, State.Generation.Harvests - harvestsBefore, capped, apprentice, tractor);
         }
 
         // ------------------------------------------------------------------ debug hooks

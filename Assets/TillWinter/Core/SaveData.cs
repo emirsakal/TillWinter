@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 2;
+        public const int CurrentSchemaVersion = 3;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -56,6 +56,13 @@ namespace TillWinter.Core
         public float ComboTimer;
         public float GreenhouseSecondsLeft;
         public double GreenhouseCoinsThisWinter;
+
+        // v3: onboarding flags, per-tree canvas memory
+        public int OnboardingBits;
+        public bool AlmanacViewHas;
+        public float AlmanacViewX, AlmanacViewY, AlmanacViewZoom = 1f;
+        public bool HeritageViewHas;
+        public float HeritageViewX, HeritageViewY, HeritageViewZoom = 1f;
     }
 
     [Serializable]
@@ -95,6 +102,7 @@ namespace TillWinter.Core
                 switch (data.SchemaVersion)
                 {
                     case 1: data = V1ToV2(data, config ?? new FarmConfig()); break;
+                    case 2: data = V2ToV3(data); break;
                     default: return null;
                 }
             }
@@ -122,6 +130,20 @@ namespace TillWinter.Core
             d.GreenhouseCoinsThisWinter = 0;
             if (d.Plots != null) foreach (var p in d.Plots) if (p != null) p.Golden = false;
             d.SchemaVersion = 2;
+            return d;
+        }
+
+        /// <summary>v2 → v3: no hints shown yet, no remembered canvas views.</summary>
+        private static SaveData V2ToV3(SaveData d)
+        {
+            d.OnboardingBits = 0;
+            d.AlmanacViewHas = false;
+            d.AlmanacViewX = d.AlmanacViewY = 0f;
+            d.AlmanacViewZoom = 1f;
+            d.HeritageViewHas = false;
+            d.HeritageViewX = d.HeritageViewY = 0f;
+            d.HeritageViewZoom = 1f;
+            d.SchemaVersion = 3;
             return d;
         }
     }

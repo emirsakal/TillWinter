@@ -86,8 +86,9 @@ table into the design chat when tuning.
 
 All four scripts need the project to be closed in the editor.
 
-One-off setup: `ui-setup.bat` imports TMP essentials, builds the font asset, creates `TreeTheme`
-and wires `en.json` into the scene (idempotent).
+One-off setup: `ui-setup.bat` imports TMP essentials, builds the font asset, creates `TreeTheme`,
+`HeritageTheme`, `HudTheme` and `FarmDecor` (all Resources ScriptableObjects) and wires `en.json`
+into the scene (idempotent).
 
 ## Project layout
 
@@ -104,8 +105,12 @@ Assets/TillWinter/Unity/Localization/en.json   the EN string table
 
 Fonts and licences: UI text uses Nunito (SIL Open Font License 1.1, see `Assets/Fonts/OFL.txt`)
 rendered with TextMeshPro; the TMP essential resources (LiberationSans SDF, also OFL) are in
-`Assets/TextMesh Pro/`. Re-run `ui-setup.bat` after cloning if the font asset or `TreeTheme` is
-missing.
+`Assets/TextMesh Pro/`. Re-run `ui-setup.bat` after cloning if the font asset, `TreeTheme`,
+`HeritageTheme`, `HudTheme` or `FarmDecor` is missing (and after changing any of those assets'
+code defaults — the ScriptableObject in `Resources/` must be deleted and regenerated).
+
+Screenshots of the current build (Winter, Heritage, HUD, generation card, away card) live in
+`docs/screenshots/` (`s5-*.png`), taken by `smoke-test.bat`.
 
 All tunables live in `FarmConfig` (Core); Almanac nodes and their per-level values live in
 `AlmanacData` (Core) and resolve to numbers through `StatResolver`. `FarmConfigAsset` is an
