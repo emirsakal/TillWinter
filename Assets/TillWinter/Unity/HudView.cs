@@ -90,6 +90,7 @@ namespace TillWinter.Unity
             UiKit.Stretch(_fxLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             _game.Sim.Harvested += OnHarvested;
+            _game.Sim.CrowScared += OnCrowScared;
             _game.Sim.YearStarted += OnYearStarted;
             _game.Sim.WinterStarted += OnWinter;
         }
@@ -98,6 +99,7 @@ namespace TillWinter.Unity
         {
             if (_game == null || _game.Sim == null) return;
             _game.Sim.Harvested -= OnHarvested;
+            _game.Sim.CrowScared -= OnCrowScared;
             _game.Sim.YearStarted -= OnYearStarted;
             _game.Sim.WinterStarted -= OnWinter;
         }
@@ -122,18 +124,34 @@ namespace TillWinter.Unity
 
         private bool _hudVisible = true;
 
+        private void OnHarvested(HarvestEvent e)
+        {
+            int count = Mathf.Clamp(3 + e.Tier + (e.Source == HarvestSource.Apprentice ? 1 : 0), 3, 8);
+            SpawnCoins(_game.PlotToWorld(e.Pos, 0.5f), e.Coins, count);
+        }
+
+        private void OnCrowScared(CrowEvent e)
+        {
+            if (e.Coins > 0) SpawnCoins(_game.PlotToWorld(e.Pos, 0.6f), e.Coins, 4);
+        }
+
         private void OnWinter()
         {
             _audio.Play(SfxId.WinterChime);
+            foreach (var c in _coins)
+            {
+                c.Rt.gameObject.SetActive(false);
+                _pool.Push(c.Rt);
+            }
+            _coins.Clear();
+            _pending = 0;
         }
 
-        private void OnHarvested(HarvestEvent e)
+        private void SpawnCoins(Vector3 world, double coins, int count)
         {
-            int count = Mathf.Clamp(3 + 2 * (int)e.Tier + (e.Source == HarvestSource.Apprentice ? 1 : 0), 3, 8);
-            var world = _game.PlotToWorld(e.Pos, 0.5f);
             Vector2 from = WorldToCanvas(world);
             Vector2 to = _canvas.InverseTransformPoint(_coinGroup.TransformPoint(new Vector3(-150f, 0f, 0f)));
-            double share = e.Coins / count;
+            double share = coins / count;
             for (int i = 0; i < count; i++)
             {
                 var coin = new Coin
@@ -223,7 +241,7 @@ namespace TillWinter.Unity
             if (state.FrostWarning && !state.IsWinter)
             {
                 float left = state.SecondsUntilWinter;
-                float f = 1f - Mathf.Clamp01(left / _game.Sim.Config.FrostWarningSeconds);
+                float f = 1f - Mathf.Clamp01(left / _game.State.Stats.FrostWarningSeconds);
                 float beat = Mathf.Pow(Mathf.Abs(Mathf.Sin(Time.time * Mathf.Lerp(4f, 9f, f))), 8f);
                 _timerBar.localScale = Vector3.one * (1f + 0.08f * beat);
                 _timerFillImage.color = Color.Lerp(new Color(0.1f, 0.08f, 0.06f, 0.55f), new Color(0.3f, 0.5f, 1f, 0.8f), beat);

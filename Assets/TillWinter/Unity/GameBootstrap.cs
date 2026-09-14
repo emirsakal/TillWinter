@@ -55,9 +55,9 @@ namespace TillWinter.Unity
             ring.transform.SetParent(root.transform, false);
             ring.Init(game);
 
-            var apprentice = new GameObject("Apprentice").AddComponent<ApprenticeView>();
-            apprentice.transform.SetParent(root.transform, false);
-            apprentice.Init(game);
+            var apprentices = new GameObject("Apprentices").AddComponent<ApprenticesView>();
+            apprentices.transform.SetParent(root.transform, false);
+            apprentices.Init(game);
 
             var crows = new GameObject("Crows").AddComponent<CrowsView>();
             crows.transform.SetParent(root.transform, false);

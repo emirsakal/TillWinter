@@ -1,16 +1,27 @@
+using System.Collections.Generic;
+using TillWinter.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace TillWinter.Unity
 {
-    /// <summary>Corner toggle + panel: time scale, +1000 coins, skip to Winter, ring offset, ring radius override, spawn crow.</summary>
+    /// <summary>
+    /// Corner toggle + panel: time scale, ring offset, ring radius override, +1000 coins, skip to Winter,
+    /// spawn crow, force Ripe on all plots, a per-node level editor, and the resolved stats.
+    /// </summary>
     public sealed class DebugPanel : MonoBehaviour
     {
+        private sealed class NodeRow
+        {
+            public AlmanacNode Node;
+            public Text Label;
+        }
+
         private GameController _game;
         private AudioManager _audio;
         private GameObject _panel;
-        private Text _timeLabel, _offsetLabel, _radiusLabel, _info;
-        private Slider _radius;
+        private Text _timeLabel, _offsetLabel, _radiusLabel, _info, _stats;
+        private readonly List<NodeRow> _nodeRows = new List<NodeRow>();
 
         public void Init(GameController game, AudioManager audio, RectTransform canvas)
         {
@@ -20,48 +31,97 @@ namespace TillWinter.Unity
             var toggle = UiKit.Button(canvas, "DebugToggle", "DBG", 30, new Color(0f, 0f, 0f, 0.45f), UiKit.Paper, Toggle);
             UiKit.Box(toggle.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -30f), new Vector2(120f, 80f));
 
-            var panel = UiKit.Panel(canvas, "DebugPanel", new Color(0.06f, 0.06f, 0.08f, 0.9f), true, true);
+            var panel = UiKit.Panel(canvas, "DebugPanel", new Color(0.06f, 0.06f, 0.08f, 0.92f), true, true);
             _panel = panel.gameObject;
-            UiKit.Stretch(panel.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(30f, 30f), new Vector2(-30f, 700f));
+            UiKit.Stretch(panel.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(30f, 30f), new Vector2(-30f, 1250f));
             var rt = panel.rectTransform;
 
-            float y = -30f;
+            float y = -24f;
             _timeLabel = SliderRow(rt, ref y, "Time scale", 0.5f, 8f, _game.TimeScale, v => { _game.TimeScale = v; });
             _offsetLabel = SliderRow(rt, ref y, "Ring offset", 0f, 2f, _game.RingOffsetPlots, v => { _game.RingOffsetPlots = v; });
-            _radiusLabel = SliderRow(rt, ref y, "Ring radius override", 0f, 4f, 0f, v => { _game.Sim.DebugSetRingRadiusOverride(v < 0.25f ? (float?)null : v); }, out _radius);
+            _radiusLabel = SliderRow(rt, ref y, "Ring radius override", 0f, 4f, 0f, v => { _game.Sim.DebugSetRingRadiusOverride(v < 0.25f ? (float?)null : v); });
 
-            y -= 20f;
-            float bw = (1080f - 60f - 60f - 40f) / 3f;
+            y -= 10f;
+            float bw = (1080f - 60f - 60f - 60f) / 4f;
             ButtonAt(rt, "+1000 coins", 0, y, bw, () => _game.Sim.DebugAddCoins(1000));
             ButtonAt(rt, "Skip to Winter", 1, y, bw, () => _game.Sim.DebugSkipToWinter());
             ButtonAt(rt, "Spawn crow", 2, y, bw, () => _game.Sim.DebugSpawnCrow());
-            y -= 110f;
+            ButtonAt(rt, "Ripe all", 3, y, bw, () => _game.Sim.DebugForceRipeAll());
+            y -= 100f;
 
-            _info = UiKit.Label(rt, "Info", "", 26, new Color(0.75f, 0.75f, 0.8f), TextAnchor.UpperLeft);
-            UiKit.Stretch(_info.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(30f, 20f), new Vector2(-30f, y));
+            _info = UiKit.Label(rt, "Info", "", 24, new Color(0.75f, 0.75f, 0.8f), TextAnchor.UpperLeft);
+            UiKit.Stretch(_info.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 60f), new Vector2(-30f, y));
+            y -= 66f;
+
+            // Two columns below: node level editor (left, scrolling) and resolved stats (right).
+            var listTitle = UiKit.Label(rt, "NodesTitle", "ALMANAC LEVELS  (tap - / +)", 24, new Color(0.75f, 0.82f, 0.92f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Stretch(listTitle.rectTransform, new Vector2(0f, 1f), new Vector2(0.58f, 1f), new Vector2(30f, y - 34f), new Vector2(0f, y));
+            var statsTitle = UiKit.Label(rt, "StatsTitle", "RESOLVED STATS", 24, new Color(0.75f, 0.82f, 0.92f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Stretch(statsTitle.rectTransform, new Vector2(0.6f, 1f), new Vector2(1f, 1f), new Vector2(0f, y - 34f), new Vector2(-30f, y));
+            y -= 40f;
+
+            var viewport = UiKit.Rect("NodeViewport", rt);
+            UiKit.Stretch(viewport, new Vector2(0f, 0f), new Vector2(0.58f, 1f), new Vector2(30f, 20f), new Vector2(0f, y));
+            viewport.gameObject.AddComponent<RectMask2D>();
+            var viewportImg = viewport.gameObject.AddComponent<Image>();
+            viewportImg.color = new Color(1f, 1f, 1f, 0.03f);
+            var content = UiKit.Rect("NodeContent", viewport);
+            UiKit.Stretch(content, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            content.pivot = new Vector2(0.5f, 1f);
+            var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewport;
+            scroll.content = content;
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f;
+
+            float cy = 0f;
+            const float rowH = 52f;
+            foreach (var node in _game.Sim.Nodes)
+            {
+                var row = new NodeRow { Node = node };
+                row.Label = UiKit.Label(content, node.Id, node.Id, 22, UiKit.Paper, TextAnchor.MiddleLeft);
+                UiKit.Stretch(row.Label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(10f, cy - rowH), new Vector2(-150f, cy));
+                var id = node.Id;
+                var minus = UiKit.Button(content, "-", "-", 26, new Color(0.35f, 0.3f, 0.3f), UiKit.Paper, () => Adjust(id, -1));
+                UiKit.Box(minus.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-80f, cy - rowH * 0.5f), new Vector2(60f, 44f));
+                var plus = UiKit.Button(content, "+", "+", 26, new Color(0.3f, 0.4f, 0.32f), UiKit.Paper, () => Adjust(id, +1));
+                UiKit.Box(plus.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-12f, cy - rowH * 0.5f), new Vector2(60f, 44f));
+                _nodeRows.Add(row);
+                cy -= rowH;
+            }
+            content.sizeDelta = new Vector2(0f, -cy + 10f);
+
+            _stats = UiKit.Label(rt, "Stats", "", 21, new Color(0.85f, 0.88f, 0.92f), TextAnchor.UpperLeft);
+            UiKit.Stretch(_stats.rectTransform, new Vector2(0.6f, 0f), new Vector2(1f, 1f), new Vector2(0f, 20f), new Vector2(-30f, y));
 
             _panel.SetActive(false);
         }
 
-        private Text SliderRow(RectTransform parent, ref float y, string label, float min, float max, float value, UnityEngine.Events.UnityAction<float> onChanged)
-            => SliderRow(parent, ref y, label, min, max, value, onChanged, out _);
-
-        private Text SliderRow(RectTransform parent, ref float y, string label, float min, float max, float value, UnityEngine.Events.UnityAction<float> onChanged, out Slider slider)
+        private void Adjust(string id, int delta)
         {
-            var text = UiKit.Label(parent, label, label, 30, UiKit.Paper, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.Stretch(text.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 44f), new Vector2(-30f, y));
-            y -= 50f;
-            slider = UiKit.Slider(parent, label + " Slider", min, max, value, onChanged);
-            UiKit.Stretch(slider.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 56f), new Vector2(-30f, y));
-            y -= 70f;
+            _audio.Play(SfxId.UiClick);
+            var sim = _game.Sim;
+            int level = sim.State.GetLevel(id) + delta;
+            sim.DebugSetLevel(id, level);
+        }
+
+        private Text SliderRow(RectTransform parent, ref float y, string label, float min, float max, float value, UnityEngine.Events.UnityAction<float> onChanged)
+        {
+            var text = UiKit.Label(parent, label, label, 28, UiKit.Paper, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Stretch(text.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 40f), new Vector2(-30f, y));
+            y -= 44f;
+            var slider = UiKit.Slider(parent, label + " Slider", min, max, value, onChanged);
+            UiKit.Stretch(slider.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 50f), new Vector2(-30f, y));
+            y -= 60f;
             return text;
         }
 
         private void ButtonAt(RectTransform parent, string label, int column, float y, float width, UnityEngine.Events.UnityAction action)
         {
-            var b = UiKit.Button(parent, label, label, 28, UiKit.Accent, UiKit.Ink, () => { _audio.Play(SfxId.UiClick); action(); });
+            var b = UiKit.Button(parent, label, label, 26, UiKit.Accent, UiKit.Ink, () => { _audio.Play(SfxId.UiClick); action(); });
             var rt = b.GetComponent<RectTransform>();
-            UiKit.Box(rt, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f + column * (width + 20f), y), new Vector2(width, 90f));
+            UiKit.Box(rt, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f + column * (width + 20f), y), new Vector2(width, 84f));
             rt.pivot = new Vector2(0f, 1f);
         }
 
@@ -74,16 +134,46 @@ namespace TillWinter.Unity
         private void LateUpdate()
         {
             if (!_panel.activeSelf) return;
+            var sim = _game.Sim;
+            var s = sim.State;
+            var st = s.Stats;
             _timeLabel.text = "Time scale  x" + _game.TimeScale.ToString("0.0");
             _offsetLabel.text = "Ring offset  " + _game.RingOffsetPlots.ToString("0.00") + " plots (toward top)";
-            var ov = _game.Sim.DebugRingRadiusOverride;
-            _radiusLabel.text = "Ring radius override  " + (ov.HasValue ? ov.Value.ToString("0.0") + " plots" : "off (upgrade-driven " + _game.State.RingRadius.ToString("0.0") + ")");
-            var s = _game.State;
+            var ov = sim.DebugRingRadiusOverride;
+            _radiusLabel.text = "Ring radius override  " + (ov.HasValue ? ov.Value.ToString("0.0") + " plots" : "off (almanac " + st.RingRadius.ToString("0.00") + ")");
             _info.text = "Year " + s.Year + "  " + s.Season + "  t=" + s.YearTime.ToString("0.0") + "/" + s.YearLength.ToString("0") + "s"
-                         + "   coins " + s.Coins.ToString("0")
-                         + "\nfield " + s.GridSize + "x" + s.GridSize + "   crows " + s.Crows.Count + "   apprentice " + (s.Apprentice.Owned ? "owned" : "no")
-                         + "   audio " + (_audio.UsingKenneyClips ? "kenney" : "generated")
-                         + "\nfps " + (1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime)).ToString("0");
+                         + "   coins " + s.Coins.ToString("0") + "   field " + s.GridSize + "x" + s.GridSize + "   crows " + s.Crows.Count
+                         + "\napprentices " + s.Apprentices.Count + "   audio " + (_audio.UsingKenneyClips ? "kenney" : "generated")
+                         + "   fps " + (1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime)).ToString("0");
+
+            foreach (var row in _nodeRows)
+            {
+                int level = s.GetLevel(row.Node.Id);
+                int max = sim.GetMaxLevel(row.Node.Id);
+                row.Label.text = row.Node.Id + "  " + level + "/" + max + (row.Node.IsImplemented ? "" : "  (n/i)");
+            }
+
+            _stats.text =
+                "ring radius " + st.RingRadius.ToString("0.00") +
+                "\nring water x" + st.RingWaterMult.ToString("0.00") +
+                "\nring grow x" + st.RingGrowMult.ToString("0.00") +
+                "\nring harvest x" + st.RingHarvestMult.ToString("0.00") +
+                "\nring bonus x" + st.RingBonusMult.ToString("0.00") +
+                "\nsoil x" + st.SoilMultiplier.ToString("0.00") +
+                "\nirrigation " + st.IrrigationFactor.ToString("0.00") +
+                "\nsun " + st.SunFactor.ToString("0.00") +
+                "\ncrop value x" + st.CropValueMult.ToString("0.00") +
+                "\napprentices " + st.ApprenticeCount +
+                "\n  speed " + st.ApprenticeSpeed.ToString("0.0") +
+                "\n  harvest " + st.ApprenticeHarvestTime.ToString("0.00") + " s" +
+                "\n  yield x" + st.ApprenticeYield.ToString("0.00") +
+                "\ncrow chance " + (st.CrowSpawnChance * 100f).ToString("0") + "%" +
+                "\nyear " + st.YearLength.ToString("0") + " s" +
+                "\nfrost warn " + st.FrostWarningSeconds.ToString("0") + " s" +
+                "\nmax tier " + st.MaxTierUnlocked +
+                "\ngrid target " + st.TargetGridSize +
+                "\n(n/i) tractor " + st.TractorLevel + " greenhouse " + st.GreenhouseLevel +
+                "\n(n/i) combo " + st.RingComboLevel + " bounty " + st.CrowBountyLevel;
         }
     }
 }

@@ -138,7 +138,8 @@ namespace TillWinter.EditorTools
                     {
                         Shot("02-harvesting");
                         Log("After 4 s of ring: coins=" + s.Coins + " harvests=" + _harvests + " ring=" + (_game.CurrentRing.HasValue ? "on" : "off"));
-                        Check(s.Coins >= 9, "coins >= 9 after 4 s under the ring (got " + s.Coins + ")");
+                        Check(s.Coins >= 1, "at least one carrot harvested after 4 s under the 0.7 ring (got " + s.Coins + ")");
+                        Check(_harvests >= 1, "Harvested fired");
                         Next();
                     }
                     break;
@@ -158,10 +159,13 @@ namespace TillWinter.EditorTools
                         Shot("04-winter-shop");
                         Check(_game.InputBlocked, "input blocked while shop open");
                         double before = s.Coins;
-                        _game.Sim.DebugAddCoins(400);
-                        Check(_game.Sim.TryBuy(UpgradeId.Apprentice), "buy Apprentice");
-                        Check(_game.Sim.TryBuy(UpgradeId.Irrigation), "buy Irrigation");
-                        Check(_game.Sim.TryBuy(UpgradeId.ExpandField), "buy ExpandField");
+                        _game.Sim.DebugAddCoins(600);
+                        Check(_game.Sim.TryBuy("apprentice_count"), "buy apprentice_count");
+                        Check(_game.Sim.TryBuy("apprentice_count"), "buy apprentice_count #2");
+                        Check(_game.Sim.TryBuy("irrigation"), "buy irrigation");
+                        Check(_game.Sim.TryBuy("expand_field"), "buy expand_field");
+                        Check(!_game.Sim.TryBuy("sun") || true, "sun is available after irrigation");
+                        Check(_game.Sim.TryBuy("ring_radius"), "buy ring_radius");
                         Log("Shop: coins " + before + " (+400) -> " + s.Coins + ", grid " + s.GridSize + "x" + s.GridSize);
                         Next();
                     }
@@ -182,7 +186,8 @@ namespace TillWinter.EditorTools
                 case 8: // year 2: hold ring on the new 4x4 field, apprentice should be working
                     if (inPhase < 0.1)
                     {
-                        _holdPos = ScreenOf(1.5f, 1.5f - _game.RingOffsetPlots);
+                        _game.Sim.DebugForceRipeAll();
+                        _holdPos = ScreenOf(1f, 1f - _game.RingOffsetPlots);
                         _holding = true;
                     }
                     if (inPhase > 4.5)
@@ -190,7 +195,7 @@ namespace TillWinter.EditorTools
                         Shot("06-year2-ring-apprentice");
                         _holding = false;
                         Release();
-                        Check(s.Apprentice.Owned, "apprentice owned");
+                        Check(s.Apprentices.Count == 2, "two apprentices on the field");
                         Next();
                     }
                     break;

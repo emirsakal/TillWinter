@@ -1,6 +1,6 @@
 ﻿<Solution>
   <Project Path="TillWinter.Unity.csproj" />
-  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="TillWinter.Core.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="TillWinter.Tests.csproj" />
 </Solution>
