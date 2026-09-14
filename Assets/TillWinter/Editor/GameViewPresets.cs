@@ -29,6 +29,30 @@ namespace TillWinter.EditorTools
             EditorApplication.delayCall += Install;
         }
 
+        /// <summary>Selects a named Game view size (installing the presets first). Returns false if the internal API is unavailable.</summary>
+        public static bool Select(string name)
+        {
+            Install();
+            try
+            {
+                var editorAsm = typeof(Editor).Assembly;
+                var sizesType = editorAsm.GetType("UnityEditor.GameViewSizes");
+                var groupType = editorAsm.GetType("UnityEditor.GameViewSizeGroupType");
+                var sizeType = editorAsm.GetType("UnityEditor.GameViewSize");
+                var singleton = typeof(ScriptableSingleton<>).MakeGenericType(sizesType);
+                var instance = singleton.GetProperty("instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null, null);
+                var group = sizesType.GetMethod("GetGroup").Invoke(instance, new[] { Enum.Parse(groupType, "Standalone") });
+                var gt = group.GetType();
+                int idx = IndexOf(group, gt.GetMethod("GetTotalCount"), gt.GetMethod("GetGameViewSize"), sizeType.GetProperty("baseText"), name);
+                return idx >= 0 && TrySelect(editorAsm, idx);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[TillWinter] Could not select Game view size: " + e.Message);
+                return false;
+            }
+        }
+
         private static void Install()
         {
             try

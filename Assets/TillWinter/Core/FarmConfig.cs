@@ -1,6 +1,7 @@
 namespace TillWinter.Core
 {
     /// <summary>Static description of one shop entry.</summary>
+    [System.Serializable]
     public sealed class UpgradeDef
     {
         public UpgradeId Id;
@@ -24,6 +25,7 @@ namespace TillWinter.Core
     /// Every tunable number in the game. Plain C# so Core stays engine-free; the Unity layer may
     /// wrap it in a ScriptableObject for tweaking.
     /// </summary>
+    [System.Serializable]
     public sealed class FarmConfig
     {
         // Field

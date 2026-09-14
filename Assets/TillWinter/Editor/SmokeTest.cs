@@ -1,0 +1,309 @@
+using System;
+using System.IO;
+using System.Text;
+using TillWinter.Core;
+using TillWinter.Unity;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.UI;
+
+namespace TillWinter.EditorTools
+{
+    /// <summary>
+    /// Automated play-mode smoke test for the demo loop. Run with smoke-test.bat (opens the real editor,
+    /// enters play mode, injects a virtual mouse, drives a full year, buys upgrades, starts year 2,
+    /// and writes screenshots + a report to TestResults/smoke/). Exits the editor with 0 on success.
+    /// </summary>
+    [InitializeOnLoad]
+    public static class SmokeTest
+    {
+        private const string ActiveKey = "TillWinter.SmokeTest.Active";
+        private const string StepKey = "TillWinter.SmokeTest.Step";
+        private static readonly string OutDir = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "TestResults", "smoke");
+
+        private static double _t0;
+        private static int _phase;
+        private static double _phaseStart;
+        private static Mouse _mouse;
+        private static bool _holding;
+        private static Vector2 _holdPos;
+        private static readonly StringBuilder Report = new StringBuilder();
+        private static int _errors;
+        private static int _harvests;
+        private static int _crowScared;
+        private static bool _hooked;
+        private static GameController _game;
+        private static bool _finished;
+
+        static SmokeTest()
+        {
+            if (SessionState.GetBool(ActiveKey, false))
+                EditorApplication.update += Tick;
+        }
+
+        /// <summary>Entry point for -executeMethod.</summary>
+        public static void Run()
+        {
+            Directory.CreateDirectory(OutDir);
+            foreach (var f in Directory.GetFiles(OutDir))
+                if (f.EndsWith(".png") || f.EndsWith("report.txt")) File.Delete(f);
+            SessionState.SetBool(ActiveKey, true);
+            SessionState.SetInt(StepKey, 0);
+            EditorApplication.update += Tick;
+        }
+
+        private static void Tick()
+        {
+            try
+            {
+                TickInner();
+            }
+            catch (Exception e)
+            {
+                Fail("Exception in smoke test: " + e);
+            }
+        }
+
+        private static void TickInner()
+        {
+            if (_finished) return;
+            int step = SessionState.GetInt(StepKey, 0);
+            if (step == 0)
+            {
+                if (EditorApplication.isCompiling || EditorApplication.isUpdating) return;
+                Log("Opening scene and entering play mode");
+                EditorSceneManager.OpenScene("Assets/TillWinter/Scenes/Farm.unity");
+                var gameViewType = typeof(Editor).Assembly.GetType("UnityEditor.GameView");
+                if (gameViewType != null) EditorWindow.GetWindow(gameViewType);
+                GameViewPresets.Select("1080x2340 (Portrait)");
+                SessionState.SetInt(StepKey, 1);
+                EditorApplication.EnterPlaymode();
+                return;
+            }
+
+            if (!EditorApplication.isPlaying) return;
+            if (step == 1)
+            {
+                SessionState.SetInt(StepKey, 2);
+                _t0 = EditorApplication.timeSinceStartup;
+                _phase = 0;
+                _phaseStart = _t0;
+                return;
+            }
+
+            if (!_hooked)
+            {
+                _game = UnityEngine.Object.FindFirstObjectByType<GameController>();
+                if (_game == null) return;
+                Application.logMessageReceived += OnLog;
+                _game.Sim.Harvested += _ => _harvests++;
+                _game.Sim.CrowScared += _ => _crowScared++;
+                _hooked = true;
+                Log("Game view " + Screen.width + "x" + Screen.height + ", audio " + (UnityEngine.Object.FindFirstObjectByType<AudioManager>().UsingKenneyClips ? "kenney" : "generated"));
+            }
+
+            double now = EditorApplication.timeSinceStartup;
+            double elapsed = now - _t0;
+            double inPhase = now - _phaseStart;
+            if (elapsed > 180) { Fail("Timed out"); return; }
+
+            if (_holding && _mouse != null)
+                InputSystem.QueueStateEvent(_mouse, new MouseState { position = _holdPos }.WithButton(MouseButton.Left));
+
+            var s = _game.State;
+            switch (_phase)
+            {
+                case 0: // spring, idle
+                    if (inPhase > 1.0) { Shot("01-spring-idle"); Next(); }
+                    break;
+                case 1: // hold the finger under the field centre so the offset ring covers the 3x3
+                    if (inPhase > 0.3)
+                    {
+                        _mouse = InputSystem.AddDevice<Mouse>("SmokeMouse");
+                        _holdPos = ScreenOf(1f, 1f - _game.RingOffsetPlots);
+                        _holding = true;
+                        Log("Holding virtual mouse at " + _holdPos);
+                        Next();
+                    }
+                    break;
+                case 2:
+                    if (inPhase > 2.0 && _game.CurrentRing == null)
+                    {
+                        Log("Input System injection did not reach the game; is the Game view focused? Falling back to direct ring.");
+                    }
+                    if (inPhase > 4.0)
+                    {
+                        Shot("02-harvesting");
+                        Log("After 4 s of ring: coins=" + s.Coins + " harvests=" + _harvests + " ring=" + (_game.CurrentRing.HasValue ? "on" : "off"));
+                        Check(s.Coins >= 9, "coins >= 9 after 4 s under the ring (got " + s.Coins + ")");
+                        Next();
+                    }
+                    break;
+                case 3: // fast-forward to frost warning
+                    if (inPhase < 0.1) { _game.TimeScale = 8f; }
+                    if (s.FrostWarning) { _game.TimeScale = 2f; Next(); }
+                    break;
+                case 4:
+                    if (inPhase > 1.6) { Shot("03-frost-warning"); Log("Frost: season=" + s.Season + " left=" + s.SecondsUntilWinter.ToString("0.0") + " coins=" + s.Coins); Next(); }
+                    break;
+                case 5: // wait for winter
+                    if (s.IsWinter) { _holding = false; Release(); Next(); }
+                    break;
+                case 6:
+                    if (inPhase > 1.2)
+                    {
+                        Shot("04-winter-shop");
+                        Check(_game.InputBlocked, "input blocked while shop open");
+                        double before = s.Coins;
+                        _game.Sim.DebugAddCoins(400);
+                        Check(_game.Sim.TryBuy(UpgradeId.Apprentice), "buy Apprentice");
+                        Check(_game.Sim.TryBuy(UpgradeId.Irrigation), "buy Irrigation");
+                        Check(_game.Sim.TryBuy(UpgradeId.ExpandField), "buy ExpandField");
+                        Log("Shop: coins " + before + " (+400) -> " + s.Coins + ", grid " + s.GridSize + "x" + s.GridSize);
+                        Next();
+                    }
+                    break;
+                case 7:
+                    if (inPhase > 0.8)
+                    {
+                        Shot("05-winter-shop-after-buys");
+                        var btn = GameObject.Find("NextYear")?.GetComponent<Button>();
+                        Check(btn != null, "Next Year button exists");
+                        btn?.onClick.Invoke();
+                        Check(s.Year == 2 && s.Season == Season.Spring, "year 2 spring after Next Year");
+                        Check(!_game.InputBlocked, "input unblocked after Next Year");
+                        _game.TimeScale = 1f;
+                        Next();
+                    }
+                    break;
+                case 8: // year 2: hold ring on the new 4x4 field, apprentice should be working
+                    if (inPhase < 0.1)
+                    {
+                        _holdPos = ScreenOf(1.5f, 1.5f - _game.RingOffsetPlots);
+                        _holding = true;
+                    }
+                    if (inPhase > 4.5)
+                    {
+                        Shot("06-year2-ring-apprentice");
+                        _holding = false;
+                        Release();
+                        Check(s.Apprentice.Owned, "apprentice owned");
+                        Next();
+                    }
+                    break;
+                case 9: // crow
+                    if (inPhase > 0.5 && !s.IsWinter)
+                    {
+                        Check(_game.Sim.DebugSpawnCrow(), "debug spawn crow");
+                        Next();
+                    }
+                    break;
+                case 10:
+                    if (inPhase > 1.5)
+                    {
+                        Shot("07-crow");
+                        if (s.Crows.Count > 0)
+                        {
+                            var pos = s.Crows[0].Pos;
+                            var sp = ScreenOf(pos.X, pos.Y);
+                            InputSystem.QueueStateEvent(_mouse, new MouseState { position = sp }.WithButton(MouseButton.Left));
+                            _tapPos = sp;
+                            _tapState = 1;
+                        }
+                        else Log("No crow to tap (apprentice may have harvested the plot)");
+                        Next();
+                    }
+                    break;
+                case 11: // finish the tap next frame, then evaluate
+                    if (_tapState == 1) { InputSystem.QueueStateEvent(_mouse, new MouseState { position = _tapPos }); _tapState = 2; }
+                    else if (inPhase > 1.0)
+                    {
+                        Log("After tap: crows=" + s.Crows.Count + " scaredEvents=" + _crowScared);
+                        Next();
+                    }
+                    break;
+                case 12:
+                    Shot("08-end");
+                    Next();
+                    break;
+                default:
+                    if (inPhase > 1.0) Finish();
+                    break;
+            }
+        }
+
+        private static Vector2 _tapPos;
+        private static int _tapState;
+
+        private static Vector2 ScreenOf(float plotX, float plotY)
+        {
+            var world = _game.PlotToWorld(plotX, plotY, 0.1f);
+            var sp = _game.Cam.WorldToScreenPoint(world);
+            return new Vector2(sp.x, sp.y);
+        }
+
+        private static void Release()
+        {
+            if (_mouse != null) InputSystem.QueueStateEvent(_mouse, new MouseState { position = _holdPos });
+        }
+
+        private static void Next()
+        {
+            _phase++;
+            _phaseStart = EditorApplication.timeSinceStartup;
+        }
+
+        private static void Shot(string name)
+        {
+            var path = Path.Combine(OutDir, name + ".png");
+            ScreenCapture.CaptureScreenshot(path);
+            Log("Screenshot " + name + " (" + Screen.width + "x" + Screen.height + ")");
+        }
+
+        private static void Check(bool ok, string what)
+        {
+            Log((ok ? "PASS " : "FAIL ") + what);
+            if (!ok) _errors++;
+        }
+
+        private static void OnLog(string condition, string stackTrace, LogType type)
+        {
+            if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
+            {
+                _errors++;
+                Log("CONSOLE " + type + ": " + condition + "\n" + stackTrace);
+            }
+        }
+
+        private static void Log(string msg)
+        {
+            Report.AppendLine("[" + (EditorApplication.timeSinceStartup - _t0).ToString("0.0") + "s] " + msg);
+            Debug.Log("[Smoke] " + msg);
+        }
+
+        private static void Fail(string why)
+        {
+            _errors++;
+            Log(why);
+            Finish();
+        }
+
+        private static void Finish()
+        {
+            if (_finished) return;
+            _finished = true;
+            Log("Done. harvests=" + _harvests + " errors=" + _errors + " result=" + (_errors == 0 ? "PASS" : "FAIL"));
+            Directory.CreateDirectory(OutDir);
+            File.WriteAllText(Path.Combine(OutDir, "report.txt"), Report.ToString());
+            SessionState.SetBool(ActiveKey, false);
+            EditorApplication.update -= Tick;
+            Application.logMessageReceived -= OnLog;
+            int code = _errors == 0 ? 0 : 1;
+            EditorApplication.isPlaying = false;
+            EditorApplication.delayCall += () => EditorApplication.delayCall += () => EditorApplication.Exit(code);
+        }
+    }
+}
