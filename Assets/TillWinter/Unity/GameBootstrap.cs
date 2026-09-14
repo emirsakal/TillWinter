@@ -18,10 +18,13 @@ namespace TillWinter.Unity
         public int Seed = 12345;
         [Tooltip("Plots the ring is pushed toward the top of the screen so the finger does not cover it.")]
         public float RingOffsetPlots = 0.8f;
+        [Tooltip("EN string table (Assets/TillWinter/Unity/Localization/en.json).")]
+        public TextAsset StringTable;
 
         private void Awake()
         {
             Application.targetFrameRate = 60;
+            Strings.Load(StringTable);
             var config = ConfigAsset != null ? ConfigAsset.Config : new FarmConfig();
 
             var root = new GameObject("TillWinter");
@@ -95,7 +98,7 @@ namespace TillWinter.Unity
             var canvas = BuildCanvas(root.transform);
             var hud = canvas.gameObject.AddComponent<HudView>();
             hud.Init(game, audio, canvas);
-            var shop = canvas.gameObject.AddComponent<WinterShopView>();
+            var shop = canvas.gameObject.AddComponent<WinterScreen>();
             shop.Init(game, audio, canvas);
             var away = canvas.gameObject.AddComponent<AwayCard>();
             away.Init(game, audio, canvas);
