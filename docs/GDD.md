@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 1.2 - September 2026 (1.1 + Session 2 clarifications, marked *(v1.2)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 1.3 - September 2026 (1.2 + Session 3 clarifications, marked *(v1.3)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -86,9 +86,9 @@ Crop tiers are per plot. `UpgradePlot` raises the lowest-tier plot by one (row-m
 | Apprentice speed | walk speed `1.5 + 0.5 × L` plots/s | 0–4 |
 | Apprentice harvest time | `1.0 → 0.4 s` | 0–3 |
 | Apprentice yield | coin multiplier on apprentice harvests: `0.5 → 0.75 → 1.0 → 1.15 → 1.3` | 0–4 |
-| Tractor | every N s harvests one full row of Ripe plots (single unit, level = shorter interval) | 0–3 |
+| Tractor | every N s harvests one full row of Ripe plots (single unit, level = shorter interval). *(v1.3)* Intervals 30/20/12 s, 0.15 s per plot, sweeps the row with the most Ripe plots (ties: lowest row), full value, no ring bonus or apprentice yield; plots ripening mid-sweep are taken; crows on the row are scared with the bounty. | 0–3 |
 | Scarecrow | crow spawn chance `25% → 15% → 8%`; never 0% in the Almanac | 0–2 |
-| Greenhouse | during Winter, earns `X coins/s` based on field value *(tune)* | 0–3 |
+| Greenhouse | during Winter, earns `X coins/s` based on field value *(tune)*. *(v1.3)* `level x 0.02 x field value` coins/s (field value = sum of the crop value of every plot), x2 with the Heritage node, at most 60 s per winter, only while the Winter phase is open (not in the Heritage phase, not offline). | 0–3 |
 
 Apprentices: each has its own position and target; they never target the same plot; they retarget if the ring or another helper takes their plot; they idle near the field edge when nothing is Ripe. Six apprentices running around is a deliberate visual goal.
 
@@ -103,9 +103,11 @@ Apprentices: each has its own position and target; they never target the same pl
 
 ### 5.2 Rain cloud *(unlocked in Heritage)*
 - A cloud drifts across the top of the field once per year at a random time in Summer. Tap it: rain waters every Dry plot instantly and grows all Wet plots by 25%. Ignored, it drifts away.
+- *(v1.3)* Spawn time is a seeded random point in Summer chosen at Spring; drifts 8 s; a tap sets Dry plots to Wet/0 and adds +0.25 to Wet plots (clamped to Ripe). Cancelled by Winter/Retire; saved mid-drift.
 
 ### 5.3 Golden crop *(unlocked in Heritage)*
 - On harvest, `chance%` that the replanted crop is golden: 10× value, glows. Same timings.
+- *(v1.3)* Rolled at every replant, 1 % per Heritage level (max 5). Pays 10x before other multipliers.
 
 ---
 
@@ -132,6 +134,8 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 **Calendar**
 - `year_length` (6) · `frost_warning` +5 s per level (2) · `late_frost` at Winter, plots that are ≥80% grown are harvested at half value instead of lost (1) · `greenhouse` (3) · `crow_bounty` scared crows drop more (3) · `spring_head_start` year starts with all plots Wet (1)
 
+*(v1.3)* `ring_combo`: consecutive ring harvests within 1 s stack, `1 + level x 0.01 x min(combo, 10)` on ring harvests. `late_frost`: at Winter, Ripe plots and Wet plots at >= 80 % are harvested at half value. `crow_bounty`: scare drop = `(2 + level) x value`. `bulk_upgrade`: two lowest plots per purchase. `fertile_start`: expansion plots start Wet. `spring_head_start`: all plots Wet at Spring. `helper_water`: apprentice replants Wet.
+
 Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `year_length`) have no prerequisites.
 
 ---
@@ -146,7 +150,7 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
   - Hand: starting radius +0.25 (3) · all ring speeds +10% (5) · ring harvests +5% coins (4)
   - Soil: start with Irrigation 1 / Sun 1 (1 each) · global growth +5% (5) · **unlock rain cloud** (1)
   - Field: start 4×4 (1) · start with Tomato unlocked (1) · **golden crop chance** 1%/lvl (5)
-  - Helpers: first apprentice free (1) · apprentice yield +5% (4) · **scarecrow level 3 = no crows** (1)
+  - Helpers: first apprentice free (1) · apprentice yield +5% (4) · **scarecrow level 3 = no crows** (1) *(v1.3)* = Almanac scarecrow 2 + this node -> crow chance 0.
   - Calendar: starting year length +10 s (4) · greenhouse ×2 (2) · Almanac costs −5% (4)
 - Each generation adds a visible change to the farm (bigger house, a tree, a fence, a well). Story is exactly this: a farm handed down.
 - *(v1.2)* The Heritage table has the 16 nodes listed above (edges in `DECISIONS.md`, Session 2). 'Start with Irrigation 1 / Sun 1' acts as a floor on the Almanac level, not an addition. Heritage effects are base modifiers applied before Almanac effects. Nodes whose feature does not exist yet are purchasable and stored as flags.
@@ -162,7 +166,7 @@ When every Heritage node is maxed, the next year is the **Golden Year**: the fie
 ## 9. Save and offline
 
 - JSON file in `Application.persistentDataPath`, versioned (`schemaVersion`), written on every winter, rebirth, purchase, and on app pause. Corrupt/unknown file → start fresh, never crash. *(v1.2)* Also written on Next Year, on starting a new generation, and every 30 s during a year. Atomic write with one `.bak`; a corrupt file is renamed `.corrupt-<timestamp>`.
-- Offline progress: on resume, simulate passive systems only (irrigation → sun → apprentices/tractor) for `min(elapsed, 8 h)` at a fixed dt in the pure core; the year timer does **not** advance offline (you never come back to a lost year). Show a "while you were away" card with coins earned. *(v1.2)* Simulated at a 1 s step; the ring, crows and seasons are frozen. A clock that went backwards counts as 0 elapsed.
+- Offline progress: on resume, simulate passive systems only (irrigation → sun → apprentices/tractor) for `min(elapsed, 8 h)` at a fixed dt in the pure core; the year timer does **not** advance offline (you never come back to a lost year). Show a "while you were away" card with coins earned. *(v1.2)* Simulated at a 1 s step; the ring, crows and seasons are frozen. A clock that went backwards counts as 0 elapsed. *(v1.3)* The tractor also runs offline; the greenhouse does not (phase is not Year).
 
 ---
 
@@ -201,6 +205,7 @@ Kenney CC0 (Impact Sounds, UI Audio) plus generated fallbacks. Needed: water spl
 - Branch per feature, PR into `main`, squash merge. Commit messages `type: summary`.
 - Target: iPhone 12 and mid/low-range Android at 60 fps; min iOS 15, min Android API 24 *(verify at build time)*.
 - Presentation for the full game moves from "everything built in code" to scene-authored prefabs and TextMeshPro once the visual phase starts; the demo's code-built approach is fine until then.
+- *(v1.3)* Balance is tuned from `balance-sim.bat` tables (headless `AutoPlayer`), not from reasoning; every session that changes a rule re-runs it.
 
 ---
 

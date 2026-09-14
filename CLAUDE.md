@@ -15,10 +15,11 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - **Plots are a three-phase state machine**: `PlotState.Dry → Wet → Ripe`, each with its own 0..1 `Progress` (GDD §2.2). Ring rate replaces the passive rate under the ring; Irrigation waters Dry, Sun grows Wet, Soil multiplies growing only. No fourth state, no single "growth" number.
 - **Trees are data.** `AlmanacData.Nodes` and `HeritageData.Nodes` are the only places nodes live; adding a node is a table row with an `EffectType`. `StatResolver.Resolve` is the only place levels become numbers; `FarmSim` reads `State.Stats`. Unapplied effects stay in the table and are absent from `AlmanacData.Implemented`. `AlmanacData.Validate` must stay green. No `UpgradeId`-style enums.
 - Tunables that are not node values live in `FarmConfig` with defaults. `FarmConfigAsset` is an optional ScriptableObject wrapper; Core never depends on it.
-- **Save contract:** `SaveData` (Core) is the only persistent DTO. Every new persistent field on `FarmState`/`FarmSim` goes into `SaveData`, `ToSave`, `FromSave` and the round-trip test in `SaveTests` in the same commit. Bump `SaveData.CurrentSchemaVersion` and add a `SaveMigrations` step when a field changes meaning; unknown versions return null (start fresh), never throw. Arrays only, no dictionaries (JsonUtility). See skill `save-versioning`.
+- **Save contract:** `SaveData` (Core) is the only persistent DTO. Every new persistent field on `FarmState`/`FarmSim` goes into `SaveData`, `ToSave`, `FromSave` and the round-trip test in `SaveTests` in the same commit. Bump `SaveData.CurrentSchemaVersion` and add a `SaveMigrations` step when a field changes meaning; unknown versions return null (start fresh), never throw. Arrays only, no dictionaries (JsonUtility). Every schema bump ships a hand-written JSON fixture of the previous version (parsed with the test-only `MiniJson`) that must load through `SaveMigrations` and play deterministically. See skill `save-versioning`.
 - **Offline:** `FarmSim.SimulateOffline` advances passive systems only (Irrigation, Sun, apprentices), never the ring, crows, year timer or seasons; capped at `FarmConfig.OfflineCapSeconds`. Nothing else may simulate time while the app is closed.
 - **Phases:** `Phase { Year, Winter, Heritage }` gates ticking and purchases. `SkillTree` is generic; `AlmanacData` and `HeritageData` are the two tables; Heritage effects are base modifiers resolved before Almanac effects in `StatResolver`.
 - `[System.Serializable]` on Core classes is fine; `UnityEngine.*` is not. Editor tooling lives in `Assets/TillWinter/Editor/`.
+- **Every node does something.** No `NotImplemented` flag exists; a new node must be applied in `StatResolver` or a `FarmSim` switch and added to the explicit map in `EventsTests` in the same commit.
 - Presentation is built in code from one `Bootstrap` object in `Farm.unity` (`GameBootstrap`); programmer art via `Prims`, uGUI via `UiKit`, input via `PointerInput`, strings via `Localize`.
 
 ## Conventions
@@ -36,6 +37,7 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - Prefer grep and targeted reads (offset/limit) over whole-file reads. Read `docs/GDD.md` by section number only. Read `DECISIONS.md` only its last section.
 - Never read the deny-listed paths (`Library/`, `Temp/`, `Logs/`, `obj/`, `TestResults/`, `UserSettings/`, `Assets/Audio/`, `*.meta`, `*.unity`, `*.asset`, `*.prefab`, `*.mat`, `*.csproj`, `*.sln`, `*.slnx`).
 - Workflows are skills, loaded on demand: `session-start`, `run-tests`, `open-pr`, `add-almanac-node`, `save-versioning`.
+- Balance is measured, not reasoned: `balance-sim.bat` (through `test-runner`) produces the year table the developer pastes into the design chat.
 
 # Compact instructions
 When compacting, keep: the current step of the session prompt, files changed so far, failing tests, and open decisions. Drop tool output and file contents.

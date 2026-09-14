@@ -31,7 +31,7 @@ namespace TillWinter.Core
         /// <summary>Multiplier on Almanac node costs (Heritage discount).</summary>
         public double AlmanacCostMult = 1;
 
-        // Table entries the sim does not apply yet (surfaced so the UI can show them).
+        // Feature levels and flags applied by FarmSim rather than as a rate.
         public int RingComboLevel, TractorLevel, GreenhouseLevel, CrowBountyLevel;
         public bool BulkUpgrade, FertileStart, SpringHeadStart, LateFrost, HelperWater;
         public bool RainCloudUnlocked, ScarecrowImmunity;
@@ -142,6 +142,9 @@ namespace TillWinter.Core
             s.RingBonusMult *= ringCoinsMult;
             s.SoilMultiplier *= globalGrowth;
             s.ApprenticeYield *= apprenticeYieldMult;
+
+            // GDD §7: Heritage scarecrow immunity = Almanac scarecrow 2 + node -> no crows.
+            if (s.ScarecrowImmunity && Level(almanacLevels, "scarecrow") >= 2) s.CrowSpawnChance = 0f;
 
             s.RingRadius = Math.Min(cfg.MaxRingRadius, s.RingRadius);
             s.YearLength = Math.Min(cfg.MaxYearLength, s.YearLength);

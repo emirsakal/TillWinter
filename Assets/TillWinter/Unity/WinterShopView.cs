@@ -31,7 +31,7 @@ namespace TillWinter.Unity
         private AudioManager _audio;
         private GameObject _panel;
         private CanvasGroup _group;
-        private Text _title, _sub, _coins;
+        private Text _title, _sub, _coins, _greenhouse;
         private RectTransform _coinsRt;
         private readonly List<Row> _rows = new List<Row>();
         private GameObject _almanacList, _heritageList;
@@ -64,6 +64,8 @@ namespace TillWinter.Unity
             _coins = UiKit.Label(rt, "Coins", "0", 50, UiKit.CoinYellow, TextAnchor.MiddleCenter, FontStyle.Bold);
             _coinsRt = _coins.rectTransform;
             UiKit.Box(_coinsRt, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -190f), new Vector2(900f, 60f));
+            _greenhouse = UiKit.Label(rt, "Greenhouse", "", 26, new Color(0.7f, 0.9f, 1f), TextAnchor.MiddleCenter);
+            UiKit.Box(_greenhouse.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -228f), new Vector2(900f, 34f));
 
             _almanacTab = UiKit.Button(rt, "TabAlmanac", "ALMANAC", 30, UiKit.Accent, UiKit.Ink, () => ShowTab(false));
             UiKit.Box(_almanacTab.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(1f, 0.5f), new Vector2(-10f, -260f), new Vector2(420f, 70f));
@@ -294,16 +296,15 @@ namespace TillWinter.Unity
                 bool maxed = sim.IsMaxed(id);
                 bool available = sim.IsAvailable(id);
                 bool can = sim.CanBuy(id);
-                bool implemented = row.Node.IsImplemented;
 
                 row.Level.text = "Lv " + level + "/" + max;
                 row.Cost.text = !available ? NumberFormat.Short(sim.CostOf(id)) : maxed ? "MAX" : NumberFormat.Short(sim.CostOf(id));
                 row.Box.color = available ? Available : Locked;
                 row.Name.color = available ? UiKit.Paper : new Color(0.6f, 0.62f, 0.68f);
-                row.Effect.text = (implemented ? "" : "[not implemented yet] ") + (available ? Localize.Desc(row.Node) : "Needs: " + string.Join(" or ", Localize.Names(row.Node.Prerequisites)));
+                row.Effect.text = available ? Localize.Desc(row.Node) : "Needs: " + string.Join(" or ", Localize.Names(row.Node.Prerequisites));
                 row.Buy.interactable = can;
                 row.BuyLabel.text = !available ? "LOCKED" : maxed ? "MAX" : "BUY";
-                row.BuyImage.color = !available ? new Color(0.3f, 0.32f, 0.36f) : maxed ? UiKit.Muted : can ? (implemented ? UiKit.Good : new Color(0.55f, 0.6f, 0.45f)) : new Color(0.35f, 0.4f, 0.45f);
+                row.BuyImage.color = !available ? new Color(0.3f, 0.32f, 0.36f) : maxed ? UiKit.Muted : can ? UiKit.Good : new Color(0.35f, 0.4f, 0.45f);
             }
         }
 
@@ -315,6 +316,10 @@ namespace TillWinter.Unity
             _group.alpha = Prims.EaseOutQuad(_open);
             _panel.transform.localScale = Vector3.one * Mathf.Lerp(1.04f, 1f, Prims.EaseOutQuad(_open));
 
+            var gh = _game.State.Greenhouse;
+            bool ghOn = _game.State.Phase == Phase.Winter && _game.State.Stats.GreenhouseLevel > 0;
+            _greenhouse.text = ghOn ? "Greenhouse: +" + NumberFormat.Short(gh.CoinsThisWinter) + " (" + Mathf.CeilToInt(gh.SecondsLeftThisWinter) + " s left)" : "";
+            if (ghOn && !_showingHeritage) _coins.text = NumberFormat.Short(_game.State.Coins) + " coins";
             _coinPunch = Mathf.Max(0f, _coinPunch - dt * 5f);
             _coinsRt.localScale = Vector3.one * (1f + 0.2f * Prims.EaseOutQuad(_coinPunch));
             foreach (var row in _rows)

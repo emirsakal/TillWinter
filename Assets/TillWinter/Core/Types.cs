@@ -74,7 +74,7 @@ namespace TillWinter.Core
         Calendar,
     }
 
-    /// <summary>What a tree node does. See <see cref="AlmanacData.Implemented"/> / <see cref="HeritageData.Implemented"/>.</summary>
+    /// <summary>What a tree node does. Every member is applied by StatResolver or a FarmSim feature switch.</summary>
     public enum EffectType
     {
         // Almanac
@@ -130,6 +130,8 @@ namespace TillWinter.Core
     {
         Ring,
         Apprentice,
+        Tractor,
+        LateFrost,
     }
 
     public readonly struct HarvestEvent
@@ -140,14 +142,16 @@ namespace TillWinter.Core
         public readonly HarvestSource Source;
         /// <summary>Index into <see cref="FarmState.Apprentices"/>, or -1 for the ring.</summary>
         public readonly int ApprenticeIndex;
+        public readonly bool WasGolden;
 
-        public HarvestEvent(GridPos pos, int tier, double coins, HarvestSource source, int apprenticeIndex)
+        public HarvestEvent(GridPos pos, int tier, double coins, HarvestSource source, int apprenticeIndex, bool wasGolden = false)
         {
             Pos = pos;
             Tier = tier;
             Coins = coins;
             Source = source;
             ApprenticeIndex = apprenticeIndex;
+            WasGolden = wasGolden;
         }
     }
 

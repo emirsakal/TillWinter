@@ -31,7 +31,7 @@ coins (max 8 h). To reset: press `DBG` -> "Delete save" and restart Play, or del
 |---|---|
 | Hold / drag (mouse or finger) | The ring follows the pointer, offset **0.8 plots toward the top of the screen** so your finger doesn't hide it. Every plot under the ring advances its own phase: **Dry -> Wet** (watering), **Wet -> Ripe** (growing), **Ripe -> coins** (harvest, takes the crop's harvest time). The starting ring (radius 0.7) covers one plot. |
 | Tap a plot with a crow (< 0.2 s, < 20 px) | Scares the crow and drops 2x the crop's value. A tap is also a one-frame ring, so it no longer harvests by itself. |
-| `DBG` button (top-right) | Debug panel: time scale 0.5x-8x, ring offset, ring radius override, +1000 coins, skip to Winter, spawn crow, Ripe all, per-node Almanac level editor (- / +), resolved stats, +50 seeds, Force CanRetire, Offline 1 h, Delete save. |
+| `DBG` button (top-right) | Debug panel: time scale 0.5x-8x, ring offset, ring radius override, +1000 coins, skip to Winter, spawn crow, Ripe all, per-node Almanac level editor (- / +), resolved stats, +50 seeds, Force CanRetire, Offline 1 h, Delete save, Spawn cloud, Next golden, Tractor sweep, +30 s greenhouse, Balance table. |
 | Winter Almanac | Scrolling list of every node grouped by branch (LOCKED / BUY / MAX, "not implemented yet" for table-only effects), then **Next Year**. Pointer input is ignored while it is open. |
 | Winter panel: Pass on the farm | Unlocks at 5 000 lifetime coins this generation; shows the seed preview; confirm dialog lists what you keep (Heritage tree, seeds, stats) and lose (coins, Almanac, field, helpers). Heritage tab: spend seeds on permanent nodes; Start new generation begins year 1 with the bonuses. |
 
@@ -49,7 +49,7 @@ the timer bar and a tick each second.
 run-tests.bat
 ```
 
-Runs the `TillWinter.Tests` EditMode suite (80 NUnit tests against `TillWinter.Core` only) in
+Runs the `TillWinter.Tests` EditMode suite (104 NUnit tests against `TillWinter.Core` only) in
 Unity batchmode and writes `TestResults\EditMode.xml` + `EditMode.log`. Exit code 0 = pass,
 2 = failures, 3 = Unity could not run (compile error, or the project is already open in an
 editor). Override the editor path with `set UNITY_PATH=...`.
@@ -75,6 +75,15 @@ console-error count (smoke). A Claude Code hook (`.claude/settings.json`) rewrit
 scripts into these, so a session never floods its context with a Unity log. Use the raw scripts
 yourself when you want the full log in `TestResults\`.
 
+```bat
+balance-sim.bat [seed] [generations]
+```
+
+Headless balance run: a scripted player (`AutoPlayer`) plays N generations (default 3, seed 7) and
+writes `TestResults\balance.csv` and `balance.txt`, then prints the year table (coins per year,
+seeds, nodes bought, field, ring, top crop, first ripe time, harvest share by source). Paste the
+table into the design chat when tuning.
+
 All four scripts need the project to be closed in the editor.
 
 ## Project layout
@@ -95,8 +104,7 @@ Inspector. Design source of truth: `docs/GDD.md`.
 
 ## What is intentionally missing
 
-Not yet built (see the GDD roadmap): rain cloud, golden crop,
-tractor/greenhouse/combo behaviour (table entries only), the Almanac tree canvas, real art
+Not yet built (see the GDD roadmap): the Almanac tree canvas, real art
 (everything is Unity primitives + flat URP materials), localization (EN placeholder strings only),
 sound design beyond placeholders (Kenney CC0 clips, generated blips as fallback), performance
 work, store/build settings. No monetization, ever. Balance is a first guess and deliberately untuned.

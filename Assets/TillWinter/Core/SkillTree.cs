@@ -33,7 +33,6 @@ namespace TillWinter.Core
             DescKey = descKey;
         }
 
-        public bool IsImplemented => AlmanacData.IsImplemented(Effect) || HeritageData.IsImplemented(Effect);
     }
 
     /// <summary>

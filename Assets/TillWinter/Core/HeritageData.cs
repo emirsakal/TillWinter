@@ -40,17 +40,6 @@ namespace TillWinter.Core
             N("h_almanac_discount", Branch.Calendar, new[] { "h_start_year_length" }, 4, 6, EffectType.AlmanacDiscount, 0.05),
         };
 
-        /// <summary>Heritage effects the sim applies today; the rest are stored as flags/values for Session 3.</summary>
-        public static readonly HashSet<EffectType> Implemented = new HashSet<EffectType>
-        {
-            EffectType.HeritageStartRadius, EffectType.HeritageRingSpeeds, EffectType.HeritageRingCoins,
-            EffectType.HeritageStartIrrigation, EffectType.HeritageStartSun, EffectType.HeritageGlobalGrowth,
-            EffectType.HeritageStartField, EffectType.HeritageStartTomato,
-            EffectType.FreeApprentice, EffectType.HeritageApprenticeYield,
-            EffectType.HeritageStartYearLength, EffectType.AlmanacDiscount,
-        };
-
-        public static bool IsImplemented(EffectType effect) => Implemented.Contains(effect);
 
         private static Dictionary<string, SkillNode> _byId;
 

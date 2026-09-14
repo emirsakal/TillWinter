@@ -56,17 +56,6 @@ namespace TillWinter.Core
             N("spring_head_start", Branch.Calendar, new[] { "greenhouse" }, 1, 1500, EffectType.SpringHeadStart, 1),
         };
 
-        /// <summary>Effects the sim applies today. Everything else is in the table, purchasable, but a no-op (UI shows NotImplemented).</summary>
-        public static readonly HashSet<EffectType> Implemented = new HashSet<EffectType>
-        {
-            EffectType.RingRadius, EffectType.RingWaterSpeed, EffectType.RingGrowSpeed, EffectType.RingHarvestSpeed,
-            EffectType.RingBonusCoins, EffectType.Irrigation, EffectType.Sun, EffectType.SoilQuality, EffectType.CropValue,
-            EffectType.ExpandField, EffectType.UpgradePlot, EffectType.UnlockTier,
-            EffectType.ApprenticeCount, EffectType.ApprenticeSpeed, EffectType.ApprenticeHarvestTime, EffectType.ApprenticeYield,
-            EffectType.Scarecrow, EffectType.YearLength, EffectType.FrostWarning,
-        };
-
-        public static bool IsImplemented(EffectType effect) => Implemented.Contains(effect);
 
         private static Dictionary<string, SkillNode> _byId;
 

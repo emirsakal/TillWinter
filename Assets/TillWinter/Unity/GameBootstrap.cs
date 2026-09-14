@@ -78,6 +78,16 @@ namespace TillWinter.Unity
             apprentices.transform.SetParent(root.transform, false);
             apprentices.Init(game);
 
+            var cloud = new GameObject("Cloud").AddComponent<CloudView>();
+            cloud.transform.SetParent(root.transform, false);
+            cloud.Init(game, fx, audio);
+            var tractor = new GameObject("Tractor").AddComponent<TractorView>();
+            tractor.transform.SetParent(root.transform, false);
+            tractor.Init(game);
+            var greenhouse = new GameObject("Greenhouse").AddComponent<GreenhouseView>();
+            greenhouse.transform.SetParent(root.transform, false);
+            greenhouse.Init(game, fx);
+
             var crows = new GameObject("Crows").AddComponent<CrowsView>();
             crows.transform.SetParent(root.transform, false);
             crows.Init(game, fx, audio);

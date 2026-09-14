@@ -11,6 +11,8 @@ namespace TillWinter.Core
         public float Progress { get; internal set; }
         public bool IsRipe => State == PlotState.Ripe;
         public bool HasCrow { get; internal set; }
+        /// <summary>Golden crop: same timings, 10x value (GDD §5.3).</summary>
+        public bool IsGolden { get; internal set; }
 
         internal Plot(GridPos pos, int tier)
         {
@@ -24,6 +26,7 @@ namespace TillWinter.Core
         {
             State = PlotState.Dry;
             Progress = 0f;
+            IsGolden = false;
         }
     }
 
@@ -51,6 +54,38 @@ namespace TillWinter.Core
         public float HarvestProgress { get; internal set; }
         /// <summary>True while moving (toward a target or back to the idle spot).</summary>
         public bool IsWalking { get; internal set; }
+    }
+
+    /// <summary>Rain cloud (GDD §5.2): drifts across the top of the field once per Summer when unlocked.</summary>
+    public sealed class CloudState
+    {
+        public bool Active { get; internal set; }
+        /// <summary>0..1 across the field width.</summary>
+        public float X { get; internal set; }
+        public float TimeLeft { get; internal set; }
+        public bool SpawnedThisYear { get; internal set; }
+        /// <summary>Year time at which this year's cloud appears (chosen at Spring).</summary>
+        public float SpawnTime { get; internal set; }
+    }
+
+    /// <summary>Tractor (GDD §4): one unit sweeping the row with the most Ripe plots.</summary>
+    public sealed class TractorState
+    {
+        public bool Owned { get; internal set; }
+        public int Row { get; internal set; }
+        /// <summary>Plot units along the row while sweeping.</summary>
+        public float X { get; internal set; }
+        public bool Sweeping { get; internal set; }
+        public float TimeToNextSweep { get; internal set; }
+        internal int Passed;
+    }
+
+    /// <summary>Greenhouse (GDD §4): coins per second during Winter, capped per winter.</summary>
+    public sealed class GreenhouseState
+    {
+        public float SecondsLeftThisWinter { get; internal set; }
+        public double CoinsThisWinter { get; internal set; }
+        public double CoinsPerSecond { get; internal set; }
     }
 
     /// <summary>Counters that survive a retire (GDD §7): generation, seeds, lifetime totals.</summary>
@@ -99,6 +134,14 @@ namespace TillWinter.Core
 
         internal readonly List<ApprenticeState> ApprenticeList = new List<ApprenticeState>();
         public IReadOnlyList<ApprenticeState> Apprentices => ApprenticeList;
+
+        public CloudState Cloud { get; } = new CloudState();
+        public TractorState Tractor { get; } = new TractorState();
+        public GreenhouseState Greenhouse { get; } = new GreenhouseState();
+        /// <summary>Consecutive ring harvests within the combo window (ring_combo).</summary>
+        public int Combo { get; internal set; }
+        /// <summary>Seconds since the last ring harvest (combo window is 1 s).</summary>
+        public float ComboTimer { get; internal set; }
 
         public SkillTree Almanac { get; internal set; }
         public SkillTree Heritage { get; internal set; }
