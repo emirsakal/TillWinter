@@ -38,7 +38,7 @@ namespace TillWinter.Unity
 
             var panel = UiKit.Panel(canvas, "DebugPanel", new Color(0.06f, 0.06f, 0.08f, 0.92f), true, true);
             _panel = panel.gameObject;
-            UiKit.Stretch(panel.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(30f, 30f), new Vector2(-30f, 1350f));
+            UiKit.Stretch(panel.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(30f, 30f), new Vector2(-30f, 1550f));
             var rt = panel.rectTransform;
 
             float y = -24f;
@@ -57,6 +57,13 @@ namespace TillWinter.Unity
             ButtonAt(rt, "Force CanRetire", 1, y, bw, () => _game.Sim.DebugAddLifetimeCoins(_game.Sim.Config.HeritageThreshold));
             ButtonAt(rt, "Offline 1 h", 2, y, bw, () => { var r = _game.Sim.SimulateOffline(3600); if (r.CoinsEarned > 0) _away.Show(r); });
             ButtonAt(rt, "Delete save", 3, y, bw, () => _save.DeleteSave());
+            y -= 100f;
+            ButtonAt(rt, "Spawn cloud", 0, y, bw, () => _game.Sim.DebugSpawnCloud());
+            ButtonAt(rt, "Next golden", 1, y, bw, () => _game.Sim.DebugNextHarvestGolden());
+            ButtonAt(rt, "Tractor sweep", 2, y, bw, () => _game.Sim.DebugForceTractorSweep());
+            ButtonAt(rt, "+30 s greenhouse", 3, y, bw, () => _game.Sim.DebugAddGreenhouseSeconds(30f));
+            y -= 100f;
+            ButtonAt(rt, "Balance table", 0, y, bw, PrintBalance);
             y -= 100f;
 
             _info = UiKit.Label(rt, "Info", "", 24, new Color(0.75f, 0.75f, 0.8f), TextAnchor.UpperLeft);
@@ -135,6 +142,16 @@ namespace TillWinter.Unity
             rt.pivot = new Vector2(0f, 1f);
         }
 
+        /// <summary>Plays one generation from a copy of the current state and logs the year table.</summary>
+        private void PrintBalance()
+        {
+            var copy = FarmSim.FromSave(_game.Sim.ToSave(), _game.Sim.Config);
+            if (copy == null) { Debug.LogWarning("[Balance] could not copy the current state"); return; }
+            var player = new TillWinter.Core.Balance.AutoPlayer(copy, 7) { MaxTicks = 400_000 };
+            player.Run(1);
+            Debug.Log("[Balance] from current state, one generation, seed 7\n" + player.ToTable());
+        }
+
         private void Toggle()
         {
             _audio.Play(SfxId.UiClick);
@@ -162,7 +179,7 @@ namespace TillWinter.Unity
             {
                 int level = s.GetLevel(row.Node.Id);
                 int max = sim.GetMaxLevel(row.Node.Id);
-                row.Label.text = row.Node.Id + "  " + level + "/" + max + (row.Node.IsImplemented ? "" : "  (n/i)");
+                row.Label.text = row.Node.Id + "  " + level + "/" + max;
             }
 
             _stats.text =
@@ -184,8 +201,8 @@ namespace TillWinter.Unity
                 "\nfrost warn " + st.FrostWarningSeconds.ToString("0") + " s" +
                 "\nmax tier " + st.MaxTierUnlocked +
                 "\ngrid target " + st.TargetGridSize +
-                "\n(n/i) tractor " + st.TractorLevel + " greenhouse " + st.GreenhouseLevel +
-                "\n(n/i) combo " + st.RingComboLevel + " bounty " + st.CrowBountyLevel;
+                "\ntractor " + st.TractorLevel + " greenhouse " + st.GreenhouseLevel + " combo " + st.RingComboLevel + " bounty " + st.CrowBountyLevel +
+                "\ncloud " + (st.RainCloudUnlocked ? "on" : "off") + " golden " + (st.GoldenCropChance * 100).ToString("0") + "% immunity " + st.ScarecrowImmunity;
         }
     }
 }

@@ -24,6 +24,7 @@ namespace TillWinter.Unity
         private Text _coinText;
         private Text _yearText;
         private Text _seedsHint;
+        private Text _combo;
         private Text _seasonText;
         private RectTransform _timerBar;
         private RectTransform _timerFill;
@@ -75,6 +76,9 @@ namespace TillWinter.Unity
             _seedsHint = UiKit.Label(top, "SeedsHint", "", 30, new Color(0.85f, 0.7f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_seedsHint.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -400f), new Vector2(900f, 44f));
             AddShadow(_seedsHint);
+            _combo = UiKit.Label(top, "Combo", "", 40, new Color(1f, 0.9f, 0.5f), TextAnchor.MiddleRight, FontStyle.Bold);
+            UiKit.Box(_combo.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-60f, -400f), new Vector2(400f, 50f));
+            AddShadow(_combo);
 
             // Timer bar with season segments
             _timerBar = UiKit.Rect("TimerBar", top);
@@ -130,7 +134,7 @@ namespace TillWinter.Unity
 
         private void OnHarvested(HarvestEvent e)
         {
-            int count = Mathf.Clamp(3 + e.Tier + (e.Source == HarvestSource.Apprentice ? 1 : 0), 3, 8);
+            int count = Mathf.Clamp(3 + e.Tier + (e.Source == HarvestSource.Apprentice ? 1 : 0) + (e.WasGolden ? 3 : 0), 3, 10);
             SpawnCoins(_game.PlotToWorld(e.Pos, 0.5f), e.Coins, count);
         }
 
@@ -238,6 +242,8 @@ namespace TillWinter.Unity
 
             _yearText.text = "Year " + state.Year + "  \u00B7  Gen " + state.Generation.Generation;
             _seedsHint.text = _game.Sim.CanRetire ? "seeds if you retire: " + _game.Sim.SeedsIfRetiredNow : "";
+            _combo.text = state.Combo >= 2 ? "combo x" + state.Combo : "";
+            _combo.rectTransform.localScale = Vector3.one * (1f + 0.15f * Mathf.Max(0f, 1f - state.ComboTimer * 4f));
             _seasonText.text = state.Season.ToString();
 
             // Timer

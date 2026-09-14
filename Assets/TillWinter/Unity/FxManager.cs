@@ -9,11 +9,14 @@ namespace TillWinter.Unity
         private ParticleSystem _puff;
         private ParticleSystem _splash;
         private ParticleSystem[] _harvest;
+        private ParticleSystem _rain, _coins;
 
         public void Init()
         {
             _puff = MakeBurst("Puff", new Color(0.8f, 0.8f, 0.82f), 0.14f, 0.5f, 0.9f, -0.1f);
             _splash = MakeBurst("Splash", new Color(0.45f, 0.7f, 1f), 0.07f, 0.35f, 1.6f, 1.5f);
+            _rain = MakeBurst("Rain", new Color(0.5f, 0.72f, 1f), 0.05f, 0.9f, 0.4f, 2.5f);
+            _coins = MakeBurst("CoinTrickle", new Color(1f, 0.82f, 0.2f), 0.06f, 0.7f, 1.2f, 0.6f);
             _harvest = new[]
             {
                 MakeBurst("HarvestCarrot", new Color(1f, 0.6f, 0.2f), 0.07f, 0.35f, 2.2f, 1.2f),
@@ -35,6 +38,21 @@ namespace TillWinter.Unity
         {
             _splash.transform.position = at;
             _splash.Emit(10);
+        }
+
+        public void RainBurst(Vector3 at, int gridSize)
+        {
+            var shape = _rain.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(gridSize + 1f, 0.2f, gridSize + 1f);
+            _rain.transform.position = new Vector3(0f, at.y, 0f);
+            _rain.Emit(60);
+        }
+
+        public void CoinTrickle(Vector3 at)
+        {
+            _coins.transform.position = at;
+            _coins.Emit(2);
         }
 
         public void HarvestBurst(Vector3 at, int tier)

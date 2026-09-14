@@ -5,12 +5,13 @@ namespace TillWinter.Core
     /// <summary>
     /// Plain DTO of everything persistent (GDD §9). Arrays of pairs instead of dictionaries so
     /// Unity's JsonUtility can serialise it. Produced by <see cref="FarmSim.ToSave"/>, consumed by
-    /// <see cref="FarmSim.FromSave"/>. Every new persistent field is added here and to the round-trip test.
+    /// <see cref="FarmSim.FromSave"/>. Every new persistent field is added here, to the round-trip
+    /// test, and gets a migration step plus a fixture of the previous version.
     /// </summary>
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 1;
+        public const int CurrentSchemaVersion = 2;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -39,6 +40,22 @@ namespace TillWinter.Core
         public ApprenticeSave[] Apprentices = new ApprenticeSave[0];
         public LevelPair[] AlmanacLevels = new LevelPair[0];
         public LevelPair[] HeritageLevels = new LevelPair[0];
+
+        // v2: rain cloud, tractor, combo, greenhouse (golden flag lives on PlotSave)
+        public bool CloudActive;
+        public float CloudX;
+        public float CloudTimeLeft;
+        public bool CloudSpawnedThisYear;
+        public float CloudSpawnTime;
+        public int TractorRow;
+        public float TractorX;
+        public bool TractorSweeping;
+        public float TractorTimeToNextSweep;
+        public int TractorPassed;
+        public int Combo;
+        public float ComboTimer;
+        public float GreenhouseSecondsLeft;
+        public double GreenhouseCoinsThisWinter;
     }
 
     [Serializable]
@@ -48,6 +65,8 @@ namespace TillWinter.Core
         public float Progress;
         public bool HasCrow;
         public float CrowTimer;
+        /// <summary>v2</summary>
+        public bool Golden;
     }
 
     [Serializable]
@@ -67,12 +86,43 @@ namespace TillWinter.Core
     public static class SaveMigrations
     {
         /// <summary>Returns a save at <see cref="SaveData.CurrentSchemaVersion"/>, or null if it cannot be migrated.</summary>
-        public static SaveData Migrate(SaveData data)
+        public static SaveData Migrate(SaveData data, FarmConfig config = null)
         {
             if (data == null) return null;
             if (data.SchemaVersion < 1 || data.SchemaVersion > SaveData.CurrentSchemaVersion) return null;
-            // Future: while (data.SchemaVersion < Current) data = Migrate_vN_to_vN1(data);
+            while (data.SchemaVersion < SaveData.CurrentSchemaVersion)
+            {
+                switch (data.SchemaVersion)
+                {
+                    case 1: data = V1ToV2(data, config ?? new FarmConfig()); break;
+                    default: return null;
+                }
+            }
             return data;
+        }
+
+        /// <summary>v1 → v2: no cloud, tractor idle with a full interval, no combo, no greenhouse accrual, no golden crops.</summary>
+        private static SaveData V1ToV2(SaveData d, FarmConfig cfg)
+        {
+            d.CloudActive = false;
+            d.CloudX = 0f;
+            d.CloudTimeLeft = 0f;
+            d.CloudSpawnedThisYear = false;
+            d.CloudSpawnTime = float.MaxValue;
+            d.TractorRow = 0;
+            d.TractorX = -0.5f;
+            d.TractorSweeping = false;
+            d.TractorPassed = 0;
+            int tractorLevel = 0;
+            foreach (var p in d.AlmanacLevels ?? new LevelPair[0]) if (p.Id == "tractor") tractorLevel = p.Level;
+            d.TractorTimeToNextSweep = tractorLevel > 0 && tractorLevel < cfg.TractorIntervalByLevel.Length ? cfg.TractorIntervalByLevel[tractorLevel] : 0f;
+            d.Combo = 0;
+            d.ComboTimer = 0f;
+            d.GreenhouseSecondsLeft = d.Phase == (int)Phase.Winter ? cfg.GreenhouseWinterCapSeconds : 0f;
+            d.GreenhouseCoinsThisWinter = 0;
+            if (d.Plots != null) foreach (var p in d.Plots) if (p != null) p.Golden = false;
+            d.SchemaVersion = 2;
+            return d;
         }
     }
 }

@@ -367,6 +367,11 @@ namespace TillWinter.Unity
             float wobble2 = ripe ? Mathf.Sin(simTime * 4.3f + _phase * 1.7f) * 4f : 0f;
             _cropRoot.localRotation = Quaternion.Euler(wobble2, 0f, wobble);
             var glow = Color.Lerp(Color.black, new Color(0.35f, 0.3f, 0.12f), _ripeGlow);
+            if (plot.IsGolden && !winter)
+            {
+                float pulse = 0.35f + 0.25f * Mathf.Sin(simTime * 2.5f + _phase);
+                glow = Color.Lerp(glow, new Color(0.9f, 0.75f, 0.15f), pulse);
+            }
             for (int i = 0; i < _cropRenderers.Count; i++)
             {
                 var r = _cropRenderers[i];

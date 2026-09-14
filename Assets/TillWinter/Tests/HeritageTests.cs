@@ -220,7 +220,7 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void NotImplementedHeritageNodes_ArePurchasable_AndStoredAsFlags()
+        public void FeatureHeritageNodes_ArePurchasable_AndStoredAsFlags()
         {
             var sim = NewSim();
             sim.DebugSkipToWinter();
@@ -232,10 +232,6 @@ namespace TillWinter.Tests
             Assert.That(st.GoldenCropChance, Is.EqualTo(0.01).Within(1e-9));
             Assert.IsTrue(st.ScarecrowImmunity);
             Assert.AreEqual(1, st.GreenhouseX2Level);
-            foreach (var id in new[] { "h_unlock_rain_cloud", "h_golden_crop", "h_scarecrow_immunity", "h_greenhouse_x2" })
-                Assert.IsFalse(sim.GetNode(id).IsImplemented, id + " flagged NotImplemented");
-            foreach (var id in new[] { "h_start_radius", "h_ring_speeds", "h_almanac_discount", "h_free_apprentice" })
-                Assert.IsTrue(HeritageData.Get(id).IsImplemented, id);
         }
 
         [Test]

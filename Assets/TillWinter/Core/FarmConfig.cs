@@ -79,6 +79,20 @@ namespace TillWinter.Core
         /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 5 000 coins ≈ 10 seeds.</summary>
         public double SeedDivisor = 50;
 
+        // Events and remaining nodes (GDD §4, §5, §6, §7)
+        public float CloudDriftSeconds = 8f;
+        public float CloudWetBoost = 0.25f;
+        public double GoldenValueMultiplier = 10;
+        /// <summary>Indexed by tractor level (0 unused).</summary>
+        public float[] TractorIntervalByLevel = { 0f, 30f, 20f, 12f };
+        public float TractorSecondsPerPlot = 0.15f;
+        public double GreenhouseRatePerLevel = 0.02;
+        public float GreenhouseWinterCapSeconds = 60f;
+        public float ComboWindowSeconds = 1.0f;
+        public int ComboMaxStacks = 10;
+        public float LateFrostThreshold = 0.8f;
+        public double LateFrostValueMultiplier = 0.5;
+
         // Offline (GDD §9)
         public double OfflineCapSeconds = 8 * 3600;
         public float OfflineStepSeconds = 1f;

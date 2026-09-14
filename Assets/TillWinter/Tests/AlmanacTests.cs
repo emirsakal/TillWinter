@@ -81,45 +81,6 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void EveryEffectInTable_IsAppliedOrFlaggedNotImplemented()
-        {
-            // Every effect type the resolver applies must change at least one stat when its node is at level 1;
-            // every other effect must be flagged NotImplemented and only surface as a level.
-            var cfg = new FarmConfig();
-            var baseline = StatResolver.Resolve(cfg, new Dictionary<string, int>());
-            var notImplemented = new List<string>();
-            foreach (var node in AlmanacData.Nodes)
-            {
-                var levels = new Dictionary<string, int> { [node.Id] = 1 };
-                var s = StatResolver.Resolve(cfg, levels);
-                bool changed = Differs(baseline, s);
-                if (AlmanacData.IsImplemented(node.Effect))
-                {
-                    if (node.Effect == EffectType.UpgradePlot) continue; // applied at purchase time
-                    Assert.IsTrue(changed, node.Id + " (" + node.Effect + ") is marked implemented but changes no stat");
-                }
-                else
-                {
-                    Assert.IsFalse(node.IsImplemented);
-                    notImplemented.Add(node.Id);
-                }
-            }
-            CollectionAssert.AreEquivalent(
-                new[] { "ring_combo", "helper_water", "late_frost", "fertile_start", "spring_head_start", "bulk_upgrade", "tractor", "greenhouse", "crow_bounty" },
-                notImplemented);
-        }
-
-        private static bool Differs(Stats a, Stats b)
-        {
-            return a.RingRadius != b.RingRadius || a.RingWaterMult != b.RingWaterMult || a.RingGrowMult != b.RingGrowMult
-                   || a.RingHarvestMult != b.RingHarvestMult || a.SoilMultiplier != b.SoilMultiplier || a.IrrigationFactor != b.IrrigationFactor
-                   || a.SunFactor != b.SunFactor || a.RingBonusMult != b.RingBonusMult || a.CropValueMult != b.CropValueMult
-                   || a.ApprenticeCount != b.ApprenticeCount || a.ApprenticeSpeed != b.ApprenticeSpeed || a.ApprenticeHarvestTime != b.ApprenticeHarvestTime
-                   || a.ApprenticeYield != b.ApprenticeYield || a.CrowSpawnChance != b.CrowSpawnChance || a.YearLength != b.YearLength
-                   || a.FrostWarningSeconds != b.FrostWarningSeconds || a.MaxTierUnlocked != b.MaxTierUnlocked || a.TargetGridSize != b.TargetGridSize;
-        }
-
-        [Test]
         public void StatResolver_ResolvesGddNumbers()
         {
             var cfg = new FarmConfig();
