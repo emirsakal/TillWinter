@@ -44,7 +44,7 @@ namespace TillWinter.Unity
                 data.renderShadows = !low;
                 data.renderPostProcessing = !low;
             }
-            QualitySettings.antiAliasing = low ? 0 : 2;
+            // MSAA stays on the URP asset (2x); changing QualitySettings at runtime would also dirty the project in the editor.
         }
 
         public static void Toggle() => Apply(Current == QualityTier.Low ? QualityTier.Default : QualityTier.Low);
