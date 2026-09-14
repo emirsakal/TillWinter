@@ -379,16 +379,11 @@ namespace TillWinter.Tests
             sim.CrowLanded += _ => landed++;
             sim.DebugSpawnCrow(); // leaves a ripe plot behind once the crow is scared off
             landed = 0;
-            Assert.IsTrue(sim.TapAt(sim.State.Crows[0].Pos));
-            Assert.IsTrue(sim.State.Plots[0].IsRipe || HasRipe(sim));
+            var ripePos = sim.State.Crows[0].Pos;
+            Assert.IsTrue(sim.TapAt(ripePos));
+            Assert.IsTrue(sim.State.GetPlot(ripePos).IsRipe, "a ripe, unprotected plot exists");
             Run(sim, 30f, null);
-            Assert.AreEqual(0, landed);
-        }
-
-        private static bool HasRipe(FarmSim sim)
-        {
-            foreach (var p in sim.State.Plots) if (p.IsRipe) return true;
-            return false;
+            Assert.AreEqual(0, landed, "no crows in year 1 even with a ripe target");
         }
 
         [Test]
@@ -506,10 +501,22 @@ namespace TillWinter.Tests
         [Test]
         public void Apprentice_SpeedIncreasesPerLevel()
         {
-            var sim = NewSim();
-            Grant(sim, UpgradeId.Apprentice, 3);
-            Assert.IsTrue(sim.IsMaxed(UpgradeId.Apprentice));
-            Assert.AreEqual(3, sim.State.GetLevel(UpgradeId.Apprentice));
+            // Level 1 walks 1.5 plots/s, level 3 walks 2.5 plots/s: measure distance covered in 0.4 s.
+            float DistanceAfter(int level)
+            {
+                var sim = NewSim(c => c.CrowFirstYear = 99);
+                Grant(sim, UpgradeId.Irrigation, 3);
+                sim.DebugAddCoins(1e6);
+                for (int i = 0; i < level; i++) Assert.IsTrue(sim.TryBuy(UpgradeId.Apprentice));
+                sim.StartNextYear();
+                Run(sim, 6.7f, null); // carrots ripe
+                float x0 = sim.State.Apprentice.X, y0 = sim.State.Apprentice.Y;
+                Run(sim, 0.4f, null);
+                float dx = sim.State.Apprentice.X - x0, dy = sim.State.Apprentice.Y - y0;
+                return (float)Math.Sqrt(dx * dx + dy * dy);
+            }
+            Assert.That(DistanceAfter(1), Is.EqualTo(0.6f).Within(0.03f));
+            Assert.That(DistanceAfter(3), Is.EqualTo(1.0f).Within(0.03f));
         }
 
         // ---------------------------------------------------------------- misc

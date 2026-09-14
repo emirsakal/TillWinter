@@ -14,7 +14,6 @@ namespace TillWinter.Unity
         {
             public bool IsDown;
             public Vector2 Position;
-            public bool PressedThisFrame;
             public bool Tapped;
             public Vector2 TapPosition;
         }
@@ -56,7 +55,6 @@ namespace TillWinter.Unity
                 }
 
                 s.IsDown = rawDown && !_pressOverUi;
-                s.PressedThisFrame = s.IsDown && !_rawWasDown;
                 s.Position = pos;
                 _rawWasDown = rawDown;
             }

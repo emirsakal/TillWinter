@@ -1,4 +1,3 @@
-using System;
 using TillWinter.Core;
 using UnityEngine;
 
@@ -25,11 +24,6 @@ namespace TillWinter.Unity
         /// <summary>Sim seconds elapsed (respects TimeScale). Use for animation that should follow the sim.</summary>
         public float SimTime { get; private set; }
         public RingInput? CurrentRing { get; private set; }
-        /// <summary>Plot-space position of the finger itself (before the ring offset), when down.</summary>
-        public Vector2? FingerPlot { get; private set; }
-
-        public event Action<GridPos> Tapped;
-
         private readonly Plane _ground = new Plane(Vector3.up, Vector3.zero);
 
         public void Init(FarmConfig config, int seed)
@@ -67,23 +61,15 @@ namespace TillWinter.Unity
             float dt = Mathf.Min(Time.deltaTime, 0.1f) * TimeScale;
 
             RingInput? ring = null;
-            FingerPlot = null;
             if (!InputBlocked && Pointer != null)
             {
                 var s = Pointer.Current;
                 if (s.IsDown && TryScreenToPlot(s.Position, out var p))
-                {
-                    FingerPlot = p;
                     ring = new RingInput(p.x, p.y + RingOffsetPlots);
-                }
                 if (s.Tapped && TryScreenToPlot(s.TapPosition, out var tp))
                 {
                     var gp = new GridPos(Mathf.RoundToInt(tp.x), Mathf.RoundToInt(tp.y));
-                    if (State.InBounds(gp))
-                    {
-                        Sim.TapAt(gp);
-                        Tapped?.Invoke(gp);
-                    }
+                    if (State.InBounds(gp)) Sim.TapAt(gp);
                 }
             }
 

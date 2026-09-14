@@ -19,8 +19,6 @@ namespace TillWinter.Unity
         private Material _soilMaterial;
         private Material[] _cropMaterials;
 
-        public IReadOnlyDictionary<GridPos, PlotView> Plots => _plots;
-
         public void Init(GameController game, CameraRig camera, FxManager fx, AudioManager audio)
         {
             _game = game;

@@ -7,7 +7,6 @@ namespace TillWinter.Unity
     public sealed class CameraRig : MonoBehaviour
     {
         public Camera Cam { get; private set; }
-        public UniversalAdditionalCameraData CamData { get; private set; }
 
         /// <summary>Tilt from straight-down. 40 degrees reads as a gentle 3/4 view.</summary>
         public float TiltFromTopDown = 40f;
@@ -32,10 +31,10 @@ namespace TillWinter.Unity
             Cam.allowHDR = false;
             Cam.allowMSAA = false;
             go.AddComponent<AudioListener>();
-            CamData = Cam.GetUniversalAdditionalCameraData();
-            CamData.renderPostProcessing = true;
-            CamData.renderShadows = true;
-            CamData.antialiasing = AntialiasingMode.None;
+            var data = Cam.GetUniversalAdditionalCameraData();
+            data.renderPostProcessing = true;
+            data.renderShadows = true;
+            data.antialiasing = AntialiasingMode.None;
             Frame(_gridSize, true);
         }
 
