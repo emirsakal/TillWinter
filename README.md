@@ -55,7 +55,18 @@ buys apprentices/irrigation/expand field/ring radius, presses Next Year, runs ye
 apprentices, spawns a crow, taps it, and exits. Screenshots and `report.txt` land in `TestResults\smoke\`.
 Exit code 0 = all checks passed and no console errors. Handy after any presentation change.
 
-Both scripts need the project to be closed in the editor.
+```bat
+run-tests-summary.bat
+smoke-test-summary.bat
+```
+
+Token-cheap wrappers for Claude Code sessions: they run the raw script, then print only compile
+errors, pass/fail counts and the first lines of each failure (tests), or the failed checks and the
+console-error count (smoke). A Claude Code hook (`.claude/settings.json`) rewrites any call to the raw
+scripts into these, so a session never floods its context with a Unity log. Use the raw scripts
+yourself when you want the full log in `TestResults\`.
+
+All four scripts need the project to be closed in the editor.
 
 ## Project layout
 

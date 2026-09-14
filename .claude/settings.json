@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./Library/**)",
+      "Read(./Temp/**)",
+      "Read(./Logs/**)",
+      "Read(./obj/**)",
+      "Read(./TestResults/**)",
+      "Read(./UserSettings/**)",
+      "Read(**/*.meta)",
+      "Read(**/*.unity)",
+      "Read(**/*.asset)",
+      "Read(**/*.prefab)",
+      "Read(**/*.mat)",
+      "Read(**/*.csproj)",
+      "Read(**/*.sln)",
+      "Read(**/*.slnx)",
+      "Read(./Assets/Audio/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/rewrite_test_scripts.py"
+          }
+        ]
+      }
+    ]
+  }
+}
