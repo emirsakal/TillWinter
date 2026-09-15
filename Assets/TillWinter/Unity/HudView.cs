@@ -98,7 +98,7 @@ namespace TillWinter.Unity
             UiKit.Stretch(_fxLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _comboRt = _combo.rectTransform;
             _comboRt.SetParent(_fxLayer, false); // floats near the ring in canvas space, like the coins
-            _comboRt.anchorMin = _comboRt.anchorMax = Vector2.zero;
+            _comboRt.anchorMin = _comboRt.anchorMax = new Vector2(0.5f, 0.5f); // WorldToCanvas is centre-relative, like the coins
             _comboRt.pivot = new Vector2(0f, 0.5f);
             // Frost creeping in from the screen edges (UI overlay under the coin FX), and the golden-harvest flash.
             _frostEdge = UiKit.Panel(canvas, "FrostEdge", new Color(0.8f, 0.9f, 1f, 0f), false, false);
