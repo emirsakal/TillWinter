@@ -5,11 +5,23 @@ namespace TillWinter.Core
     /// <summary>Static Heritage table (GDD §7). Costs in Heritage Seeds, placeholders to tune. Never reset.</summary>
     public static class HeritageData
     {
-        private const double G = 1.5;
+        /// <summary>Cost growth per level, per branch (S9: the balance pass tunes growth per branch before base costs).</summary>
+        public static double Growth(Branch b)
+        {
+            switch (b)
+            {
+                case Branch.Hand: return 1.5;
+                case Branch.Soil: return 1.5;
+                case Branch.Field: return 1.5;
+                case Branch.Helpers: return 1.5;
+                case Branch.Calendar: return 1.5;
+                default: return 1.5;
+            }
+        }
         private static readonly string[] None = new string[0];
 
         private static SkillNode N(string id, Branch b, string[] pre, int max, double cost, EffectType fx, double perLevel) =>
-            new SkillNode(id, b, pre, max, cost, G, fx, perLevel, "heritage." + id + ".name", "heritage." + id + ".desc", null, IconFor(id));
+            new SkillNode(id, b, pre, max, cost, Growth(b), fx, perLevel, "heritage." + id + ".name", "heritage." + id + ".desc", null, IconFor(id));
 
         /// <summary>Node id -> sprite name in the node icon atlas (Kenney Game Icons). Every node must have one (IconTests).</summary>
         public static readonly System.Collections.Generic.Dictionary<string, string> Icons = new System.Collections.Generic.Dictionary<string, string>
