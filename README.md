@@ -12,7 +12,8 @@ Unity **6000.3.22f1**, Universal RP, Input System, portrait 1080×2340.
 2. Open `Assets/TillWinter/Scenes/Farm.unity` (it is the only scene in Build Settings).
 3. Set the Game view to `1080x2340 (Portrait)` — the editor script adds this preset (plus
    `1080x1920` and `1080x2400`) on load and selects it the first time.
-4. Press Play. You boot straight into Spring of year 1 with 0 coins. No title screen.
+4. Press Play. You land on the title screen; press Play (or Continue, if a save exists) to
+   enter Spring of year 1 with 0 coins.
 
 Everything in the scene is built in code from one `Bootstrap` object, so there are no prefabs
 or materials to keep in sync.
@@ -35,6 +36,14 @@ English and Turkish, shipped side by side. The game follows the device language 
 changing language saves and reloads the scene. Both string tables live under
 `Assets/TillWinter/Unity/Localization/` (`en.json`, `tr.json`, key-for-key) and are also exported
 to `docs/localization/` for reference outside the editor.
+
+## Title screen
+
+Every launch opens on the title screen (farm idles behind it, HUD hidden). Buttons: **Play**
+(or **Continue** when a save exists), **New game** (confirms, then erases the save, keeps
+settings and reloads), **Settings**, **Statistics**, **Credits**, and **Quit** (hidden on iOS).
+The version line sits at the bottom. Pause also has a "Main menu" button (saves first, then
+returns here).
 
 ## Settings
 
