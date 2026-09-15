@@ -9,7 +9,7 @@ namespace TillWinter.Tests
     {
         private static FarmSim NewSim(Action<FarmConfig> tweak = null, int seed = 1)
         {
-            var cfg = new FarmConfig();
+            var cfg = TestConfig.Classic();
             tweak?.Invoke(cfg);
             return new FarmSim(cfg, seed);
         }
@@ -189,7 +189,7 @@ namespace TillWinter.Tests
         [Test]
         public void HeritageModifiers_StackBeforeAlmanac()
         {
-            var cfg = new FarmConfig();
+            var cfg = TestConfig.Classic();
             var s = StatResolver.Resolve(cfg,
                 new Dictionary<string, int> { ["ring_water_speed"] = 5, ["soil_quality"] = 4, ["irrigation"] = 3, ["ring_bonus_coins"] = 2, ["apprentice_yield"] = 2, ["expand_field"] = 1 },
                 new Dictionary<string, int> { ["h_ring_speeds"] = 5, ["h_global_growth"] = 4, ["h_start_irrigation"] = 1, ["h_ring_coins"] = 4, ["h_apprentice_yield"] = 4, ["h_start_field"] = 1, ["h_almanac_discount"] = 4 });

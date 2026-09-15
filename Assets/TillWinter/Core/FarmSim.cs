@@ -721,6 +721,7 @@ namespace TillWinter.Core
         private void UpdatePlots(float dt)
         {
             var st = State.Stats;
+            var ringHarvest = _offline ? null : RingHarvestTarget();
             foreach (var plot in State.PlotArray)
             {
                 bool under = !_offline && State.IsUnderRing(plot.Pos);
@@ -755,7 +756,7 @@ namespace TillWinter.Core
                     }
                     case PlotState.Ripe:
                     {
-                        if (!under) break;
+                        if (plot != ringHarvest) break; // GDD §2.1 (v1.4): the ring harvests one plot at a time
                         plot.Progress += st.RingHarvestMult / crop.Harvest * dt;
                         if (plot.Progress >= 1f)
                             Harvest(plot, HarvestSource.Ring, -1);
@@ -763,6 +764,31 @@ namespace TillWinter.Core
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// GDD §2.1 (v1.4): the ring waters and grows every plot under it, but harvests one Ripe plot at a time —
+        /// the one furthest along (a started harvest finishes), ties to the plot nearest the ring centre, then array order.
+        /// </summary>
+        private Plot RingHarvestTarget()
+        {
+            if (State.Ring == null) return null;
+            var r = State.Ring.Value;
+            Plot best = null;
+            float bestProgress = -1f, bestDist = float.MaxValue;
+            foreach (var p in State.PlotArray)
+            {
+                if (!p.IsRipe || !State.IsUnderRing(p.Pos)) continue;
+                float dx = p.Pos.X - r.X, dy = p.Pos.Y - r.Y;
+                float d = dx * dx + dy * dy;
+                if (p.Progress > bestProgress || (p.Progress == bestProgress && d < bestDist))
+                {
+                    best = p;
+                    bestProgress = p.Progress;
+                    bestDist = d;
+                }
+            }
+            return best;
         }
 
         private void Harvest(Plot plot, HarvestSource source, int apprenticeIndex)
