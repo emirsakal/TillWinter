@@ -416,22 +416,57 @@ namespace TillWinter.EditorTools
                     break;
                 case 21:
                     if (inPhase > 0.35 && _sub++ == 0) { Check(s.Tractor.Sweeping, "tractor sweeping"); Shot("14-art-tractor-sweep"); break; }
-                    if (_sub > 0 && inPhase > 0.6) { _game.Sim.DebugSetSeason(Season.Summer); Next(); }
+                    if (_sub > 0 && inPhase > 0.6) { _burstMaxSystems = 0; _burstMaxVoices = 0; _hapticsBefore = Haptics.Fired; Next(); }
                     break;
+                // ---- feel pass (S7): 5 s scripted burst — 6x6 all Ripe, tractor sweeping, ring over the centre; budgets sampled every frame
                 case 22:
+                {
+                    var vfx = VfxPlayer.Instance;
+                    var audio = UnityEngine.Object.FindFirstObjectByType<AudioManager>();
+                    if (_sub == 0)
+                    {
+                        _game.DebugPointerScreen = ScreenOf(2.5f, 2.5f);
+                        // Zero-allocation check on the hot paths (Play calls only; particle/audio internals are native).
+                        long before = System.GC.GetAllocatedBytesForCurrentThread();
+                        for (int i = 0; i < 200; i++) { vfx.Play(VfxId.Harvest, Vector3.zero, 1f); audio.Play(SfxId.HarvestPop); }
+                        vfx.Play(VfxId.WaterSplash, Vector3.zero);
+                        audio.Play(SfxId.CoinArrive);
+                        long allocated = System.GC.GetAllocatedBytesForCurrentThread() - before;
+                        Log("Feel burst: " + allocated + " bytes allocated by 400 Play calls");
+                        Check(allocated == 0, "zero allocations in VfxPlayer.Play / AudioManager.Play (" + allocated + " B)");
+                    }
+                    _sub++;
+                    if (_sub % 20 == 0) { _game.Sim.DebugForceRipeAll(); _game.Sim.DebugForceTractorSweep(); }
+                    _burstMaxSystems = Mathf.Max(_burstMaxSystems, vfx.ActiveSystems);
+                    _burstMaxVoices = Mathf.Max(_burstMaxVoices, audio.ActiveVoices);
+                    if (inPhase > 2.5 && !_burstShot) { _burstShot = true; Shot("14b-feel-burst"); }
+                    if (inPhase > 5.0)
+                    {
+                        _game.DebugPointerScreen = null;
+                        Log("Feel burst peak: particle systems " + _burstMaxSystems + ", voices " + _burstMaxVoices + ", haptic tags " + (Haptics.Fired - _hapticsBefore));
+                        Check(_burstMaxSystems <= 20, "<= 20 active particle systems during the burst (" + _burstMaxSystems + ")");
+                        Check(_burstMaxVoices <= 8, "<= 8 audio voices during the burst (" + _burstMaxVoices + ")");
+                        Check(Haptics.Fired > 0, "haptic tags fired this run (" + Haptics.Fired + " total, " + (Haptics.Fired - _hapticsBefore) + " in the burst)");
+                        Check(_harvests > 0, "harvests happened during the burst");
+                        _game.Sim.DebugSetSeason(Season.Summer);
+                        Next();
+                    }
+                    break;
+                }
+                case 23:
                     if (inPhase > 2.0 && _sub++ == 0) { Check(s.Season == Season.Summer, "summer"); Shot("15-art-summer"); break; }
                     if (_sub == 0 || _sub++ < 3) break; // capture lands end of frame: change state two frames later
                     _game.Sim.DebugSetSeason(Season.Autumn);
                     Log("Autumn set: " + s.SecondsUntilWinter.ToString("0.0") + " s until winter, frost " + s.FrostWarning);
                     Next();
                     break;
-                case 23:
+                case 24:
                     if (inPhase > 1.6 && _sub++ == 0) { Check(s.Season == Season.Autumn && s.FrostWarning && s.Phase == Phase.Year, "autumn frost warning (" + s.SecondsUntilWinter.ToString("0.0") + " s left)"); Shot("16-art-autumn-frost"); break; }
                     if (_sub == 0 || _sub++ < 3) break;
                     _game.Sim.DebugSkipToWinter();
                     Next();
                     break;
-                case 24:
+                case 25:
                     if (inPhase > 1.5) { Check(s.Phase == Phase.Winter, "winter"); Shot("17-art-winter-tree"); Next(); }
                     break;
                 default:
@@ -447,6 +482,8 @@ namespace TillWinter.EditorTools
         private static int _holdFrames;
         private static int _tapState;
         private static int _sub;
+        private static int _burstMaxSystems, _burstMaxVoices, _hapticsBefore;
+        private static bool _burstShot;
 
         private static Vector2 ScreenOf(float plotX, float plotY)
         {
