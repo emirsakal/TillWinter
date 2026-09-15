@@ -642,3 +642,21 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   smoke test's per-frame allocation check caught once the one-plot ring harvest left ripe plots
   waiting longer. The smoke test now prints the per-marker allocation breakdown inside the FAIL
   line (the smoke test opens Farm.unity directly).
+
+## Follow-up: visual pass 1, foundations (2026-09-16)
+
+- **Type scale shipped as `UiType`** (Display 140 / Hero 84 / Big 64 / Title 56 / Heading 44 /
+  Body 34 / Label 28 / Caption 24) with a global `UiType.Scale` multiplier applied inside
+  `UiKit.Label`; 71 literal sizes across the HUD, Winter screen, pause sheets, title scene, away
+  and generation cards, ending and onboarding now use it.
+- **Sheet shell shipped as `SheetTransition`** (scrim fades, page rises 54 px and scales 0.96 to
+  1 over 0.2 s, unscaled time), attached to the four pause sheets, the new-game confirm, the away
+  card and the Winter screen's confirm and first-retire sheets.
+- **Onboarding hand is now a beating dot with an expanding ripple** (the Kenney icon set has no
+  hand), and the arrow is the real arrowUp icon from the node atlas, turned over to point down.
+- **A mild bloom (threshold 0.9, intensity 0.55, scatter 0.6, warm tint) was added to the season
+  Volume**; it is off on the Low quality tier, which disables post entirely.
+- **Skill tree branches now have a tinted rounded region behind their nodes** (branch colour at
+  10% alpha, padded by 0.85 node sizes) and their localized name above them.
+- `docs/VISUAL-BACKLOG.md` holds the full visual/UX list, worked through group by group; section
+  1 is done.
