@@ -31,6 +31,8 @@ namespace TillWinter.Core.Balance
         public double MaxNodeSpendShare;
         public string MaxNodeSpendId = "";
         public int MaxNodeSpendGeneration;
+        /// <summary>The open-ended sink (upgrade_plot, no max level) is reported separately: it absorbs leftover coins by design.</summary>
+        public double MaxSinkShare;
         public bool ReachedEnding;
     }
 
@@ -293,11 +295,19 @@ namespace TillWinter.Core.Balance
 
         private void FinishGenerationSpend()
         {
-            if (_spendTotal > 0)
+            // Share of the generation's coins: coins spent on one node / coins earned this generation.
+            double earned = Sim.State.Generation.LifetimeCoinsThisGeneration;
+            if (_spendTotal > 0 && earned > 0)
             {
                 foreach (var kv in _spend)
                 {
-                    double share = kv.Value / _spendTotal;
+                    double share = kv.Value / earned;
+                    var node = AlmanacData.Get(kv.Key);
+                    if (node != null && node.MaxLevel < 0)
+                    {
+                        Summary.MaxSinkShare = Math.Max(Summary.MaxSinkShare, share);
+                        continue;
+                    }
                     if (share > Summary.MaxNodeSpendShare)
                     {
                         Summary.MaxNodeSpendShare = share;
@@ -405,7 +415,7 @@ namespace TillWinter.Core.Balance
             sb.AppendLine("generations to max H.   " + m.GenerationsToMaxHeritage);
             sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "sim time to ending      {0:0.00} h", m.SimSecondsToEnding / 3600.0));
             sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "ring share              year 1 {0:0}%, first retire {1:0}%, gen 4 {2:0}%", 100 * m.RingShareYear1, 100 * m.RingShareAtFirstRetire, 100 * m.RingShareGen4));
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "largest node spend      {0:0}% ({1}, gen {2})", 100 * m.MaxNodeSpendShare, m.MaxNodeSpendId, m.MaxNodeSpendGeneration));
+            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "largest node share      {0:0}% of a generation's coins ({1}, gen {2}); open-ended upgrade_plot {3:0}%", 100 * m.MaxNodeSpendShare, m.MaxNodeSpendId, m.MaxNodeSpendGeneration, 100 * m.MaxSinkShare));
             return sb.ToString();
         }
 

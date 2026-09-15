@@ -12,8 +12,8 @@ namespace TillWinter.Core
             {
                 case Branch.Hand: return 1.6;
                 case Branch.Soil: return 1.6;
-                case Branch.Field: return 1.6;
-                case Branch.Helpers: return 1.6;
+                case Branch.Field: return 1.18;
+                case Branch.Helpers: return 1.25;
                 case Branch.Calendar: return 1.6;
                 default: return 1.6;
             }

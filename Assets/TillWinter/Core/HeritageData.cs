@@ -10,11 +10,11 @@ namespace TillWinter.Core
         {
             switch (b)
             {
-                case Branch.Hand: return 1.5;
-                case Branch.Soil: return 1.5;
-                case Branch.Field: return 1.5;
-                case Branch.Helpers: return 1.5;
-                case Branch.Calendar: return 1.5;
+                case Branch.Hand: return 1.8;
+                case Branch.Soil: return 1.8;
+                case Branch.Field: return 1.8;
+                case Branch.Helpers: return 1.8;
+                case Branch.Calendar: return 1.8;
                 default: return 1.5;
             }
         }

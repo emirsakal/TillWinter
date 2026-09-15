@@ -4,30 +4,80 @@ using TillWinter.Core.Balance;
 
 namespace TillWinter.Tests
 {
-    /// <summary>Sanity only: the headless AutoPlayer runs three generations at a fixed seed without exceptions.</summary>
+    /// <summary>
+    /// The Session 9 balance targets (GDD §15), measured by the AutoPlayer playing to the ending.
+    /// The targets live here: a tuning change that breaks one fails this test. Tolerances are a small margin
+    /// around the target ranges; the averages are over seeds 1-3.
+    /// </summary>
     public class BalanceTests
     {
-        [Test]
-        public void AutoPlayer_ThreeGenerations_Seed7_SanityOnly()
+        private static BalanceSummary[] _runs;
+
+        private static BalanceSummary[] Runs()
         {
-            var sim = new FarmSim(new FarmConfig(), 7);
-            var player = new AutoPlayer(sim, 7) { MaxTicks = 1_500_000 };
-            player.Run(3);
-            var s = sim.State;
-            Assert.That(s.Generation.Generation, Is.GreaterThanOrEqualTo(4), "three retirements happened within the tick budget");
-            Assert.That(player.Rows.Count, Is.GreaterThan(3));
-            Assert.That(s.Generation.LifetimeCoinsTotal, Is.GreaterThan(3 * sim.Config.HeritageThreshold));
-            Assert.That(s.Generation.SeedsEarnedTotal, Is.GreaterThanOrEqualTo(30));
-            double prevTotal = -1;
-            foreach (var r in player.Rows)
+            if (_runs != null) return _runs;
+            _runs = new BalanceSummary[3];
+            for (int i = 0; i < 3; i++)
             {
-                Assert.That(r.TotalCoins, Is.GreaterThanOrEqualTo(prevTotal), "total coins never decrease");
-                prevTotal = r.TotalCoins;
-                Assert.That(r.CoinsThisYear, Is.GreaterThanOrEqualTo(0));
+                var p = new AutoPlayer(new FarmSim(new FarmConfig(), i + 1), i + 1) { MaxTicks = 20_000_000 };
+                p.RunToEnding();
+                _runs[i] = p.Summary;
             }
-            string csv = player.ToCsv();
-            StringAssert.StartsWith("generation,year", csv);
-            Assert.That(player.ToTable().Split('\n').Length, Is.GreaterThan(4));
+            return _runs;
+        }
+
+        private static double Avg(System.Func<BalanceSummary, double> f)
+        {
+            double sum = 0;
+            foreach (var r in Runs()) sum += f(r);
+            return sum / Runs().Length;
+        }
+
+        [Test]
+        public void EveryRun_ReachesTheEnding()
+        {
+            foreach (var r in Runs()) Assert.IsTrue(r.ReachedEnding);
+        }
+
+        [Test]
+        public void Year1_Earns40To70_AndTheFirstWinterBuysExactlyOneRootNode()
+        {
+            Assert.That(Avg(r => r.Year1Coins), Is.InRange(40, 70));
+            foreach (var r in Runs()) Assert.AreEqual(1, r.Year1RootNodesBought);
+        }
+
+        [Test]
+        public void FirstApprentice_InYear3To4()
+        {
+            Assert.That(Avg(r => r.FirstApprenticeYear), Is.InRange(3, 4.5));
+        }
+
+        [Test]
+        public void FirstRetire_InYear6To8_With8To12Seeds()
+        {
+            Assert.That(Avg(r => r.FirstCanRetireYear), Is.InRange(6, 8.5));
+            Assert.That(Avg(r => r.SeedsAtFirstRetire), Is.InRange(8, 12));
+        }
+
+        [Test]
+        public void Heritage_MaxedIn5To6Generations_Ending_In5To7Hours()
+        {
+            Assert.That(Avg(r => r.GenerationsToMaxHeritage), Is.InRange(5, 6.5));
+            Assert.That(Avg(r => r.SimSecondsToEnding / 3600.0), Is.InRange(5, 7));
+        }
+
+        [Test]
+        public void RingShare_FallsFromYear1_ToFirstRetire_ToGeneration4()
+        {
+            Assert.That(Avg(r => r.RingShareYear1), Is.GreaterThanOrEqualTo(0.70));
+            Assert.That(Avg(r => r.RingShareAtFirstRetire), Is.InRange(0.40, 0.57));
+            Assert.That(Avg(r => r.RingShareGen4), Is.LessThanOrEqualTo(0.32));
+        }
+
+        [Test]
+        public void NoFiniteNode_TakesMoreThan35PercentOfAGenerationsCoins()
+        {
+            foreach (var r in Runs()) Assert.That(r.MaxNodeSpendShare, Is.LessThanOrEqualTo(0.35), r.MaxNodeSpendId + " in generation " + r.MaxNodeSpendGeneration);
         }
 
         [Test]

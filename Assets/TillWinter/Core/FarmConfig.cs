@@ -36,7 +36,7 @@ namespace TillWinter.Core
         // Crops (GDD §2.3), indexed by tier
         public CropDef[] Crops =
         {
-            new CropDef("crop.carrot", 1.0f, 1.5f, 0.5f, 1),
+            new CropDef("crop.carrot", 1.0f, 1.5f, 0.5f, 2.3), // S9 balance: year 1 ≈ 67 coins
             new CropDef("crop.tomato", 1.5f, 3.5f, 0.5f, 4),
             new CropDef("crop.corn", 2.0f, 6.0f, 0.7f, 12),
             new CropDef("crop.pumpkin", 3.0f, 10f, 1.0f, 35),
@@ -75,9 +75,9 @@ namespace TillWinter.Core
 
         // Heritage (GDD §7)
         /// <summary>Lifetime coins in this generation needed before "Pass on the farm" unlocks.</summary>
-        public double HeritageThreshold = 5000;
-        /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 5 000 coins ≈ 10 seeds.</summary>
-        public double SeedDivisor = 50;
+        public double HeritageThreshold = 3000; // S9 balance (GDD §7 v1.4)
+        /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 3 000 coins = 10 seeds.</summary>
+        public double SeedDivisor = 30;
 
         // Events and remaining nodes (GDD §4, §5, §6, §7)
         public float CloudDriftSeconds = 8f;
