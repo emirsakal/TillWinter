@@ -628,14 +628,17 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   -out <png> [-autumn]`) renders every tier's three stages. The carrot is sprout -> green leaves ->
   orange carrot in both spring and autumn; the reported "green final stage" could not be reproduced
   from the art, so it stays open pending an in-game screenshot.
-- **Title screen added (`MainMenu`).** Every launch opens on it; the farm idles behind
-  (`GameController.MenuOpen`: no sim tick, particles keep drifting), HUD hidden. Buttons: Play (or
-  Continue when a save exists), New game (confirm dialog, erases the save, keeps settings,
-  reloads), Settings, Statistics, Credits (reusing the pause sheets), Quit (hidden on iOS, where
-  apps never quit themselves). Version line at the bottom. The away card and the Winter screen
-  hand-over happen on the first Play. Pause gets a "Main menu" button (saves first). Onboarding
-  hints wait while a menu is open.
+- **Title screen is its own scene** (`Menu.unity`, built in code by `MenuBootstrap`; created and
+  put first in the build order by `ui-setup.bat`; `BuildPipeline` builds Menu then Farm). The
+  first overlay version drew the menu over the live farm and HUD, which read cluttered. The scene
+  tells the game in one loop: a small floating 3x3 plot where mixed crops sprout, grow and ripen
+  in a diagonal wave while the seasons turn every 5 s (petals in Spring, leaves in Autumn, snow
+  and an empty field in Winter). Buttons: Play (Continue when a save exists), New game (confirm;
+  deletes the save files, keeps settings), Settings and Credits (the pause sheets, which now work
+  without a running farm), Quit (hidden on iOS). Statistics stay in the pause menu. Play fades to
+  the boot colour and loads Farm.unity, whose boot fade continues it seamlessly. The pause menu's
+  Main menu button saves and loads Menu.unity. SceneTests checks the build order.
 - **Crow views pooled (6 pre-warmed).** A landing used to create a GameObject mid-play, which the
   smoke test's per-frame allocation check caught once the one-plot ring harvest left ripe plots
   waiting longer. The smoke test now prints the per-marker allocation breakdown inside the FAIL
-  line, and takes a "00-main-menu" screenshot before pressing Play.
+  line (the smoke test opens Farm.unity directly).

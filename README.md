@@ -39,11 +39,11 @@ to `docs/localization/` for reference outside the editor.
 
 ## Title screen
 
-Every launch opens on the title screen (farm idles behind it, HUD hidden). Buttons: **Play**
-(or **Continue** when a save exists), **New game** (confirms, then erases the save, keeps
-settings and reloads), **Settings**, **Statistics**, **Credits**, and **Quit** (hidden on iOS).
-The version line sits at the bottom. Pause also has a "Main menu" button (saves first, then
-returns here).
+Every launch opens on the title screen, its own scene (`Menu.unity`, created and put first in
+the build order by `ui-setup.bat`). Buttons: **Play** (or **Continue** when a save exists),
+**New game** (confirms, then erases the save, keeps settings), **Settings**, **Credits**
+(Statistics stays in the pause menu), and **Quit** (hidden on iOS). Pause also has a
+"Main menu" button (saves first, then returns here).
 
 ## Settings
 
