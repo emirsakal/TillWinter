@@ -47,6 +47,8 @@ namespace TillWinter.Tests.Unity
             Assert.IsTrue(PlayerSettings.iOS.requiresFullScreen);
             Assert.IsTrue(PlayerSettings.gcIncremental);
             Assert.IsFalse(PlayerSettings.Android.useCustomKeystore, "no keystore in project settings");
+            Assert.IsEmpty(PlayerSettings.Android.keystoreName, "keystore path never stored in ProjectSettings");
+            Assert.IsEmpty(PlayerSettings.Android.keyaliasName, "key alias never stored in ProjectSettings");
             StringAssert.DoesNotContain(TwBuild.DebugDefine, PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.Android));
             StringAssert.DoesNotContain(TwBuild.DebugDefine, PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.iOS));
         }
