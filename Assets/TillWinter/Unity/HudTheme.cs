@@ -48,6 +48,14 @@ namespace TillWinter.Unity
         public Color SheetDanger = new Color(0.72f, 0.28f, 0.2f);
         public Color CreditsOverlay = new Color(0.14f, 0.09f, 0.02f, 0.6f);
         public Color BootFade = new Color(0.97f, 0.93f, 0.84f, 1f);
+
+        // Main menu
+        public Color MenuShade = new Color(0.07f, 0.06f, 0.05f, 0.82f);
+        public Color MenuTitle = new Color(1f, 0.95f, 0.82f);
+        public Color MenuSubtitle = new Color(1f, 0.93f, 0.78f, 0.85f);
+        public Color MenuPrimary = new Color(0.38f, 0.6f, 0.3f);
+        public Color MenuSecondary = new Color(0.1f, 0.08f, 0.06f, 0.72f);
+        public Color MenuButtonText = new Color(1f, 0.97f, 0.9f);
         public float CoinFontSize = 96f;
         public float SubFontSize = 38f;
         public float BarWidth = 960f;

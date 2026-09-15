@@ -37,6 +37,7 @@ namespace TillWinter.Unity
         private float _resetHeld;
         private bool _resetDone;
         private Action _afterStats;
+        private bool _fromMenu;
 
         public bool IsOpen => _pause.activeSelf || _settings.activeSelf || _credits.activeSelf || _stats.activeSelf;
 
@@ -63,10 +64,11 @@ namespace TillWinter.Unity
 
         private void BuildPause(RectTransform canvas)
         {
-            _pause = Sheet(canvas, "PauseSheet", "pause.title", 560f, out var p);
+            _pause = Sheet(canvas, "PauseSheet", "pause.title", 664f, out var p);
             Btn(p, "pause.resume", Resume, -150f);
             Btn(p, "pause.settings", () => Show(_settings), -150f - RowHeight);
             Btn(p, "pause.stats", () => ShowStats(() => Show(_pause)), -150f - 2f * RowHeight);
+            Btn(p, "pause.main_menu", ToMainMenu, -150f - 3f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle);
         }
 
         private void BuildSettings(RectTransform canvas)
@@ -129,7 +131,7 @@ namespace TillWinter.Unity
 
             _version = Text(p, "Version", "", y, 24, _theme.SheetMuted, TextAnchor.MiddleCenter, 40f);
             y -= 70f;
-            Btn(p, "settings.back", () => { SettingsStore.Save(); Show(_pause); }, y);
+            Btn(p, "settings.back", () => { SettingsStore.Save(); if (_fromMenu) CloseSheets(); else Show(_pause); }, y);
         }
 
         private void BuildCredits(RectTransform canvas)
@@ -149,6 +151,35 @@ namespace TillWinter.Unity
             Text(p, "Font", Strings.Get("credits.font"), y, 30, _theme.SheetInk, TextAnchor.MiddleCenter);
             y -= 140f;
             Btn(p, "settings.back", () => Show(_settings), y);
+        }
+
+        /// <summary>Main menu entry: Settings (and Credits from it); Back closes the sheets instead of showing Pause.</summary>
+        public void OpenSettingsFrom(Action unused)
+        {
+            _fromMenu = true;
+            Show(_settings);
+        }
+
+        /// <summary>Main menu entry: Credits; Back goes to Settings, whose Back then closes.</summary>
+        public void OpenCreditsFrom(Action unused)
+        {
+            _fromMenu = true;
+            Show(_credits);
+        }
+
+        /// <summary>Hides every sheet without resuming play or showing the pause button (main menu).</summary>
+        public void CloseSheets()
+        {
+            HideAll();
+            SettingsStore.Save();
+            _fromMenu = false;
+        }
+
+        private void ToMainMenu()
+        {
+            Resume();
+            _save.SaveNow();
+            MainMenu.Instance?.Show();
         }
 
         private void BuildStats(RectTransform canvas)

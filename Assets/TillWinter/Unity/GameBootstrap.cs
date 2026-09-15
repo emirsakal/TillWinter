@@ -131,12 +131,20 @@ namespace TillWinter.Unity
             debug.Init(game, audio, canvas, save, away);
             pause.DeveloperToggle = debug.Toggle;
 #endif
+            var menu = canvas.gameObject.AddComponent<MainMenu>(); // every launch opens on the title screen
+            menu.Init(game, canvas, pause, save, loaded != null);
             canvas.gameObject.AddComponent<BootFade>().Init(canvas); // no loading text: the diorama fades in
             var lifecycle = root.AddComponent<AppLifecycle>();
             lifecycle.Init(game, audio, away, shop);
             AppLifecycle.MarkBootEnd();
-            if (game.State.Phase != Phase.Year) shop.Open();
-            if (offline.CoinsEarned > 0) away.Show(offline);
+            bool firstPlay = true;
+            menu.Played += () =>
+            {
+                if (!firstPlay) return; // back from the pause menu: nothing to hand over again
+                firstPlay = false;
+                if (game.State.Phase != Phase.Year) shop.Open();
+                if (offline.CoinsEarned > 0) away.Show(offline);
+            };
         }
 
         private static RectTransform BuildCanvas(Transform parent)
