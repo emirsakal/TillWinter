@@ -268,6 +268,7 @@ in `SettingsData`/`SettingsStore` (`settings.json`), independent of the save sch
 - Target: iPhone 12 and mid/low-range Android at 60 fps; min iOS 15, min Android API 24 *(verify at build time)*.
 - Presentation for the full game moves from "everything built in code" to scene-authored prefabs and TextMeshPro once the visual phase starts; the demo's code-built approach is fine until then.
 - *(v1.3)* Balance is tuned from `balance-sim.bat` tables (headless `AutoPlayer`), not from reasoning; every session that changes a rule re-runs it.
+- *(v1.6, Session 8)* Shipped build setup: `BuildPipeline.cs` applies all Player Settings idempotently (product/company/bundle id, portrait-only, IL2CPP, .NET Standard 2.1, managed stripping Medium + `link.xml`); version/build numbers move only through it. Min Android API is 25, not 24 — Unity 6000.3 rejects 24. Android signs from four env vars for one build only (never in ProjectSettings); iOS signing/archiving is manual in Xcode. `TW_DEBUG` is a per-build define (`-dev` flag), never a persistent one; `release-compile-check.bat` guards against debug code leaking into a release build. Device auto quality tiers (`QualityTiers`) and `FarmConfig.OfflineMinSeconds` (60 s) are the two new runtime systems. Icon/splash render from the game's own art via `IconRenderer`. See `DECISIONS.md` Session 8 for the full rationale and measured numbers.
 
 ---
 

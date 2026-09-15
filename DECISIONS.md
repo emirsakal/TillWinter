@@ -469,3 +469,75 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   path is exercised by this phase), 0 bytes allocated across 400 `VfxPlayer.Play` /
   `AudioManager.Play` calls, render stats unchanged from Session 6's measured budget. Screenshots
   `docs/screenshots/s7-feel-burst.png` and `s7-frost-warning.png`.
+
+# Session 8 - mobile builds
+
+- **Player settings chosen and why.** Product "Till Winter", company "EFS Games", bundle id
+  `com.efsgames.tillwinter` on both platforms, version 0.9.0 (pre-1.0, still a demo). All of it is
+  applied only by `BuildPipeline.cs`, idempotent and covered by `BuildTests`, so ProjectSettings
+  never drifts from what the script would produce. Android `bundleVersionCode` / iOS
+  `buildNumber` move only inside `BumpAndroidVersionCode` / `BumpIosBuildNumber`, called once per
+  build — no other code path may touch them, so a re-run of the pipeline without a build can't
+  silently burn a version.
+- **Min Android API 25, not the brief's 24.** Unity 6000.3 refuses 24 outright ("Minimum supported
+  Android API level is 25"), so 25 is the floor the engine allows. It still exercises the pre-26
+  fixed-length haptics fallback (26+ gets amplitude-controlled haptics), so the two haptics paths
+  the GDD/brief cared about are both reachable on real devices.
+- **Keystore/signing handling.** Nothing signing-related is ever written to ProjectSettings or the
+  repo. `BuildPipeline` reads `TW_KEYSTORE_PATH` / `TW_KEYSTORE_PASS` / `TW_KEY_ALIAS` /
+  `TW_KEY_PASS` from the environment for the duration of one build only and clears the keystore
+  fields immediately after; with the variables set it produces a signed `.aab` + `.apk`, without
+  them a debug-signed `.apk` for sideloading, printing where to create a keystore inside Unity
+  (Keystore Manager) so it lives outside the repo. iOS has no equivalent secret to handle: the
+  pipeline only emits the Xcode project, the developer signs/archives/uploads in Xcode on a Mac.
+- **TW_DEBUG gating.** `TW_DEBUG` never appears in the project's persistent scripting define
+  symbols; a development build passes it in per invocation via `extraScriptingDefines` behind the
+  `-dev` flag on the build scripts. `DebugPanel` and the allocation probes are compiled only under
+  `#if TW_DEBUG || UNITY_EDITOR`, and `release-compile-check.bat` fails the build if those types
+  are still present in `TillWinter.Unity.dll` after a release compile of either platform — this
+  session's run confirmed both platforms compile clean with the types absent.
+- **Quality thresholds** (`QualityTiers`, auto-selects once per device, never on desktop/Editor):
+  Low when RAM < 3072 MB, dedicated GPU memory < 1024 MB (skipped on iOS, where GPU memory is
+  shared and the value is meaningless), fewer than 6 cores, or shader level < 35; an unknown (0)
+  reading from any of those never counts against the device, so a device the OS won't report on
+  isn't punished. Low drops shadows and post-processing entirely; Default adds soft shadows and the
+  colour volume. The choice is remembered in `SettingsData.QualityTier` (-1 = auto) in
+  `settings.json`, editable from the debug panel toggle.
+- **OfflineMinSeconds = 60**, new in `FarmConfig`/Core, tested (`OfflineMinTests`). Below that
+  threshold `FarmSim.SimulateOffline` returns an empty report at both boot and resume, so a short
+  call or an app switch resumes exactly where the player left rather than showing a trivial "away"
+  card for a few coins.
+- **Allocation-measurement correction for Session 7.** Session 7's claimed "0 bytes allocated by
+  400 Play calls" relied on `GC.GetAllocatedBytesForCurrentThread`, which Unity's Mono backend
+  always returns 0 from — it was not measuring anything. Session 8 replaces it with a probe that
+  calibrates at runtime against `Profiler.GetMonoUsedSizeLong` (4 KB granularity) and additionally
+  captures the Editor profiler's own per-script-marker GC.Alloc totals during the smoke burst
+  (6x6 field, six apprentices, tractor sweeping, ring over the centre, everything forced Ripe),
+  with an optional managed-callstack mode (`SmokeTest.RecordAllocCallstacks`) for tracking down a
+  hit. Measured with the new method: 2002 `VfxPlayer.Play` / `AudioManager.Play` calls allocate
+  0 B; the gameplay-script window during the burst is 0 B per frame over 145 frames. The fixes
+  the profiler actually drove: `TractorView` no longer enumerates `Transform` children and reads
+  `Object.name` every frame (was 41.8 KB over 146 frames; wheels are cached once now); HUD coin
+  text no longer rebuilds a string per coin (TMP `SetText` with a char buffer, plus a new
+  allocation-free `NumberFormat.Short(double, char[])`, tested identical to the existing
+  `Short(double)`); the coin-flight pool is pre-warmed and capped at 96 in flight; `foreach` over
+  `IReadOnlyList` was replaced by index loops in the hot paths the profiler flagged.
+- **TMP Editor-only allocation, left alone.** The ~1-2 KB left across the whole burst traces to
+  TMP's `#if UNITY_EDITOR` inspector-string sync inside `SetCharArray`/`SetText`
+  (`TMP_Text.cs`) — code that is compiled out of players, so it is not a device number and was not
+  chased further. The Editor's frame-wide "GC Allocated In Frame" (~20 KB/frame) includes the
+  Editor's own overhead for the same reason and is likewise not a device number.
+- **Icon approach.** Rendered from a dedicated scene (`Assets/Art/Icon/IconRenderer.unity`,
+  `IconRenderer.cs`) rather than drawn by hand: the game's own ripe-pumpkin crop prefab on a soil
+  block with a grass rim, spring-sky gradient with a frosted top edge and a few flakes, no text —
+  reusing existing art keeps the icon visually consistent with the game with zero new asset
+  sourcing. Rendered at 2048 and downsampled; the crop is matted from a black and a white render
+  so the Android adaptive foreground layer is genuinely transparent, not just alpha-from-shader.
+  Splash keeps Unity's own splash (Personal licence requirement) with the icon subject as the logo
+  above it on `Palette.LeafDark`.
+- **What is left to the device checklist** (`docs/DEVICE-CHECKLIST.md`, new): everything that
+  cannot be measured in the Editor — cold start time, the 20-minute thermal/battery read, whether
+  the default 0.80 ring offset still feels right on a real thumb, frost-warning legibility in
+  sunlight, safe-area behaviour, the Android API 25 vs 26+ haptics fallback actually felt on two
+  real devices, the iOS home-indicator double-swipe during a sweep, and the iOS haptics plugin
+  (`TillWinterHaptics.mm`) compiling under Xcode, since it cannot be compiled on Windows at all.
