@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 1.3 - September 2026 (1.2 + Session 3 clarifications, marked *(v1.3)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 1.5 - September 2026 (through Session 9's release-candidate ending and balance pass, marked *(v1.4)*/*(v1.5)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -26,7 +26,7 @@ A short, finite, mobile incremental farming game. You drag a ring over a field; 
 
 ### 2.1 The ring
 - The player holds/drags anywhere on the field. A ring (radius in plot units) follows the pointer, offset **0.8 plots toward the top of the screen** (tested in the demo; keep).
-- Every plot whose centre is inside the ring is processed **independently and in parallel** according to its own state (see 2.2). There is no "mode"; the ring does whatever each plot needs.
+- Every plot whose centre is inside the ring is processed **independently and in parallel** according to its own state (see 2.2). There is no "mode"; the ring does whatever each plot needs. *(v1.4)* Watering and growing stay parallel, but the ring **harvests one Ripe plot at a time** (the one furthest along, ties to the plot nearest the ring centre); other Ripe plots under the ring wait or go to the helpers. A big ring stays a big watering can while the late-game harvest shifts to apprentices and the tractor.
 - Tapping (down+up < 0.2 s, < 20 px) targets the plot under the finger with no offset: scares a crow, and counts as a one-frame ring.
 - Ring radius: starts **0.7** (covers one plot, barely touches neighbours), **+0.25** per Almanac level, max **2.5**.
 
@@ -37,7 +37,7 @@ Each plot holds a crop of a given **tier** and is in one of three states. Harves
 |---|---|---|
 | **Dry → Wet** (watering) | progresses at ring water speed | *Irrigation* waters Dry plots slowly |
 | **Wet → Ripe** (growing) | progresses at ring grow speed × soil | *Sun* grows Wet plots slowly (never Dry ones) |
-| **Ripe → harvested** (harvest) | progresses at ring harvest speed; on completion coins pop | *Apprentices* walk to Ripe plots and harvest |
+| **Ripe → harvested** (harvest) | progresses at ring harvest speed, one plot at a time *(v1.4)*; on completion coins pop | *Apprentices* walk to Ripe plots and harvest |
 
 Rules:
 - Each state has its own progress 0..1. Ring rate replaces (does not stack with) the passive rate while the plot is under the ring. *(v1.1)* Passive rates are fractions of the crop's *base* speed (Hand-branch ring upgrades do not speed up Irrigation/Sun); Soil multiplies growing only. Progress resets to 0 on each state change.
@@ -50,7 +50,7 @@ Times are seconds under the ring at level 0. Value is coins per harvest. *(tune)
 
 | Tier | Crop | Water | Grow | Harvest | Value |
 |---|---|---|---|---|---|
-| 0 | Carrot | 1.0 | 1.5 | 0.5 | 1 |
+| 0 | Carrot | 1.0 | 1.5 | 0.5 | 2.3 *(v1.4, was 1)* |
 | 1 | Tomato | 1.5 | 3.5 | 0.5 | 4 |
 | 2 | Corn | 2.0 | 6.0 | 0.7 | 12 |
 | 3 | Pumpkin | 3.0 | 10 | 1.0 | 35 |
@@ -142,7 +142,7 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
 
 ## 7. Heritage (rebirth)
 
-- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation.
+- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). *(v1.4)* Balance pass: `HeritageThreshold` = 3 000, `SeedDivisor` = 30 (3 000 coins = 10 seeds), so the first retire lands in year 6–8. Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation.
 - **Reset:** coins, plots (3×3, tier 0), Almanac levels, helpers, year counter → 1.
 - **Kept:** Heritage tree, generation counter, statistics, cosmetics.
 - **Heritage Seeds** = `floor( sqrt(lifetimeCoinsThisGeneration / K) )` with K *(tune)* so the first rebirth yields ~10 seeds. Shown on the Almanac screen as "seeds if you retire now", so the decision is visible every winter.
@@ -159,7 +159,14 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
 
 ## 8. Ending
 
-When every Heritage node is maxed, the next year is the **Golden Year**: the field is 6×6 Golden Wheat, no frost, a longer year, credits after it. Stats screen: generations, years, coins, crows scared. The game can be continued after but nothing new unlocks.
+When every Heritage node is maxed, starting the next generation begins the **Golden Year**
+*(v1.4)*: the field is 6×6 Golden Wheat (all golden), no crows, no frost, a 300 s year
+(`FarmConfig.GoldenYearSeconds`), golden season look. At its Winter the field returns to the
+normal starting size and `EndingSeen` is set once; the ending does not repeat on later
+generations. Credits roll next (skippable after 3 s, 24 s total), then a statistics sheet
+(generations, years, coins, per-source harvests, crows scared, best combo, time played), then the
+normal Winter screen underneath. The Heritage tree title shows "Complete". The game continues
+after, but nothing new unlocks.
 
 ---
 
@@ -288,4 +295,41 @@ Every session ends with: tests green, PR opened, developer plays, feedback to de
 
 ## 15. Tuning log
 
-Empty. Entries added per playtest: date, what felt wrong, value before → after.
+Entries added per playtest: date, what felt wrong, value before → after.
+
+**2026-09-16 — Session 9 balance pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer` plays to the ending, seeds 1–5, averaged).
+
+Targets: year-1 coins enough for at least one root node; first apprentice and first `CanRetire`
+early enough to teach the loop inside the first few years; no finite node above 35% of a
+generation's coins; the ring should not be the only harvest source once helpers are affordable.
+
+Values changed:
+
+| Value | Before | After |
+|---|---|---|
+| Carrot value | 1 | 2.3 |
+| HeritageThreshold | 5000 | 3000 |
+| SeedDivisor | 50 | 30 |
+| Almanac growth — Hand | 1.6 | 1.6 (unchanged) |
+| Almanac growth — Soil | 1.6 | 1.6 (unchanged) |
+| Almanac growth — Calendar | 1.6 | 1.6 (unchanged) |
+| Almanac growth — Field | 1.6 | 1.18 |
+| Almanac growth — Helpers | 1.6 | 1.25 |
+| Heritage growth (all branches) | 1.5 | 1.8 |
+| Ring harvest (§2.1) | all Ripe plots under the ring harvest together | *(v1.4)* one Ripe plot at a time (furthest along, ties nearest centre); watering/growing still applies to every plot under the ring in parallel |
+
+Results (average of seeds 1–5, `AutoPlayer` to the ending):
+
+| Metric | Before | After |
+|---|---|---|
+| Year-1 coins | 29 (no root node affordable) | 67 (exactly one root node) |
+| First apprentice, year | 7 | 3.8 (seeds: 4, 4, 3, 4, 4) |
+| First `CanRetire`, year | 16 | 8 |
+| Seeds at first retire | 10 | 10.2 |
+| Generations to max Heritage | 6 (new retire rule) / 34 (old flat 10-seed rule) | 6 |
+| Time to ending | 11.4 h | 6.39 h (6.40 / 6.36 / 6.41 / 6.36 / 6.42) |
+| Ring share — year 1 / first retire / gen 4 | 100% / 83% / 68% | 100% / 55% / 28% |
+| Largest node share | 98% (`upgrade_plot`) | 18% (`apprentice_count`, gen 1) finite nodes; `upgrade_plot` (open-ended) 86–96% |
+
+Ring share at first retire averages 55% across seeds (seed 4: 57%).

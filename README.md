@@ -28,6 +28,31 @@ coins (max 8 h). To reset: press `DBG` -> "Delete save" and restart Play, or del
 Audio/haptics preferences (master/SFX/ambience volume, haptics on/off) live separately in
 `settings.json` next to the save file, so clearing them does not touch game progress.
 
+## Languages
+
+English and Turkish, shipped side by side. The game follows the device language on first launch
+(`Application.systemLanguage`: Turkish → `tr`, else `en`); change it any time from Settings —
+changing language saves and reloads the scene. Both string tables live under
+`Assets/TillWinter/Unity/Localization/` (`en.json`, `tr.json`, key-for-key) and are also exported
+to `docs/localization/` for reference outside the editor.
+
+## Settings
+
+Pause opens Settings: language, SFX volume, ambience volume, vibration (haptics), reduce motion
+(disables camera shake and HUD flash), quality (Auto/Low/Default), reset save, credits, and the
+build version line. The debug panel (dev/editor builds only) now opens from Settings → Developer.
+
+### How to reset
+
+Settings → hold "Reset save" for 3 seconds, or close the game and delete
+`tillwinter.json` from the app's persistent data folder (see Save file above). Either way
+`settings.json` (language/audio/haptics prefs) survives.
+
+## Privacy
+
+No accounts, analytics, ads or network access; all data stays on the device. See
+`docs/PRIVACY.md`.
+
 ## Controls
 
 | Input | Effect |
@@ -82,10 +107,11 @@ yourself when you want the full log in `TestResults\`.
 balance-sim.bat [seed] [generations]
 ```
 
-Headless balance run: a scripted player (`AutoPlayer`) plays N generations (default 3, seed 7) and
-writes `TestResults\balance.csv` and `balance.txt`, then prints the year table (coins per year,
-seeds, nodes bought, field, ring, top crop, first ripe time, harvest share by source). Paste the
-table into the design chat when tuning.
+Headless balance run: a scripted player (`AutoPlayer`) now defaults to seed 1 and plays to the
+ending (all prior defaults can still be passed explicitly), writing `TestResults\balance.csv` and
+`balance.txt`, then printing the year table (coins per year, seeds, nodes bought, field, ring, top
+crop, first ripe time, harvest share by source) plus a target summary. Paste the table into the
+design chat when tuning.
 
 All four scripts need the project to be closed in the editor.
 
@@ -195,9 +221,9 @@ pack used contains a wind/birds loop, so the optional season ambience loop is no
 
 ## What is intentionally missing
 
-Not yet built (see the GDD roadmap): localization (EN placeholder strings only), a season ambience
-loop (no suitable CC0 source found), performance work beyond the Session 6 draw-call budget,
-store/build settings. No monetization, ever. Balance is a first guess and deliberately untuned.
+Not yet built (see the GDD roadmap): a season ambience loop (no suitable CC0 source found),
+performance work beyond the Session 6 draw-call budget, store/build settings. No monetization,
+ever. Version 1.0.0; balance was measured and tuned in Session 9 (see `docs/GDD.md` §15).
 
 See `DECISIONS.md` for choices the design brief left open, and `CLAUDE.md` for the
 architecture rules future sessions must keep.

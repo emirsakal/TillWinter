@@ -541,3 +541,65 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   sunlight, safe-area behaviour, the Android API 25 vs 26+ haptics fallback actually felt on two
   real devices, the iOS home-indicator double-swipe during a sweep, and the iOS haptics plugin
   (`TillWinterHaptics.mm`) compiling under Xcode, since it cannot be compiled on Windows at all.
+
+# Session 9 — release candidate
+
+- **Localization.** `tr.json` mirrors `en.json` key-for-key. Rule: never attach a Turkish suffix
+  to a placeholder; numbers stand alone ("Halka yarıçapı: {cur} » {next}"). Language comes from
+  `settings.json` `"Language"` (`""` follows `Application.systemLanguage`: Turkish → `tr`, else
+  `en`). Changing language saves and reloads the scene so every label rebuilds — no live
+  relabelling. `NumberFormat.Style` (Core) switches decimal separator (`1,2K`) and percent sign
+  (`%10`) for Turkish; K/M/B suffixes are kept as-is. Nunito has no "→" glyph — every description
+  showed a tofu box, which the new glyph test caught — so descriptions use "»" instead, and
+  `ui-setup.bat` now tops up the existing NunitoSDF atlas in place (keeps its GUID) instead of
+  skipping it when present. HUD literals ("Year/Gen", "Retire:", season names) moved into the
+  string tables. `NodeText`'s leftover English words (unlocked/locked/owned/on/off) only feed
+  placeholders that no shipped description uses, so they were left as-is (noted, not shown to
+  players).
+- **Pause & settings.** The pause button takes the old `DBG` corner; the debug panel now opens
+  from Settings → Developer and is `TW_DEBUG`/editor-only (`DebugPanel` compiles out of release).
+  Pause = no sim tick + `Time.timeScale` 0 (views freeze); play time is counted on unscaled time
+  only while not paused. Settings screen: language, SFX, ambience, vibration, reduce motion (gates
+  `CameraRig.Shake` and `HudView.Flash` only), quality Auto/Low/Default (Auto stays `-1` and is
+  re-decided from hardware every launch instead of being written once; an explicit choice is
+  remembered, including in the editor), reset save via a 3 s hold (detaches `SaveController` first
+  so nothing writes the old farm back, deletes the save + `.bak` + `.tmp`, reloads; `settings.json`
+  survives), credits (Kenney kits: Nature Kit, Food Kit, Mini Characters, Game Icons; audio: Impact
+  Sounds, Interface Sounds, RPG Audio, UI Audio; Nunito SIL OFL 1.1; Made by EFS Games; Built with
+  Unity), version line sourced from `BuildInfo` (shows "editor" in-editor). A statistics sheet is
+  reachable from pause and shown after the ending; its colours were added to `HudTheme`.
+- **Ending (GDD §8).** Heritage fully maxed → the next `StartNewGeneration` is the Golden Year: a
+  6×6 golden-wheat field, all golden, no crows, no frost, a 300 s year
+  (`FarmConfig.GoldenYearSeconds`), golden `SeasonPalette` look, `GoldMotes` VFX. The golden field
+  is planted after `BeginSpring` (which resets plots). At its Winter: `GoldenYearEnded` fires
+  before `WinterStarted`, the field returns to the normal starting size, and `EndingSeen` is set
+  (once). Credits roll (skippable after 3 s, 24 s total), then the statistics sheet, then the
+  normal Winter screen underneath. Heritage title shows "Complete". No music-free ambience loop
+  was added for the ending: no CC0 loop exists in the imported packs and generated audio is
+  forbidden (same call as Session 7), so the existing ambience simply continues.
+- **Save v4.** Adds `EndingSeen`, `GoldenYearActive`, per-source harvests (ring/apprentice/tractor/
+  late frost), golden harvests, best combo, time played, years total. v3→v4 migration: the v3
+  total `Harvests` cannot be split by source, so the per-source counters start at 0; `YearsTotal`
+  starts at the current generation's years (earlier generations were never counted, since nothing
+  tracked them). Covered by a v3 fixture test.
+- **Balance pass** (also feeds GDD §15). A local .NET harness compiled Core for fast iteration;
+  official numbers still come from `balance-sim.bat`. Findings: (a) the greedy bot never saved for
+  crop unlocks and valued several nodes at the default 1 — every node now has an explicit weight,
+  and crop unlocks are weighted by their value jump; (b) the bot's retire rule is now "retire when
+  this generation's seeds reach 1.5× all seeds earned before (at least 8), or cover the rest of the
+  tree" — the usual prestige instinct, replacing a flat threshold; (c) with `upgrade_plot` at
+  growth 1.6 the field never got past tomato (a plateau, 100-year generations); (d) the ring
+  out-harvested every helper by construction (ring share 70–85% in generation 4 even after every
+  non-rule lever and several rule-level ones) → rule change GDD §2.1 *(v1.4)*: the ring waters/
+  grows every plot under it in parallel but harvests one Ripe plot at a time (furthest along, ties
+  nearest centre); (e) `upgrade_plot` is deliberately the open-ended sink for leftover coins, so
+  the "no node > 35% of a generation's coins" target is measured on finite nodes only (coins spent
+  on the node / coins earned that generation) — `upgrade_plot`'s share is reported separately
+  (86–96%). Growth is now tracked per branch (`AlmanacData.Growth` / `HeritageData.Growth`) instead
+  of one flat curve.
+- **Rule tests pin pre-balance numbers** via `TestConfig.Classic()` (carrot 1, threshold 5000,
+  divisor 50), so tuning changes never touch rule tests; balance targets live only in
+  `BalanceTests`.
+- **Privacy.** `com.unity.modules.unityanalytics` removed from `Packages/manifest.json`;
+  `docs/PRIVACY.md` added (no accounts, analytics, ads or network; all data stays on device).
+- **Version 1.0.0**, set through `BuildPipeline.Version`.

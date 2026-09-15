@@ -25,7 +25,7 @@ namespace TillWinter.EditorTools.Build
         public const string ProductName = "Till Winter";
         public const string CompanyName = "EFS Games";
         public const string BundleId = "com.efsgames.tillwinter";
-        public const string Version = "0.9.0";
+        public const string Version = "1.0.0";
         public const string ScenePath = "Assets/TillWinter/Scenes/Farm.unity";
         public const string DebugDefine = "TW_DEBUG";
         /// <summary>The brief asked for 24; Unity 6000.3's lowest supported level is 25 (Android 7.1). API 25 still takes the pre-26 haptics fallback.</summary>

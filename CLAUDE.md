@@ -30,11 +30,12 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - `DECISIONS.md` gets one section per session for choices the prompt left open. `docs/GDD.md` changes only when implementation forces a rule change, marked `*(vX.Y)*` inline. When a session prompt and the GDD disagree, the GDD wins.
 - Scenes, `.asset`, `.meta`, `.prefab`, `.mat` files are never read whole. If one must change, edit it with a targeted string replace against a known line (grep the line first).
 - Out of scope unless a session prompt asks: monetization (never), performance work, real art, new mechanics.
+- **Tuning rule:** balance targets live in `BalanceTests` (`AutoPlayer` plays to the ending over seeds 1–3); a tuning change that breaks one fails the suite. Tune per-branch cost growth before base costs; never change crop timings, the three-phase ratios or the ring offset. Rule tests use `TestConfig.Classic()` so they don't move with tuning.
 
 ## UI rules
 
 - TextMeshPro only (`UiKit.Label` -> `TMP_Text`, font `UiKit.Font` = Nunito SDF from Resources). Never `UnityEngine.UI.Text` or `LegacyRuntime.ttf`.
-- Every user-facing string comes from `Strings` (`en.json`); Core carries keys only. Node descriptions are templates filled by `NodeText`; a new node needs its `name`/`desc` keys in `en.json` (`StringsTests` fails otherwise).
+- Every user-facing string comes from `Strings` (`en.json`, `tr.json`); Core carries keys only. Node descriptions are templates filled by `NodeText`; a new node needs its `name`/`desc` keys in both files (`StringsTests` fails otherwise). Strings in `en.json` and `tr.json` change together (key parity is tested). Never attach a suffix to a placeholder in Turkish; numbers stand alone. Use `NumberFormat` for numbers — the language sets its style.
 - Colours and metrics of the tree screens live in `TreeTheme` (Resources asset, one per tree — e.g. `HeritageTheme` — including its `InitialZoom`); HUD colours/spacing live in `HudTheme` (Resources asset). No hard-coded colours in `HudView`, `SkillTreeView` or `WinterScreen`; `UiKit` palette constants are for debug/placeholder panels only.
 - Skill trees render through the generic `SkillTreeView` + `SkillTreeLayout`; no hand-placed nodes.
 - Scene edits go through editor code (`UiSetup.WireBootstrap` pattern), never by hand-editing YAML.
@@ -51,7 +52,7 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 
 - All effects go through the catalogues: VFX only via `VfxCatalog`/`VfxPlayer` (one pooled prefab per `VfxId`, built by `feel-setup.bat`), SFX only via `SfxTable`/`AudioManager`. Never `Instantiate` a particle prefab or create an ad hoc `AudioSource` in a view.
 - Any repeatable-event trigger (harvest, coin, splash, etc.) must go through `TillWinter.Core.Feel.RateLimiter`; over-budget calls merge into the next allowed trigger instead of stacking unbounded.
-- Camera shake is reserved for golden harvest and retire only — no other event may add it.
+- Camera shake is reserved for golden harvest and retire only — no other event may add it (and never when Reduce motion is on).
 - Haptics only through `Haptics` (Light/Medium/Heavy/Selection), gated by `SettingsData.HapticsEnabled` (`settings.json`, separate from the save). No direct `Vibrator`/platform calls elsewhere.
 - No generated/synthesised audio. Missing a clip for an `SfxId` is a bug to fix in `SfxTable`, never a runtime fallback.
 
