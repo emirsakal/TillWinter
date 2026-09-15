@@ -1,6 +1,10 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEditor.Profiling;
+using UnityEditorInternal;
 using TillWinter.Core;
 using TillWinter.Unity;
 using UnityEditor;
@@ -100,6 +104,11 @@ namespace TillWinter.EditorTools
             if (!_hooked)
             {
                 _game = UnityEngine.Object.FindFirstObjectByType<GameController>();
+                if (_game != null && _game.GetComponent<FrameAllocStart>() == null)
+                {
+                    _game.gameObject.AddComponent<FrameAllocStart>();
+                    _game.gameObject.AddComponent<FrameAllocEnd>();
+                }
                 if (_game == null) return;
                 Application.logMessageReceived += OnLog;
                 _game.Sim.Harvested += _ => _harvests++;
@@ -427,19 +436,20 @@ namespace TillWinter.EditorTools
                     {
                         _game.DebugPointerScreen = ScreenOf(2.5f, 2.5f);
                         // Zero-allocation check on the hot paths (Play calls only; particle/audio internals are native).
-                        long before = System.GC.GetAllocatedBytesForCurrentThread();
-                        for (int i = 0; i < 200; i++) { vfx.Play(VfxId.Harvest, Vector3.zero, 1f); audio.Play(SfxId.HarvestPop); }
+                        Check(FrameAlloc.Calibrate(), "allocation counter is live (" + FrameAlloc.CounterName + ")");
+                        long before = FrameAlloc.Now();
+                        for (int i = 0; i < 1000; i++) { vfx.Play(VfxId.Harvest, Vector3.zero, 1f); audio.Play(SfxId.HarvestPop); }
                         vfx.Play(VfxId.WaterSplash, Vector3.zero);
                         audio.Play(SfxId.CoinArrive);
-                        long allocated = System.GC.GetAllocatedBytesForCurrentThread() - before;
-                        Log("Feel burst: " + allocated + " bytes allocated by 400 Play calls");
+                        long allocated = FrameAlloc.Now() - before;
+                        Log("Feel burst: " + allocated + " bytes allocated by 2002 Play calls [" + FrameAlloc.CounterName + "]");
                         Check(allocated == 0, "zero allocations in VfxPlayer.Play / AudioManager.Play (" + allocated + " B)");
                     }
                     _sub++;
                     if (_sub % 20 == 0) { _game.Sim.DebugForceRipeAll(); _game.Sim.DebugForceTractorSweep(); }
                     _burstMaxSystems = Mathf.Max(_burstMaxSystems, vfx.ActiveSystems);
                     _burstMaxVoices = Mathf.Max(_burstMaxVoices, audio.ActiveVoices);
-                    if (inPhase > 2.5 && !_burstShot) { _burstShot = true; Shot("14b-feel-burst"); }
+                    if (inPhase > 2.5 && !_burstShot) { _burstShot = true; Shot("14b-feel-burst"); FrameAlloc.Reset(); ProfilerStart(); }
                     if (inPhase > 5.0)
                     {
                         _game.DebugPointerScreen = null;
@@ -448,6 +458,10 @@ namespace TillWinter.EditorTools
                         Check(_burstMaxVoices <= 8, "<= 8 audio voices during the burst (" + _burstMaxVoices + ")");
                         Check(Haptics.Fired > 0, "haptic tags fired this run (" + Haptics.Fired + " total, " + (Haptics.Fired - _hapticsBefore) + " in the burst)");
                         Check(_harvests > 0, "harvests happened during the burst");
+                        Log("Gameplay script allocations during the burst: " + FrameAlloc.Describe());
+                        Log("Frame-wide GC Allocated In Frame (Unity profiler counter, engine + scripts + editor): " + FrameAlloc.DescribeFrameWide());
+                        Log("GC.Alloc by marker under PlayerLoop during the burst (Editor profiler): " + ProfilerStopAndAttribute());
+                        Check(FrameAlloc.Frames > 30 && FrameAlloc.MaxBytes == 0, "no per-frame allocations in gameplay scripts (" + FrameAlloc.Describe() + ")");
                         _game.Sim.DebugSetSeason(Season.Summer);
                         Next();
                     }
@@ -517,6 +531,99 @@ namespace TillWinter.EditorTools
             }
             int dc = Get("drawCalls"), b = Get("batches"), t = Get("triangles"), sp = Get("setPassCalls"), v = Get("vertices");
             return (dc, b, t, "drawCalls=" + dc + " batches=" + b + " setPass=" + sp + " tris=" + t + " verts=" + v);
+        }
+
+        // ------------------------------------------------------------------ allocation attribution (Editor profiler)
+
+        /// <summary>Managed call stacks for every GC.Alloc: pinpoints the method, but doubles the smoke run time. Flip on to diagnose.</summary>
+        private const bool RecordAllocCallstacks = false;
+
+        private static void ProfilerStart()
+        {
+            ProfilerDriver.ClearAllFrames();
+            ProfilerDriver.profileEditor = false;
+            ProfilerDriver.memoryRecordMode = RecordAllocCallstacks ? ProfilerMemoryRecordMode.GCAlloc : ProfilerMemoryRecordMode.None;
+            ProfilerDriver.enabled = true;
+        }
+
+        /// <summary>Totals every GC.Alloc sample under PlayerLoop by its parent marker (the script method that allocated).</summary>
+        private static string ProfilerStopAndAttribute()
+        {
+            ProfilerDriver.enabled = false;
+            int first = ProfilerDriver.firstFrameIndex, last = ProfilerDriver.lastFrameIndex;
+            if (first < 0 || last < first) return "no profiler frames";
+            var totals = new Dictionary<string, double>();
+            int frames = 0;
+            for (int f = first; f <= last; f++)
+            {
+                using (var view = ProfilerDriver.GetHierarchyFrameDataView(f, 0, HierarchyFrameDataView.ViewModes.Default, HierarchyFrameDataView.columnGcMemory, false))
+                {
+                    if (view == null || !view.valid) continue;
+                    frames++;
+                    WalkAllocs(view, view.GetRootItemID(), "", "", false, totals);
+                }
+            }
+            string stacks = RecordAllocCallstacks ? AllocCallstacks(first, last) : "off (RecordAllocCallstacks)";
+            ProfilerDriver.memoryRecordMode = ProfilerMemoryRecordMode.None;
+            if (totals.Count == 0) return frames + " frames: no GC.Alloc under PlayerLoop";
+            double sum = totals.Values.Sum();
+            var top = totals.OrderByDescending(kv => kv.Value).Take(12).Select(kv => kv.Key + " " + kv.Value.ToString("0") + " B");
+            return frames + " frames, " + sum.ToString("0") + " B: " + string.Join(" | ", top) + " || call stacks: " + stacks;
+        }
+
+        /// <summary>Groups every GC.Alloc sample by its innermost managed frames (needs memoryRecordMode = GCAlloc).</summary>
+        private static string AllocCallstacks(int first, int last)
+        {
+            var byStack = new Dictionary<string, long>();
+            var stack = new List<ulong>();
+            for (int f = first; f <= last; f++)
+            {
+                using (var raw = ProfilerDriver.GetRawFrameDataView(f, 0))
+                {
+                    if (raw == null || !raw.valid) continue;
+                    int gcId = raw.GetMarkerId("GC.Alloc");
+                    if (gcId == FrameDataView.invalidMarkerId) continue;
+                    for (int i = 0; i < raw.sampleCount; i++)
+                    {
+                        if (raw.GetSampleMarkerId(i) != gcId) continue;
+                        long bytes = raw.GetSampleMetadataAsLong(i, 0);
+                        raw.GetSampleCallstack(i, stack);
+                        var names = new List<string>();
+                        foreach (ulong addr in stack)
+                        {
+                            var mi = raw.ResolveMethodInfo(addr);
+                            if (string.IsNullOrEmpty(mi.methodName)) continue;
+                            names.Add(mi.methodName);
+                            if (names.Count == 4) break;
+                        }
+                        string key = names.Count == 0 ? "(no managed frames)" : string.Join(" < ", names);
+                        byStack.TryGetValue(key, out long t);
+                        byStack[key] = t + bytes;
+                    }
+                }
+            }
+            if (byStack.Count == 0) return "none recorded";
+            return string.Join(" || ", byStack.OrderByDescending(kv => kv.Value).Take(6).Select(kv => kv.Value + " B: " + kv.Key));
+        }
+
+        private static void WalkAllocs(HierarchyFrameDataView view, int id, string grand, string parent, bool inPlayer, Dictionary<string, double> totals)
+        {
+            var kids = new List<int>();
+            view.GetItemChildren(id, kids);
+            foreach (int c in kids)
+            {
+                string name = view.GetItemName(c);
+                bool player = inPlayer || name == "PlayerLoop";
+                if (name == "GC.Alloc")
+                {
+                    if (!player) continue;
+                    string key = grand + " > " + parent;
+                    totals.TryGetValue(key, out double t);
+                    totals[key] = t + view.GetItemColumnDataAsFloat(c, HierarchyFrameDataView.columnGcMemory);
+                    continue;
+                }
+                WalkAllocs(view, c, parent, name, player, totals);
+            }
         }
 
         private static void Shot(string name)
