@@ -41,7 +41,7 @@ namespace TillWinter.Tests
             var raw = MiniJson.To<SaveData>(V2Fixture);
             Assert.AreEqual(2, raw.SchemaVersion);
             var migrated = SaveMigrations.Migrate(MiniJson.To<SaveData>(V2Fixture), new FarmConfig());
-            Assert.AreEqual(3, migrated.SchemaVersion);
+            Assert.AreEqual(SaveData.CurrentSchemaVersion, migrated.SchemaVersion);
             Assert.AreEqual(0, migrated.OnboardingBits);
             Assert.IsFalse(migrated.AlmanacViewHas);
             Assert.AreEqual(1f, migrated.AlmanacViewZoom);
@@ -63,9 +63,9 @@ namespace TillWinter.Tests
         {
             var v1 = new SaveData { SchemaVersion = 1, GridSize = 1, Plots = new[] { new PlotSave() }, AlmanacLevels = new LevelPair[0], HeritageLevels = new LevelPair[0] };
             var m = SaveMigrations.Migrate(v1, new FarmConfig());
-            Assert.AreEqual(3, m.SchemaVersion);
+            Assert.AreEqual(SaveData.CurrentSchemaVersion, m.SchemaVersion);
             Assert.AreEqual(0, m.OnboardingBits);
-            Assert.IsNull(SaveMigrations.Migrate(new SaveData { SchemaVersion = 4 }));
+            Assert.IsNull(SaveMigrations.Migrate(new SaveData { SchemaVersion = SaveData.CurrentSchemaVersion + 1 }));
         }
 
         [Test]
@@ -95,7 +95,7 @@ namespace TillWinter.Tests
             Assert.AreEqual(-34f, loaded.State.AlmanacView.PanY);
             Assert.AreEqual(0.8f, loaded.State.AlmanacView.Zoom);
             Assert.IsFalse(loaded.State.HeritageView.HasView);
-            Assert.AreEqual(3, sim.ToSave().SchemaVersion);
+            Assert.AreEqual(SaveData.CurrentSchemaVersion, sim.ToSave().SchemaVersion);
         }
 
         [Test]

@@ -98,5 +98,9 @@ namespace TillWinter.Core
         public float OfflineStepSeconds = 1f;
         /// <summary>Absences shorter than this (a call, an app switch) resume exactly where the player left: no offline simulation.</summary>
         public double OfflineMinSeconds = 60;
+
+        // Ending (GDD §8)
+        /// <summary>Length of the Golden Year: the one year after every Heritage node is maxed.</summary>
+        public float GoldenYearSeconds = 300f;
     }
 }
