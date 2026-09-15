@@ -96,5 +96,7 @@ namespace TillWinter.Core
         // Offline (GDD §9)
         public double OfflineCapSeconds = 8 * 3600;
         public float OfflineStepSeconds = 1f;
+        /// <summary>Absences shorter than this (a call, an app switch) resume exactly where the player left: no offline simulation.</summary>
+        public double OfflineMinSeconds = 60;
     }
 }

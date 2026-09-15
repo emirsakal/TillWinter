@@ -434,7 +434,7 @@ namespace TillWinter.Core
         /// </summary>
         public OfflineReport SimulateOffline(double elapsedSeconds)
         {
-            if (State.Phase != Phase.Year || elapsedSeconds <= 0 || double.IsNaN(elapsedSeconds))
+            if (State.Phase != Phase.Year || elapsedSeconds <= 0 || double.IsNaN(elapsedSeconds) || elapsedSeconds < Config.OfflineMinSeconds)
                 return new OfflineReport(0, 0, 0, false);
             bool capped = elapsedSeconds > Config.OfflineCapSeconds;
             double total = Math.Min(elapsedSeconds, Config.OfflineCapSeconds);
