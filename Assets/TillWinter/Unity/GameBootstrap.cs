@@ -20,6 +20,8 @@ namespace TillWinter.Unity
         public float RingOffsetPlots = 0.8f;
         [Tooltip("EN string table (Assets/TillWinter/Unity/Localization/en.json).")]
         public TextAsset StringTable;
+        [Tooltip("TR string table (Assets/TillWinter/Unity/Localization/tr.json).")]
+        public TextAsset StringTableTr;
 
         private void Awake()
         {
@@ -29,7 +31,8 @@ namespace TillWinter.Unity
 #if !TW_DEBUG && !UNITY_EDITOR
             Debug.unityLogger.logEnabled = false; // release builds log nothing
 #endif
-            Strings.Load(StringTable);
+            Time.timeScale = 1f; // a reload from the pause menu (language, reset) starts unpaused
+            GameLanguage.Apply(GameLanguage.Resolve(SettingsStore.Current.Language, Application.systemLanguage), StringTable, StringTableTr);
             var config = ConfigAsset != null ? ConfigAsset.Config : new FarmConfig();
 
             var root = new GameObject("TillWinter");
@@ -119,10 +122,16 @@ namespace TillWinter.Unity
             away.Init(game, audio, canvas, hud);
             var onboarding = canvas.gameObject.AddComponent<OnboardingView>();
             onboarding.Init(game, canvas);
+            var pause = canvas.gameObject.AddComponent<PauseMenu>();
+            pause.Init(game, audio, canvas, save);
+            var ending = canvas.gameObject.AddComponent<EndingView>();
+            ending.Init(game, canvas, pause);
 #if TW_DEBUG || UNITY_EDITOR
             var debug = canvas.gameObject.AddComponent<DebugPanel>();
             debug.Init(game, audio, canvas, save, away);
+            pause.DeveloperToggle = debug.Toggle;
 #endif
+            canvas.gameObject.AddComponent<BootFade>().Init(canvas); // no loading text: the diorama fades in
             var lifecycle = root.AddComponent<AppLifecycle>();
             lifecycle.Init(game, audio, away, shop);
             AppLifecycle.MarkBootEnd();

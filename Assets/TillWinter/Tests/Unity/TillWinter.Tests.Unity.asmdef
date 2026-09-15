@@ -5,7 +5,8 @@
         "TillWinter.Core",
         "TillWinter.Unity",
         "Unity.TextMeshPro",
-        "TillWinter.Build"
+        "TillWinter.Build",
+        "TillWinter.Tests"
     ],
     "includePlatforms": [
         "Editor"

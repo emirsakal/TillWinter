@@ -108,7 +108,7 @@ namespace TillWinter.Core
             return sb.ToString();
         }
 
-        private static string F(double v, string fmt) => v.ToString(fmt, CultureInfo.InvariantCulture);
-        private static string Pct(double v) => Math.Round(v * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+        private static string F(double v, string fmt) => NumberFormat.Decimal(v, fmt);
+        private static string Pct(double v) => NumberFormat.Percent(v);
     }
 }

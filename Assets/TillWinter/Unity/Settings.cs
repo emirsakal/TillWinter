@@ -15,6 +15,31 @@ namespace TillWinter.Unity
         public float MasterVolume = 1f;
         public float SfxVolume = 1f;
         public float AmbienceVolume = 1f;
+        /// <summary>"" follows the system language (Turkish -> tr, anything else -> en); "en" / "tr" once chosen in Settings.</summary>
+        public string Language = "";
+        /// <summary>Disables camera shake and the screen flash only (S9).</summary>
+        public bool ReduceMotion;
+    }
+
+    /// <summary>The two shipped languages. Strings and the number style switch together.</summary>
+    public static class GameLanguage
+    {
+        public const string English = "en", Turkish = "tr";
+        public static string Current { get; private set; } = English;
+
+        /// <summary>An explicit choice wins; otherwise Turkish devices get Turkish and everything else English.</summary>
+        public static string Resolve(string setting, SystemLanguage system)
+        {
+            if (setting == English || setting == Turkish) return setting;
+            return system == SystemLanguage.Turkish ? Turkish : English;
+        }
+
+        public static void Apply(string lang, TextAsset en, TextAsset tr)
+        {
+            Current = lang == Turkish && tr != null ? Turkish : English;
+            Strings.Load(Current == Turkish ? tr : en);
+            Core.NumberFormat.Style = Current == Turkish ? Core.NumberStyle.Turkish : Core.NumberStyle.English;
+        }
     }
 
     /// <summary>settings.json next to the save file; same atomic write and never-throw rules as SaveController.</summary>
@@ -24,6 +49,9 @@ namespace TillWinter.Unity
         public static string Path => System.IO.Path.Combine(Application.persistentDataPath, FileName);
 
         private static SettingsData _current;
+
+        /// <summary>Camera shake and screen flash check this (reduce motion).</summary>
+        public static bool MotionAllowed => !Current.ReduceMotion;
 
         public static SettingsData Current
         {
@@ -62,6 +90,7 @@ namespace TillWinter.Unity
                 data.MasterVolume = Mathf.Clamp01(data.MasterVolume);
                 data.SfxVolume = Mathf.Clamp01(data.SfxVolume);
                 data.AmbienceVolume = Mathf.Clamp01(data.AmbienceVolume);
+                if (data.Language != GameLanguage.English && data.Language != GameLanguage.Turkish) data.Language = "";
                 return data;
             }
             catch (Exception e)

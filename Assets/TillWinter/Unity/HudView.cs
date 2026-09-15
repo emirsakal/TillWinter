@@ -53,6 +53,10 @@ namespace TillWinter.Unity
         private float _comboFade;
         private int _lastCombo;
         public static HudView Instance { get; private set; }
+        public bool Flashing => Time.unscaledTime < _flashUntil;
+        // Localized once at boot (a language change reloads the scene); TMP SetText formats without allocating.
+        private string _yearGenFormat = "{0} {1}", _retireFormat = "{0}";
+        private readonly string[] _seasonNames = new string[4];
         private static readonly ProfilerMarker MCoinFlight = new ProfilerMarker("Hud.CoinFlight");
         private static readonly ProfilerMarker MCoinText = new ProfilerMarker("Hud.CoinText");
         private static readonly ProfilerMarker MCombo = new ProfilerMarker("Hud.Combo");
@@ -69,6 +73,9 @@ namespace TillWinter.Unity
             _audio = audio;
             _canvas = canvas;
             _theme = HudTheme.Load();
+            _yearGenFormat = Strings.Get("hud.year_gen");
+            _retireFormat = Strings.Get("hud.retire_chip");
+            for (int i = 0; i < _seasonNames.Length; i++) _seasonNames[i] = Strings.Get("season." + (Season)i);
 
             _safe = UiKit.Rect("HudSafe", canvas);
             SafeArea.Apply(_safe);
@@ -147,6 +154,7 @@ namespace TillWinter.Unity
         /// <summary>Brief white screen flash (golden harvest: 60 ms at 10 %).</summary>
         public void Flash(float alpha, float seconds)
         {
+            if (!SettingsStore.MotionAllowed) return; // reduce motion
             _flashAlpha = alpha;
             _flashUntil = Time.unscaledTime + seconds;
         }
@@ -310,7 +318,7 @@ namespace TillWinter.Unity
             _coinGroup.localScale = Vector3.one * (1f + 0.22f * Prims.EaseOutQuad(_counterPunch));
             MCoinText.End();
 
-            if (state.Year != _subYear || state.Generation.Generation != _subGen) { _subYear = state.Year; _subGen = state.Generation.Generation; _subText.SetText("Year {0}  ·  Gen {1}", state.Year, state.Generation.Generation); }
+            if (state.Year != _subYear || state.Generation.Generation != _subGen) { _subYear = state.Year; _subGen = state.Generation.Generation; _subText.SetText(_yearGenFormat, state.Year, state.Generation.Generation); }
             MCombo.Begin();
             // Combo floats near the ring; on a break it keeps the last value and fades out.
             if (state.Combo >= 2)
@@ -350,7 +358,7 @@ namespace TillWinter.Unity
             MSeedsBar.Begin();
             bool canRetire = _game.Sim.CanRetire;
             if (_seedChipRt.gameObject.activeSelf != canRetire) _seedChipRt.gameObject.SetActive(canRetire);
-            if (canRetire && _game.Sim.SeedsIfRetiredNow != _chipSeeds) { _chipSeeds = _game.Sim.SeedsIfRetiredNow; _seedChip.SetText("Retire: {0}", _chipSeeds); }
+            if (canRetire && _game.Sim.SeedsIfRetiredNow != _chipSeeds) { _chipSeeds = _game.Sim.SeedsIfRetiredNow; _seedChip.SetText(_retireFormat, _chipSeeds); }
 
             float progress = state.YearLength > 0f ? Mathf.Clamp01(state.YearTime / state.YearLength) * 0.9f : 0f;
             if (state.Phase != Phase.Year) progress = 1f;
@@ -361,7 +369,7 @@ namespace TillWinter.Unity
             {
                 _shownSeason = state.Season;
                 _seasonFade = 0f;
-                _seasonName.text = state.Season.ToString();
+                _seasonName.text = _seasonNames[(int)state.Season];
                 _seasonName.color = _theme.SeasonColor(state.Season);
             }
             _seasonFade += dt;

@@ -397,8 +397,8 @@ namespace TillWinter.Unity
             _title.color = _showingHeritage ? _heritageTheme.Ink : _theme.Ink;
             _coins.color = _showingHeritage ? _heritageTheme.Seed : _theme.Ink;
             _title.text = heritagePhase
-                ? Strings.Format("ui.heritage_title", ("gen", s.Generation.Generation))
-                : Strings.Format("ui.winter_title", ("year", s.Year)) + "  ·  Gen " + s.Generation.Generation;
+                ? Strings.Format("ui.heritage_title", ("gen", s.Generation.Generation)) + (_game.Sim.HeritageComplete ? "  ·  " + Strings.Get("heritage.complete") : "")
+                : Strings.Format("ui.winter_title", ("year", s.Year)) + "  ·  " + Strings.Format("gen.title", ("gen", s.Generation.Generation));
             _almanac.gameObject.SetActive(!_showingHeritage);
             _heritage.gameObject.SetActive(_showingHeritage);
             _almanac.Refresh(false);

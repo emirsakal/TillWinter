@@ -167,6 +167,7 @@ MonoBehaviour:
   Seed: 12345
   RingOffsetPlots: 0.8
   StringTable: {fileID: 4900000, guid: ed498bb30d937204888138ef93f82302, type: 3}
+  StringTableTr: {fileID: 4900000, guid: 3568c70cadf0b5d4881bbaf5fb504434, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

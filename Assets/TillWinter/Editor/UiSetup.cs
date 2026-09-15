@@ -22,7 +22,7 @@ namespace TillWinter.EditorTools
         private const string Characters =
             " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" +
             "ÇçĞğİıÖöŞşÜü" + // ÇçĞğİıÖöŞşÜü
-            "ÂâÎîÛû·–—→▶×…•°≤≥ ";
+            "ÂâÎîÛû·–—»«×…•°≤≥ ";
 
         public static void Run()
         {
@@ -80,7 +80,7 @@ namespace TillWinter.EditorTools
         {
             if (File.Exists(FontAssetPath))
             {
-                Debug.Log("[UiSetup] font asset already present");
+                TopUpFontAsset();
                 return;
             }
             var font = AssetDatabase.LoadAssetAtPath<Font>(FontSource);
@@ -106,17 +106,41 @@ namespace TillWinter.EditorTools
             Debug.Log("[UiSetup] font asset created: " + FontAssetPath + " (" + asset.characterTable.Count + " characters)");
         }
 
+        /// <summary>Adds any Characters glyph the existing atlas lacks, in place (keeps the asset and its GUID).</summary>
+        private static void TopUpFontAsset()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontAssetPath);
+            if (asset == null) throw new FileNotFoundException("font asset unreadable: " + FontAssetPath);
+            if (asset.HasCharacters(Characters, out uint[] _, false, false)) { Debug.Log("[UiSetup] font asset already present, all glyphs"); return; }
+            asset.atlasPopulationMode = AtlasPopulationMode.Dynamic;
+            bool ok = asset.TryAddCharacters(Characters, out string missing);
+            asset.atlasPopulationMode = AtlasPopulationMode.Static;
+            for (int i = 0; i < asset.atlasTextures.Length; i++)
+            {
+                var tex = asset.atlasTextures[i];
+                if (tex == null || AssetDatabase.Contains(tex)) continue;
+                tex.name = "NunitoSDF Atlas " + i;
+                AssetDatabase.AddObjectToAsset(tex, asset);
+            }
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+            Debug.Log("[UiSetup] font asset topped up: " + ok + (string.IsNullOrEmpty(missing) ? "" : " missing: " + missing) + " (" + asset.characterTable.Count + " characters)");
+        }
+
         /// <summary>Assigns en.json to GameBootstrap.StringTable in Farm.unity (edits the scene through the editor, never by hand).</summary>
         private static void WireBootstrap()
         {
             const string scenePath = "Assets/TillWinter/Scenes/Farm.unity";
             var table = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/TillWinter/Unity/Localization/en.json");
             if (table == null) throw new FileNotFoundException("en.json not imported");
+            var tableTr = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/TillWinter/Unity/Localization/tr.json");
+            if (tableTr == null) throw new FileNotFoundException("tr.json not imported");
             var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(scenePath);
             var boot = UnityEngine.Object.FindFirstObjectByType<GameBootstrap>();
             if (boot == null) throw new InvalidOperationException("Bootstrap not found in " + scenePath);
-            if (boot.StringTable == table) { Debug.Log("[UiSetup] string table already wired"); return; }
+            if (boot.StringTable == table && boot.StringTableTr == tableTr) { Debug.Log("[UiSetup] string tables already wired"); return; }
             boot.StringTable = table;
+            boot.StringTableTr = tableTr;
             EditorUtility.SetDirty(boot);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
             UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
