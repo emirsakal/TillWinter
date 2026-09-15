@@ -54,8 +54,6 @@ namespace TillWinter.Unity
         private int _lastCombo;
         public static HudView Instance { get; private set; }
         public bool Flashing => Time.unscaledTime < _flashUntil;
-        /// <summary>The main menu hides the top band.</summary>
-        public bool Hidden { get; set; }
         // Localized once at boot (a language change reloads the scene); TMP SetText formats without allocating.
         private string _yearGenFormat = "{0} {1}", _retireFormat = "{0}";
         private readonly string[] _seasonNames = new string[4];
@@ -312,7 +310,7 @@ namespace TillWinter.Unity
             if (_coins.Count == 0) _pending = 0;
             MCoinFlight.End();
 
-            _topGroup.alpha = Prims.Damp(_topGroup.alpha, state.Phase == Phase.Year && !Hidden ? 1f : 0f, 8f, dt);
+            _topGroup.alpha = Prims.Damp(_topGroup.alpha, state.Phase == Phase.Year ? 1f : 0f, 8f, dt);
             MCoinText.Begin();
             double shown = System.Math.Max(0, state.Coins - _pending - HeldCoins);
             if (shown != _coinTextValue) { _coinTextValue = shown; _coinText.SetText(_coinChars, 0, NumberFormat.Short(shown, _coinChars)); }

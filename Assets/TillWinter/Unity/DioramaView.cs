@@ -22,7 +22,7 @@ namespace TillWinter.Unity
         private MeshFilter _blockFilter;
         private Transform _scenery;
         private int _builtSize = -1, _builtGen = -1;
-        private static readonly Dictionary<int, Mesh> BlockCache = new Dictionary<int, Mesh>();
+        private static readonly Dictionary<(int, float, float, float), Mesh> BlockCache = new Dictionary<(int, float, float, float), Mesh>();
 
         public void Init(GameController game, VisualCatalog catalog)
         {
@@ -101,12 +101,16 @@ namespace TillWinter.Unity
         }
 
         /// <summary>Box with a grass top (submesh 0) and soil sides/bottom (submesh 1); bevelled top edge.</summary>
-        private Mesh BlockMesh(int gridSize)
+        private Mesh BlockMesh(int gridSize) => BuildBlock(gridSize, Margin, Thickness, BackDepth);
+
+        /// <summary>The island block for a field of <paramref name="gridSize"/> (cached per shape; the title scene uses it too).</summary>
+        public static Mesh BuildBlock(int gridSize, float margin, float thickness, float backDepth)
         {
-            if (BlockCache.TryGetValue(gridSize, out var cached) && cached != null) return cached;
-            float e = gridSize * 0.5f + Margin;
-            float b = e + BackDepth; // back edge: extra strip behind the fence
-            float d = Thickness;
+            var key = (gridSize, margin, thickness, backDepth);
+            if (BlockCache.TryGetValue(key, out var cached) && cached != null) return cached;
+            float e = gridSize * 0.5f + margin;
+            float b = e + backDepth; // back edge: extra strip behind the fence
+            float d = thickness;
             const float bevel = 0.12f;
             var verts = new List<Vector3>();
             var norms = new List<Vector3>();
@@ -144,7 +148,7 @@ namespace TillWinter.Unity
             mesh.SetTriangles(top, 0);
             mesh.SetTriangles(side, 1);
             mesh.RecalculateBounds();
-            BlockCache[gridSize] = mesh;
+            BlockCache[key] = mesh;
             return mesh;
         }
     }

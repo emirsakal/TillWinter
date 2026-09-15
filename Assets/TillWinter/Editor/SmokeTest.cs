@@ -138,14 +138,7 @@ namespace TillWinter.EditorTools
             var s = _game.State;
             switch (_phase)
             {
-                case 0: // title screen (shot), then spring idle
-                    var menu = MainMenu.Instance;
-                    if (menu != null && menu.IsOpen)
-                    {
-                        if (!menu.SmokeShotTaken && inPhase > 0.8) { menu.SmokeShotTaken = true; Shot("00-main-menu"); }
-                        else if (menu.SmokeShotTaken && inPhase > 1.0) menu.Play();
-                        break;
-                    }
+                case 0: // spring, idle
                     if (inPhase > 1.0) { Log("Render stats at 3x3 gen 1: " + RenderStats().text); Shot("01-spring-idle"); Next(); }
                     break;
                 case 1: // hold the finger under the field centre so the offset ring covers the 3x3

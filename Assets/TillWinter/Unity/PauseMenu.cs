@@ -175,11 +175,13 @@ namespace TillWinter.Unity
             _fromMenu = false;
         }
 
+        /// <summary>Saves and loads the title scene (Menu.unity).</summary>
         private void ToMainMenu()
         {
             Resume();
             _save.SaveNow();
-            MainMenu.Instance?.Show();
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(SceneNames.Menu);
         }
 
         private void BuildStats(RectTransform canvas)
@@ -206,7 +208,7 @@ namespace TillWinter.Unity
         {
             HideAll();
             SettingsStore.Save();
-            _game.SetPaused(false);
+            _game?.SetPaused(false);
             _pauseButton.gameObject.SetActive(true);
         }
 
@@ -216,7 +218,7 @@ namespace TillWinter.Unity
         public void ShowStats(Action after)
         {
             _afterStats = after;
-            if (!_game.Paused) _game.SetPaused(true);
+            if (_game != null && !_game.Paused) _game.SetPaused(true);
             FillStats();
             Show(_stats);
         }
@@ -261,7 +263,7 @@ namespace TillWinter.Unity
             if (GameLanguage.Current == lang && SettingsStore.Current.Language == lang) return;
             SettingsStore.Current.Language = lang;
             SettingsStore.Save();
-            _save.SaveNow();
+            _save?.SaveNow();
             Reload();
         }
 
@@ -282,15 +284,20 @@ namespace TillWinter.Unity
         {
             _resetDone = true;
             Haptics.Play(HapticKind.Heavy);
-            _save.Detach();
-            _save.DeleteSave();
+            if (_save != null)
+            {
+                _save.Detach();
+                _save.DeleteSave();
+            }
+            else SaveController.DeleteFiles(SaveController.FilePath); // title scene: no farm is running
             Debug.Log("[TillWinter] " + Strings.Get("settings.reset_done"));
             Reload();
         }
 
         private void Reload()
         {
-            _game.SetPaused(false);
+            if (_game != null) _game.SetPaused(false);
+            else Time.timeScale = 1f;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 

@@ -20,8 +20,6 @@ namespace TillWinter.Unity
         public bool InputBlocked;
         /// <summary>Pause menu open: no sim tick (year timer, crows, helpers all stop) and Time.timeScale 0 for views.</summary>
         public bool Paused { get; private set; }
-        /// <summary>Main menu open: the farm idles behind it (no sim tick; particles and views keep running).</summary>
-        public bool MenuOpen;
 
         public void SetPaused(bool paused)
         {
@@ -79,7 +77,7 @@ namespace TillWinter.Unity
         private void Update()
         {
             if (Sim == null) return;
-            if (Paused || MenuOpen) { CurrentRing = null; return; }
+            if (Paused) { CurrentRing = null; return; }
             Sim.AddPlayTime(Time.unscaledDeltaTime); // stats: time played (not while paused or closed)
             float dt = Mathf.Min(Time.deltaTime, 0.1f) * TimeScale;
 

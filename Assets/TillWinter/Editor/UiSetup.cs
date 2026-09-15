@@ -47,6 +47,7 @@ namespace TillWinter.EditorTools
             CreateTheme();
             CreateExtraAssets();
             WireBootstrap();
+            CreateMenuScene();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("[UiSetup] done");
@@ -104,6 +105,31 @@ namespace TillWinter.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(FontAssetPath, ImportAssetOptions.ForceUpdate);
             Debug.Log("[UiSetup] font asset created: " + FontAssetPath + " (" + asset.characterTable.Count + " characters)");
+        }
+
+        private const string MenuScenePath = "Assets/TillWinter/Scenes/Menu.unity";
+
+        /// <summary>The title scene: one MenuBootstrap with both string tables; build order Menu, Farm (edited through the editor, never by hand).</summary>
+        private static void CreateMenuScene()
+        {
+            var en = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/TillWinter/Unity/Localization/en.json");
+            var tr = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/TillWinter/Unity/Localization/tr.json");
+            var scene = File.Exists(MenuScenePath)
+                ? UnityEditor.SceneManagement.EditorSceneManager.OpenScene(MenuScenePath)
+                : UnityEditor.SceneManagement.EditorSceneManager.NewScene(UnityEditor.SceneManagement.NewSceneSetup.EmptyScene, UnityEditor.SceneManagement.NewSceneMode.Single);
+            var boot = UnityEngine.Object.FindFirstObjectByType<MenuBootstrap>();
+            if (boot == null) boot = new GameObject("MenuBootstrap").AddComponent<MenuBootstrap>();
+            boot.StringTable = en;
+            boot.StringTableTr = tr;
+            EditorUtility.SetDirty(boot);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene, MenuScenePath);
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene(MenuScenePath, true),
+                new EditorBuildSettingsScene("Assets/TillWinter/Scenes/Farm.unity", true),
+            };
+            Debug.Log("[UiSetup] title scene ready; build order Menu, Farm");
         }
 
         /// <summary>Adds any Characters glyph the existing atlas lacks, in place (keeps the asset and its GUID).</summary>
