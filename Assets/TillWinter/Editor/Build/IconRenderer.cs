@@ -32,7 +32,10 @@ namespace TillWinter.EditorTools.Build
         private const int Super = 2;
         /// <summary>Android adaptive icons show only the central ~66 % of the foreground: frame it looser.</summary>
         private const float AdaptiveOrtho = 1.75f;
-        private const float IconOrtho = 1.3f;
+        /// <summary>Opaque composite (iOS / legacy): the whole block stays inside iOS's rounded mask with a margin.</summary>
+        private const float IconOrtho = 1.4f;
+        /// <summary>Look-at height: centres the subject (block base to stem) in the frame, which the adaptive safe zone needs.</summary>
+        private const float LookAtY = -0.19f;
 
         private static readonly int[] AndroidLegacy = { 48, 72, 96, 144, 192 };
         private static readonly int[] AndroidAdaptive = { 108, 162, 216, 324, 432 };
@@ -128,7 +131,7 @@ namespace TillWinter.EditorTools.Build
             var cam = new GameObject("IconCamera").AddComponent<Camera>();
             cam.orthographic = true;
             cam.transform.rotation = Quaternion.Euler(30f, -38f, 0f);
-            cam.transform.position = new Vector3(0f, 0.28f, 0f) - cam.transform.forward * 12f;
+            cam.transform.position = new Vector3(0f, LookAtY, 0f) - cam.transform.forward * 12f;
             cam.nearClipPlane = 0.1f;
             cam.farClipPlane = 40f;
             cam.clearFlags = CameraClearFlags.SolidColor;

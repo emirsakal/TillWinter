@@ -236,7 +236,10 @@ namespace TillWinter.EditorTools.Build
             };
             var report = UnityEditor.BuildPipeline.BuildPlayer(options);
             var s = report.summary;
-            Log(target + " " + Path.GetFileName(path) + ": " + s.result + ", " + (s.totalSize / (1024.0 * 1024.0)).ToString("0.0") + " MB, "
+            // BuildReport.totalSize counts intermediates (687 MB for a 32 MB APK): report what actually landed on disk.
+            long bytes = File.Exists(path) ? new FileInfo(path).Length
+                : Directory.Exists(path) ? new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length) : 0;
+            Log(target + " " + Path.GetFileName(path) + ": " + s.result + ", " + (bytes / (1024.0 * 1024.0)).ToString("0.0") + " MB on disk, "
                 + s.totalTime.TotalSeconds.ToString("0") + " s, " + s.totalErrors + " errors");
             if (s.result != BuildResult.Succeeded)
                 foreach (var step in report.steps)
