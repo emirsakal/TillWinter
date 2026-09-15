@@ -4,7 +4,8 @@
     "references": [
         "TillWinter.Core",
         "TillWinter.Unity",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "TillWinter.Build"
     ],
     "includePlatforms": [
         "Editor"

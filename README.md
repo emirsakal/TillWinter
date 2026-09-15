@@ -103,6 +103,39 @@ per `VfxId` under `Assets/Art/Vfx` (`VfxCatalog` Resources asset), and `Resource
 (Master/SFX/Ambience groups with exposed volume parameters). Idempotent; re-run after changing a
 `VfxId` spec or adding an `SfxId`.
 
+## Building for devices
+
+Prerequisites: Unity 6000.3.22f1 with the Android Build Support and iOS Build Support modules
+installed (Unity Hub > Installs > Add Modules).
+
+```bat
+build-android.bat [-dev] [-icons]
+build-ios.bat [-dev] [-icons]
+release-compile-check.bat
+render-icon.bat
+```
+
+`build-android.bat` writes to `Builds\Android\<version>-<code>\`; `build-ios.bat` writes an Xcode
+project to `Builds\iOS\<version>-<build>\Xcode` for signing/archiving/upload on a Mac — neither
+script signs or uploads iOS itself. `-dev` makes a development build (`TW_DEBUG` on for that build
+only, never in the project's persistent defines). `-icons` forces the icon/splash to re-render
+first even if they already exist. `release-compile-check.bat` is a fast compile-only check (no
+player build) that fails if debug-only code leaked into a release `TillWinter.Unity.dll`; run it
+before any PR that touches runtime code. `render-icon.bat` regenerates the icon/splash on its own.
+`Builds\` is gitignored.
+
+Android signing needs a keystore created by the developer outside the repo (Unity: Project
+Settings > Player > Android > Publishing Settings > Keystore Manager), then set for the one build
+via four environment variables: `TW_KEYSTORE_PATH`, `TW_KEYSTORE_PASS`, `TW_KEY_ALIAS`,
+`TW_KEY_PASS`. With them set, the build produces a signed `.aab` + `.apk`; without them, a
+debug-signed `.apk` for sideloading. None of the four are ever written to ProjectSettings or
+committed. iOS signing and archiving happen in Xcode on a Mac after `build-ios.bat` generates the
+project.
+
+Each build writes `StreamingAssets/build-info.json` (version, build number, short git hash, UTC
+date, platform, dev flag) — it is gitignored, and a `-dev` build shows it, plus cold-start time,
+quality tier and reason, and the ring offset, in the debug panel.
+
 ## Project layout
 
 ```

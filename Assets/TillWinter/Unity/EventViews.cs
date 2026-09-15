@@ -80,6 +80,7 @@ namespace TillWinter.Unity
         private float _shown;
         private float _wheelSpin;
         private float _dustTimer;
+        private Transform[] _wheels = new Transform[0];
 
         public void Init(GameController game, VisualCatalog catalog, VfxPlayer fx, AudioManager audio)
         {
@@ -88,6 +89,10 @@ namespace TillWinter.Unity
             _audio = audio;
             _game.Sim.TractorSweepStarted += OnSweepStarted;
             _body = catalog.Spawn(catalog.Tractor, transform, "Tractor").transform;
+            // Found once: Transform enumeration and Object.name both allocate, so never do this per frame.
+            var wheels = new System.Collections.Generic.List<Transform>();
+            foreach (Transform child in _body) if (child.name == "Wheel") wheels.Add(child);
+            _wheels = wheels.ToArray();
             _body.gameObject.SetActive(false);
         }
 
@@ -126,8 +131,7 @@ namespace TillWinter.Unity
             }
             _body.localRotation = Quaternion.Euler(0f, 90f, 0f);
             _body.localScale = Vector3.one * _shown;
-            foreach (Transform child in _body)
-                if (child.name == "Wheel") child.localRotation = Quaternion.Euler(90f, 0f, _wheelSpin);
+            for (int i = 0; i < _wheels.Length; i++) _wheels[i].localRotation = Quaternion.Euler(90f, 0f, _wheelSpin);
         }
     }
 

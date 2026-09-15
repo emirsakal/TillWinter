@@ -36,5 +36,48 @@ namespace TillWinter.Core
             }
             return (negative ? "-" : "") + text + Suffixes[tier];
         }
+
+        /// <summary>
+        /// Allocation-free twin of <see cref="Short(double)"/> for per-frame UI: writes the same text into
+        /// <paramref name="buffer"/> (at least 24 chars) and returns its length. NumberFormatBufferTests keeps both identical.
+        /// </summary>
+        public static int Short(double value, char[] buffer)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value)) { buffer[0] = '0'; return 1; }
+            int n = 0;
+            if (value < 0) { buffer[n++] = '-'; value = -value; }
+            if (value < 1000) return WriteInt(buffer, n, (long)Math.Floor(value));
+            int tier = 0;
+            while (value >= 1000 && tier < Suffixes.Length - 1)
+            {
+                value /= 1000;
+                tier++;
+            }
+            if (value < 10)
+            {
+                long tenths = (long)Math.Floor(value * 10 + 1e-9);
+                n = WriteInt(buffer, n, tenths / 10);
+                if (tenths % 10 != 0) { buffer[n++] = '.'; buffer[n++] = (char)('0' + tenths % 10); }
+            }
+            else n = WriteInt(buffer, n, (long)Math.Floor(value + 1e-9));
+            string suffix = Suffixes[tier];
+            for (int i = 0; i < suffix.Length; i++) buffer[n++] = suffix[i];
+            return n;
+        }
+
+        private static int WriteInt(char[] buffer, int n, long v)
+        {
+            if (v == 0) { buffer[n++] = '0'; return n; }
+            int start = n;
+            while (v > 0) { buffer[n++] = (char)('0' + v % 10); v /= 10; }
+            // Swap in place: Mono's non-generic Array.Reverse(Array, int, int) can box elements on a char[].
+            for (int i = start, j = n - 1; i < j; i++, j--)
+            {
+                char tmp = buffer[i];
+                buffer[i] = buffer[j];
+                buffer[j] = tmp;
+            }
+            return n;
+        }
     }
 }

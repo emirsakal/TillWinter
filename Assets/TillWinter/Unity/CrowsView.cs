@@ -85,8 +85,9 @@ namespace TillWinter.Unity
             foreach (var kv in _crows)
             {
                 float progress = 0f;
-                foreach (var c in state.Crows)
-                    if (c.Pos == kv.Key) { progress = c.Progress; break; }
+                var crows = state.Crows;
+                for (int ci = 0; ci < crows.Count; ci++)
+                    if (crows[ci].Pos == kv.Key) { progress = crows[ci].Progress; break; }
                 kv.Value.Tick(dt, progress);
             }
             for (int i = _leaving.Count - 1; i >= 0; i--)

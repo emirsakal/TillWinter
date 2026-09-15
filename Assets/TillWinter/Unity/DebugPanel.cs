@@ -1,3 +1,5 @@
+#if TW_DEBUG || UNITY_EDITOR
+// Compiled out of release builds (build pipeline: TW_DEBUG only for development builds).
 using System.Collections.Generic;
 using TillWinter.Core;
 using UnityEngine;
@@ -154,7 +156,9 @@ namespace TillWinter.Unity
                          + "\nYear " + s.Year + "  " + s.Season + "  t=" + s.YearTime.ToString("0.0") + "/" + s.YearLength.ToString("0") + "s"
                          + "   coins " + s.Coins.ToString("0") + "   field " + s.GridSize + "x" + s.GridSize + "   crows " + s.Crows.Count
                          + "\napprentices " + s.Apprentices.Count + "   audio " + (_audio.UsingKenneyClips ? "kenney" : "generated")
-                         + "   fps " + (1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime)).ToString("0");
+                         + "   fps " + (1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime)).ToString("0")
+                         + "\n" + BuildInfo.Summary + "   cold start " + AppLifecycle.ColdStartSeconds.ToString("0.00") + " s"
+                         + "\nquality " + QualityTiers.Current + " (" + QualityTiers.Reason + ")   ring offset " + _game.RingOffsetPlots.ToString("0.00");
 
             if (_nodeIndex >= 0 && _nodeIndex < _nodeIds.Count)
                 _nodeLevel.text = s.GetLevel(_nodeIds[_nodeIndex]) + " / " + sim.GetMaxLevel(_nodeIds[_nodeIndex]);
@@ -183,3 +187,4 @@ namespace TillWinter.Unity
         }
     }
 }
+#endif

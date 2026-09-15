@@ -19,6 +19,7 @@ namespace TillWinter.Unity
         private bool _open;
         private Action _onDone;
         private float _lastTick;
+        private int _shownSeeds;
 
         public bool IsOpen => _open;
 
@@ -56,6 +57,7 @@ namespace TillWinter.Unity
             string key = "gen.flavour." + e.Generation;
             string flavour = Strings.Get(key);
             _flavour.text = flavour == key ? Strings.Get("gen.flavour.default") : flavour;
+            _shownSeeds = 0;
             _seeds.text = Strings.Format("gen.seeds", ("seeds", 0));
             _panel.transform.SetAsLastSibling();
             _panel.SetActive(true);
@@ -83,7 +85,7 @@ namespace TillWinter.Unity
             _group.alpha = Mathf.Clamp01(_t / 0.4f);
             float count = Mathf.Clamp01((_t - 0.6f) / 1.4f);
             int shown = Mathf.RoundToInt(Prims.EaseOutQuad(count) * _seedsTarget);
-            _seeds.text = Strings.Format("gen.seeds", ("seeds", shown));
+            if (shown != _shownSeeds) { _shownSeeds = shown; _seeds.text = Strings.Format("gen.seeds", ("seeds", shown)); }
             if (count < 1f && _t - _lastTick > 0.08f) { _lastTick = _t; _audio.Play(SfxId.CoinArrive, 0.6f); }
             _tap.alpha = _t > 0.5f ? 0.5f + 0.5f * Mathf.Abs(Mathf.Sin(_t * 2f)) : 0f;
             if (_t > 6f) Finish();

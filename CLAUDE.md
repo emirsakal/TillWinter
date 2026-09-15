@@ -55,6 +55,14 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - Haptics only through `Haptics` (Light/Medium/Heavy/Selection), gated by `SettingsData.HapticsEnabled` (`settings.json`, separate from the save). No direct `Vibrator`/platform calls elsewhere.
 - No generated/synthesised audio. Missing a clip for an `SfxId` is a bug to fix in `SfxTable`, never a runtime fallback.
 
+## Build rules
+
+- Never commit keystores, keystore/key passwords, aliases or provisioning profiles anywhere (code, docs, CI config). Android signing comes from four environment variables (`TW_KEYSTORE_PATH`, `TW_KEYSTORE_PASS`, `TW_KEY_ALIAS`, `TW_KEY_PASS`) read for the duration of one build only; iOS signing/archiving happens in Xcode on a Mac, never in the pipeline.
+- Version and build numbers move only through `BuildPipeline` (`build-android.bat` / `build-ios.bat`), never by hand-editing Player Settings.
+- Debug-only code sits under `#if TW_DEBUG || UNITY_EDITOR`; `TW_DEBUG` never goes into the project's persistent scripting define symbols, only into a `-dev` build's `extraScriptingDefines`.
+- Run `release-compile-check.bat` before a PR that touches runtime code.
+- Per-frame gameplay code must not allocate: no string building per frame (use `NumberFormat.Short(double, char[])` and TMP `SetText` char-buffer overloads), no `foreach` over `IReadOnlyList` or `Transform` in a hot path, no `Object.name` in `Update`.
+
 ## Token rules
 
 - Run tests only through the `test-runner` subagent, which uses `run-tests-summary.bat` / `smoke-test-summary.bat`. A hook rewrites the raw scripts; never look at `TestResults/`.

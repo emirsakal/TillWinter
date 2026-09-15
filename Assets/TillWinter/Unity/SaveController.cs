@@ -65,6 +65,9 @@ namespace TillWinter.Unity
 
         public void SaveNow()
         {
+#if UNITY_EDITOR || TW_DEBUG
+            FrameAlloc.IgnoreThisFrame(); // JsonUtility allocates by design; saves are events, not per-frame work
+#endif
             if (!_hooked || _game == null || _game.Sim == null) return;
             try
             {

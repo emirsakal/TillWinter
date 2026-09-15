@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Profiling;
 using TillWinter.Core;
 using TMPro;
 using UnityEngine;
@@ -34,7 +35,10 @@ namespace TillWinter.Unity
         private Image _elapsedImage;
         private RectTransform _fxLayer;
 
-        private readonly List<Coin> _coins = new List<Coin>();
+        private readonly List<Coin> _coins = new List<Coin>(96);
+        private readonly char[] _coinChars = new char[32];
+        /// <summary>Pre-warmed coin pool size and the cap on coins in flight (a burst never creates UI objects).</summary>
+        private const int CoinPoolWarm = 96;
         private readonly Stack<RectTransform> _pool = new Stack<RectTransform>();
         private double _pending;
         /// <summary>Coins earned offline that the away card has not released yet (kept out of the counter).</summary>
@@ -49,6 +53,14 @@ namespace TillWinter.Unity
         private float _comboFade;
         private int _lastCombo;
         public static HudView Instance { get; private set; }
+        private static readonly ProfilerMarker MCoinFlight = new ProfilerMarker("Hud.CoinFlight");
+        private static readonly ProfilerMarker MCoinText = new ProfilerMarker("Hud.CoinText");
+        private static readonly ProfilerMarker MCombo = new ProfilerMarker("Hud.Combo");
+        private static readonly ProfilerMarker MFlashFrost = new ProfilerMarker("Hud.FlashFrost");
+        private static readonly ProfilerMarker MSeedsBar = new ProfilerMarker("Hud.SeedsBar");
+        private double _coinTextValue = -1;
+        private int _subYear = -1, _subGen = -1, _chipSeeds = -1;
+        private readonly Stack<Coin> _coinObjPool = new Stack<Coin>();
 
         public void Init(GameController game, AudioManager audio, RectTransform canvas)
         {
@@ -63,6 +75,8 @@ namespace TillWinter.Unity
             var top = UiKit.Rect("TopBand", _safe);
             UiKit.Stretch(top, new Vector2(0f, 0.78f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
             _topGroup = top.gameObject.AddComponent<CanvasGroup>();
+            if (top.GetComponent<CanvasRenderer>() == null) top.gameObject.AddComponent<CanvasRenderer>();
+            top.gameObject.AddComponent<RaycastBlocker>(); // a finger resting on the HUD never becomes ring input
 
             _coinGroup = UiKit.Rect("Coins", top);
             UiKit.Box(_coinGroup, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 90f), new Vector2(700f, 130f));
@@ -71,6 +85,10 @@ namespace TillWinter.Unity
             _coinText = UiKit.Label(_coinGroup, "Value", "0", (int)_theme.CoinFontSize, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Stretch(_coinText.rectTransform, Vector2.zero, Vector2.one, new Vector2(240f, 0f), Vector2.zero);
             UiKit.Outline(_coinText);
+            // Size TMP's buffers for the longest counter once, so growing numbers never resize them mid-play.
+            _coinText.SetText("-999.9Qi");
+            _coinText.ForceMeshUpdate(true);
+            _coinText.SetText("0");
 
             _subText = UiKit.Label(top, "Sub", "", (int)_theme.SubFontSize, _theme.TextMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_subText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 190f), new Vector2(800f, 50f));
@@ -109,6 +127,14 @@ namespace TillWinter.Unity
             _flash = UiKit.Panel(canvas, "Flash", new Color(1f, 1f, 1f, 0f), false, false);
             UiKit.Stretch(_flash.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
+            // Pre-warm the coin flight pool so a harvest burst never creates UI objects mid-play.
+            for (int i = 0; i < CoinPoolWarm; i++)
+            {
+                var rt = GetCoin();
+                rt.gameObject.SetActive(false);
+                _pool.Push(rt);
+                _coinObjPool.Push(new Coin());
+            }
             _game.Sim.Harvested += OnHarvested;
             _game.Sim.CrowScared += OnCrowScared;
             _game.Sim.YearStarted += OnYearStarted;
@@ -174,6 +200,7 @@ namespace TillWinter.Unity
             {
                 c.Rt.gameObject.SetActive(false);
                 _pool.Push(c.Rt);
+                _coinObjPool.Push(c);
             }
             _coins.Clear();
             _pending = 0;
@@ -199,21 +226,25 @@ namespace TillWinter.Unity
 
         private void SpawnCoins(Vector3 world, double coins, int count, bool punch, bool rich, bool golden)
         {
+            // Past the pool size the value lands on the counter without a flight (only in extreme bursts).
+            count = Mathf.Min(count, CoinPoolWarm - _coins.Count);
+            if (count <= 0) return;
             Vector2 from = WorldToCanvas(world);
             Vector2 to = _canvas.InverseTransformPoint(_coinGroup.TransformPoint(new Vector3(-190f, 0f, 0f)));
             double share = coins / count;
             for (int i = 0; i < count; i++)
             {
-                var coin = new Coin
-                {
-                    Rt = GetCoin(),
-                    From = from + Random.insideUnitCircle * 30f,
-                    To = to,
-                    Delay = i * 0.045f,
-                    Duration = Random.Range(0.5f, 0.65f),
-                    Value = share,
-                    Punch = punch, Rich = rich, Golden = golden,
-                };
+                var coin = _coinObjPool.Count > 0 ? _coinObjPool.Pop() : new Coin();
+                coin.Rt = GetCoin();
+                coin.From = from + Random.insideUnitCircle * 30f;
+                coin.To = to;
+                coin.Delay = i * 0.045f;
+                coin.T = 0f;
+                coin.Duration = Random.Range(0.5f, 0.65f);
+                coin.Value = share;
+                coin.Punch = punch;
+                coin.Rich = rich;
+                coin.Golden = golden;
                 coin.Rt.GetComponent<Image>().color = golden ? _theme.Gold : _theme.Coin;
                 var mid = (coin.From + coin.To) * 0.5f;
                 coin.Ctrl = mid + new Vector2(Random.Range(-220f, 220f), Random.Range(120f, 320f));
@@ -245,6 +276,7 @@ namespace TillWinter.Unity
             var state = _game.State;
             float dt = Time.unscaledDeltaTime;
 
+            MCoinFlight.Begin();
             for (int i = _coins.Count - 1; i >= 0; i--)
             {
                 var c = _coins[i];
@@ -258,6 +290,7 @@ namespace TillWinter.Unity
                     _audio.Play(c.Rich ? SfxId.CoinArriveRich : SfxId.CoinArrive, c.Punch ? 1f : 0.7f);
                     c.Rt.gameObject.SetActive(false);
                     _pool.Push(c.Rt);
+                    _coinObjPool.Push(c);
                     _coins.RemoveAt(i);
                     continue;
                 }
@@ -267,18 +300,22 @@ namespace TillWinter.Unity
                 c.Rt.localScale = Vector3.one * Mathf.Lerp(0.6f, 1f, Mathf.Min(1f, t * 3f)) * Mathf.Lerp(1f, 0.8f, t);
             }
             if (_coins.Count == 0) _pending = 0;
+            MCoinFlight.End();
 
             _topGroup.alpha = Prims.Damp(_topGroup.alpha, state.Phase == Phase.Year ? 1f : 0f, 8f, dt);
+            MCoinText.Begin();
             double shown = System.Math.Max(0, state.Coins - _pending - HeldCoins);
-            _coinText.text = NumberFormat.Short(shown);
+            if (shown != _coinTextValue) { _coinTextValue = shown; _coinText.SetText(_coinChars, 0, NumberFormat.Short(shown, _coinChars)); }
             _counterPunch = Mathf.Max(0f, _counterPunch - dt * 5f);
             _coinGroup.localScale = Vector3.one * (1f + 0.22f * Prims.EaseOutQuad(_counterPunch));
+            MCoinText.End();
 
-            _subText.text = "Year " + state.Year + "  ·  Gen " + state.Generation.Generation;
+            if (state.Year != _subYear || state.Generation.Generation != _subGen) { _subYear = state.Year; _subGen = state.Generation.Generation; _subText.SetText("Year {0}  ·  Gen {1}", state.Year, state.Generation.Generation); }
+            MCombo.Begin();
             // Combo floats near the ring; on a break it keeps the last value and fades out.
             if (state.Combo >= 2)
             {
-                _combo.text = "×" + state.Combo;
+                if (state.Combo != _lastCombo) _combo.SetText("×{0}", state.Combo);
                 _comboFade = 1f;
                 if (state.Combo != _lastCombo) _comboRt.localScale = Vector3.one * 1.35f;
             }
@@ -294,7 +331,9 @@ namespace TillWinter.Unity
             var comboColor = _theme.Combo;
             comboColor.a = _comboFade;
             _combo.color = comboColor;
+            MCombo.End();
 
+            MFlashFrost.Begin();
             // Golden flash and frost edges.
             float flashLeft = _flashUntil - Time.unscaledTime;
             var flashColor = _flash.color;
@@ -307,9 +346,11 @@ namespace TillWinter.Unity
             var fc = _frostEdge.color;
             fc.a = _frostAlpha * 0.55f;
             _frostEdge.color = fc;
+            MFlashFrost.End();
+            MSeedsBar.Begin();
             bool canRetire = _game.Sim.CanRetire;
             if (_seedChipRt.gameObject.activeSelf != canRetire) _seedChipRt.gameObject.SetActive(canRetire);
-            if (canRetire) _seedChip.text = "Retire: " + _game.Sim.SeedsIfRetiredNow;
+            if (canRetire && _game.Sim.SeedsIfRetiredNow != _chipSeeds) { _chipSeeds = _game.Sim.SeedsIfRetiredNow; _seedChip.SetText("Retire: {0}", _chipSeeds); }
 
             float progress = state.YearLength > 0f ? Mathf.Clamp01(state.YearTime / state.YearLength) * 0.9f : 0f;
             if (state.Phase != Phase.Year) progress = 1f;
@@ -329,6 +370,7 @@ namespace TillWinter.Unity
             sc.a = fade;
             _seasonName.color = sc;
 
+            MSeedsBar.End();
             if (state.FrostWarning && state.Phase == Phase.Year)
             {
                 float left = state.SecondsUntilWinter;
