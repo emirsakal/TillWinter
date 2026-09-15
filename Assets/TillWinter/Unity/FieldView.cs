@@ -144,7 +144,6 @@ namespace TillWinter.Unity
             if (_plots.TryGetValue(pos, out var view)) view.SproutPop();
             var at = _game.PlotToWorld(pos, 0.2f);
             _fx.Play(VfxId.WaterSplash, at);
-            _fx.Play(VfxId.SoilRipple, _game.PlotToWorld(pos, 0.175f));
             _audio.Play(SfxId.WaterSplash);
         }
 
@@ -218,12 +217,10 @@ namespace TillWinter.Unity
         private float _pop = -1f;
         private bool _vanish;
         private float _ripeGlow;
-        private float _ringGlow;
         private float _wetBlend;
         private float _winterBlend;
         private float _phase;
         private float _ripePunch;
-        private float _lift;
 
         public void Init(Plot plot, VisualCatalog catalog, GameController game)
         {
@@ -363,20 +360,14 @@ namespace TillWinter.Unity
             float pulse = Mathf.Clamp01(_ripePunch) * 0.8f;
             if (stageBinder != null && !golden) stageBinder.SetEmission(Color.Lerp(Color.black, new Color(0.3f, 0.24f, 0.08f), _ripeGlow * breathe + pulse));
 
-            // Soil: Dry -> Wet -> ring lift -> winter white, all through the binder.
+            // Soil: Dry -> Wet -> winter white, all through the binder. The ring shows only as its round decal:
+            // no per-tile tint or lift, which drew square highlights under a round ring.
             _wetBlend = Prims.Damp(_wetBlend, dry || winter ? 0f : 1f, 10f, dt);
-            _ringGlow = Prims.Damp(_ringGlow, underRing ? 1f : 0f, 12f, dt);
             _winterBlend = Prims.Damp(_winterBlend, winter ? 1f : 0f, 4f, dt);
             var palette = Palette.Load();
             var soil = Color.Lerp(palette.SoilDry, palette.SoilWet, _wetBlend);
-            soil = Color.Lerp(soil, palette.SoilRing, _ringGlow * 0.6f);
             _soilBinder.Override(PaletteSlot.SoilDry, soil);
-            var lift = Color.Lerp(Color.white, new Color(1.18f, 1.14f, 1.05f), _ringGlow);
-            _soilBinder.SetTintMultiplier(Color.Lerp(lift, new Color(0.85f, 0.92f, 1.15f), sheen * 0.6f));
-            _soilBinder.SetEmission(Color.Lerp(Color.black, new Color(0.2f, 0.14f, 0.04f), _ringGlow));
-            _lift = Prims.Damp(_lift, underRing ? 0.05f : 0f, 12f, dt);
-            var pos = transform.localPosition;
-            transform.localPosition = new Vector3(pos.x, _lift, pos.z);
+            _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(0.85f, 0.92f, 1.15f), sheen * 0.6f));
             bool showCracks = _wetBlend < 0.5f && _winterBlend < 0.5f;
             if (_cracks != null && _cracks.activeSelf != showCracks) _cracks.SetActive(showCracks);
             bool showDrops = wet && !winter && plot.Progress < 0.5f;

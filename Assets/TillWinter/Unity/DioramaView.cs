@@ -14,6 +14,8 @@ namespace TillWinter.Unity
     {
         public float Margin = 1.1f;
         public float Thickness = 1.3f;
+        /// <summary>Extra grass behind the field so the house and trees stand behind the fence, not on it.</summary>
+        public float BackDepth = 1.7f;
 
         private GameController _game;
         private VisualCatalog _catalog;
@@ -67,18 +69,22 @@ namespace TillWinter.Unity
             // Path from the field's bottom edge to the block edge, one tile wide.
             for (float z = -half - 0.5f; z > -edge + 0.2f; z -= 1f)
                 Place(_catalog.PathTile, "Path", new Vector3(0f, 0.001f, z), 0f);
-            // Fence line along the far edge with a gate in the middle.
-            for (float x = -edge + 0.5f; x < edge - 0.4f; x += 1f)
+            // Fence line along the far edge, centred so both ends sit the same distance from the island sides;
+            // the middle panel (two on an even count) is the gate.
+            int panels = Mathf.FloorToInt(2f * edge - 0.2f);
+            for (int i = 0; i < panels; i++)
             {
-                bool gate = Mathf.Abs(x) < 0.5f;
+                float x = -(panels - 1) * 0.5f + i;
+                bool gate = Mathf.Abs(x) < 0.6f;
                 Place(gate ? _catalog.FenceGate : _catalog.Fence, gate ? "Gate" : "Fence", new Vector3(x, 0f, half + 0.55f), 0f);
             }
-            // Farmhouse on the far-left corner, trees on the far-right and near the path.
-            Place(_catalog.HouseFor(gen), "House", new Vector3(-edge + 0.9f, 0f, half + 1.0f), 15f);
+            // Behind the fence, on the extra back strip: farmhouse far left, trees far right.
+            float back = half + 0.55f + (Margin - 0.55f + BackDepth) * 0.55f;
+            Place(_catalog.HouseFor(gen), "House", new Vector3(-edge + 1.1f, 0f, back), 15f);
             if (_catalog.Trees != null && _catalog.Trees.Length > 0)
             {
-                Place(_catalog.Trees[0 % _catalog.Trees.Length], "Tree", new Vector3(edge - 0.6f, 0f, half + 0.95f), 0f);
-                Place(_catalog.Trees[2 % _catalog.Trees.Length], "Tree", new Vector3(edge - 1.3f, 0f, half + 1.05f), 40f);
+                Place(_catalog.Trees[0 % _catalog.Trees.Length], "Tree", new Vector3(edge - 0.7f, 0f, back - 0.2f), 0f);
+                Place(_catalog.Trees[2 % _catalog.Trees.Length], "Tree", new Vector3(edge - 1.5f, 0f, back + 0.4f), 40f);
                 Place(_catalog.Trees[3 % _catalog.Trees.Length], "Tree", new Vector3(-edge + 0.5f, 0f, -half - 0.9f), 70f);
             }
             Place(_catalog.Bush, "Bush", new Vector3(edge - 0.6f, 0f, -half - 0.8f), 20f);
@@ -99,6 +105,7 @@ namespace TillWinter.Unity
         {
             if (BlockCache.TryGetValue(gridSize, out var cached) && cached != null) return cached;
             float e = gridSize * 0.5f + Margin;
+            float b = e + BackDepth; // back edge: extra strip behind the fence
             float d = Thickness;
             const float bevel = 0.12f;
             var verts = new List<Vector3>();
@@ -116,19 +123,19 @@ namespace TillWinter.Unity
                 tris.Add(i); tris.Add(i + 2); tris.Add(i + 3);
             }
 
-            float ei = e - bevel;
+            float ei = e - bevel, bi = b - bevel;
             // Top (inset) and four bevel strips.
-            Quad(top, new Vector3(-ei, 0f, -ei), new Vector3(-ei, 0f, ei), new Vector3(ei, 0f, ei), new Vector3(ei, 0f, -ei));
+            Quad(top, new Vector3(-ei, 0f, -ei), new Vector3(-ei, 0f, bi), new Vector3(ei, 0f, bi), new Vector3(ei, 0f, -ei));
             Quad(top, new Vector3(-e, -bevel, -e), new Vector3(-ei, 0f, -ei), new Vector3(ei, 0f, -ei), new Vector3(e, -bevel, -e)); // front
-            Quad(top, new Vector3(e, -bevel, e), new Vector3(ei, 0f, ei), new Vector3(-ei, 0f, ei), new Vector3(-e, -bevel, e)); // back
-            Quad(top, new Vector3(-e, -bevel, e), new Vector3(-ei, 0f, ei), new Vector3(-ei, 0f, -ei), new Vector3(-e, -bevel, -e)); // left
-            Quad(top, new Vector3(e, -bevel, -e), new Vector3(ei, 0f, -ei), new Vector3(ei, 0f, ei), new Vector3(e, -bevel, e)); // right
+            Quad(top, new Vector3(e, -bevel, b), new Vector3(ei, 0f, bi), new Vector3(-ei, 0f, bi), new Vector3(-e, -bevel, b)); // back
+            Quad(top, new Vector3(-e, -bevel, b), new Vector3(-ei, 0f, bi), new Vector3(-ei, 0f, -ei), new Vector3(-e, -bevel, -e)); // left
+            Quad(top, new Vector3(e, -bevel, -e), new Vector3(ei, 0f, -ei), new Vector3(ei, 0f, bi), new Vector3(e, -bevel, b)); // right
             // Sides and bottom.
             Quad(side, new Vector3(-e, -d, -e), new Vector3(-e, -bevel, -e), new Vector3(e, -bevel, -e), new Vector3(e, -d, -e)); // front
-            Quad(side, new Vector3(e, -d, e), new Vector3(e, -bevel, e), new Vector3(-e, -bevel, e), new Vector3(-e, -d, e)); // back
-            Quad(side, new Vector3(-e, -d, e), new Vector3(-e, -bevel, e), new Vector3(-e, -bevel, -e), new Vector3(-e, -d, -e)); // left
-            Quad(side, new Vector3(e, -d, -e), new Vector3(e, -bevel, -e), new Vector3(e, -bevel, e), new Vector3(e, -d, e)); // right
-            Quad(side, new Vector3(-e, -d, e), new Vector3(e, -d, e), new Vector3(e, -d, -e), new Vector3(-e, -d, -e)); // bottom
+            Quad(side, new Vector3(e, -d, b), new Vector3(e, -bevel, b), new Vector3(-e, -bevel, b), new Vector3(-e, -d, b)); // back
+            Quad(side, new Vector3(-e, -d, b), new Vector3(-e, -bevel, b), new Vector3(-e, -bevel, -e), new Vector3(-e, -d, -e)); // left
+            Quad(side, new Vector3(e, -d, -e), new Vector3(e, -bevel, -e), new Vector3(e, -bevel, b), new Vector3(e, -d, b)); // right
+            Quad(side, new Vector3(-e, -d, b), new Vector3(e, -d, b), new Vector3(e, -d, -e), new Vector3(-e, -d, -e)); // bottom
 
             var mesh = new Mesh { name = "SoilBlock" + gridSize };
             mesh.SetVertices(verts);
