@@ -97,7 +97,8 @@ namespace TillWinter.Unity
             {
                 if (!_handPlot.HasValue)
                 {
-                    foreach (var p in s.Plots) if (p.State == PlotState.Dry) { _handPlot = p.Pos; break; }
+                    var plots = s.Plots;
+                    for (int i = 0; i < plots.Count; i++) if (plots[i].State == PlotState.Dry) { _handPlot = plots[i].Pos; break; }
                 }
                 if (_handPlot.HasValue)
                 {
@@ -107,7 +108,11 @@ namespace TillWinter.Unity
                     if (_captionGroup.alpha < 0.5f) Say("hint.first_touch", 1f);
                 }
                 bool anyUnderRing = false;
-                if (s.Ring.HasValue) foreach (var p in s.Plots) if (s.IsUnderRing(p.Pos)) { anyUnderRing = true; break; }
+                if (s.Ring.HasValue)
+                {
+                    var plots = s.Plots;
+                    for (int i = 0; i < plots.Count; i++) if (s.IsUnderRing(plots[i].Pos)) { anyUnderRing = true; break; }
+                }
                 if (anyUnderRing)
                 {
                     sim.MarkHint(Hint.FirstTouch);

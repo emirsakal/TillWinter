@@ -8,6 +8,7 @@ namespace TillWinter.Unity
     /// Single code path for mouse (Editor) and touch (device) via the Input System's <see cref="Pointer"/> device.
     /// Presses that start over UI are ignored entirely.
     /// </summary>
+    [DefaultExecutionOrder(-80)]
     public sealed class PointerInput : MonoBehaviour
     {
         public struct Sample

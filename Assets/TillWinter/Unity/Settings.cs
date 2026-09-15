@@ -10,6 +10,8 @@ namespace TillWinter.Unity
     {
         public int Version = 1;
         public bool HapticsEnabled = true;
+        /// <summary>-1 = auto-select on first launch, then remembered (0 Low, 1 Default).</summary>
+        public int QualityTier = -1;
         public float MasterVolume = 1f;
         public float SfxVolume = 1f;
         public float AmbienceVolume = 1f;

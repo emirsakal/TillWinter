@@ -39,6 +39,11 @@ namespace TillWinter.Unity
         private bool _showingHeritage;
         private float _open;
         private float _sheetShown;
+        private double _coinsTextValue = -1;
+        private readonly char[] _coinChars = new char[64];
+        private bool _coinsTextHeritage;
+        private long _ghCoinsKey = -2;
+        private int _ghSecondsKey = -2, _retireSeedsKey = -2;
         private Vector2 _sheetHome;
         private double _coinsShown;
         private float _coinPunch;
@@ -235,6 +240,9 @@ namespace TillWinter.Unity
             _selectedId = null;
             _sheetShown = 0f;
             _coinsShown = _game.State.Coins;
+            _coinsTextValue = -1;
+            _ghCoinsKey = -2;
+            _retireSeedsKey = -2;
             ApplySafeArea();
             RefreshAll();
             ActiveView.OnOpened();
@@ -261,6 +269,22 @@ namespace TillWinter.Unity
             _root.SetActive(false);
             _confirm.SetActive(false);
             _game.InputBlocked = false;
+        }
+
+        /// <summary>Android back: closes the topmost sheet (confirm, retire sheet, node sheet), otherwise does nothing (never quits).</summary>
+        public bool HandleBack()
+        {
+            if (!_visible) return false;
+            if (_confirm.activeSelf) { _confirm.SetActive(false); return true; }
+            if (_retireSheet.activeSelf) { _retireSheet.SetActive(false); return true; }
+            if (_selectedId != null) { _selectedId = null; RefreshSheet(); return true; }
+            return false;
+        }
+
+        private void Update()
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current; // the Android back button arrives as Escape
+            if (_visible && kb != null && kb.escapeKey.wasPressedThisFrame) HandleBack();
         }
 
         private SkillTreeView ActiveView => _showingHeritage ? _heritage : _almanac;
@@ -461,13 +485,34 @@ namespace TillWinter.Unity
                 if (_coinTick > 0.06f) { _coinTick = 0f; _audio.Play(SfxId.CoinArrive, 0.5f); }
             }
             else _coinsShown = target;
-            _coins.text = NumberFormat.Short(_coinsShown) + " " + Strings.Get(_showingHeritage ? "ui.seeds" : "ui.coins");
+            if (_coinsShown != _coinsTextValue || _showingHeritage != _coinsTextHeritage)
+            {
+                _coinsTextValue = _coinsShown;
+                _coinsTextHeritage = _showingHeritage;
+                int n = NumberFormat.Short(_coinsShown, _coinChars);
+                string unit = Strings.Get(_showingHeritage ? "ui.seeds" : "ui.coins");
+                _coinChars[n++] = ' ';
+                for (int i = 0; i < unit.Length && n < _coinChars.Length; i++) _coinChars[n++] = unit[i];
+                _coins.SetText(_coinChars, 0, n);
+            }
             _coinPunch = Mathf.Max(0f, _coinPunch - dt * 5f);
             _coinsRt.localScale = Vector3.one * (1f + 0.15f * Prims.EaseOutQuad(_coinPunch));
 
             bool gh = s.Phase == Phase.Winter && s.Stats.GreenhouseLevel > 0;
-            _greenhouse.text = gh ? Strings.Format("ui.greenhouse", ("coins", NumberFormat.Short(s.Greenhouse.CoinsThisWinter)), ("seconds", Mathf.CeilToInt(s.Greenhouse.SecondsLeftThisWinter))) : "";
-            _retireHint.text = s.Phase == Phase.Winter && _game.Sim.CanRetire ? Strings.Format("ui.retire_now", ("seeds", _game.Sim.SeedsIfRetiredNow)) : "";
+            long ghCoins = gh ? (long)s.Greenhouse.CoinsThisWinter : -1;
+            int ghSeconds = gh ? Mathf.CeilToInt(s.Greenhouse.SecondsLeftThisWinter) : -1;
+            if (ghCoins != _ghCoinsKey || ghSeconds != _ghSecondsKey)
+            {
+                _ghCoinsKey = ghCoins;
+                _ghSecondsKey = ghSeconds;
+                _greenhouse.text = gh ? Strings.Format("ui.greenhouse", ("coins", NumberFormat.Short(s.Greenhouse.CoinsThisWinter)), ("seconds", ghSeconds)) : "";
+            }
+            int retireSeeds = s.Phase == Phase.Winter && _game.Sim.CanRetire ? _game.Sim.SeedsIfRetiredNow : -1;
+            if (retireSeeds != _retireSeedsKey)
+            {
+                _retireSeedsKey = retireSeeds;
+                _retireHint.text = retireSeeds >= 0 ? Strings.Format("ui.retire_now", ("seeds", retireSeeds)) : "";
+            }
 
             // Bottom sheet slide.
             bool want = _selectedId != null && _sheet.gameObject.activeSelf;

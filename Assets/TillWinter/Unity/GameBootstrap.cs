@@ -23,7 +23,12 @@ namespace TillWinter.Unity
 
         private void Awake()
         {
-            Application.targetFrameRate = 60;
+            AppLifecycle.MarkBootStart();
+            Application.targetFrameRate = AppLifecycle.YearFps; // 30 while the Winter screen is open (AppLifecycle)
+            Screen.sleepTimeout = SleepTimeout.SystemSetting;
+#if !TW_DEBUG && !UNITY_EDITOR
+            Debug.unityLogger.logEnabled = false; // release builds log nothing
+#endif
             Strings.Load(StringTable);
             var config = ConfigAsset != null ? ConfigAsset.Config : new FarmConfig();
 
@@ -114,8 +119,13 @@ namespace TillWinter.Unity
             away.Init(game, audio, canvas, hud);
             var onboarding = canvas.gameObject.AddComponent<OnboardingView>();
             onboarding.Init(game, canvas);
+#if TW_DEBUG || UNITY_EDITOR
             var debug = canvas.gameObject.AddComponent<DebugPanel>();
             debug.Init(game, audio, canvas, save, away);
+#endif
+            var lifecycle = root.AddComponent<AppLifecycle>();
+            lifecycle.Init(game, audio, away, shop);
+            AppLifecycle.MarkBootEnd();
             if (game.State.Phase != Phase.Year) shop.Open();
             if (offline.CoinsEarned > 0) away.Show(offline);
         }
