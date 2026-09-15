@@ -78,13 +78,13 @@ namespace TillWinter.Unity
                 bool gate = Mathf.Abs(x) < 0.6f;
                 Place(gate ? _catalog.FenceGate : _catalog.Fence, gate ? "Gate" : "Fence", new Vector3(x, 0f, half + 0.55f), 0f);
             }
-            // Behind the fence, on the extra back strip: farmhouse far left, trees far right.
+            // Behind the fence, on the extra back strip: farmhouse far right, trees far left.
             float back = half + 0.55f + (Margin - 0.55f + BackDepth) * 0.55f;
-            Place(_catalog.HouseFor(gen), "House", new Vector3(-edge + 1.1f, 0f, back), 15f);
+            Place(_catalog.HouseFor(gen), "House", new Vector3(edge - 1.1f, 0f, back), -15f);
             if (_catalog.Trees != null && _catalog.Trees.Length > 0)
             {
-                Place(_catalog.Trees[0 % _catalog.Trees.Length], "Tree", new Vector3(edge - 0.7f, 0f, back - 0.2f), 0f);
-                Place(_catalog.Trees[2 % _catalog.Trees.Length], "Tree", new Vector3(edge - 1.5f, 0f, back + 0.4f), 40f);
+                Place(_catalog.Trees[0 % _catalog.Trees.Length], "Tree", new Vector3(-edge + 0.7f, 0f, back - 0.2f), 0f);
+                Place(_catalog.Trees[2 % _catalog.Trees.Length], "Tree", new Vector3(-edge + 1.5f, 0f, back + 0.4f), -40f);
                 Place(_catalog.Trees[3 % _catalog.Trees.Length], "Tree", new Vector3(-edge + 0.5f, 0f, -half - 0.9f), 70f);
             }
             Place(_catalog.Bush, "Bush", new Vector3(edge - 0.6f, 0f, -half - 0.8f), 20f);

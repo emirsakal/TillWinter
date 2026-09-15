@@ -40,8 +40,9 @@ namespace TillWinter.Unity
                 // Offsets are relative to the field edge so decor scales with the field.
                 float x = Mathf.Sign(item.Offset.x) * (half + Mathf.Abs(item.Offset.x) - 0.5f) * (Mathf.Abs(item.Offset.x) > 0.5f ? 1f : 0f) + (Mathf.Abs(item.Offset.x) <= 0.5f ? item.Offset.x : 0f);
                 float z = item.Offset.y > 0f ? half + item.Offset.y - 0.5f : -half + item.Offset.y + 0.5f;
-                root.localPosition = new Vector3(x, 0f, z);
-                root.localRotation = Quaternion.Euler(0f, item.Rotation, 0f);
+                // Mirrored left-right with the farmhouse (it stands on the right), so decor keeps its spacing from the house.
+                root.localPosition = new Vector3(-x, 0f, z);
+                root.localRotation = Quaternion.Euler(0f, -item.Rotation, 0f);
                 var prefab = item.Prefab != null ? item.Prefab : _catalog.Decor(item.Kind, item.Kind == DecorKind.Tree ? tree++ : 0);
                 _catalog.Spawn(prefab, root, item.Id);
                 root.localScale = Vector3.one * (animate ? 0.001f : item.Scale);
