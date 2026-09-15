@@ -187,6 +187,27 @@ When every Heritage node is maxed, the next year is the **Golden Year**: the fie
 - Seasons via one directional light, ambient colour, colour-adjust volume; frost/winter vignette; snow.
 - Feel checklist: harvest pop + coin arc to counter + counter punch; wet splash on watering; sprout pop on Wet; crow flap; purchase punch; node-unlock burst on the tree; season lerps 1.5 s.
 
+*(v1.5, Session 7)* Feel checklist shipped: watering splash + soil ripple, sprout pop entering
+growing, ripe sparkle + emission glow pulse, ring harvest burst scaled by tier with 3-8 coins by
+value and counter punch (ring only; helpers get fewer coins + a tick), golden harvest (bigger gold
+burst, gold coins, 60 ms 10% white flash, 0.15 s camera micro-shake, Medium haptic, own clip),
+combo "xN" floater with ring glow/pulse scaling and fade on break, crow feathers on land/scare +
+soil puff on eat, tractor exhaust + dust, apprentice step dust + footsteps, field-expansion pops
+only the new plots, season ambience (petals/leaves/snow) cross-faded by `SeasonPresenter`, frost
+edge overlay + Light haptic at warning start, winter chime + retire swell ducking SFX -6 dB for
+1 s, retire swell + Heavy haptic + camera shake + snow burst, new-generation clip + melt sparkle.
+Camera shake is reserved for golden harvest and retire only. One pooled particle prefab per
+`VfxId` (`VfxCatalog`, Resources) built by `FeelSetup`/`feel-setup.bat` from specs (TW_Toon white
+material, `Palette` colours applied at boot), played only through `VfxPlayer` (no runtime
+Instantiate). Every repeatable trigger is rate-limited (`TillWinter.Core.Feel.RateLimiter`, token
+bucket per id): over-budget requests merge into the next allowed trigger at higher intensity
+instead of being dropped or queued unbounded. Haptics (`Haptics`: Light/Medium/Heavy/Selection) go
+through Android `Vibrator`/`VibrationEffect` or the iOS `TillWinterHaptics.mm` plugin, gated by a
+settings flag (`SettingsData.HapticsEnabled`, `settings.json`, separate file from the save).
+Measured budget (6x6, 6 apprentices, tractor sweeping, ring centred, plots forced Ripe every ~20
+frames for 5 s): peak 13 active particle systems (<=20), 0 bytes allocated by 400
+`VfxPlayer.Play`/`AudioManager.Play` calls; render stats unchanged from Session 6.
+
 *(v1.4, Session 6)* Asset decision resolved per-asset rather than kit-vs-primitives wholesale:
 Kenney CC0 kits (Nature Kit, Food Kit, Mini Characters, Game Icons — stripped to only the files
 used, licenses in `Assets/Art/LICENSES.md`) for crops, trees/decor, apprentices and node icons;
@@ -220,6 +241,20 @@ is 106 batches / 142 draw calls / 27.8k triangles, against a smoke-test budget o
 ## 12. Audio
 
 Kenney CC0 (Impact Sounds, UI Audio) plus generated fallbacks. Needed: water splash, sprout, harvest pop, coin arrive, crow caw, crow scared, frost tick, winter chime, node buy, rebirth swell, rain. Light ambient loop per season is optional and last.
+
+*(v1.5, Session 7)* Shipped with no generated fallback: `SfxTable` maps every `SfxId` to one of 38
+Kenney CC0 clips across Impact Sounds, Interface Sounds, RPG Audio and UI Audio
+(`Assets/Audio/Kenney/Resources/Kenney`, licences next to the clips + `Assets/Audio/LICENSES.md`
+index). Casual Game Sounds could not be resolved for download this session, so it was not used;
+none of the packs used contain a wind/birds loop, so the optional season ambience loop is not
+implemented (and was not synthesised, per the session brief). `AudioManager` runs 8 voices max
+(steals the voice ending soonest), rate-limits and merges repeats per id, pitches the harvest pop
++2% per combo step (capped +30%), and picks a value-scaled coin clip (richer variant at tier >= 3
+or golden); `Duck()` lowers SFX under a chime/swell. Routing is
+`Resources/TillWinterMixer` (Master/SFX/Ambience groups, exposed `MasterVolume`/`SfxVolume`/
+`AmbienceVolume`), built by `FeelSetup` through the editor's internal `AudioMixerController` API
+via reflection (no public API creates mixer groups from code). Volumes and the haptics toggle live
+in `SettingsData`/`SettingsStore` (`settings.json`), independent of the save schema.
 
 ---
 

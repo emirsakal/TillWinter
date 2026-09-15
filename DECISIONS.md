@@ -425,3 +425,47 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   guessed): 3x3 generation 1 is 45 batches / 67 draw calls / 4.7k triangles; the stress case (6x6
   generation 3, seven apprentices, tractor) is 106 batches / 142 draw calls / 27.8k triangles,
   against a smoke-test budget of <=150 batches / <=60k triangles.
+
+---
+
+# Session 7 - feel and audio
+
+- **Clip sources per `SfxId` group**: water splash/soil ripple and the crow sounds from Impact
+  Sounds; UI-adjacent cues (node buy, counter punch, combo) from Interface Sounds; harvest pop,
+  coin variants, winter chime, retire swell, new-generation clip and frost tick from RPG Audio and
+  UI Audio. 38 clips total, licences kept next to each pack (`License-<Pack>.txt`) and indexed in
+  `Assets/Audio/LICENSES.md`. Every generated-fallback path from earlier sessions was removed —
+  `AudioManager` now hard-fails a missing mapping in tests (`FeelTests`) rather than silently
+  falling back to a runtime blip.
+- **Casual Game Sounds dropped, no ambience.** The pack's kenney.nl page could not be resolved for
+  download this session (same issue noted for it back in the pre-Session-1 audio decisions), so
+  the crow caw/scared clips came from the other three packs instead. None of the four packs used
+  contain a wind/birds loop; the GDD's "optional and last" season ambience loop was therefore left
+  unbuilt rather than synthesised (the brief explicitly ruled out generating new audio this
+  session).
+- **RateLimiter merge semantics**: a token-bucket per id (`TillWinter.Core.Feel.RateLimiter`,
+  pure C#, tested standalone) allows N triggers/s; a request that arrives over budget is not
+  dropped or queued — it merges into the next allowed trigger, which fires once at higher
+  intensity (+0.25 per merged request, capped) instead of one instance per input event. `Poll`
+  flushes the merged backlog the instant budget frees up, so a sustained burst (e.g. 6 apprentices
+  harvesting the same frame) reads as fewer, punchier hits rather than audio/VFX stacking or
+  silently missing triggers. Defaults: harvest 12/s, coin 20/s, water splash 10/s, haptics (Light)
+  8/s.
+- **One particle material slot, not per-VfxId.** Every `VfxCatalog` prefab uses the shared
+  `TW_White` vertex-colour slot material so GPU instancing and ArtTests' "one shader per material"
+  rule from Session 6 still hold; per-id and per-tier colour (e.g. golden vs. normal harvest burst)
+  is set on the particle system's start colour / a `MaterialPropertyBlock` at play time from
+  `Palette`, not by adding materials.
+- **Mixer built via the editor's internal `AudioMixerController` API through reflection.** URP/Unity
+  has no public runtime or editor API to create `AudioMixerGroup`s and expose parameters from code;
+  `FeelSetup` reflects into `UnityEditor.Audio.AudioMixerController` (same approach as the Unity
+  manual's undocumented workaround) rather than committing a hand-authored `.mixer` binary, keeping
+  the mixer buildable/idempotent like every other `*-setup.bat`.
+- **Camera shake reserved for golden harvest and retire only** — every other feel moment (regular
+  harvest, combo, crow, frost) stays shake-free so the two "big" beats keep reading as bigger.
+- **Budgets measured, not guessed**, in a dedicated smoke burst phase (6x6 field, 6 apprentices,
+  tractor sweeping, ring over centre, every plot forced Ripe every ~20 frames for 5 s): peak 13
+  active particle systems (budget 20), 8 concurrent voices (budget 8, `AudioManager`'s voice-steal
+  path is exercised by this phase), 0 bytes allocated across 400 `VfxPlayer.Play` /
+  `AudioManager.Play` calls, render stats unchanged from Session 6's measured budget. Screenshots
+  `docs/screenshots/s7-feel-burst.png` and `s7-frost-warning.png`.
