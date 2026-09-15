@@ -19,8 +19,8 @@ namespace TillWinter.Unity
         private Light _sun;
         private ColorAdjustments _color;
         private Vignette _vignette;
-        private ParticleSystem _snow;
-        private ParticleSystem.EmissionModule _snowEmission;
+        private VfxPlayer _fx;
+        private Season _fromSeason, _toSeason;
         private Material _skyMaterial;
         private Transform _sky;
         private Camera _cam;
@@ -34,10 +34,11 @@ namespace TillWinter.Unity
 
         public Light Sun => _sun;
 
-        public void Init(GameController game, Camera cam, VisualCatalog catalog)
+        public void Init(GameController game, Camera cam, VisualCatalog catalog, VfxPlayer fx)
         {
             _game = game;
             _cam = cam;
+            _fx = fx;
             _palette = SeasonPalette.Load();
             _game.Sim.GenerationStarted += OnGenerationStarted;
 
@@ -90,9 +91,8 @@ namespace TillWinter.Unity
             vol.priority = 10f;
             vol.profile = profile;
 
-            BuildSnow(catalog);
-
             _season = _game.State.Season;
+            _fromSeason = _toSeason = _season;
             _from = _to = _current = _palette.For(_season);
             Apply(_current, 0f);
 
@@ -105,10 +105,12 @@ namespace TillWinter.Unity
         }
 
         /// <summary>New generation: the snow melts at once instead of lingering for a particle lifetime.</summary>
-        private void OnGenerationStarted() => _snow.Clear();
+        private void OnGenerationStarted() => _fx.Clear(VfxId.Snow);
 
         private void OnSeasonChanged(Season s)
         {
+            _fromSeason = _toSeason;
+            _toSeason = s;
             _season = s;
             _from = _current;
             _to = _palette.For(s);
@@ -130,8 +132,16 @@ namespace TillWinter.Unity
 
             Apply(_current, frost);
 
-            float snowRate = state.IsWinter ? 70f : frost * 12f;
-            _snowEmission.rateOverTime = snowRate;
+            // Ambience: one particle system per season, cross-faded by the same blend as the light.
+            float blend = Mathf.SmoothStep(0f, 1f, _blend);
+            float wFrom = 1f - blend, wTo = blend;
+            float petals = (_fromSeason == Season.Spring ? wFrom : 0f) + (_toSeason == Season.Spring ? wTo : 0f);
+            float leaves = (_fromSeason == Season.Autumn ? wFrom : 0f) + (_toSeason == Season.Autumn ? wTo : 0f);
+            float snow = (_fromSeason == Season.Winter ? wFrom : 0f) + (_toSeason == Season.Winter ? wTo : 0f);
+            bool year = state.Phase == Phase.Year;
+            _fx.SetRate(VfxId.Petals, year ? 5f * petals : 0f);
+            _fx.SetRate(VfxId.Leaves, year ? 9f * leaves : 0f);
+            _fx.SetRate(VfxId.Snow, state.IsWinter ? 70f : Mathf.Max(70f * snow, frost * 12f));
 
             if (_sky != null)
             {
@@ -163,37 +173,6 @@ namespace TillWinter.Unity
             else if (_cam != null) _cam.backgroundColor = look.SkyBottom;
             float snow = Mathf.Max(look.SnowAmount, frost * 0.35f);
             PaletteBinder.SetSeason(snow, Color.Lerp(look.LeafTint, cold, frost * 0.3f), look.GrassTint);
-        }
-
-        private void BuildSnow(VisualCatalog catalog)
-        {
-            var go = new GameObject("Snow");
-            go.transform.SetParent(transform, false);
-            go.transform.position = new Vector3(0f, 6f, 0f);
-            _snow = go.AddComponent<ParticleSystem>();
-            var main = _snow.main;
-            main.loop = true;
-            main.startLifetime = 9f;
-            main.startSpeed = 0.15f;
-            main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.11f);
-            main.gravityModifier = 0.045f;
-            main.maxParticles = 1200;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            _snowEmission = _snow.emission;
-            _snowEmission.rateOverTime = 0f;
-            var shape = _snow.shape;
-            shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = new Vector3(10f, 0.5f, 10f);
-            var noise = _snow.noise;
-            noise.enabled = true;
-            noise.strength = 0.25f;
-            noise.frequency = 0.4f;
-            var renderer = _snow.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Mesh;
-            renderer.mesh = Prims.BuiltinMesh(PrimitiveType.Sphere);
-            renderer.sharedMaterial = Prims.Lit(Palette.Load().Snow, 0.2f);
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
-            _snow.Play();
         }
     }
 }

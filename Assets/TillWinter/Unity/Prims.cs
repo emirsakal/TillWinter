@@ -71,6 +71,25 @@ namespace TillWinter.Unity
             return tex;
         }
 
+        /// <summary>Transparent centre, opaque edges: frost creeping in from the screen border.</summary>
+        public static Sprite EdgeFadeSprite(int size = 256, float inner = 0.45f)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color32[size * size];
+            float half = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = Mathf.Abs(x + 0.5f - half) / half, dy = Mathf.Abs(y + 0.5f - half) / half;
+                float d = Mathf.Max(dx, dy);
+                float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(inner, 1f, d));
+                px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
         public static Sprite CircleSprite(int size = 64)
         {
             var tex = RadialGradient(size, 0.9f, 1f);

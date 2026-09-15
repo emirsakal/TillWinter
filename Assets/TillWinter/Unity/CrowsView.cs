@@ -8,13 +8,13 @@ namespace TillWinter.Unity
     public sealed class CrowsView : MonoBehaviour
     {
         private GameController _game;
-        private FxManager _fx;
+        private VfxPlayer _fx;
         private AudioManager _audio;
         private VisualCatalog _catalog;
         private readonly Dictionary<GridPos, CrowView> _crows = new Dictionary<GridPos, CrowView>();
         private readonly List<CrowView> _leaving = new List<CrowView>();
 
-        public void Init(GameController game, FxManager fx, AudioManager audio, VisualCatalog catalog)
+        public void Init(GameController game, VfxPlayer fx, AudioManager audio, VisualCatalog catalog)
         {
             _game = game;
             _fx = fx;
@@ -45,6 +45,7 @@ namespace TillWinter.Unity
             view.Land(_game.PlotToWorld(e.Pos, 0.16f));
             _crows.Add(e.Pos, view);
             _audio.Play(SfxId.CrowCaw);
+            _fx.Play(VfxId.Feathers, _game.PlotToWorld(e.Pos, 0.5f), 0.6f);
         }
 
         private void OnScared(CrowEvent e)
@@ -54,6 +55,8 @@ namespace TillWinter.Unity
             view.FlyOff(true);
             _leaving.Add(view);
             _audio.Play(SfxId.CrowScared);
+            _fx.Play(VfxId.Feathers, _game.PlotToWorld(e.Pos, 0.4f), 1.2f);
+            Haptics.Play(HapticKind.Selection);
         }
 
         private void OnAte(CrowEvent e)

@@ -66,7 +66,8 @@ namespace TillWinter.Unity
                 var target = _game.PlotToWorld(ring.Value.X, ring.Value.Y, 0f);
                 _pos = _ring.gameObject.activeSelf && _alpha > 0.5f ? Prims.Damp(_pos, target, 30f, dt) : target;
             }
-            float pulse = 1f + 0.03f * Mathf.Sin(Time.time * 5f);
+            float combo = Mathf.Clamp01((_game.State.Combo - 1) / 8f);
+            float pulse = 1f + (0.03f + 0.03f * combo) * Mathf.Sin(Time.time * (5f + 3f * combo));
             float d = _game.State.RingRadius * 2f * 1.08f * pulse;
             if (_decal != null)
             {
@@ -78,8 +79,8 @@ namespace TillWinter.Unity
             {
                 _ring.position = _pos + Vector3.up * 0.27f; // above lifted plots (soil top 0.16 + 0.05 lift)
                 _ring.localScale = Vector3.one * d;
-                var c = Color.white;
-                c.a = 0.95f * _alpha;
+                var c = Color.Lerp(Color.white, new Color(1f, 0.92f, 0.55f), combo);
+                c.a = Mathf.Min(1f, (0.85f + 0.15f * combo) * _alpha);
                 _discMaterial.SetColor("_BaseColor", c);
             }
         }

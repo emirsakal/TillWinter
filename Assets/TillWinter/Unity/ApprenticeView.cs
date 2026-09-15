@@ -45,6 +45,7 @@ namespace TillWinter.Unity
         private float _bob;
         private float _facing;
         private bool _placed;
+        private float _lastSin;
 
         public ApprenticeView Setup()
         {
@@ -71,7 +72,14 @@ namespace TillWinter.Unity
             bool walking = a.IsWalking && delta.sqrMagnitude > 1e-6f;
             if (walking)
             {
+                float before = Mathf.Sin(_bob);
                 _bob += dt * 12f;
+                float after = Mathf.Sin(_bob);
+                if ((before <= 0f) != (after <= 0f)) // each footfall
+                {
+                    VfxPlayer.Fire(VfxId.StepDust, target + Vector3.up * 0.02f);
+                    AudioManager.Instance?.Play(SfxId.Step, 0.6f);
+                }
                 _facing = Mathf.LerpAngle(_facing, Mathf.Atan2(delta.x, delta.z) * Mathf.Rad2Deg, 1f - Mathf.Exp(-dt * 14f));
             }
             float bobY = walking ? Mathf.Abs(Mathf.Sin(_bob)) * 0.07f : 0f;

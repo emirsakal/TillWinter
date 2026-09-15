@@ -61,9 +61,10 @@ namespace TillWinter.Unity
             audio.transform.SetParent(root.transform, false);
             audio.Init();
 
-            var fx = new GameObject("Fx").AddComponent<FxManager>();
+            var fx = new GameObject("Vfx").AddComponent<VfxPlayer>();
             fx.transform.SetParent(root.transform, false);
-            fx.Init();
+            fx.Init(VfxCatalog.Load()); // pools pre-warmed here; nothing instantiates during play
+            var _ = SettingsStore.Current; // settings.json (haptics, volumes) read once at boot
 
             // Everything visual comes from the catalogue (Resources/VisualCatalog, built by art-setup.bat).
             var catalog = VisualCatalog.Load();
@@ -71,7 +72,7 @@ namespace TillWinter.Unity
 
             var season = new GameObject("Season").AddComponent<SeasonPresenter>();
             season.transform.SetParent(root.transform, false);
-            season.Init(game, camRig.Cam, catalog);
+            season.Init(game, camRig.Cam, catalog, fx);
             QualityTiers.Init(season.Sun, camRig.Cam);
 
             var diorama = new GameObject("Diorama").AddComponent<DioramaView>();
@@ -95,7 +96,7 @@ namespace TillWinter.Unity
             cloud.Init(game, fx, audio, catalog);
             var tractor = new GameObject("Tractor").AddComponent<TractorView>();
             tractor.transform.SetParent(root.transform, false);
-            tractor.Init(game, catalog);
+            tractor.Init(game, catalog, fx, audio);
             var greenhouse = new GameObject("Greenhouse").AddComponent<GreenhouseView>();
             greenhouse.transform.SetParent(root.transform, false);
             greenhouse.Init(game, fx, catalog);

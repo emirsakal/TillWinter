@@ -7,6 +7,8 @@ namespace TillWinter.Unity
     public sealed class CameraRig : MonoBehaviour
     {
         public Camera Cam { get; private set; }
+        public static CameraRig Instance { get; private set; }
+        private float _shakeAmount, _shakeUntil, _shakeSeconds;
 
         /// <summary>Tilt from straight-down. 40 degrees reads as a gentle 3/4 view.</summary>
         public float TiltFromTopDown = 40f;
@@ -20,8 +22,17 @@ namespace TillWinter.Unity
         private float _targetSize = 4f;
         private int _gridSize = 3;
 
+        /// <summary>Camera micro-shake. Only golden harvest and retire may call this (CLAUDE.md feel rules).</summary>
+        public void Shake(float amount, float seconds)
+        {
+            _shakeAmount = Mathf.Max(_shakeAmount, amount);
+            _shakeSeconds = seconds;
+            _shakeUntil = Time.unscaledTime + seconds;
+        }
+
         public void Setup()
         {
+            Instance = this;
             var go = new GameObject("Main Camera") { tag = "MainCamera" };
             go.transform.SetParent(transform, false);
             Cam = go.AddComponent<Camera>();
@@ -68,6 +79,13 @@ namespace TillWinter.Unity
             float shift = (0.5f - FieldScreenY) * 2f * Cam.orthographicSize;
             Vector3 lookAt = Vector3.zero + Cam.transform.up * shift;
             Cam.transform.position = lookAt - Cam.transform.forward * Distance;
+            float left = _shakeUntil - Time.unscaledTime;
+            if (left > 0f)
+            {
+                float k = _shakeAmount * (left / Mathf.Max(0.01f, _shakeSeconds));
+                Cam.transform.position += Cam.transform.right * (Mathf.Sin(Time.unscaledTime * 71f) * k) + Cam.transform.up * (Mathf.Sin(Time.unscaledTime * 53f) * k * 0.6f);
+            }
+            else _shakeAmount = 0f;
         }
     }
 }
