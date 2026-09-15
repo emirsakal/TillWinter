@@ -34,15 +34,15 @@ namespace TillWinter.Unity
             var btn = _panel.AddComponent<Button>();
             btn.transition = Selectable.Transition.None;
             btn.onClick.AddListener(() => { if (_t > 0.5f) Finish(); });
-            _title = UiKit.Label(bg.transform, "Title", "", 84, theme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _title = UiKit.Label(bg.transform, "Title", "", UiType.Hero, theme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 160f), new Vector2(1000f, 110f));
-            _flavour = UiKit.Label(bg.transform, "Flavour", "", 34, theme.Ink, TextAnchor.MiddleCenter, FontStyle.Italic);
+            _flavour = UiKit.Label(bg.transform, "Flavour", "", UiType.Body, theme.Ink, TextAnchor.MiddleCenter, FontStyle.Italic);
             UiKit.Box(_flavour.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(900f, 90f));
             UiKit.CircleImage(bg.transform, "Seed", theme.Seed, new Vector2(-410f, -60f), 56f);
-            _seeds = UiKit.Label(bg.transform, "Seeds", "", 60, theme.Seed, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _seeds = UiKit.Label(bg.transform, "Seeds", "", UiType.Big, theme.Seed, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Box(_seeds.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40f, -60f), new Vector2(760f, 80f));
             _seeds.enableWordWrapping = false;
-            _tap = UiKit.Label(bg.transform, "Tap", Strings.Get("gen.tap_to_continue"), 26, theme.InkMuted, TextAnchor.MiddleCenter);
+            _tap = UiKit.Label(bg.transform, "Tap", Strings.Get("gen.tap_to_continue"), UiType.Label, theme.InkMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_tap.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(600f, 40f));
             _panel.SetActive(false);
         }

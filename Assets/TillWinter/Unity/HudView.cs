@@ -101,7 +101,7 @@ namespace TillWinter.Unity
             UiKit.Box(_subText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 190f), new Vector2(800f, 50f));
             UiKit.Outline(_subText, 0.12f);
 
-            _combo = UiKit.Label(top, "Combo", "", 40, _theme.Combo, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _combo = UiKit.Label(top, "Combo", "", UiType.Heading, _theme.Combo, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Box(_combo.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, 0.5f), new Vector2(260f, -_theme.TopPadding - 90f), new Vector2(300f, 60f));
             UiKit.Outline(_combo);
 
@@ -109,13 +109,13 @@ namespace TillWinter.Unity
             _seedChipRt = chip.rectTransform;
             UiKit.Box(_seedChipRt, new Vector2(0.5f, 1f), new Vector2(1f, 0.5f), new Vector2(-260f, -_theme.TopPadding - 90f), new Vector2(260f, 56f));
             UiKit.CircleImage(_seedChipRt, "Seed", _theme.Seed, new Vector2(-100f, 0f), 30f);
-            _seedChip = UiKit.Label(_seedChipRt, "Text", "", 28, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _seedChip = UiKit.Label(_seedChipRt, "Text", "", UiType.Label, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Stretch(_seedChip.rectTransform, Vector2.zero, Vector2.one, new Vector2(56f, 0f), new Vector2(-10f, 0f));
             _seedChipRt.gameObject.SetActive(false);
 
             BuildSeasonBar(top);
 
-            _seasonName = UiKit.Label(top, "SeasonName", "", 40, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _seasonName = UiKit.Label(top, "SeasonName", "", UiType.Heading, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_seasonName.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameY), new Vector2(600f, 50f));
             UiKit.Outline(_seasonName);
 

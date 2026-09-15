@@ -97,6 +97,7 @@ namespace TillWinter.Unity
             _lines = linesRt.gameObject.AddComponent<UILines>();
             _lines.raycastTarget = false;
 
+            BuildBranchRegions();
             BuildNodes();
             BuildEdges();
             ComputeBounds();
@@ -107,6 +108,36 @@ namespace TillWinter.Unity
         // ------------------------------------------------------------------ build
 
         private Vector2 ToPixels(LayoutPos p) => new Vector2(p.X, p.Y) * _theme.UnitPixels;
+
+        /// <summary>A tinted region and a name behind each branch: the five branches used to differ only by node colour.</summary>
+        private void BuildBranchRegions()
+        {
+            var min = new Dictionary<TillWinter.Core.Branch, Vector2>();
+            var max = new Dictionary<TillWinter.Core.Branch, Vector2>();
+            foreach (var node in _tree.Nodes)
+            {
+                if (!_layout.TryGetValue(node.Id, out var p)) continue;
+                var v = ToPixels(p);
+                if (!min.ContainsKey(node.Branch)) { min[node.Branch] = v; max[node.Branch] = v; }
+                else { min[node.Branch] = Vector2.Min(min[node.Branch], v); max[node.Branch] = Vector2.Max(max[node.Branch], v); }
+            }
+            float pad = _theme.NodeSize * 0.85f;
+            foreach (var kv in min)
+            {
+                var branch = kv.Key;
+                Vector2 lo = kv.Value - Vector2.one * pad, hi = max[branch] + Vector2.one * pad;
+                var colour = _theme.BranchColor(branch);
+                var region = UiKit.Panel(_content, "Branch " + branch, new Color(colour.r, colour.g, colour.b, 0.1f), true, false);
+                var rt = region.rectTransform;
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = hi - lo;
+                rt.anchoredPosition = (lo + hi) * 0.5f;
+                var name = UiKit.Label(_content, "BranchName " + branch, Strings.Branch(branch), UiType.Label,
+                    new Color(colour.r, colour.g, colour.b, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Box(name.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f), new Vector2((lo.x + hi.x) * 0.5f, hi.y + 8f), new Vector2(hi.x - lo.x, 44f));
+            }
+        }
 
         private void BuildNodes()
         {

@@ -16,7 +16,7 @@ namespace TillWinter.Unity
         private HudTheme _theme;
         private RectTransform _canvas;
         private RectTransform _hand;
-        private Image _handImg;
+        private Image _handImg, _ripple;
         private RectTransform _captionRt;
         private TMP_Text _caption;
         private CanvasGroup _captionGroup;
@@ -35,11 +35,12 @@ namespace TillWinter.Unity
             _canvas = canvas;
             _theme = HudTheme.Load();
 
-            _handImg = UiKit.CircleImage(canvas, "Hand", _theme.HintAccent, Vector2.zero, 90f);
-            _hand = _handImg.rectTransform;
-            var inner = UiKit.CircleImage(_hand, "HandInner", _theme.Text, new Vector2(0f, 8f), 34f);
-            var finger = UiKit.Panel(_hand, "Finger", _theme.Text, true, false);
-            UiKit.Box(finger.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(22f, 44f));
+            // Touch hint: a beating dot with a ripple expanding out of it (the kit has no hand icon).
+            _hand = UiKit.Rect("TouchHint", canvas);
+            UiKit.Box(_hand, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(120f, 120f));
+            _ripple = UiKit.CircleImage(_hand, "Ripple", _theme.HintAccent, Vector2.zero, 120f);
+            _handImg = UiKit.CircleImage(_hand, "Dot", _theme.HintAccent, Vector2.zero, 54f);
+            UiKit.CircleImage(_handImg.transform, "DotInner", _theme.HintText, Vector2.zero, 26f);
             _hand.gameObject.SetActive(false);
 
             var cap = UiKit.Panel(canvas, "Caption", _theme.HintBackground, true, false);
@@ -47,12 +48,13 @@ namespace TillWinter.Unity
             UiKit.Box(_captionRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -560f), new Vector2(920f, 84f));
             _captionGroup = cap.gameObject.AddComponent<CanvasGroup>();
             _captionGroup.alpha = 0f;
-            _caption = UiKit.Label(cap.transform, "Text", "", 32, _theme.HintText, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _caption = UiKit.Label(cap.transform, "Text", "", UiType.Body, _theme.HintText, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Stretch(_caption.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 0f), new Vector2(-20f, 0f));
 
-            var arrow = UiKit.Panel(canvas, "Arrow", _theme.HintAccent, true, false);
+            var arrow = NodeIcons.Image(canvas, "arrowUp", _theme.HintAccent); // turned over: it points down at the plot
             _arrow = arrow.rectTransform;
-            UiKit.Box(_arrow, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(18f, 70f));
+            UiKit.Box(_arrow, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(76f, 76f));
+            _arrow.localRotation = Quaternion.Euler(0f, 0f, 180f);
             _arrow.gameObject.SetActive(false);
 
             _game.Sim.PlotRipened += OnRipened;
@@ -104,8 +106,13 @@ namespace TillWinter.Unity
                 if (_handPlot.HasValue)
                 {
                     if (!_hand.gameObject.activeSelf) _hand.gameObject.SetActive(true);
-                    _hand.anchoredPosition = PlotToCanvas(_handPlot.Value, 0.3f) + new Vector2(30f, -40f + Mathf.Sin(_pulse * 4f) * 14f);
-                    _hand.localScale = Vector3.one * (1f + 0.1f * Mathf.Sin(_pulse * 6f));
+                    _hand.anchoredPosition = PlotToCanvas(_handPlot.Value, 0.3f);
+                    float ripple = _pulse * 0.8f % 1f;
+                    _ripple.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.5f, 1.5f, ripple);
+                    var rippleColor = _theme.HintAccent;
+                    rippleColor.a = 0.5f * (1f - ripple);
+                    _ripple.color = rippleColor;
+                    _handImg.rectTransform.localScale = Vector3.one * (1f + 0.08f * Mathf.Sin(_pulse * 6f));
                     if (_captionGroup.alpha < 0.5f) Say("hint.first_touch", 1f);
                 }
                 bool anyUnderRing = false;

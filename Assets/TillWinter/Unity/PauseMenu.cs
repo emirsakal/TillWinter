@@ -51,7 +51,7 @@ namespace TillWinter.Unity
 
             var safe = UiKit.Rect("PauseSafe", canvas);
             SafeArea.Apply(safe);
-            _pauseButton = UiKit.Button(safe, "PauseButton", "II", 40, _theme.PauseButton, _theme.Text, Open);
+            _pauseButton = UiKit.Button(safe, "PauseButton", "II", UiType.Heading, _theme.PauseButton, _theme.Text, Open);
             UiKit.Box(_pauseButton.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -30f), new Vector2(120f, 100f));
 
             BuildPause(canvas);
@@ -98,7 +98,7 @@ namespace TillWinter.Unity
             _motionButton = Btn(p, "settings.off", ToggleMotion, y, ControlWidth, ControlX);
             _motion = UiKit.ButtonLabel(_motionButton);
             y -= RowHeight - 10f;
-            Text(p, "MotionHint", Strings.Get("settings.reduce_motion_hint"), y, 26, _theme.SheetMuted, TextAnchor.MiddleLeft, 44f);
+            Text(p, "MotionHint", Strings.Get("settings.reduce_motion_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleLeft, 44f);
             y -= 60f;
 
             RowLabel(p, "settings.quality", y);
@@ -123,13 +123,13 @@ namespace TillWinter.Unity
             var fill = UiKit.Panel(reset.transform, "Fill", _theme.SheetInk, true, false);
             _resetFill = fill.rectTransform;
             UiKit.Stretch(_resetFill, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
-            var resetText = UiKit.Label(reset.transform, "Label", Strings.Get("settings.reset"), 38, _theme.SheetButtonText, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var resetText = UiKit.Label(reset.transform, "Label", Strings.Get("settings.reset"), UiType.Heading, _theme.SheetButtonText, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Stretch(resetText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             y -= RowHeight - 10f;
-            Text(p, "ResetHint", Strings.Get("settings.reset_hold"), y, 26, _theme.SheetMuted, TextAnchor.MiddleCenter, 44f);
+            Text(p, "ResetHint", Strings.Get("settings.reset_hold"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 44f);
             y -= 70f;
 
-            _version = Text(p, "Version", "", y, 24, _theme.SheetMuted, TextAnchor.MiddleCenter, 40f);
+            _version = Text(p, "Version", "", y, UiType.Caption, _theme.SheetMuted, TextAnchor.MiddleCenter, 40f);
             y -= 70f;
             Btn(p, "settings.back", () => { SettingsStore.Save(); if (_fromMenu) CloseSheets(); else Show(_pause); }, y);
         }
@@ -138,17 +138,17 @@ namespace TillWinter.Unity
         {
             _credits = Sheet(canvas, "CreditsSheet", "credits.title", 1100f, out var p);
             float y = -160f;
-            Text(p, "MadeBy", Strings.Get("credits.made_by"), y, 44, _theme.SheetInk, TextAnchor.MiddleCenter, 70f).fontStyle = FontStyles.Bold;
+            Text(p, "MadeBy", Strings.Get("credits.made_by"), y, UiType.Heading, _theme.SheetInk, TextAnchor.MiddleCenter, 70f).fontStyle = FontStyles.Bold;
             y -= 90f;
-            Text(p, "Unity", Strings.Get("credits.unity"), y, 32, _theme.SheetInk, TextAnchor.MiddleCenter);
+            Text(p, "Unity", Strings.Get("credits.unity"), y, UiType.Body, _theme.SheetInk, TextAnchor.MiddleCenter);
             y -= 110f;
-            Text(p, "Kenney", Strings.Get("credits.kenney"), y, 32, _theme.SheetInk, TextAnchor.MiddleCenter);
+            Text(p, "Kenney", Strings.Get("credits.kenney"), y, UiType.Body, _theme.SheetInk, TextAnchor.MiddleCenter);
             y -= 70f;
-            Text(p, "KitsArt", Strings.Get("credits.kits_art"), y, 26, _theme.SheetMuted, TextAnchor.MiddleCenter, 110f);
+            Text(p, "KitsArt", Strings.Get("credits.kits_art"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 110f);
             y -= 120f;
-            Text(p, "KitsAudio", Strings.Get("credits.kits_audio"), y, 26, _theme.SheetMuted, TextAnchor.MiddleCenter, 110f);
+            Text(p, "KitsAudio", Strings.Get("credits.kits_audio"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 110f);
             y -= 150f;
-            Text(p, "Font", Strings.Get("credits.font"), y, 30, _theme.SheetInk, TextAnchor.MiddleCenter);
+            Text(p, "Font", Strings.Get("credits.font"), y, UiType.Label, _theme.SheetInk, TextAnchor.MiddleCenter);
             y -= 140f;
             Btn(p, "settings.back", () => Show(_settings), y);
         }
@@ -187,8 +187,8 @@ namespace TillWinter.Unity
         private void BuildStats(RectTransform canvas)
         {
             _stats = Sheet(canvas, "StatsSheet", "stats.title", 1180f, out var p);
-            _statsLabels = Text(p, "Labels", "", -140f, 34, _theme.SheetInk, TextAnchor.UpperLeft, 860f);
-            _statsValues = Text(p, "Values", "", -140f, 34, _theme.SheetInk, TextAnchor.UpperRight, 860f);
+            _statsLabels = Text(p, "Labels", "", -140f, UiType.Body, _theme.SheetInk, TextAnchor.UpperLeft, 860f);
+            _statsValues = Text(p, "Values", "", -140f, UiType.Body, _theme.SheetInk, TextAnchor.UpperRight, 860f);
             _statsValues.fontStyle = FontStyles.Bold;
             _statsLabels.lineSpacing = _statsValues.lineSpacing = 18f;
             Btn(p, "stats.continue", ContinueFromStats, -1040f);
@@ -350,21 +350,22 @@ namespace TillWinter.Unity
             var paper = UiKit.Panel(overlay.transform, "Page", _theme.SheetPaper, true, true);
             page = paper.rectTransform;
             UiKit.Box(page, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(PageWidth, height));
-            Text(page, "Title", Strings.Get(titleKey), -30f, 56, _theme.SheetInk, TextAnchor.MiddleCenter, 90f).fontStyle = FontStyles.Bold;
+            Text(page, "Title", Strings.Get(titleKey), -30f, UiType.Title, _theme.SheetInk, TextAnchor.MiddleCenter, 90f).fontStyle = FontStyles.Bold;
+            overlay.gameObject.AddComponent<SheetTransition>().Page = page; // every sheet opens the same way
             overlay.gameObject.SetActive(false);
             return overlay.gameObject;
         }
 
         private Button Btn(RectTransform page, string key, UnityAction onClick, float y, float width = ButtonWidth, float x = 0f, Color? bg = null)
         {
-            var b = UiKit.Button(page, key, Strings.Get(key), 36, bg ?? _theme.SheetButton, _theme.SheetButtonText, onClick);
+            var b = UiKit.Button(page, key, Strings.Get(key), UiType.Body, bg ?? _theme.SheetButton, _theme.SheetButtonText, onClick);
             UiKit.Box(b.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(x, y), new Vector2(width, RowHeight - 14f));
             return b;
         }
 
         private void RowLabel(RectTransform page, string key, float y)
         {
-            var t = UiKit.Label(page, key, Strings.Get(key), 34, _theme.SheetInk, TextAnchor.MiddleLeft);
+            var t = UiKit.Label(page, key, Strings.Get(key), UiType.Body, _theme.SheetInk, TextAnchor.MiddleLeft);
             UiKit.Box(t.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(LabelX, y), new Vector2(LabelWidth, RowHeight - 14f));
         }
 
