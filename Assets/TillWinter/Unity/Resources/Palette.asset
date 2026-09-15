@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e123f915687187428f0e7e71548fce9, type: 3}
+  m_Name: Palette
+  m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.Palette
+  SoilDry: {r: 0.66, g: 0.52, b: 0.34, a: 1}
+  SoilWet: {r: 0.36, g: 0.24, b: 0.14, a: 1}
+  SoilRing: {r: 0.78, g: 0.58, b: 0.3, a: 1}
+  SoilBlock: {r: 0.45, g: 0.3, b: 0.18, a: 1}
+  Grass: {r: 0.46, g: 0.68, b: 0.36, a: 1}
+  Path: {r: 0.72, g: 0.62, b: 0.46, a: 1}
+  Crop0: {r: 0.95, g: 0.5, b: 0.12, a: 1}
+  Crop1: {r: 0.88, g: 0.16, b: 0.14, a: 1}
+  Crop2: {r: 0.98, g: 0.82, b: 0.2, a: 1}
+  Crop3: {r: 0.95, g: 0.55, b: 0.1, a: 1}
+  Crop4: {r: 0.45, g: 0.2, b: 0.55, a: 1}
+  Crop5: {r: 1, g: 0.85, b: 0.35, a: 1}
+  Golden: {r: 1, g: 0.82, b: 0.25, a: 1}
+  GoldenGlow: {r: 0.9, g: 0.7, b: 0.15, a: 1}
+  Leaf: {r: 0.32, g: 0.62, b: 0.27, a: 1}
+  LeafDark: {r: 0.22, g: 0.46, b: 0.2, a: 1}
+  Sprout: {r: 0.45, g: 0.75, b: 0.3, a: 1}
+  Wood: {r: 0.5, g: 0.34, b: 0.2, a: 1}
+  WoodLight: {r: 0.72, g: 0.54, b: 0.34, a: 1}
+  Stone: {r: 0.6, g: 0.6, b: 0.62, a: 1}
+  Roof: {r: 0.7, g: 0.25, b: 0.2, a: 1}
+  Wall: {r: 0.95, g: 0.9, b: 0.78, a: 1}
+  Metal: {r: 0.75, g: 0.75, b: 0.78, a: 1}
+  Glass: {r: 0.75, g: 0.9, b: 1, a: 1}
+  Flower: {r: 0.95, g: 0.4, b: 0.6, a: 1}
+  Skin: {r: 0.95, g: 0.8, b: 0.65, a: 1}
+  Cloth0: {r: 0.9, g: 0.78, b: 0.4, a: 1}
+  Cloth1: {r: 0.85, g: 0.35, b: 0.3, a: 1}
+  Cloth2: {r: 0.35, g: 0.6, b: 0.85, a: 1}
+  Cloth3: {r: 0.5, g: 0.75, b: 0.35, a: 1}
+  Cloth4: {r: 0.75, g: 0.45, b: 0.8, a: 1}
+  Cloth5: {r: 0.95, g: 0.6, b: 0.2, a: 1}
+  Hat: {r: 0.9, g: 0.78, b: 0.4, a: 1}
+  Water: {r: 0.4, g: 0.65, b: 0.95, a: 1}
+  Snow: {r: 0.93, g: 0.95, b: 1, a: 1}
+  Cloud: {r: 0.62, g: 0.66, b: 0.72, a: 1}
+  Crow: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+  Beak: {r: 0.95, g: 0.65, b: 0.15, a: 1}
+  Eye: {r: 1, g: 1, b: 1, a: 1}

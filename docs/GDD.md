@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 1.3 - September 2026 (1.2 + Session 3 clarifications, marked *(v1.3)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 1.5 - September 2026 (through Session 9's release-candidate ending and balance pass, marked *(v1.4)*/*(v1.5)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -26,7 +26,7 @@ A short, finite, mobile incremental farming game. You drag a ring over a field; 
 
 ### 2.1 The ring
 - The player holds/drags anywhere on the field. A ring (radius in plot units) follows the pointer, offset **0.8 plots toward the top of the screen** (tested in the demo; keep).
-- Every plot whose centre is inside the ring is processed **independently and in parallel** according to its own state (see 2.2). There is no "mode"; the ring does whatever each plot needs.
+- Every plot whose centre is inside the ring is processed **independently and in parallel** according to its own state (see 2.2). There is no "mode"; the ring does whatever each plot needs. *(v1.4)* Watering and growing stay parallel, but the ring **harvests one Ripe plot at a time** (the one furthest along, ties to the plot nearest the ring centre); other Ripe plots under the ring wait or go to the helpers. A big ring stays a big watering can while the late-game harvest shifts to apprentices and the tractor.
 - Tapping (down+up < 0.2 s, < 20 px) targets the plot under the finger with no offset: scares a crow, and counts as a one-frame ring.
 - Ring radius: starts **0.7** (covers one plot, barely touches neighbours), **+0.25** per Almanac level, max **2.5**.
 
@@ -37,7 +37,7 @@ Each plot holds a crop of a given **tier** and is in one of three states. Harves
 |---|---|---|
 | **Dry → Wet** (watering) | progresses at ring water speed | *Irrigation* waters Dry plots slowly |
 | **Wet → Ripe** (growing) | progresses at ring grow speed × soil | *Sun* grows Wet plots slowly (never Dry ones) |
-| **Ripe → harvested** (harvest) | progresses at ring harvest speed; on completion coins pop | *Apprentices* walk to Ripe plots and harvest |
+| **Ripe → harvested** (harvest) | progresses at ring harvest speed, one plot at a time *(v1.4)*; on completion coins pop | *Apprentices* walk to Ripe plots and harvest |
 
 Rules:
 - Each state has its own progress 0..1. Ring rate replaces (does not stack with) the passive rate while the plot is under the ring. *(v1.1)* Passive rates are fractions of the crop's *base* speed (Hand-branch ring upgrades do not speed up Irrigation/Sun); Soil multiplies growing only. Progress resets to 0 on each state change.
@@ -50,7 +50,7 @@ Times are seconds under the ring at level 0. Value is coins per harvest. *(tune)
 
 | Tier | Crop | Water | Grow | Harvest | Value |
 |---|---|---|---|---|---|
-| 0 | Carrot | 1.0 | 1.5 | 0.5 | 1 |
+| 0 | Carrot | 1.0 | 1.5 | 0.5 | 2.3 *(v1.4, was 1)* |
 | 1 | Tomato | 1.5 | 3.5 | 0.5 | 4 |
 | 2 | Corn | 2.0 | 6.0 | 0.7 | 12 |
 | 3 | Pumpkin | 3.0 | 10 | 1.0 | 35 |
@@ -142,7 +142,7 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
 
 ## 7. Heritage (rebirth)
 
-- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation.
+- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). *(v1.4)* Balance pass: `HeritageThreshold` = 3 000, `SeedDivisor` = 30 (3 000 coins = 10 seeds), so the first retire lands in year 6–8. Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation.
 - **Reset:** coins, plots (3×3, tier 0), Almanac levels, helpers, year counter → 1.
 - **Kept:** Heritage tree, generation counter, statistics, cosmetics.
 - **Heritage Seeds** = `floor( sqrt(lifetimeCoinsThisGeneration / K) )` with K *(tune)* so the first rebirth yields ~10 seeds. Shown on the Almanac screen as "seeds if you retire now", so the decision is visible every winter.
@@ -159,7 +159,14 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
 
 ## 8. Ending
 
-When every Heritage node is maxed, the next year is the **Golden Year**: the field is 6×6 Golden Wheat, no frost, a longer year, credits after it. Stats screen: generations, years, coins, crows scared. The game can be continued after but nothing new unlocks.
+When every Heritage node is maxed, starting the next generation begins the **Golden Year**
+*(v1.4)*: the field is 6×6 Golden Wheat (all golden), no crows, no frost, a 300 s year
+(`FarmConfig.GoldenYearSeconds`), golden season look. At its Winter the field returns to the
+normal starting size and `EndingSeen` is set once; the ending does not repeat on later
+generations. Credits roll next (skippable after 3 s, 24 s total), then a statistics sheet
+(generations, years, coins, per-source harvests, crows scared, best combo, time played), then the
+normal Winter screen underneath. The Heritage tree title shows "Complete". The game continues
+after, but nothing new unlocks.
 
 ---
 
@@ -172,11 +179,11 @@ When every Heritage node is maxed, the next year is the **Golden Year**: the fie
 
 ## 10. Screens
 
-1. **Farm** — field, ring, HUD (coins, year, season bar with frost segment, seeds-on-retire hint after threshold). No bottom bar during the year.
-2. **Almanac** (Winter) — tree canvas, node detail card, "Next Year" and "Pass on the farm" buttons.
-3. **Heritage** — after rebirth, before Spring of the new generation; also viewable from the pause menu.
+1. **Farm** — field, ring, HUD. *(v1.3, Session 5)* HUD (`HudView`, every colour/spacing from `HudTheme`): coins big and centred with a punch on change, "Year N · Gen G" small underneath, a four-segment season bar (Spring/Summer/Autumn/Winter) filling left-to-right with a frost span and the season name fading in at each boundary, a combo "xN" readout from combo ≥ 2, and a seed chip "Retire now: N seeds" once `CanRetire`. Safe area is applied to the HUD only on mobile platforms (editor `Screen.safeArea` is unreliable). No bottom bar during the year.
+2. **Almanac** (Winter) — tree canvas (`SkillTreeView` + `TreeTheme`), node detail card, "Next Year" and "Pass on the farm" buttons. A "Heritage" tab in the Winter top bar opens the Heritage tree without leaving Winter.
+3. **Heritage** — *(v1.3, Session 5)* the same `SkillTreeView` shown full screen, themed by a second asset (`HeritageTheme`: deep green paper, gold accents, seed currency, darker branch colours, tighter initial zoom so all five branches fit). Reached after rebirth (Retire on the farm -> confirm dialog -> `Retire()` -> a full-screen **Generation card**: "Generation N", one flavour line, seeds counting up, skip after 0.5 s / auto-continue at 6 s -> Heritage screen), before Spring of the new generation; also reachable as the Winter tab above. Starting the new generation reveals plots one by one bottom-left to top-right, clears snow, and pops in generation-appropriate decor (`FarmDecorSet`/`FarmDecorView`, data-driven, `MinGeneration`-gated). Pan/zoom is remembered per tree (Almanac and Heritage separately) across sessions.
 4. **Pause / Settings** — language, sound, haptics, reset save, credits. Last.
-5. **Onboarding** — no tutorial screen. Year 1: a hand icon pulses on a Dry plot; first Winter: the Almanac highlights `ring_radius` and `irrigation`. That's all.
+5. **Onboarding** — no tutorial screen; a `Hint` enum + `OnboardingFlags` in Core make every hint fire once and only once, saved. *(v1.3, Session 5)* Shipped hints: first touch on a Dry plot (pulsing hand + hold caption), first Ripe plot outside the ring, first frost warning, first crow; first Winter (the tree centres on `ring_radius`/`irrigation` with a pulse and caption until the first purchase); the first time `CanRetire` (a one-time explanatory sheet); first entry to Heritage ("Seeds never reset."). Hints never block input. **While-you-were-away card** (`AwayCard`, shown on resume when offline sim earned coins): duration in h/min, total coins, a line per source (apprentices, tractor), a note when capped at the 8 h offline cap; the HUD coin counter withholds the earned coins (`HudView.HeldCoins`) until the card is dismissed.
 
 ---
 
@@ -185,14 +192,76 @@ When every Heritage node is maxed, the next year is the **Golden Year**: the fie
 - 2.5D: orthographic camera ~40° tilt, portrait, flat/toon shading, no textures.
 - Plot states must read at a glance: Dry = cracked light brown; Wet = dark soil + sprout; growing = scaling plant; Ripe = wobble + warm emissive.
 - Seasons via one directional light, ambient colour, colour-adjust volume; frost/winter vignette; snow.
-- Asset decision (after core is done): (a) Kenney CC0 low-poly kits, or (b) authored primitives in a consistent "toy farm" style. Paid packs only if cheap. Licenses live in the repo.
 - Feel checklist: harvest pop + coin arc to counter + counter punch; wet splash on watering; sprout pop on Wet; crow flap; purchase punch; node-unlock burst on the tree; season lerps 1.5 s.
+
+*(v1.5, Session 7)* Feel checklist shipped: watering splash + soil ripple, sprout pop entering
+growing, ripe sparkle + emission glow pulse, ring harvest burst scaled by tier with 3-8 coins by
+value and counter punch (ring only; helpers get fewer coins + a tick), golden harvest (bigger gold
+burst, gold coins, 60 ms 10% white flash, 0.15 s camera micro-shake, Medium haptic, own clip),
+combo "xN" floater with ring glow/pulse scaling and fade on break, crow feathers on land/scare +
+soil puff on eat, tractor exhaust + dust, apprentice step dust + footsteps, field-expansion pops
+only the new plots, season ambience (petals/leaves/snow) cross-faded by `SeasonPresenter`, frost
+edge overlay + Light haptic at warning start, winter chime + retire swell ducking SFX -6 dB for
+1 s, retire swell + Heavy haptic + camera shake + snow burst, new-generation clip + melt sparkle.
+Camera shake is reserved for golden harvest and retire only. One pooled particle prefab per
+`VfxId` (`VfxCatalog`, Resources) built by `FeelSetup`/`feel-setup.bat` from specs (TW_Toon white
+material, `Palette` colours applied at boot), played only through `VfxPlayer` (no runtime
+Instantiate). Every repeatable trigger is rate-limited (`TillWinter.Core.Feel.RateLimiter`, token
+bucket per id): over-budget requests merge into the next allowed trigger at higher intensity
+instead of being dropped or queued unbounded. Haptics (`Haptics`: Light/Medium/Heavy/Selection) go
+through Android `Vibrator`/`VibrationEffect` or the iOS `TillWinterHaptics.mm` plugin, gated by a
+settings flag (`SettingsData.HapticsEnabled`, `settings.json`, separate file from the save).
+Measured budget (6x6, 6 apprentices, tractor sweeping, ring centred, plots forced Ripe every ~20
+frames for 5 s): peak 13 active particle systems (<=20), 0 bytes allocated by 400
+`VfxPlayer.Play`/`AudioManager.Play` calls; render stats unchanged from Session 6.
+
+*(v1.4, Session 6)* Asset decision resolved per-asset rather than kit-vs-primitives wholesale:
+Kenney CC0 kits (Nature Kit, Food Kit, Mini Characters, Game Icons — stripped to only the files
+used, licenses in `Assets/Art/LICENSES.md`) for crops, trees/decor, apprentices and node icons;
+everything the kits don't cover (houses, well, windmill, greenhouse, tractor, crow, cloud, plot,
+path tile, signpost, flowerbed, trellis) is built from primitives, generated into prefabs by
+`ArtSetup`/`art-setup.bat` rather than at runtime. Every spawned object comes from one
+`VisualCatalog` (Resources) through `VisualCatalog.Spawn`.
+
+Look is unified by one hand-written URP shader, `TW_Toon` (flat two-step ramp, vertex-colour x
+tint, optional emission, snow lerp, GPU instancing) plus `TW_Sky` for the diorama backdrop — Shader
+Graph's file format proved unreliable to author from code, so these are HLSL text. One material
+per `PaletteSlot` keeps identical meshes GPU-instanced; `Palette` (Resources) pushes colours into
+those materials at boot, and per-object variation (plot Dry/Wet/ring soil, golden emission, ring
+lift) goes through `PaletteBinder` + a `MaterialPropertyBlock` per renderer instead of extra
+materials. `SeasonPalette` (Resources) holds per-season light, ambient, fog, grass/leaf tint, sky
+and snow amount; `SeasonPresenter` lerps between them (1.5 s) and drives snow/tint as shader
+globals, so Winter recolours everything through the shader with no mesh swaps. The diorama
+(`DioramaView`) builds the soil block, path, fence and farmhouse (small/medium/large by
+generation) around the field from the same catalogue. The ring stays a textured decal-style disc
+(URP decal projectors did not render correctly on the orthographic camera in this project).
+
+Quality tiers (`QualityTiers`): Low (no shadows, no post) auto-selected on mobile devices under
+3 GB RAM / 1 GB VRAM, Default (soft shadows + colour volume) otherwise; a debug-panel toggle
+overrides it. Measured draw-call budgets (Editor Game view, 1080x2340): 3x3 generation 1 is 45
+batches / 67 draw calls / 4.7k triangles; 6x6 generation 3 with seven apprentices and the tractor
+is 106 batches / 142 draw calls / 27.8k triangles, against a smoke-test budget of <=150 batches /
+<=60k triangles.
 
 ---
 
 ## 12. Audio
 
 Kenney CC0 (Impact Sounds, UI Audio) plus generated fallbacks. Needed: water splash, sprout, harvest pop, coin arrive, crow caw, crow scared, frost tick, winter chime, node buy, rebirth swell, rain. Light ambient loop per season is optional and last.
+
+*(v1.5, Session 7)* Shipped with no generated fallback: `SfxTable` maps every `SfxId` to one of 38
+Kenney CC0 clips across Impact Sounds, Interface Sounds, RPG Audio and UI Audio
+(`Assets/Audio/Kenney/Resources/Kenney`, licences next to the clips + `Assets/Audio/LICENSES.md`
+index). Casual Game Sounds could not be resolved for download this session, so it was not used;
+none of the packs used contain a wind/birds loop, so the optional season ambience loop is not
+implemented (and was not synthesised, per the session brief). `AudioManager` runs 8 voices max
+(steals the voice ending soonest), rate-limits and merges repeats per id, pitches the harvest pop
++2% per combo step (capped +30%), and picks a value-scaled coin clip (richer variant at tier >= 3
+or golden); `Duck()` lowers SFX under a chime/swell. Routing is
+`Resources/TillWinterMixer` (Master/SFX/Ambience groups, exposed `MasterVolume`/`SfxVolume`/
+`AmbienceVolume`), built by `FeelSetup` through the editor's internal `AudioMixerController` API
+via reflection (no public API creates mixer groups from code). Volumes and the haptics toggle live
+in `SettingsData`/`SettingsStore` (`settings.json`), independent of the save schema.
 
 ---
 
@@ -206,6 +275,7 @@ Kenney CC0 (Impact Sounds, UI Audio) plus generated fallbacks. Needed: water spl
 - Target: iPhone 12 and mid/low-range Android at 60 fps; min iOS 15, min Android API 24 *(verify at build time)*.
 - Presentation for the full game moves from "everything built in code" to scene-authored prefabs and TextMeshPro once the visual phase starts; the demo's code-built approach is fine until then.
 - *(v1.3)* Balance is tuned from `balance-sim.bat` tables (headless `AutoPlayer`), not from reasoning; every session that changes a rule re-runs it.
+- *(v1.6, Session 8)* Shipped build setup: `BuildPipeline.cs` applies all Player Settings idempotently (product/company/bundle id, portrait-only, IL2CPP, .NET Standard 2.1, managed stripping Medium + `link.xml`); version/build numbers move only through it. Min Android API is 25, not 24 — Unity 6000.3 rejects 24. Android signs from four env vars for one build only (never in ProjectSettings); iOS signing/archiving is manual in Xcode. `TW_DEBUG` is a per-build define (`-dev` flag), never a persistent one; `release-compile-check.bat` guards against debug code leaking into a release build. Device auto quality tiers (`QualityTiers`) and `FarmConfig.OfflineMinSeconds` (60 s) are the two new runtime systems. Icon/splash render from the game's own art via `IconRenderer`. See `DECISIONS.md` Session 8 for the full rationale and measured numbers.
 
 ---
 
@@ -225,4 +295,41 @@ Every session ends with: tests green, PR opened, developer plays, feedback to de
 
 ## 15. Tuning log
 
-Empty. Entries added per playtest: date, what felt wrong, value before → after.
+Entries added per playtest: date, what felt wrong, value before → after.
+
+**2026-09-16 — Session 9 balance pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer` plays to the ending, seeds 1–5, averaged).
+
+Targets: year-1 coins enough for at least one root node; first apprentice and first `CanRetire`
+early enough to teach the loop inside the first few years; no finite node above 35% of a
+generation's coins; the ring should not be the only harvest source once helpers are affordable.
+
+Values changed:
+
+| Value | Before | After |
+|---|---|---|
+| Carrot value | 1 | 2.3 |
+| HeritageThreshold | 5000 | 3000 |
+| SeedDivisor | 50 | 30 |
+| Almanac growth — Hand | 1.6 | 1.6 (unchanged) |
+| Almanac growth — Soil | 1.6 | 1.6 (unchanged) |
+| Almanac growth — Calendar | 1.6 | 1.6 (unchanged) |
+| Almanac growth — Field | 1.6 | 1.18 |
+| Almanac growth — Helpers | 1.6 | 1.25 |
+| Heritage growth (all branches) | 1.5 | 1.8 |
+| Ring harvest (§2.1) | all Ripe plots under the ring harvest together | *(v1.4)* one Ripe plot at a time (furthest along, ties nearest centre); watering/growing still applies to every plot under the ring in parallel |
+
+Results (average of seeds 1–5, `AutoPlayer` to the ending):
+
+| Metric | Before | After |
+|---|---|---|
+| Year-1 coins | 29 (no root node affordable) | 67 (exactly one root node) |
+| First apprentice, year | 7 | 3.8 (seeds: 4, 4, 3, 4, 4) |
+| First `CanRetire`, year | 16 | 8 |
+| Seeds at first retire | 10 | 10.2 |
+| Generations to max Heritage | 6 (new retire rule) / 34 (old flat 10-seed rule) | 6 |
+| Time to ending | 11.4 h | 6.39 h (6.40 / 6.36 / 6.41 / 6.36 / 6.42) |
+| Ring share — year 1 / first retire / gen 4 | 100% / 83% / 68% | 100% / 55% / 28% |
+| Largest node share | 98% (`upgrade_plot`) | 18% (`apprentice_count`, gen 1) finite nodes; `upgrade_plot` (open-ended) 86–96% |
+
+Ring share at first retire averages 55% across seeds (seed 4: 57%).

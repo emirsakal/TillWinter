@@ -18,10 +18,21 @@ namespace TillWinter.Unity
         public int Seed = 12345;
         [Tooltip("Plots the ring is pushed toward the top of the screen so the finger does not cover it.")]
         public float RingOffsetPlots = 0.8f;
+        [Tooltip("EN string table (Assets/TillWinter/Unity/Localization/en.json).")]
+        public TextAsset StringTable;
+        [Tooltip("TR string table (Assets/TillWinter/Unity/Localization/tr.json).")]
+        public TextAsset StringTableTr;
 
         private void Awake()
         {
-            Application.targetFrameRate = 60;
+            AppLifecycle.MarkBootStart();
+            Application.targetFrameRate = AppLifecycle.YearFps; // 30 while the Winter screen is open (AppLifecycle)
+            Screen.sleepTimeout = SleepTimeout.SystemSetting;
+#if !TW_DEBUG && !UNITY_EDITOR
+            Debug.unityLogger.logEnabled = false; // release builds log nothing
+#endif
+            Time.timeScale = 1f; // a reload from the pause menu (language, reset) starts unpaused
+            GameLanguage.Apply(GameLanguage.Resolve(SettingsStore.Current.Language, Application.systemLanguage), StringTable, StringTableTr);
             var config = ConfigAsset != null ? ConfigAsset.Config : new FarmConfig();
 
             var root = new GameObject("TillWinter");
@@ -58,49 +69,72 @@ namespace TillWinter.Unity
             audio.transform.SetParent(root.transform, false);
             audio.Init();
 
-            var fx = new GameObject("Fx").AddComponent<FxManager>();
+            var fx = new GameObject("Vfx").AddComponent<VfxPlayer>();
             fx.transform.SetParent(root.transform, false);
-            fx.Init();
+            fx.Init(VfxCatalog.Load()); // pools pre-warmed here; nothing instantiates during play
+            var _ = SettingsStore.Current; // settings.json (haptics, volumes) read once at boot
+
+            // Everything visual comes from the catalogue (Resources/VisualCatalog, built by art-setup.bat).
+            var catalog = VisualCatalog.Load();
+            Palette.Load().ApplyToMaterials(catalog.SlotMaterials);
 
             var season = new GameObject("Season").AddComponent<SeasonPresenter>();
             season.transform.SetParent(root.transform, false);
-            season.Init(game);
+            season.Init(game, camRig.Cam, catalog, fx);
+            QualityTiers.Init(season.Sun, camRig.Cam);
+
+            var diorama = new GameObject("Diorama").AddComponent<DioramaView>();
+            diorama.transform.SetParent(root.transform, false);
+            diorama.Init(game, catalog);
 
             var field = new GameObject("Field").AddComponent<FieldView>();
             field.transform.SetParent(root.transform, false);
-            field.Init(game, camRig, fx, audio);
+            field.Init(game, camRig, fx, audio, catalog);
 
             var ring = new GameObject("Ring").AddComponent<RingView>();
             ring.transform.SetParent(root.transform, false);
-            ring.Init(game);
+            ring.Init(game, catalog);
 
             var apprentices = new GameObject("Apprentices").AddComponent<ApprenticesView>();
             apprentices.transform.SetParent(root.transform, false);
-            apprentices.Init(game);
+            apprentices.Init(game, catalog);
 
             var cloud = new GameObject("Cloud").AddComponent<CloudView>();
             cloud.transform.SetParent(root.transform, false);
-            cloud.Init(game, fx, audio);
+            cloud.Init(game, fx, audio, catalog);
             var tractor = new GameObject("Tractor").AddComponent<TractorView>();
             tractor.transform.SetParent(root.transform, false);
-            tractor.Init(game);
+            tractor.Init(game, catalog, fx, audio);
             var greenhouse = new GameObject("Greenhouse").AddComponent<GreenhouseView>();
             greenhouse.transform.SetParent(root.transform, false);
-            greenhouse.Init(game, fx);
+            greenhouse.Init(game, fx, catalog);
 
             var crows = new GameObject("Crows").AddComponent<CrowsView>();
             crows.transform.SetParent(root.transform, false);
-            crows.Init(game, fx, audio);
+            crows.Init(game, fx, audio, catalog);
 
             var canvas = BuildCanvas(root.transform);
             var hud = canvas.gameObject.AddComponent<HudView>();
             hud.Init(game, audio, canvas);
-            var shop = canvas.gameObject.AddComponent<WinterShopView>();
+            var shop = canvas.gameObject.AddComponent<WinterScreen>();
             shop.Init(game, audio, canvas);
             var away = canvas.gameObject.AddComponent<AwayCard>();
-            away.Init(game, audio, canvas);
+            away.Init(game, audio, canvas, hud);
+            var onboarding = canvas.gameObject.AddComponent<OnboardingView>();
+            onboarding.Init(game, canvas);
+            var pause = canvas.gameObject.AddComponent<PauseMenu>();
+            pause.Init(game, audio, canvas, save);
+            var ending = canvas.gameObject.AddComponent<EndingView>();
+            ending.Init(game, canvas, pause);
+#if TW_DEBUG || UNITY_EDITOR
             var debug = canvas.gameObject.AddComponent<DebugPanel>();
             debug.Init(game, audio, canvas, save, away);
+            pause.DeveloperToggle = debug.Toggle;
+#endif
+            canvas.gameObject.AddComponent<BootFade>().Init(canvas); // no loading text: the diorama fades in
+            var lifecycle = root.AddComponent<AppLifecycle>();
+            lifecycle.Init(game, audio, away, shop);
+            AppLifecycle.MarkBootEnd();
             if (game.State.Phase != Phase.Year) shop.Open();
             if (offline.CoinsEarned > 0) away.Show(offline);
         }

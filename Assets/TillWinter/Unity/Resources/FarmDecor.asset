@@ -1,0 +1,134 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4cc6327fb9554d44ba37f736e289b878, type: 3}
+  m_Name: FarmDecor
+  m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.FarmDecorSet
+  Items:
+  - Id: well
+    Kind: 2
+    MinGeneration: 2
+    Offset: {x: -1.4, y: 1.1}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 1701976881782183394, guid: f9cbc9a086177d541b2fa6c7a51462c3, type: 3}
+  - Id: tree_gate
+    Kind: 0
+    MinGeneration: 3
+    Offset: {x: 1.5, y: 1.3}
+    Rotation: 20
+    Scale: 1.1
+    Prefab: {fileID: 1981531070444006846, guid: 15cc09e4f4f40984797b9dae46ff779f, type: 3}
+  - Id: fence_left_a
+    Kind: 1
+    MinGeneration: 4
+    Offset: {x: -1.3, y: -0.6}
+    Rotation: 90
+    Scale: 1
+    Prefab: {fileID: 3381929025993582957, guid: 91b9ee8fe827502459fb75aeb143693b, type: 3}
+  - Id: fence_left_b
+    Kind: 1
+    MinGeneration: 4
+    Offset: {x: -1.3, y: 0.2}
+    Rotation: 90
+    Scale: 1
+    Prefab: {fileID: 3381929025993582957, guid: 91b9ee8fe827502459fb75aeb143693b, type: 3}
+  - Id: fence_right_a
+    Kind: 1
+    MinGeneration: 4
+    Offset: {x: 1.3, y: -0.6}
+    Rotation: 90
+    Scale: 1
+    Prefab: {fileID: 3381929025993582957, guid: 91b9ee8fe827502459fb75aeb143693b, type: 3}
+  - Id: fence_right_b
+    Kind: 1
+    MinGeneration: 4
+    Offset: {x: 1.3, y: 0.2}
+    Rotation: 90
+    Scale: 1
+    Prefab: {fileID: 3381929025993582957, guid: 91b9ee8fe827502459fb75aeb143693b, type: 3}
+  - Id: log_stack
+    Kind: 10
+    MinGeneration: 5
+    Offset: {x: -1.5, y: 0.9}
+    Rotation: 15
+    Scale: 1
+    Prefab: {fileID: 7182601372652008090, guid: 273ee5ba2397351448602acb66464e9b, type: 3}
+  - Id: rock_a
+    Kind: 9
+    MinGeneration: 5
+    Offset: {x: 1.5, y: -1.1}
+    Rotation: 30
+    Scale: 1
+    Prefab: {fileID: 2549787259956770175, guid: dbb0fd5c3a7489c409f1f5b45d7e630a, type: 3}
+  - Id: windmill
+    Kind: 4
+    MinGeneration: 6
+    Offset: {x: 1.1, y: 1.9}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 5176114656034666083, guid: f00e4805f6f9e914ead2e6b26fc25b6e, type: 3}
+  - Id: tree_line_a
+    Kind: 0
+    MinGeneration: 7
+    Offset: {x: -1.7, y: 1.8}
+    Rotation: 0
+    Scale: 0.9
+    Prefab: {fileID: 5671039337369042609, guid: deb9072bc77087a4fafc1ff6e60eb891, type: 3}
+  - Id: tree_line_b
+    Kind: 0
+    MinGeneration: 7
+    Offset: {x: -1.1, y: 2}
+    Rotation: 40
+    Scale: 1
+    Prefab: {fileID: 3054763249349502027, guid: 630ea41a29aa5c6409aa5afa3b49ba96, type: 3}
+  - Id: tree_line_c
+    Kind: 0
+    MinGeneration: 7
+    Offset: {x: 1.7, y: 2}
+    Rotation: 70
+    Scale: 0.95
+    Prefab: {fileID: 2428296597905560978, guid: bd223ad39fc1a5d4b9d15be46a98ed7c, type: 3}
+  - Id: signpost
+    Kind: 5
+    MinGeneration: 8
+    Offset: {x: 1.6, y: -0.9}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 2514486550181099406, guid: 6b01ad0cd487a234cbba75dc7bb36bf6, type: 3}
+  - Id: flowerbed
+    Kind: 6
+    MinGeneration: 8
+    Offset: {x: -1.6, y: -1}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 2533756143417246582, guid: 391749862c29bee469e87212659786d9, type: 3}
+  - Id: barrels
+    Kind: 7
+    MinGeneration: 9
+    Offset: {x: 1.9, y: 1.2}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 8835124575135895719, guid: ecc359634e10fee48b0f8ea5b7bfc162, type: 3}
+  - Id: mushrooms
+    Kind: 11
+    MinGeneration: 9
+    Offset: {x: -1.9, y: -1.3}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 5834923060120892947, guid: 2ed2e08698f8e724e9b02b948a058105, type: 3}
+  - Id: bush_gate
+    Kind: 8
+    MinGeneration: 10
+    Offset: {x: 1.7, y: 0.2}
+    Rotation: 0
+    Scale: 1
+    Prefab: {fileID: 4769301113215289486, guid: 16584717cca07b74792c934ef37c6051, type: 3}

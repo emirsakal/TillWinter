@@ -65,6 +65,9 @@ namespace TillWinter.Unity
 
         public void SaveNow()
         {
+#if UNITY_EDITOR || TW_DEBUG
+            FrameAlloc.IgnoreThisFrame(); // JsonUtility allocates by design; saves are events, not per-frame work
+#endif
             if (!_hooked || _game == null || _game.Sim == null) return;
             try
             {
@@ -137,6 +140,9 @@ namespace TillWinter.Unity
                 return null;
             }
         }
+
+        /// <summary>Reset save: stop every save trigger so nothing writes the old farm back before the reload.</summary>
+        public void Detach() => _hooked = false;
 
         public void DeleteSave()
         {

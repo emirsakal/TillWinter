@@ -1,0 +1,156 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: NodeIcons
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings: []
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+      enableAlphaDilation: 0
+    secondaryTextureSettings: {}
+    variantMultiplier: 1
+    packables:
+    - {fileID: 102900000, guid: 086ba9d6a627eb043af02b4446a04292, type: 3}
+    bindAsDefault: 1
+    isAtlasV2: 0
+    cachedData: {fileID: 0}
+    packedSpriteRenderDataKeys:
+    - 15b63b505f38baf4ea07589693488c67: 21300000
+    - a47bae607c8607e4f862db67cfa35881: 21300000
+    - de5381d0af7037342a257dcda95f55f2: 21300000
+    - c5ad26e0ba5605a4e8d8914f506540c8: 21300000
+    - 96c2b0913d1d68845a72c63b54a1aa50: 21300000
+    - c38f58f2f00e9c742a4510d5241e4186: 21300000
+    - feec44a3b574a8844bceeea5a184cfd1: 21300000
+    - 8d40e7a3324c9c349a1cfe623dae7d6f: 21300000
+    - e394e6148adabbe419060bc368124a81: 21300000
+    - bc539634c0d003e45b5d594f081ad41e: 21300000
+    - 61fa775498c3fc347898d52f3a52fe82: 21300000
+    - 69a75f35801cf2a459fa403b0832632e: 21300000
+    - badd2085deb1f5f40a3ca0e1f1225c70: 21300000
+    - 122505b5167da9743b06550b6d55dbef: 21300000
+    - 353d69f72f964f74c90df3983e567c14: 21300000
+    - 7d4a2e28afacd264889d894982fbdc7e: 21300000
+    - cae36529e7d98984bb63df35c22fa6c4: 21300000
+    - e56a042a94d1aa047bdfab8699188005: 21300000
+    - 8c8da62a9ed74114588e383b9fee49d3: 21300000
+    - 92b5d13aca470d644b0482f4a2885e67: 21300000
+    - f4906d3a05f3c114da87e63dc00e2c58: 21300000
+    - 771f336a379e93540a378d6bdfca5f74: 21300000
+    - 24f1edaad38889d4a862157ee8e12473: 21300000
+    - 3cf362bab5453554bbd95a9cf44814ca: 21300000
+    - bbd7b8dadb2611e4a85d965f04dab409: 21300000
+    - ed8f3c5bcaa1d68479597beae4eb5ffb: 21300000
+    - e989f67b8280fd54f808ab45b5dfee7f: 21300000
+    - c652a80c78043204fb5c76882b8ec006: 21300000
+    - 5207badd30dc4414393750e1ef52e0cc: 21300000
+    - b8d1570e4ef643845896d5f425df66a1: 21300000
+    - 8271704e78cdbda44af288cef8cc75f9: 21300000
+    - 16c5258ee145848428a943159bc871ea: 21300000
+    - fe390aaec19a08040b89cca0e7fe38d5: 21300000
+    - 936cbafeadf3dac40b9bda86b6f22be8: 21300000
+    - fddd132fbc467f24c8e9aa00984cbe17: 21300000
+    - 7baeb82f3a63ff54fb398d14db8f8134: 21300000
+    - dc7d66afdfb11c740961d695f45a734d: 21300000
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: 21300000, guid: 15b63b505f38baf4ea07589693488c67, type: 3}
+  - {fileID: 21300000, guid: a47bae607c8607e4f862db67cfa35881, type: 3}
+  - {fileID: 21300000, guid: de5381d0af7037342a257dcda95f55f2, type: 3}
+  - {fileID: 21300000, guid: c5ad26e0ba5605a4e8d8914f506540c8, type: 3}
+  - {fileID: 21300000, guid: 96c2b0913d1d68845a72c63b54a1aa50, type: 3}
+  - {fileID: 21300000, guid: c38f58f2f00e9c742a4510d5241e4186, type: 3}
+  - {fileID: 21300000, guid: feec44a3b574a8844bceeea5a184cfd1, type: 3}
+  - {fileID: 21300000, guid: 8d40e7a3324c9c349a1cfe623dae7d6f, type: 3}
+  - {fileID: 21300000, guid: e394e6148adabbe419060bc368124a81, type: 3}
+  - {fileID: 21300000, guid: bc539634c0d003e45b5d594f081ad41e, type: 3}
+  - {fileID: 21300000, guid: 61fa775498c3fc347898d52f3a52fe82, type: 3}
+  - {fileID: 21300000, guid: 69a75f35801cf2a459fa403b0832632e, type: 3}
+  - {fileID: 21300000, guid: badd2085deb1f5f40a3ca0e1f1225c70, type: 3}
+  - {fileID: 21300000, guid: 122505b5167da9743b06550b6d55dbef, type: 3}
+  - {fileID: 21300000, guid: 353d69f72f964f74c90df3983e567c14, type: 3}
+  - {fileID: 21300000, guid: 7d4a2e28afacd264889d894982fbdc7e, type: 3}
+  - {fileID: 21300000, guid: cae36529e7d98984bb63df35c22fa6c4, type: 3}
+  - {fileID: 21300000, guid: e56a042a94d1aa047bdfab8699188005, type: 3}
+  - {fileID: 21300000, guid: 8c8da62a9ed74114588e383b9fee49d3, type: 3}
+  - {fileID: 21300000, guid: 92b5d13aca470d644b0482f4a2885e67, type: 3}
+  - {fileID: 21300000, guid: f4906d3a05f3c114da87e63dc00e2c58, type: 3}
+  - {fileID: 21300000, guid: 771f336a379e93540a378d6bdfca5f74, type: 3}
+  - {fileID: 21300000, guid: 24f1edaad38889d4a862157ee8e12473, type: 3}
+  - {fileID: 21300000, guid: 3cf362bab5453554bbd95a9cf44814ca, type: 3}
+  - {fileID: 21300000, guid: bbd7b8dadb2611e4a85d965f04dab409, type: 3}
+  - {fileID: 21300000, guid: ed8f3c5bcaa1d68479597beae4eb5ffb, type: 3}
+  - {fileID: 21300000, guid: e989f67b8280fd54f808ab45b5dfee7f, type: 3}
+  - {fileID: 21300000, guid: c652a80c78043204fb5c76882b8ec006, type: 3}
+  - {fileID: 21300000, guid: 5207badd30dc4414393750e1ef52e0cc, type: 3}
+  - {fileID: 21300000, guid: b8d1570e4ef643845896d5f425df66a1, type: 3}
+  - {fileID: 21300000, guid: 8271704e78cdbda44af288cef8cc75f9, type: 3}
+  - {fileID: 21300000, guid: 16c5258ee145848428a943159bc871ea, type: 3}
+  - {fileID: 21300000, guid: fe390aaec19a08040b89cca0e7fe38d5, type: 3}
+  - {fileID: 21300000, guid: 936cbafeadf3dac40b9bda86b6f22be8, type: 3}
+  - {fileID: 21300000, guid: fddd132fbc467f24c8e9aa00984cbe17, type: 3}
+  - {fileID: 21300000, guid: 7baeb82f3a63ff54fb398d14db8f8134, type: 3}
+  - {fileID: 21300000, guid: dc7d66afdfb11c740961d695f45a734d, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - export
+  - scrollHorizontal
+  - joystick
+  - menuGrid
+  - checkmark
+  - signal1
+  - multiplayer
+  - zoomIn
+  - star
+  - trophy
+  - signal2
+  - home
+  - gear
+  - import
+  - larger
+  - plus
+  - medal1
+  - next
+  - zoom
+  - warning
+  - medal2
+  - fastForward
+  - singleplayer
+  - barsVertical
+  - contrast
+  - forward
+  - power
+  - pause
+  - exclamation
+  - locked
+  - minus
+  - arrowUp
+  - cart
+  - basket
+  - target
+  - leaderboardsSimple
+  - share1
+  m_RenderDataMap: {}
+  m_Tag: NodeIcons
+  m_IsVariant: 0

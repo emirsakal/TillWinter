@@ -293,3 +293,313 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   (`GameController.CloudHitTest`) that takes priority over plot taps; tractor is a red box with
   four wheels parked left of the field; greenhouse is a translucent box right of the field with a
   coin trickle in Winter; golden plots pulse a gold emissive tint; HUD shows "combo xN" from 2.
+
+---
+
+# Session 4 - the Almanac tree screen
+
+- **TextMeshPro everywhere**: `UiKit.Label` returns `TMP_Text`; the built-in `LegacyRuntime.ttf`
+  is gone. TMP Essential Resources could not be imported in batchmode (`AssetDatabase.ImportPackage`
+  is asynchronous and the editor exits first), so the `.unitypackage` (a tar.gz) was extracted into
+  `Assets/TextMesh Pro/` with a Python script; the files are committed like any other asset.
+- **Font: Nunito** (variable `Nunito[wght].ttf`, OFL) from google/fonts in `Assets/Fonts/` with
+  `OFL.txt`. `ui-setup.bat` builds `Assets/Fonts/Resources/NunitoSDF.asset` (SDFAA, 1024 atlas,
+  sampling 72, Latin + `ÇçĞğİıÖöŞşÜü` + a few symbols, static atlas). Nunito lacks `→` and `▶`;
+  the TMP default font (LiberationSans SDF) is registered as fallback and the "next" arrows use `»`.
+- **Strings: Core keeps `NameKey`/`DescKey`**; `TillWinter.Unity.Strings` loads
+  `Assets/TillWinter/Unity/Localization/en.json` (flat JSON, own 60-line parser, no Newtonsoft)
+  from a `TextAsset` assigned to `GameBootstrap.StringTable`. The scene reference was set by
+  `UiSetup.WireBootstrap` (editor code opens Farm.unity and saves it) rather than by hand-editing
+  YAML. Descriptions are templates with `{cur}`, `{next}`, `{level}`, `{max}`, `{cost}` filled by
+  Core `NodeText.Values` (which resolves stats at the current and next level) and `NodeText.Fill`
+  (unknown placeholders are left visible, never throw). `StringsTests` reads the JSON with the
+  test-only `MiniJson` and checks every node key and every template at level 0 and max. TR only
+  needs a `tr.json` with the same keys.
+- **Layout**: `SkillTreeLayout.Compute` puts the five branch roots on a bottom arc
+  (`0.25 x (lane-2)^2`), lanes 2.8 units apart, layer = prerequisite depth inside the branch
+  (cross-branch prerequisites ignored for placement), siblings 0.9 apart around the lane centre,
+  layer height 1.3; guaranteed minimum distance 0.85. `SkillNode.LayoutOverride` nudges a node.
+  The Heritage table lays out with the same code.
+- **`SkillTreeView` is generic** (tree + layout + `TreeTheme`): pan by drag with inertia, wheel
+  zoom in the editor, pinch via `Touchscreen.current`, zoom 0.5-1.6x, soft-clamped pan (pull-back
+  per frame), node prefab-less objects driven by a `NodeState` machine (Locked / Unaffordable /
+  Affordable / Maxed), pips for max level <= 8 else a level text, edges in one `UILines` mesh,
+  "flow" segments when a node becomes available, purchase punch and one-by-one pip fill. Tap
+  selection also works on locked nodes. First open of a Winter centres on the roots at 0.85x;
+  later opens restore the session's last pan/zoom.
+- **`WinterScreen` replaces the list panel**: overlay + paper page (0.93 alpha so the frozen field
+  shows through), top bar (title, coins with drain ticks and punch, greenhouse line, retire hint),
+  the canvas, a bottom sheet that stays open after a purchase, Next Year / Pass on the farm (the
+  S2 confirm dialog stays). The Heritage tree is reachable through a small toggle in Winter and is
+  shown in the Heritage phase; S5 will build the dedicated screen on the same view.
+- **Safe area is applied only on mobile platforms**: in the editor Game view `Screen.safeArea`
+  returned window-sized values that shifted the whole page.
+- **`TreeTheme` ScriptableObject** in `Resources/TreeTheme` (created by `ui-setup.bat`) holds
+  every colour and metric; the defaults in code are only used when the asset is missing. Changing
+  a default in code requires deleting the asset and re-running `ui-setup.bat`.
+- **The list-style `WinterShopView` and the old `Localize` table are deleted**; the debug panel
+  keeps a node dropdown with -/+.
+- **`TillWinter.Tests.Unity` is a second EditMode test assembly** (references Unity + TMP) for
+  presentation checks (theme colours per branch, node state enum, Turkish glyphs in the font
+  asset); Core tests stay engine-free.
+- **Smoke test now pans, zooms, selects `ring_radius`, buys it, asserts the child is available**,
+  and screenshots the Winter screen at 1080x2340 and 1080x1920 (`docs/screenshots/`).
+
+---
+
+# Session 5 - Heritage screen, HUD, onboarding
+
+- **Onboarding hints are Core flags, not UI state.** `Hint` enum + `OnboardingFlags` bitfield live
+  on `FarmState`/saved; `FarmSim.MarkHint` returns true only the first time a hint fires. The UI
+  never keeps its own "have I shown this" bool or touches `PlayerPrefs` — a hint that should only
+  play once must round-trip through Core so it survives quit/relaunch and offline sim.
+- **Themes are the only colour source, for both trees.** Heritage reuses `SkillTreeView` with a
+  second `TreeTheme` asset (`HeritageTheme`: deep green paper, gold accents, seed currency, darker
+  branch colours) rather than a fork of the view; `InitialZoom` moved onto `TreeTheme` per-tree
+  (0.62 for Heritage so all five branches fit) instead of a shared constant. `HudTheme` does the
+  same job for the HUD. No view class holds a literal `Color` for anything a designer would want
+  to retune.
+- **`GenerationCard` is a separate full-screen step, not a Heritage-screen overlay.** Retire ->
+  confirm -> `Retire()` -> `GenerationCard` (flavour line, seeds counting up, skip after 0.5 s,
+  auto-finish at 6 s) -> Heritage screen. Keeping it a distinct step means the seed-count beat and
+  the flavour text don't have to coexist with the tree canvas's own animation (plots appearing,
+  decor pop-in) on the same frame.
+- **Away-card coins are held back from the HUD, not animated in before the card is read.**
+  `HudView.HeldCoins` withholds offline earnings from the visible counter until the player taps OK
+  on `AwayCard`; per-source lines (apprentices, tractor) come from the same offline-sim breakdown
+  `SimulateOffline` already produced, so the card needed no new Core surface. Per-event FX are
+  skipped while `FarmSim.IsSimulatingOffline` so the field doesn't visibly celebrate hours of
+  harvests in one frame.
+- **Decor is data, like Almanac/Heritage nodes.** `FarmDecorSet` (Resources) with `DecorItem
+  {Id, Kind, MinGeneration, Offset, Rotation, Scale, Prefab}` replaces the placeholder cone trees;
+  `FarmDecorView` builds primitives when no prefab is set and rebuilds on generation change. Adding
+  a new decoration is a table row, matching the "trees are data" rule for skill nodes.
+- **Smoke-test screenshots must not share a frame with a state change.** `ScreenCapture
+  .CaptureScreenshot` captures at end of frame; the smoke test now separates "change state" and
+  "take shot" into distinct steps so a screenshot never lands mid-transition (e.g. generation card
+  fading, plots still popping in).
+- Save schema bumped to v3 for `OnboardingBits` and per-tree pan/zoom (`TreeViewMemory`); v2->v3
+  migration and `SaveV3Tests` fixture follow the usual save-versioning pattern.
+
+---
+
+# Session 6 - art pass
+
+- **Kenney CC0 kits over authored primitives, per-asset.** The GDD (§11) left the choice open
+  between low-poly Kenney kits and hand-authored primitives; each shipped asset used whichever was
+  cheaper to get right: crops, trees, bush, rock, fences, flowers, log stack, mushroom and stump
+  came from **Nature Kit 2.1**; tomato, grapes and the barrel from **Food Kit 2.0**; the six
+  apprentices from **Mini Characters**; node icons from **Game Icons**. Everything the kits don't
+  cover — house (small/medium/large), well, windmill, greenhouse, tractor, crow, cloud, plot, path
+  tile, signpost, flowerbed, trellis — is still built from primitives, now inside prefabs by
+  `Assets/TillWinter/Editor/ArtSetup.cs` (`art-setup.bat`, idempotent) rather than at runtime.
+  Licenses live next to each kit (`Assets/Art/Kenney/<kit>/License.txt`), indexed in
+  `Assets/Art/LICENSES.md`.
+- **Kits were stripped hard on import**, keeping only what a prefab references: Nature Kit 329 FBX
+  -> 30, Food Kit 200 -> 3, Mini Characters 26 -> 6, Game Icons 105 -> 37. Unused meshes/materials
+  add nothing but repo weight and asmdef/AssetDatabase churn.
+- **Mini Characters play their kit idle clip through an `AnimatorController`** instead of standing
+  in the kit's default T-pose; this is the only animation added this session.
+- **Hand-written HLSL shader instead of Shader Graph.** `Assets/Art/Shaders/TW_Toon.shader` (flat
+  two-step ramp, vertex-colour x tint, optional emission, snow lerp, GPU instancing) plus
+  `TW_Sky.shader` were written directly because Shader Graph's `.shadergraph` JSON could not be
+  authored reliably from code in this session — hand-editing that format is fragile in a way a
+  `.shader` text file is not. Every material under `Assets/Art` is asserted (ArtTests) to use one
+  of these two shaders, or a UI shader.
+- **One material per `PaletteSlot`, not per object.** `Assets/Art/Materials/TW_<Slot>.mat` lets
+  every prefab sharing a slot's mesh GPU-instance; `Palette` (Resources) pushes its colours into
+  those materials at boot, and per-object variation (plot Dry/Wet/ring soil, golden emission, ring
+  lift) goes through a `PaletteBinder` + one `MaterialPropertyBlock` per renderer instead of a
+  second material — per-material-index property blocks were tried first and rejected because they
+  break GPU instancing. Season snow amount and leaf/grass tint are shader globals (`_TW_Snow`,
+  `_TW_SeasonTint`) rather than per-material overrides, so Winter tints everything through the
+  shader with no mesh or material swaps.
+- **Ring stays a textured decal-style disc, not a URP decal projector.** Decal projectors did not
+  render onto the field with this project's orthographic camera setup, so the ring keeps the
+  existing soft-edge + inner-glow texture (`Assets/Art/Textures/RingDecal.png`). The decal code
+  path is kept behind `ArtSetup.UseDecals = false` for a future session with more time to debug
+  the projector, rather than deleted.
+- **Quality tiers gate shadows/post, not mesh detail.** `QualityTiers` Low (no shadows, no post) /
+  Default (soft shadows + colour volume) auto-selects Low on mobile devices under 3 GB RAM or
+  1 GB VRAM; a debug-panel toggle overrides it for testing. Draw-call budgets (measured, not
+  guessed): 3x3 generation 1 is 45 batches / 67 draw calls / 4.7k triangles; the stress case (6x6
+  generation 3, seven apprentices, tractor) is 106 batches / 142 draw calls / 27.8k triangles,
+  against a smoke-test budget of <=150 batches / <=60k triangles.
+
+---
+
+# Session 7 - feel and audio
+
+- **Clip sources per `SfxId` group**: water splash/soil ripple and the crow sounds from Impact
+  Sounds; UI-adjacent cues (node buy, counter punch, combo) from Interface Sounds; harvest pop,
+  coin variants, winter chime, retire swell, new-generation clip and frost tick from RPG Audio and
+  UI Audio. 38 clips total, licences kept next to each pack (`License-<Pack>.txt`) and indexed in
+  `Assets/Audio/LICENSES.md`. Every generated-fallback path from earlier sessions was removed —
+  `AudioManager` now hard-fails a missing mapping in tests (`FeelTests`) rather than silently
+  falling back to a runtime blip.
+- **Casual Game Sounds dropped, no ambience.** The pack's kenney.nl page could not be resolved for
+  download this session (same issue noted for it back in the pre-Session-1 audio decisions), so
+  the crow caw/scared clips came from the other three packs instead. None of the four packs used
+  contain a wind/birds loop; the GDD's "optional and last" season ambience loop was therefore left
+  unbuilt rather than synthesised (the brief explicitly ruled out generating new audio this
+  session).
+- **RateLimiter merge semantics**: a token-bucket per id (`TillWinter.Core.Feel.RateLimiter`,
+  pure C#, tested standalone) allows N triggers/s; a request that arrives over budget is not
+  dropped or queued — it merges into the next allowed trigger, which fires once at higher
+  intensity (+0.25 per merged request, capped) instead of one instance per input event. `Poll`
+  flushes the merged backlog the instant budget frees up, so a sustained burst (e.g. 6 apprentices
+  harvesting the same frame) reads as fewer, punchier hits rather than audio/VFX stacking or
+  silently missing triggers. Defaults: harvest 12/s, coin 20/s, water splash 10/s, haptics (Light)
+  8/s.
+- **One particle material slot, not per-VfxId.** Every `VfxCatalog` prefab uses the shared
+  `TW_White` vertex-colour slot material so GPU instancing and ArtTests' "one shader per material"
+  rule from Session 6 still hold; per-id and per-tier colour (e.g. golden vs. normal harvest burst)
+  is set on the particle system's start colour / a `MaterialPropertyBlock` at play time from
+  `Palette`, not by adding materials.
+- **Mixer built via the editor's internal `AudioMixerController` API through reflection.** URP/Unity
+  has no public runtime or editor API to create `AudioMixerGroup`s and expose parameters from code;
+  `FeelSetup` reflects into `UnityEditor.Audio.AudioMixerController` (same approach as the Unity
+  manual's undocumented workaround) rather than committing a hand-authored `.mixer` binary, keeping
+  the mixer buildable/idempotent like every other `*-setup.bat`.
+- **Camera shake reserved for golden harvest and retire only** — every other feel moment (regular
+  harvest, combo, crow, frost) stays shake-free so the two "big" beats keep reading as bigger.
+- **Budgets measured, not guessed**, in a dedicated smoke burst phase (6x6 field, 6 apprentices,
+  tractor sweeping, ring over centre, every plot forced Ripe every ~20 frames for 5 s): peak 13
+  active particle systems (budget 20), 8 concurrent voices (budget 8, `AudioManager`'s voice-steal
+  path is exercised by this phase), 0 bytes allocated across 400 `VfxPlayer.Play` /
+  `AudioManager.Play` calls, render stats unchanged from Session 6's measured budget. Screenshots
+  `docs/screenshots/s7-feel-burst.png` and `s7-frost-warning.png`.
+
+# Session 8 - mobile builds
+
+- **Player settings chosen and why.** Product "Till Winter", company "EFS Games", bundle id
+  `com.efsgames.tillwinter` on both platforms, version 0.9.0 (pre-1.0, still a demo). All of it is
+  applied only by `BuildPipeline.cs`, idempotent and covered by `BuildTests`, so ProjectSettings
+  never drifts from what the script would produce. Android `bundleVersionCode` / iOS
+  `buildNumber` move only inside `BumpAndroidVersionCode` / `BumpIosBuildNumber`, called once per
+  build — no other code path may touch them, so a re-run of the pipeline without a build can't
+  silently burn a version.
+- **Min Android API 25, not the brief's 24.** Unity 6000.3 refuses 24 outright ("Minimum supported
+  Android API level is 25"), so 25 is the floor the engine allows. It still exercises the pre-26
+  fixed-length haptics fallback (26+ gets amplitude-controlled haptics), so the two haptics paths
+  the GDD/brief cared about are both reachable on real devices.
+- **Keystore/signing handling.** Nothing signing-related is ever written to ProjectSettings or the
+  repo. `BuildPipeline` reads `TW_KEYSTORE_PATH` / `TW_KEYSTORE_PASS` / `TW_KEY_ALIAS` /
+  `TW_KEY_PASS` from the environment for the duration of one build only and clears the keystore
+  fields immediately after; with the variables set it produces a signed `.aab` + `.apk`, without
+  them a debug-signed `.apk` for sideloading, printing where to create a keystore inside Unity
+  (Keystore Manager) so it lives outside the repo. iOS has no equivalent secret to handle: the
+  pipeline only emits the Xcode project, the developer signs/archives/uploads in Xcode on a Mac.
+- **TW_DEBUG gating.** `TW_DEBUG` never appears in the project's persistent scripting define
+  symbols; a development build passes it in per invocation via `extraScriptingDefines` behind the
+  `-dev` flag on the build scripts. `DebugPanel` and the allocation probes are compiled only under
+  `#if TW_DEBUG || UNITY_EDITOR`, and `release-compile-check.bat` fails the build if those types
+  are still present in `TillWinter.Unity.dll` after a release compile of either platform — this
+  session's run confirmed both platforms compile clean with the types absent.
+- **Quality thresholds** (`QualityTiers`, auto-selects once per device, never on desktop/Editor):
+  Low when RAM < 3072 MB, dedicated GPU memory < 1024 MB (skipped on iOS, where GPU memory is
+  shared and the value is meaningless), fewer than 6 cores, or shader level < 35; an unknown (0)
+  reading from any of those never counts against the device, so a device the OS won't report on
+  isn't punished. Low drops shadows and post-processing entirely; Default adds soft shadows and the
+  colour volume. The choice is remembered in `SettingsData.QualityTier` (-1 = auto) in
+  `settings.json`, editable from the debug panel toggle.
+- **OfflineMinSeconds = 60**, new in `FarmConfig`/Core, tested (`OfflineMinTests`). Below that
+  threshold `FarmSim.SimulateOffline` returns an empty report at both boot and resume, so a short
+  call or an app switch resumes exactly where the player left rather than showing a trivial "away"
+  card for a few coins.
+- **Allocation-measurement correction for Session 7.** Session 7's claimed "0 bytes allocated by
+  400 Play calls" relied on `GC.GetAllocatedBytesForCurrentThread`, which Unity's Mono backend
+  always returns 0 from — it was not measuring anything. Session 8 replaces it with a probe that
+  calibrates at runtime against `Profiler.GetMonoUsedSizeLong` (4 KB granularity) and additionally
+  captures the Editor profiler's own per-script-marker GC.Alloc totals during the smoke burst
+  (6x6 field, six apprentices, tractor sweeping, ring over the centre, everything forced Ripe),
+  with an optional managed-callstack mode (`SmokeTest.RecordAllocCallstacks`) for tracking down a
+  hit. Measured with the new method: 2002 `VfxPlayer.Play` / `AudioManager.Play` calls allocate
+  0 B; the gameplay-script window during the burst is 0 B per frame over 145 frames. The fixes
+  the profiler actually drove: `TractorView` no longer enumerates `Transform` children and reads
+  `Object.name` every frame (was 41.8 KB over 146 frames; wheels are cached once now); HUD coin
+  text no longer rebuilds a string per coin (TMP `SetText` with a char buffer, plus a new
+  allocation-free `NumberFormat.Short(double, char[])`, tested identical to the existing
+  `Short(double)`); the coin-flight pool is pre-warmed and capped at 96 in flight; `foreach` over
+  `IReadOnlyList` was replaced by index loops in the hot paths the profiler flagged.
+- **TMP Editor-only allocation, left alone.** The ~1-2 KB left across the whole burst traces to
+  TMP's `#if UNITY_EDITOR` inspector-string sync inside `SetCharArray`/`SetText`
+  (`TMP_Text.cs`) — code that is compiled out of players, so it is not a device number and was not
+  chased further. The Editor's frame-wide "GC Allocated In Frame" (~20 KB/frame) includes the
+  Editor's own overhead for the same reason and is likewise not a device number.
+- **Icon approach.** Rendered from a dedicated scene (`Assets/Art/Icon/IconRenderer.unity`,
+  `IconRenderer.cs`) rather than drawn by hand: the game's own ripe-pumpkin crop prefab on a soil
+  block with a grass rim, spring-sky gradient with a frosted top edge and a few flakes, no text —
+  reusing existing art keeps the icon visually consistent with the game with zero new asset
+  sourcing. Rendered at 2048 and downsampled; the crop is matted from a black and a white render
+  so the Android adaptive foreground layer is genuinely transparent, not just alpha-from-shader.
+  Splash keeps Unity's own splash (Personal licence requirement) with the icon subject as the logo
+  above it on `Palette.LeafDark`.
+- **What is left to the device checklist** (`docs/DEVICE-CHECKLIST.md`, new): everything that
+  cannot be measured in the Editor — cold start time, the 20-minute thermal/battery read, whether
+  the default 0.80 ring offset still feels right on a real thumb, frost-warning legibility in
+  sunlight, safe-area behaviour, the Android API 25 vs 26+ haptics fallback actually felt on two
+  real devices, the iOS home-indicator double-swipe during a sweep, and the iOS haptics plugin
+  (`TillWinterHaptics.mm`) compiling under Xcode, since it cannot be compiled on Windows at all.
+
+# Session 9 — release candidate
+
+- **Localization.** `tr.json` mirrors `en.json` key-for-key. Rule: never attach a Turkish suffix
+  to a placeholder; numbers stand alone ("Halka yarıçapı: {cur} » {next}"). Language comes from
+  `settings.json` `"Language"` (`""` follows `Application.systemLanguage`: Turkish → `tr`, else
+  `en`). Changing language saves and reloads the scene so every label rebuilds — no live
+  relabelling. `NumberFormat.Style` (Core) switches decimal separator (`1,2K`) and percent sign
+  (`%10`) for Turkish; K/M/B suffixes are kept as-is. Nunito has no "→" glyph — every description
+  showed a tofu box, which the new glyph test caught — so descriptions use "»" instead, and
+  `ui-setup.bat` now tops up the existing NunitoSDF atlas in place (keeps its GUID) instead of
+  skipping it when present. HUD literals ("Year/Gen", "Retire:", season names) moved into the
+  string tables. `NodeText`'s leftover English words (unlocked/locked/owned/on/off) only feed
+  placeholders that no shipped description uses, so they were left as-is (noted, not shown to
+  players).
+- **Pause & settings.** The pause button takes the old `DBG` corner; the debug panel now opens
+  from Settings → Developer and is `TW_DEBUG`/editor-only (`DebugPanel` compiles out of release).
+  Pause = no sim tick + `Time.timeScale` 0 (views freeze); play time is counted on unscaled time
+  only while not paused. Settings screen: language, SFX, ambience, vibration, reduce motion (gates
+  `CameraRig.Shake` and `HudView.Flash` only), quality Auto/Low/Default (Auto stays `-1` and is
+  re-decided from hardware every launch instead of being written once; an explicit choice is
+  remembered, including in the editor), reset save via a 3 s hold (detaches `SaveController` first
+  so nothing writes the old farm back, deletes the save + `.bak` + `.tmp`, reloads; `settings.json`
+  survives), credits (Kenney kits: Nature Kit, Food Kit, Mini Characters, Game Icons; audio: Impact
+  Sounds, Interface Sounds, RPG Audio, UI Audio; Nunito SIL OFL 1.1; Made by EFS Games; Built with
+  Unity), version line sourced from `BuildInfo` (shows "editor" in-editor). A statistics sheet is
+  reachable from pause and shown after the ending; its colours were added to `HudTheme`.
+- **Ending (GDD §8).** Heritage fully maxed → the next `StartNewGeneration` is the Golden Year: a
+  6×6 golden-wheat field, all golden, no crows, no frost, a 300 s year
+  (`FarmConfig.GoldenYearSeconds`), golden `SeasonPalette` look, `GoldMotes` VFX. The golden field
+  is planted after `BeginSpring` (which resets plots). At its Winter: `GoldenYearEnded` fires
+  before `WinterStarted`, the field returns to the normal starting size, and `EndingSeen` is set
+  (once). Credits roll (skippable after 3 s, 24 s total), then the statistics sheet, then the
+  normal Winter screen underneath. Heritage title shows "Complete". No music-free ambience loop
+  was added for the ending: no CC0 loop exists in the imported packs and generated audio is
+  forbidden (same call as Session 7), so the existing ambience simply continues.
+- **Save v4.** Adds `EndingSeen`, `GoldenYearActive`, per-source harvests (ring/apprentice/tractor/
+  late frost), golden harvests, best combo, time played, years total. v3→v4 migration: the v3
+  total `Harvests` cannot be split by source, so the per-source counters start at 0; `YearsTotal`
+  starts at the current generation's years (earlier generations were never counted, since nothing
+  tracked them). Covered by a v3 fixture test.
+- **Balance pass** (also feeds GDD §15). A local .NET harness compiled Core for fast iteration;
+  official numbers still come from `balance-sim.bat`. Findings: (a) the greedy bot never saved for
+  crop unlocks and valued several nodes at the default 1 — every node now has an explicit weight,
+  and crop unlocks are weighted by their value jump; (b) the bot's retire rule is now "retire when
+  this generation's seeds reach 1.5× all seeds earned before (at least 8), or cover the rest of the
+  tree" — the usual prestige instinct, replacing a flat threshold; (c) with `upgrade_plot` at
+  growth 1.6 the field never got past tomato (a plateau, 100-year generations); (d) the ring
+  out-harvested every helper by construction (ring share 70–85% in generation 4 even after every
+  non-rule lever and several rule-level ones) → rule change GDD §2.1 *(v1.4)*: the ring waters/
+  grows every plot under it in parallel but harvests one Ripe plot at a time (furthest along, ties
+  nearest centre); (e) `upgrade_plot` is deliberately the open-ended sink for leftover coins, so
+  the "no node > 35% of a generation's coins" target is measured on finite nodes only (coins spent
+  on the node / coins earned that generation) — `upgrade_plot`'s share is reported separately
+  (86–96%). Growth is now tracked per branch (`AlmanacData.Growth` / `HeritageData.Growth`) instead
+  of one flat curve.
+- **Rule tests pin pre-balance numbers** via `TestConfig.Classic()` (carrot 1, threshold 5000,
+  divisor 50), so tuning changes never touch rule tests; balance targets live only in
+  `BalanceTests`.
+- **Privacy.** `com.unity.modules.unityanalytics` removed from `Packages/manifest.json`;
+  `docs/PRIVACY.md` added (no accounts, analytics, ads or network; all data stays on device).
+- **Version 1.0.0**, set through `BuildPipeline.Version`.

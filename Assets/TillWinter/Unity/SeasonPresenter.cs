@@ -6,88 +6,70 @@ using UnityEngine.Rendering.Universal;
 namespace TillWinter.Unity
 {
     /// <summary>
-    /// Seasons through light and colour only: one directional light, flat ambient, a full-screen
-    /// colour filter, ground colour, camera background, frost vignette and snow.
+    /// Seasons through light and colour only, all values from <see cref="SeasonPalette"/>: one directional light,
+    /// gradient ambient, fog, colour-adjust volume, sky gradient, frost vignette, snow particles, and the
+    /// leaf / grass / snow tints pushed to every <see cref="PaletteBinder"/>.
     /// </summary>
     public sealed class SeasonPresenter : MonoBehaviour
     {
-        private struct Look
-        {
-            public Color Light, Ambient, Tint, Ground, Sky;
-            public float Intensity;
-            public Vector3 Euler;
-
-            public static Look Lerp(Look a, Look b, float t) => new Look
-            {
-                Light = Color.Lerp(a.Light, b.Light, t),
-                Ambient = Color.Lerp(a.Ambient, b.Ambient, t),
-                Tint = Color.Lerp(a.Tint, b.Tint, t),
-                Ground = Color.Lerp(a.Ground, b.Ground, t),
-                Sky = Color.Lerp(a.Sky, b.Sky, t),
-                Intensity = Mathf.Lerp(a.Intensity, b.Intensity, t),
-                Euler = Vector3.Lerp(a.Euler, b.Euler, t),
-            };
-        }
-
-        private static readonly Look Spring = new Look
-        {
-            Light = new Color(1f, 0.98f, 0.9f), Intensity = 1.15f, Euler = new Vector3(52f, -30f, 0f),
-            Ambient = new Color(0.58f, 0.66f, 0.56f), Tint = new Color(0.96f, 1f, 0.94f),
-            Ground = new Color(0.46f, 0.68f, 0.36f), Sky = new Color(0.62f, 0.8f, 0.6f),
-        };
-        private static readonly Look Summer = new Look
-        {
-            Light = new Color(1f, 0.95f, 0.8f), Intensity = 1.35f, Euler = new Vector3(70f, -20f, 0f),
-            Ambient = new Color(0.66f, 0.64f, 0.52f), Tint = new Color(1f, 0.97f, 0.88f),
-            Ground = new Color(0.58f, 0.66f, 0.3f), Sky = new Color(0.78f, 0.82f, 0.55f),
-        };
-        private static readonly Look Autumn = new Look
-        {
-            Light = new Color(1f, 0.78f, 0.52f), Intensity = 1.05f, Euler = new Vector3(32f, -45f, 0f),
-            Ambient = new Color(0.6f, 0.48f, 0.38f), Tint = new Color(1f, 0.88f, 0.74f),
-            Ground = new Color(0.66f, 0.5f, 0.28f), Sky = new Color(0.82f, 0.62f, 0.42f),
-        };
-        private static readonly Look Winter = new Look
-        {
-            Light = new Color(0.8f, 0.88f, 1f), Intensity = 0.85f, Euler = new Vector3(26f, -45f, 0f),
-            Ambient = new Color(0.62f, 0.7f, 0.86f), Tint = new Color(0.86f, 0.92f, 1f),
-            Ground = new Color(0.86f, 0.9f, 0.95f), Sky = new Color(0.72f, 0.8f, 0.9f),
-        };
-
         public float BlendSeconds = 1.5f;
 
         private GameController _game;
+        private SeasonPalette _palette;
         private Light _sun;
-        private Renderer _ground;
         private ColorAdjustments _color;
         private Vignette _vignette;
-        private ParticleSystem _snow;
-        private ParticleSystem.EmissionModule _snowEmission;
-        private MaterialPropertyBlock _mpb;
+        private VfxPlayer _fx;
+        private Season _fromSeason, _toSeason;
+        private Material _skyMaterial;
+        private Transform _sky;
+        private Camera _cam;
 
-        private Look _from, _to, _current;
+        private SeasonLook _from, _to, _current;
         private float _blend = 1f;
         private Season _season;
 
-        public void Init(GameController game)
+        private static readonly int SkyTopId = Shader.PropertyToID("_Top");
+        private static readonly int SkyBottomId = Shader.PropertyToID("_Bottom");
+
+        public Light Sun => _sun;
+
+        public void Init(GameController game, Camera cam, VisualCatalog catalog, VfxPlayer fx)
         {
             _game = game;
-            _mpb = new MaterialPropertyBlock();
+            _cam = cam;
+            _fx = fx;
+            _palette = SeasonPalette.Load();
+            _game.Sim.GenerationStarted += OnGenerationStarted;
 
             var sunGo = new GameObject("Sun");
             sunGo.transform.SetParent(transform, false);
             _sun = sunGo.AddComponent<Light>();
             _sun.type = LightType.Directional;
             _sun.shadows = LightShadows.Soft;
-            _sun.shadowStrength = 0.55f;
+            _sun.shadowStrength = 0.6f;
             _sun.shadowBias = 0.05f;
             _sun.shadowNormalBias = 0.6f;
             RenderSettings.sun = _sun;
-            RenderSettings.ambientMode = AmbientMode.Flat;
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
 
-            var groundGo = Prims.Primitive(PrimitiveType.Cube, transform, "Ground", new Vector3(0f, -0.1f, 0f), new Vector3(60f, 0.2f, 60f), Prims.Lit(Spring.Ground, 0.05f));
-            _ground = groundGo.GetComponent<Renderer>();
-            _ground.shadowCastingMode = ShadowCastingMode.Off;
+            // Sky: gradient quad parented to the camera, behind everything.
+            _skyMaterial = catalog.Sky != null ? new Material(catalog.Sky) : null;
+            if (_skyMaterial != null)
+            {
+                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                quad.name = "Sky";
+                Destroy(quad.GetComponent<Collider>());
+                quad.transform.SetParent(cam.transform, false);
+                quad.transform.localPosition = new Vector3(0f, 0f, cam.farClipPlane - 1f);
+                var r = quad.GetComponent<Renderer>();
+                r.sharedMaterial = _skyMaterial;
+                r.shadowCastingMode = ShadowCastingMode.Off;
+                r.receiveShadows = false;
+                _sky = quad.transform;
+            }
 
             var volGo = new GameObject("GlobalVolume");
             volGo.transform.SetParent(transform, false);
@@ -95,10 +77,8 @@ namespace TillWinter.Unity
             _color = profile.Add<ColorAdjustments>(true);
             _color.colorFilter.overrideState = true;
             _color.colorFilter.value = Color.white;
-            _color.postExposure.overrideState = true;
-            _color.postExposure.value = 0f;
             _color.saturation.overrideState = true;
-            _color.saturation.value = 8f;
+            _color.saturation.value = 6f;
             _vignette = profile.Add<Vignette>(true);
             _vignette.intensity.overrideState = true;
             _vignette.intensity.value = 0f;
@@ -111,48 +91,48 @@ namespace TillWinter.Unity
             vol.priority = 10f;
             vol.profile = profile;
 
-            BuildSnow();
-
             _season = _game.State.Season;
-            _from = _to = _current = LookFor(_season);
+            _fromSeason = _toSeason = _season;
+            _from = _to = _current = _palette.For(_season, _game.State.GoldenYearActive);
             Apply(_current, 0f);
 
             _game.Sim.SeasonChanged += OnSeasonChanged;
+            _game.Sim.GoldenYearStarted += OnGoldenYear;
+        }
+
+        private void OnGoldenYear()
+        {
+            _from = _current;
+            _to = _palette.For(_season, true);
+            _blend = 0f;
         }
 
         private void OnDestroy()
         {
-            if (_game != null && _game.Sim != null) _game.Sim.SeasonChanged -= OnSeasonChanged;
+            if (_game != null && _game.Sim != null) { _game.Sim.SeasonChanged -= OnSeasonChanged; _game.Sim.GenerationStarted -= OnGenerationStarted; _game.Sim.GoldenYearStarted -= OnGoldenYear; }
         }
+
+        /// <summary>New generation: the snow melts at once instead of lingering for a particle lifetime.</summary>
+        private void OnGenerationStarted() => _fx.Clear(VfxId.Snow);
 
         private void OnSeasonChanged(Season s)
         {
+            _fromSeason = _toSeason;
+            _toSeason = s;
             _season = s;
             _from = _current;
-            _to = LookFor(s);
+            _to = _palette.For(s, _game.State.GoldenYearActive);
             _blend = 0f;
-        }
-
-        private static Look LookFor(Season s)
-        {
-            switch (s)
-            {
-                case Season.Summer: return Summer;
-                case Season.Autumn: return Autumn;
-                case Season.Winter: return Winter;
-                default: return Spring;
-            }
         }
 
         private void LateUpdate()
         {
-            float dt = Time.deltaTime;
             if (_blend < 1f)
             {
-                _blend = Mathf.Min(1f, _blend + dt / Mathf.Max(0.01f, BlendSeconds));
-                _current = Look.Lerp(_from, _to, Mathf.SmoothStep(0f, 1f, _blend));
+                _blend = Mathf.Min(1f, _blend + Time.deltaTime / BlendSeconds);
+                float t = Mathf.SmoothStep(0f, 1f, _blend);
+                _current = SeasonLook.Lerp(_from, _to, t);
             }
-
             var state = _game.State;
             float frost = 0f;
             if (state.FrostWarning && !state.IsWinter)
@@ -160,56 +140,49 @@ namespace TillWinter.Unity
 
             Apply(_current, frost);
 
-            float snowRate = state.IsWinter ? 70f : frost * 12f;
-            _snowEmission.rateOverTime = snowRate;
+            // Ambience: one particle system per season, cross-faded by the same blend as the light.
+            float blend = Mathf.SmoothStep(0f, 1f, _blend);
+            float wFrom = 1f - blend, wTo = blend;
+            float petals = (_fromSeason == Season.Spring ? wFrom : 0f) + (_toSeason == Season.Spring ? wTo : 0f);
+            float leaves = (_fromSeason == Season.Autumn ? wFrom : 0f) + (_toSeason == Season.Autumn ? wTo : 0f);
+            float snow = (_fromSeason == Season.Winter ? wFrom : 0f) + (_toSeason == Season.Winter ? wTo : 0f);
+            bool year = state.Phase == Phase.Year;
+            bool golden = state.GoldenYearActive;
+            _fx.SetRate(VfxId.Petals, year && !golden ? 5f * petals : 0f);
+            _fx.SetRate(VfxId.GoldMotes, year && golden ? 14f : 0f);
+            _fx.SetRate(VfxId.Leaves, year ? 9f * leaves : 0f);
+            _fx.SetRate(VfxId.Snow, state.IsWinter ? 70f : Mathf.Max(70f * snow, frost * 12f));
+
+            if (_sky != null)
+            {
+                // Cover the orthographic frustum with margin.
+                float h = _cam.orthographicSize * 2f * 1.2f;
+                _sky.localScale = new Vector3(h * _cam.aspect, h, 1f);
+            }
         }
 
-        private void Apply(Look look, float frost)
+        private void Apply(SeasonLook look, float frost)
         {
             var cold = new Color(0.75f, 0.85f, 1f);
             _sun.color = Color.Lerp(look.Light, cold, frost * 0.8f);
-            _sun.intensity = Mathf.Lerp(look.Intensity, look.Intensity * 0.8f, frost);
-            _sun.transform.rotation = Quaternion.Euler(look.Euler);
-            RenderSettings.ambientLight = Color.Lerp(look.Ambient, cold * 0.7f, frost * 0.5f);
-            _color.colorFilter.value = Color.Lerp(look.Tint, cold, frost * 0.65f);
-            _mpb.SetColor(Prims.BaseColorId, Color.Lerp(look.Ground, Winter.Ground, frost * 0.5f));
-            _ground.SetPropertyBlock(_mpb);
-            if (_game.Cam != null) _game.Cam.backgroundColor = Color.Lerp(look.Sky, cold, frost * 0.4f);
-
-            float vig = _game.State.IsWinter ? 0.42f : frost * 0.62f;
-            _vignette.intensity.value = vig;
-            _vignette.color.value = _game.State.IsWinter ? new Color(0.8f, 0.88f, 1f) : new Color(0.55f, 0.72f, 1f);
-        }
-
-        private void BuildSnow()
-        {
-            var go = new GameObject("Snow");
-            go.transform.SetParent(transform, false);
-            go.transform.position = new Vector3(0f, 7f, 0f);
-            _snow = go.AddComponent<ParticleSystem>();
-            var main = _snow.main;
-            main.loop = true;
-            main.startLifetime = 9f;
-            main.startSpeed = 0.15f;
-            main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.11f);
-            main.gravityModifier = 0.045f;
-            main.maxParticles = 1200;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            _snowEmission = _snow.emission;
-            _snowEmission.rateOverTime = 0f;
-            var shape = _snow.shape;
-            shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = new Vector3(12f, 0.2f, 12f);
-            var noise = _snow.noise;
-            noise.enabled = true;
-            noise.strength = 0.25f;
-            noise.frequency = 0.4f;
-            var renderer = _snow.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Mesh;
-            renderer.mesh = Prims.BuiltinMesh(PrimitiveType.Sphere);
-            renderer.sharedMaterial = Prims.Lit(new Color(0.97f, 0.98f, 1f), 0.1f);
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
-            _snow.Play();
+            _sun.intensity = look.Intensity * (1f - frost * 0.25f);
+            _sun.transform.rotation = Quaternion.Euler(look.Angle);
+            RenderSettings.ambientSkyColor = Color.Lerp(look.AmbientSky, cold, frost * 0.4f);
+            RenderSettings.ambientEquatorColor = look.AmbientEquator;
+            RenderSettings.ambientGroundColor = look.AmbientGround;
+            RenderSettings.fogColor = look.FogColor;
+            RenderSettings.fogStartDistance = look.FogStart;
+            RenderSettings.fogEndDistance = look.FogEnd;
+            _color.colorFilter.value = Color.Lerp(look.ColorFilter, cold, frost * 0.5f);
+            _vignette.intensity.value = frost * 0.35f + (_game.State.IsWinter ? 0.25f : 0f);
+            if (_skyMaterial != null)
+            {
+                _skyMaterial.SetColor(SkyTopId, Color.Lerp(look.SkyTop, cold, frost * 0.3f));
+                _skyMaterial.SetColor(SkyBottomId, look.SkyBottom);
+            }
+            else if (_cam != null) _cam.backgroundColor = look.SkyBottom;
+            float snow = Mathf.Max(look.SnowAmount, frost * 0.35f);
+            PaletteBinder.SetSeason(snow, Color.Lerp(look.LeafTint, cold, frost * 0.3f), look.GrassTint);
         }
     }
 }

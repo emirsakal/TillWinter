@@ -20,7 +20,8 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - **Phases:** `Phase { Year, Winter, Heritage }` gates ticking and purchases. `SkillTree` is generic; `AlmanacData` and `HeritageData` are the two tables; Heritage effects are base modifiers resolved before Almanac effects in `StatResolver`.
 - `[System.Serializable]` on Core classes is fine; `UnityEngine.*` is not. Editor tooling lives in `Assets/TillWinter/Editor/`.
 - **Every node does something.** No `NotImplemented` flag exists; a new node must be applied in `StatResolver` or a `FarmSim` switch and added to the explicit map in `EventsTests` in the same commit.
-- Presentation is built in code from one `Bootstrap` object in `Farm.unity` (`GameBootstrap`); programmer art via `Prims`, uGUI via `UiKit`, input via `PointerInput`, strings via `Localize`.
+- **Onboarding hints are one-shot flags in Core.** `Hint` enum + `OnboardingFlags` on `FarmState` (saved); `FarmSim.MarkHint` returns true only the first time. The Unity layer never invents its own "shown before" bool or reads/writes `PlayerPrefs` for this — a hint that must fire once has to round-trip through Core.
+- Presentation is built in code from one `Bootstrap` object in `Farm.unity` (`GameBootstrap`); visuals via `VisualCatalog`, uGUI via `UiKit`, input via `PointerInput`, strings via `Localize`.
 
 ## Conventions
 
@@ -29,6 +30,39 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - `DECISIONS.md` gets one section per session for choices the prompt left open. `docs/GDD.md` changes only when implementation forces a rule change, marked `*(vX.Y)*` inline. When a session prompt and the GDD disagree, the GDD wins.
 - Scenes, `.asset`, `.meta`, `.prefab`, `.mat` files are never read whole. If one must change, edit it with a targeted string replace against a known line (grep the line first).
 - Out of scope unless a session prompt asks: monetization (never), performance work, real art, new mechanics.
+- **Tuning rule:** balance targets live in `BalanceTests` (`AutoPlayer` plays to the ending over seeds 1–3); a tuning change that breaks one fails the suite. Tune per-branch cost growth before base costs; never change crop timings, the three-phase ratios or the ring offset. Rule tests use `TestConfig.Classic()` so they don't move with tuning.
+
+## UI rules
+
+- TextMeshPro only (`UiKit.Label` -> `TMP_Text`, font `UiKit.Font` = Nunito SDF from Resources). Never `UnityEngine.UI.Text` or `LegacyRuntime.ttf`.
+- Every user-facing string comes from `Strings` (`en.json`, `tr.json`); Core carries keys only. Node descriptions are templates filled by `NodeText`; a new node needs its `name`/`desc` keys in both files (`StringsTests` fails otherwise). Strings in `en.json` and `tr.json` change together (key parity is tested). Never attach a suffix to a placeholder in Turkish; numbers stand alone. Use `NumberFormat` for numbers — the language sets its style.
+- Colours and metrics of the tree screens live in `TreeTheme` (Resources asset, one per tree — e.g. `HeritageTheme` — including its `InitialZoom`); HUD colours/spacing live in `HudTheme` (Resources asset). No hard-coded colours in `HudView`, `SkillTreeView` or `WinterScreen`; `UiKit` palette constants are for debug/placeholder panels only.
+- Skill trees render through the generic `SkillTreeView` + `SkillTreeLayout`; no hand-placed nodes.
+- Scene edits go through editor code (`UiSetup.WireBootstrap` pattern), never by hand-editing YAML.
+
+## Art rules
+
+- All visuals are spawned through `VisualCatalog.Spawn` (Resources asset); `GameBootstrap` and views never build primitives at runtime — primitive builders live only in `Assets/TillWinter/Editor/ArtSetup.cs`.
+- All colours come from `Palette`, `PaletteBinder` or `SeasonPalette`; no literal `Color` in a view. `PaletteBinder` (one `MaterialPropertyBlock` per renderer) is the only place per-object colour variation happens.
+- Only `TW_Toon.shader` (+ `TW_Sky.shader`, UI shaders) may appear on a material under `Assets/Art`; no Standard/Lit materials, no Shader Graph.
+- Kenney assets are imported only through `ArtSetup`/`art-setup.bat`, with each kit's `License.txt` kept next to it and indexed in `Assets/Art/LICENSES.md`. Strip unused kit files on import.
+- `art-setup.bat` regenerates prefabs, per-slot materials and `VisualCatalog`; it is idempotent — re-run after changing a prefab default in code.
+
+## Feel and audio rules
+
+- All effects go through the catalogues: VFX only via `VfxCatalog`/`VfxPlayer` (one pooled prefab per `VfxId`, built by `feel-setup.bat`), SFX only via `SfxTable`/`AudioManager`. Never `Instantiate` a particle prefab or create an ad hoc `AudioSource` in a view.
+- Any repeatable-event trigger (harvest, coin, splash, etc.) must go through `TillWinter.Core.Feel.RateLimiter`; over-budget calls merge into the next allowed trigger instead of stacking unbounded.
+- Camera shake is reserved for golden harvest and retire only — no other event may add it (and never when Reduce motion is on).
+- Haptics only through `Haptics` (Light/Medium/Heavy/Selection), gated by `SettingsData.HapticsEnabled` (`settings.json`, separate from the save). No direct `Vibrator`/platform calls elsewhere.
+- No generated/synthesised audio. Missing a clip for an `SfxId` is a bug to fix in `SfxTable`, never a runtime fallback.
+
+## Build rules
+
+- Never commit keystores, keystore/key passwords, aliases or provisioning profiles anywhere (code, docs, CI config). Android signing comes from four environment variables (`TW_KEYSTORE_PATH`, `TW_KEYSTORE_PASS`, `TW_KEY_ALIAS`, `TW_KEY_PASS`) read for the duration of one build only; iOS signing/archiving happens in Xcode on a Mac, never in the pipeline.
+- Version and build numbers move only through `BuildPipeline` (`build-android.bat` / `build-ios.bat`), never by hand-editing Player Settings.
+- Debug-only code sits under `#if TW_DEBUG || UNITY_EDITOR`; `TW_DEBUG` never goes into the project's persistent scripting define symbols, only into a `-dev` build's `extraScriptingDefines`.
+- Run `release-compile-check.bat` before a PR that touches runtime code.
+- Per-frame gameplay code must not allocate: no string building per frame (use `NumberFormat.Short(double, char[])` and TMP `SetText` char-buffer overloads), no `foreach` over `IReadOnlyList` or `Transform` in a hot path, no `Object.name` in `Update`.
 
 ## Token rules
 

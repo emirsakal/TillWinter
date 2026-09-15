@@ -88,6 +88,27 @@ namespace TillWinter.Core
         public double CoinsPerSecond { get; internal set; }
     }
 
+    /// <summary>Which one-shot hints have been shown. Bit per <see cref="Hint"/>; never reset (not even by retire).</summary>
+    public sealed class OnboardingFlags
+    {
+        public int Bits { get; internal set; }
+        public bool Has(Hint h) => (Bits & (1 << (int)h)) != 0;
+        internal void Set(Hint h) => Bits |= 1 << (int)h;
+        public int Count
+        {
+            get { int c = 0, b = Bits; while (b != 0) { c += b & 1; b >>= 1; } return c; }
+        }
+    }
+
+    /// <summary>Last pan/zoom of a tree canvas (cosmetic, saved so "first open centres on roots" survives a relaunch).</summary>
+    public sealed class TreeViewMemory
+    {
+        public bool HasView { get; internal set; }
+        public float PanX { get; internal set; }
+        public float PanY { get; internal set; }
+        public float Zoom { get; internal set; } = 1f;
+    }
+
     /// <summary>Counters that survive a retire (GDD §7): generation, seeds, lifetime totals.</summary>
     public sealed class GenerationStats
     {
@@ -99,6 +120,17 @@ namespace TillWinter.Core
         public int SeedsEarnedTotal { get; internal set; }
         public int CrowsScared { get; internal set; }
         public int Harvests { get; internal set; }
+        // v4: stats screen (never reset by a retire)
+        public int HarvestsRing { get; internal set; }
+        public int HarvestsApprentice { get; internal set; }
+        public int HarvestsTractor { get; internal set; }
+        public int HarvestsLateFrost { get; internal set; }
+        public int GoldenHarvests { get; internal set; }
+        public int BestCombo { get; internal set; }
+        /// <summary>Real seconds the game was open and not paused (fed by the presentation layer through FarmSim.AddPlayTime).</summary>
+        public double TimePlayedSeconds { get; internal set; }
+        /// <summary>Years played across every generation.</summary>
+        public int YearsTotal { get; internal set; }
     }
 
     /// <summary>Read-only view of the simulation for the presentation layer.</summary>
@@ -107,6 +139,10 @@ namespace TillWinter.Core
         public Phase Phase { get; internal set; } = Phase.Year;
         public double Coins { get; internal set; }
         public GenerationStats Generation { get; } = new GenerationStats();
+        /// <summary>The Golden Year has been played (GDD §8); it happens once.</summary>
+        public bool EndingSeen { get; internal set; }
+        /// <summary>This year is the Golden Year: 6×6 golden wheat, no crows, no frost, a long year.</summary>
+        public bool GoldenYearActive { get; internal set; }
         /// <summary>Heritage Seeds available to spend.</summary>
         public int Seeds => Generation.SeedsBanked;
         public int Year { get; internal set; } = 1;
@@ -142,6 +178,10 @@ namespace TillWinter.Core
         public int Combo { get; internal set; }
         /// <summary>Seconds since the last ring harvest (combo window is 1 s).</summary>
         public float ComboTimer { get; internal set; }
+
+        public OnboardingFlags Onboarding { get; } = new OnboardingFlags();
+        public TreeViewMemory AlmanacView { get; } = new TreeViewMemory();
+        public TreeViewMemory HeritageView { get; } = new TreeViewMemory();
 
         public SkillTree Almanac { get; internal set; }
         public SkillTree Heritage { get; internal set; }

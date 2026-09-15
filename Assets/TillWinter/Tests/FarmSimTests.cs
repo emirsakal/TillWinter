@@ -11,7 +11,7 @@ namespace TillWinter.Tests
 
         private static FarmSim NewSim(Action<FarmConfig> tweak = null, int seed = 1)
         {
-            var cfg = new FarmConfig();
+            var cfg = TestConfig.Classic();
             tweak?.Invoke(cfg);
             return new FarmSim(cfg, seed);
         }
@@ -561,10 +561,10 @@ namespace TillWinter.Tests
             Assert.IsTrue(a.HasTarget);
             Assert.AreNotEqual(target, a.Target);
 
-            // Harvest everything with a huge ring, then the apprentice walks home.
+            // Harvest with a huge ring, leave the rest to the apprentice, then it walks home.
             sim.DebugSetRingRadiusOverride(10f);
             Run(sim, 3f, Centre);
-            Run(sim, 4f, null);
+            Run(sim, 30f, null); // GDD §2.1 v1.4: the ring harvests one plot at a time; the apprentice takes what it left
             Assert.IsFalse(a.HasTarget);
             Assert.That(a.X, Is.EqualTo(a.IdleX).Within(1e-3f));
             Assert.That(a.Y, Is.EqualTo(a.IdleY).Within(1e-3f));
@@ -741,7 +741,7 @@ namespace TillWinter.Tests
             Assert.AreEqual(5, c.MaxTier);
             var expected = new[]
             {
-                ("crop.carrot", 1.0f, 1.5f, 0.5f, 1.0),
+                ("crop.carrot", 1.0f, 1.5f, 0.5f, 2.3), // S9 balance (GDD §2.3 v1.4)
                 ("crop.tomato", 1.5f, 3.5f, 0.5f, 4.0),
                 ("crop.corn", 2.0f, 6.0f, 0.7f, 12.0),
                 ("crop.pumpkin", 3.0f, 10f, 1.0f, 35.0),

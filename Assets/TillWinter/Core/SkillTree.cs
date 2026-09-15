@@ -17,10 +17,16 @@ namespace TillWinter.Core
         public double ValuePerLevel { get; }
         public string NameKey { get; }
         public string DescKey { get; }
+        /// <summary>Optional manual nudge added to the auto-layout position (layout units).</summary>
+        public LayoutPos? LayoutOverride { get; }
+        /// <summary>Sprite name in the node icon atlas (presentation resolves it; Core only carries the key).</summary>
+        public string IconKey { get; }
 
         public SkillNode(string id, Branch branch, string[] prerequisites, int maxLevel, double baseCost, double costGrowth,
-            EffectType effect, double valuePerLevel, string nameKey, string descKey)
+            EffectType effect, double valuePerLevel, string nameKey, string descKey, LayoutPos? layoutOverride = null, string iconKey = null)
         {
+            LayoutOverride = layoutOverride;
+            IconKey = iconKey ?? "";
             Id = id;
             Branch = branch;
             Prerequisites = prerequisites ?? new string[0];

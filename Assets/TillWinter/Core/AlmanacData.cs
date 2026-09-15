@@ -5,11 +5,62 @@ namespace TillWinter.Core
     /// <summary>Static Almanac table (GDD §6). Costs in coins, placeholders to tune. Reset on retire.</summary>
     public static class AlmanacData
     {
-        private const double G = 1.6;
+        /// <summary>Cost growth per level, per branch (S9: the balance pass tunes growth per branch before base costs).</summary>
+        public static double Growth(Branch b)
+        {
+            switch (b)
+            {
+                case Branch.Hand: return 1.6;
+                case Branch.Soil: return 1.6;
+                case Branch.Field: return 1.18;
+                case Branch.Helpers: return 1.25;
+                case Branch.Calendar: return 1.6;
+                default: return 1.6;
+            }
+        }
         private static readonly string[] None = new string[0];
 
         private static SkillNode N(string id, Branch b, string[] pre, int max, double cost, EffectType fx, double perLevel) =>
-            new SkillNode(id, b, pre, max, cost, G, fx, perLevel, "almanac." + id + ".name", "almanac." + id + ".desc");
+            new SkillNode(id, b, pre, max, cost, Growth(b), fx, perLevel, "almanac." + id + ".name", "almanac." + id + ".desc", null, IconFor(id));
+
+        /// <summary>Node id -> sprite name in the node icon atlas (Kenney Game Icons). Every node must have one (IconTests).</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, string> Icons = new System.Collections.Generic.Dictionary<string, string>
+        {
+            { "ring_radius", "zoomIn" },
+            { "ring_water_speed", "fastForward" },
+            { "ring_grow_speed", "forward" },
+            { "ring_harvest_speed", "next" },
+            { "ring_bonus_coins", "star" },
+            { "ring_combo", "leaderboardsSimple" },
+            { "irrigation", "import" },
+            { "sun", "contrast" },
+            { "soil_quality", "barsVertical" },
+            { "crop_value", "medal1" },
+            { "fertile_start", "checkmark" },
+            { "expand_field", "larger" },
+            { "unlock_tomato", "plus" },
+            { "upgrade_plot", "arrowUp" },
+            { "unlock_corn", "signal1" },
+            { "unlock_pumpkin", "signal2" },
+            { "unlock_grapes", "medal2" },
+            { "unlock_golden_wheat", "trophy" },
+            { "bulk_upgrade", "menuGrid" },
+            { "apprentice_count", "multiplayer" },
+            { "apprentice_speed", "joystick" },
+            { "apprentice_harvest_time", "basket" },
+            { "apprentice_yield", "cart" },
+            { "scarecrow", "warning" },
+            { "tractor", "gear" },
+            { "helper_water", "share1" },
+            { "year_length", "scrollHorizontal" },
+            { "frost_warning", "exclamation" },
+            { "late_frost", "pause" },
+            { "greenhouse", "home" },
+            { "crow_bounty", "target" },
+            { "spring_head_start", "power" },
+        };
+
+        private static string IconFor(string id) => Icons.TryGetValue(id, out var k) ? k : "";
 
         public static readonly SkillNode[] Nodes =
         {

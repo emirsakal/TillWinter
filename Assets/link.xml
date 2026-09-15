@@ -1,0 +1,12 @@
+<!--
+  IL2CPP managed stripping is Medium. The save DTOs (TillWinter.Core.SaveData and friends) are read with
+  JsonUtility, which is reflection-free, but Core is preserved explicitly so no future serializer or
+  reflection-based test hook can lose a type or field to the linker. BuildTests asserts this file.
+-->
+<linker>
+  <assembly fullname="TillWinter.Core" preserve="all" />
+  <assembly fullname="TillWinter.Unity">
+    <type fullname="TillWinter.Unity.SettingsData" preserve="all" />
+    <type fullname="TillWinter.Unity.BuildInfo" preserve="all" />
+  </assembly>
+</linker>

@@ -1,0 +1,113 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5748c05b7923df4da163747fa1ae774, type: 3}
+  m_Name: VisualCatalog
+  m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.VisualCatalog
+  Plot: {fileID: 6118352517562609604, guid: 002f52016d25a6c4591250ea5418df29, type: 3}
+  Crops:
+  - Sprout: {fileID: 8363585325900947138, guid: 99838cb4c45f476409ad95bf629e7e95, type: 3}
+    Growing: {fileID: 3379155449879660779, guid: 7f3a7b334a3f26243b545900f0166af8, type: 3}
+    Ripe: {fileID: 3754889171621004105, guid: 4a5e060e32bbe19429f36156b00ca8db, type: 3}
+  - Sprout: {fileID: 9002571931477701296, guid: 6c9fe990453e82a4fa1446d3c1cae301, type: 3}
+    Growing: {fileID: 5839412856772774479, guid: 167255398ca76fc47bc3d37f8fbc5e2c, type: 3}
+    Ripe: {fileID: 7111204237922277038, guid: 8cf34abf1beae6d47b19efd62b196f3f, type: 3}
+  - Sprout: {fileID: 4586111574638223748, guid: ec802734feaa65c4fb92eef9d12a3874, type: 3}
+    Growing: {fileID: 1548605453348269864, guid: 8afe1d949e8d2aa449a9d97bdcf341d0, type: 3}
+    Ripe: {fileID: 8128116984548436349, guid: 7beb09b962249084785e5e2c4b4d31be, type: 3}
+  - Sprout: {fileID: 6906987684870184870, guid: b33ae4f8372d961418abafe240d8b49c, type: 3}
+    Growing: {fileID: 7275973621223898404, guid: 40ae8db7ef7757f4faaef6cdf8cc9346, type: 3}
+    Ripe: {fileID: 8077272849226532757, guid: c1d993b2f4feab0408a9114b75f57fe8, type: 3}
+  - Sprout: {fileID: 7274708028446855360, guid: 4824ef7b955dc8440808fe7d6c29bae3, type: 3}
+    Growing: {fileID: 2873797425554510895, guid: 6a132f171dd6c3448bdba40b6e925d30, type: 3}
+    Ripe: {fileID: 2536750380213634967, guid: 9f7e7e7a5685ed744b0acfde995e83cc, type: 3}
+  - Sprout: {fileID: 1700248844103180927, guid: 141be8aa3687ba14b92df8d2f6cf88bc, type: 3}
+    Growing: {fileID: 3199540864140479178, guid: abe64a58541b2c84ead99a7ab1678b0c, type: 3}
+    Ripe: {fileID: 3692258373575628955, guid: 27cb274f787afab47a4b34cca17d5ffe, type: 3}
+  Golden: {fileID: 2100000, guid: 16776b019a495c3489a2159c987aaed6, type: 2}
+  SlotMaterials:
+  - {fileID: 2100000, guid: 138ce38d5a2a45a4a9ffde47a13fce39, type: 2}
+  - {fileID: 2100000, guid: d7afd77d6077e4f43b7fd77fa3e5c222, type: 2}
+  - {fileID: 2100000, guid: 452c2dba41c58c84a8133021edee2117, type: 2}
+  - {fileID: 2100000, guid: aa1a886e19eab4f4e9547a0254aeb33a, type: 2}
+  - {fileID: 2100000, guid: 69c85781942752c4bb0bfaee0e140d20, type: 2}
+  - {fileID: 2100000, guid: ee7e83a877da38e4cadb8c80e365fa90, type: 2}
+  - {fileID: 2100000, guid: 60982175fd3f09e4485452a9552c37a0, type: 2}
+  - {fileID: 2100000, guid: 48cd8e8068884214ea05816e64f727a0, type: 2}
+  - {fileID: 2100000, guid: f67c738a4bd0c6545ae52c23baa328de, type: 2}
+  - {fileID: 2100000, guid: 301ac1887a3a5d240af43f3aefdcaf0f, type: 2}
+  - {fileID: 2100000, guid: 257b7b89a41644b40baa7370e2823b0e, type: 2}
+  - {fileID: 2100000, guid: 6bbea65f0017b9d45b964ca4b55bcca7, type: 2}
+  - {fileID: 2100000, guid: 16776b019a495c3489a2159c987aaed6, type: 2}
+  - {fileID: 2100000, guid: ff32734e401b09f428d1020c5ffeed59, type: 2}
+  - {fileID: 2100000, guid: 273668f4b20f98946a77b995981f780f, type: 2}
+  - {fileID: 2100000, guid: 72dde17495390774cb85a914d2ce4b0d, type: 2}
+  - {fileID: 2100000, guid: 352b8741011c80f4aaa9a37f9d829c59, type: 2}
+  - {fileID: 2100000, guid: dc5f968553274e6438878fad7e39e59c, type: 2}
+  - {fileID: 2100000, guid: 3b20125c091e04448ac4b09a75acf690, type: 2}
+  - {fileID: 2100000, guid: 653a030d4e7b41942a9e654ddd1e92c0, type: 2}
+  - {fileID: 2100000, guid: 82acf1cc70966854d87ef36cba38a65b, type: 2}
+  - {fileID: 2100000, guid: e7c80435297e4eb4bb1bd6a5928a1202, type: 2}
+  - {fileID: 2100000, guid: bcece999355e4f44782132b86ea51e2f, type: 2}
+  - {fileID: 2100000, guid: fd6928de2b10eda4fbb73e61b9acab49, type: 2}
+  - {fileID: 2100000, guid: afe2e4a8159edc04c80a2c149e0a915a, type: 2}
+  - {fileID: 2100000, guid: 2f5380bb1099b9a45bbab137e3ee5e8e, type: 2}
+  - {fileID: 2100000, guid: d8689cae62408004b8051d5857fec1d7, type: 2}
+  - {fileID: 2100000, guid: 3474eb3877e971d4085cc0bb25a25c51, type: 2}
+  - {fileID: 2100000, guid: 90e3302315dbbc34eb4ee1ffa52d755d, type: 2}
+  - {fileID: 2100000, guid: 928bb850f6b01b74394378ad25f301cc, type: 2}
+  - {fileID: 2100000, guid: a6cf9830b81aa2c48b2fe228d4e0d2a3, type: 2}
+  - {fileID: 2100000, guid: eaabd1d5301479f44a12978e0a88e2bd, type: 2}
+  - {fileID: 2100000, guid: d2bfb974108293e4a8b4bc3ee23f2913, type: 2}
+  - {fileID: 2100000, guid: d12e5e6774dff714fb2f44b9d8d32d33, type: 2}
+  - {fileID: 2100000, guid: d8a79e5005c59ba45a109642fc410e27, type: 2}
+  - {fileID: 2100000, guid: 49533907269e5cf4fbba798ce12fde5e, type: 2}
+  - {fileID: 2100000, guid: fca86de33dbc2bb4891267ec782797a2, type: 2}
+  - {fileID: 2100000, guid: 9a05369e1a344e74db302708407788f8, type: 2}
+  - {fileID: 2100000, guid: 189652b95bd316f42ba54c0f36abab37, type: 2}
+  SoilBlock: {fileID: 2100000, guid: aa1a886e19eab4f4e9547a0254aeb33a, type: 2}
+  Sky: {fileID: 2100000, guid: dbefee38debc5d0489c338c9c33a2fc3, type: 2}
+  RingDecal: {fileID: 2100000, guid: 6a9feebabfebe33488dd79cd6e419225, type: 2}
+  RingTexture: {fileID: 2800000, guid: ce8810123cf902a4aa60cd0f733eb53b, type: 3}
+  UseDecalRing: 0
+  Apprentices:
+  - {fileID: 2054576343961726619, guid: 271042da76c05ff4389a23d41948126c, type: 3}
+  - {fileID: 8154111661454461591, guid: ecb34232fdf8dab4c88856915379ee3b, type: 3}
+  - {fileID: 5616610389492602654, guid: 3a32d983e31b402419c6ce4c6d9dcdb3, type: 3}
+  - {fileID: 5157485609649009484, guid: f362ac8987cc0114f84ce503521b20e4, type: 3}
+  - {fileID: 6594424258603778881, guid: 5d339f0b554fed049b2e1bc1c8956ae3, type: 3}
+  - {fileID: 8265238079322243611, guid: 7c523dfb83ea44d4286cdd9e7d06146f, type: 3}
+  Tractor: {fileID: 3881781091835510043, guid: a04adc935f8310d4bb95290ca2ae67a7, type: 3}
+  Crow: {fileID: 3140305560935484948, guid: 332f45fd1566a8742a8eaa0f6e097918, type: 3}
+  Cloud: {fileID: 8504711745823201011, guid: 74166db772a2ef54092a93181dfd5c91, type: 3}
+  Greenhouse: {fileID: 1615762332647534703, guid: b19c88a6ec0bdc543a4727d57f8adf54, type: 3}
+  Houses:
+  - {fileID: 8672086839375580392, guid: 8eca3f36bed6f374e8d10112bf360269, type: 3}
+  - {fileID: 6656414542213210945, guid: f5e23a359c0339e45ac86e778f22d06b, type: 3}
+  - {fileID: 6344484412392775538, guid: 452ff62a758d0d543b4be632e63f2a99, type: 3}
+  Well: {fileID: 1701976881782183394, guid: f9cbc9a086177d541b2fa6c7a51462c3, type: 3}
+  Windmill: {fileID: 5176114656034666083, guid: f00e4805f6f9e914ead2e6b26fc25b6e, type: 3}
+  Fence: {fileID: 3381929025993582957, guid: 91b9ee8fe827502459fb75aeb143693b, type: 3}
+  FenceGate: {fileID: 3527975022319063658, guid: a4a36e638b388994582fde18a4c561cd, type: 3}
+  Trees:
+  - {fileID: 1981531070444006846, guid: 15cc09e4f4f40984797b9dae46ff779f, type: 3}
+  - {fileID: 5671039337369042609, guid: deb9072bc77087a4fafc1ff6e60eb891, type: 3}
+  - {fileID: 3054763249349502027, guid: 630ea41a29aa5c6409aa5afa3b49ba96, type: 3}
+  - {fileID: 2428296597905560978, guid: bd223ad39fc1a5d4b9d15be46a98ed7c, type: 3}
+  Bush: {fileID: 4769301113215289486, guid: 16584717cca07b74792c934ef37c6051, type: 3}
+  Rock: {fileID: 2549787259956770175, guid: dbb0fd5c3a7489c409f1f5b45d7e630a, type: 3}
+  PathTile: {fileID: 795456785032818226, guid: 990f91c00e1b10f4a8d20a0e2f3f195a, type: 3}
+  Signpost: {fileID: 2514486550181099406, guid: 6b01ad0cd487a234cbba75dc7bb36bf6, type: 3}
+  Flowerbed: {fileID: 2533756143417246582, guid: 391749862c29bee469e87212659786d9, type: 3}
+  Barrel: {fileID: 8835124575135895719, guid: ecc359634e10fee48b0f8ea5b7bfc162, type: 3}
+  LogStack: {fileID: 7182601372652008090, guid: 273ee5ba2397351448602acb66464e9b, type: 3}
+  Mushroom: {fileID: 5834923060120892947, guid: 2ed2e08698f8e724e9b02b948a058105, type: 3}
+  Stump: {fileID: 3529740452716127148, guid: 958a7795f0457c846bb74be19ef329fa, type: 3}

@@ -1,0 +1,195 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b14688fc4aba0ea42bf96cc16b355c51, type: 3}
+  m_Name: VfxCatalog
+  m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.VfxCatalog
+  Entries:
+  - Id: 0
+    Prefab: {fileID: 3179897781788241851, guid: 5bd6706608947c24e98815d79cd4850e, type: 3}
+    PoolSize: 2
+    BaseCount: 10
+    Color: 32
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 10
+    Continuous: 0
+  - Id: 1
+    Prefab: {fileID: 3849185809577043542, guid: 617f61f6fcf797747bcb74934224d6ca, type: 3}
+    PoolSize: 3
+    BaseCount: 1
+    Color: 1
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 10
+    Continuous: 0
+  - Id: 2
+    Prefab: {fileID: 1390128165737886047, guid: 5a7722e7885310c4c871b003f164130f, type: 3}
+    PoolSize: 2
+    BaseCount: 6
+    Color: 15
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 10
+    Continuous: 0
+  - Id: 3
+    Prefab: {fileID: 3940940492359986908, guid: d9c532511b15eb54e88a2959c616f2e0, type: 3}
+    PoolSize: 2
+    BaseCount: 5
+    Color: 33
+    Color2: 12
+    UseColor2: 1
+    MaxPerSecond: 12
+    Continuous: 0
+  - Id: 4
+    Prefab: {fileID: 5627130295127139847, guid: 855932487a9542147bd75351f37a6b21, type: 3}
+    PoolSize: 3
+    BaseCount: 8
+    Color: 6
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 12
+    Continuous: 0
+  - Id: 5
+    Prefab: {fileID: 1218869437152646700, guid: 1ebdab7c90abd1e439af96f8bea75f52, type: 3}
+    PoolSize: 2
+    BaseCount: 24
+    Color: 12
+    Color2: 33
+    UseColor2: 1
+    MaxPerSecond: 4
+    Continuous: 0
+  - Id: 6
+    Prefab: {fileID: 1161935111959812247, guid: e77e3074debb25d468e52ad30cce8ccf, type: 3}
+    PoolSize: 2
+    BaseCount: 10
+    Color: 35
+    Color2: 18
+    UseColor2: 1
+    MaxPerSecond: 4
+    Continuous: 0
+  - Id: 7
+    Prefab: {fileID: 1600094253877106788, guid: ed0b4ebe38a86a143b4a65c48ede5b72, type: 3}
+    PoolSize: 2
+    BaseCount: 12
+    Color: 0
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 6
+    Continuous: 0
+  - Id: 8
+    Prefab: {fileID: 6434986550071576474, guid: a1c7fd26e6e30544b959a08bede52327, type: 3}
+    PoolSize: 1
+    BaseCount: 10
+    Color: 32
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 30
+    Continuous: 1
+  - Id: 9
+    Prefab: {fileID: 4997086275128316469, guid: a097eec130f07d647a40d1684154bb2a, type: 3}
+    PoolSize: 1
+    BaseCount: 60
+    Color: 32
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 2
+    Continuous: 0
+  - Id: 10
+    Prefab: {fileID: 2966928483076829922, guid: 98fe51b71338405418a31696cb733280, type: 3}
+    PoolSize: 2
+    BaseCount: 4
+    Color: 5
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 12
+    Continuous: 0
+  - Id: 11
+    Prefab: {fileID: 120058269446329055, guid: 0c10f91e4b0922148a2923689a176c42, type: 3}
+    PoolSize: 2
+    BaseCount: 6
+    Color: 18
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 4
+    Continuous: 0
+  - Id: 12
+    Prefab: {fileID: 6830398819513837056, guid: 8e885bc2b3ca8e043b7edc665327fa1f, type: 3}
+    PoolSize: 3
+    BaseCount: 2
+    Color: 5
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 12
+    Continuous: 0
+  - Id: 13
+    Prefab: {fileID: 8895913965352445972, guid: 543edaed438397d4e948c7b578411ff4, type: 3}
+    PoolSize: 3
+    BaseCount: 10
+    Color: 0
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 12
+    Continuous: 0
+  - Id: 14
+    Prefab: {fileID: 6196633979135822842, guid: 63bd1d73f9417504d847abe39804b564, type: 3}
+    PoolSize: 1
+    BaseCount: 10
+    Color: 23
+    Color2: 33
+    UseColor2: 1
+    MaxPerSecond: 30
+    Continuous: 1
+  - Id: 15
+    Prefab: {fileID: 3658885822225626018, guid: 3eb31df210cd2264b80cf4cca8a71673, type: 3}
+    PoolSize: 1
+    BaseCount: 10
+    Color: 9
+    Color2: 8
+    UseColor2: 1
+    MaxPerSecond: 30
+    Continuous: 1
+  - Id: 16
+    Prefab: {fileID: 4347372749449088971, guid: 843e60787f4d99849bd4945f2dcdb9c3, type: 3}
+    PoolSize: 1
+    BaseCount: 10
+    Color: 33
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 30
+    Continuous: 1
+  - Id: 17
+    Prefab: {fileID: 8320629511609199170, guid: 990fee683f0bc8947888b40b9916d5c1, type: 3}
+    PoolSize: 1
+    BaseCount: 80
+    Color: 33
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 1
+    Continuous: 0
+  - Id: 18
+    Prefab: {fileID: 8259284563096739612, guid: c4996b6816c359643a1d8dc072c557a4, type: 3}
+    PoolSize: 1
+    BaseCount: 40
+    Color: 33
+    Color2: 12
+    UseColor2: 1
+    MaxPerSecond: 1
+    Continuous: 0
+  - Id: 19
+    Prefab: {fileID: 7219963198749553831, guid: b41ada039aab4ca49933748bca8c1f4c, type: 3}
+    PoolSize: 1
+    BaseCount: 10
+    Color: 12
+    Color2: 33
+    UseColor2: 1
+    MaxPerSecond: 30
+    Continuous: 1

@@ -18,6 +18,14 @@ namespace TillWinter.Unity
         public float RingOffsetPlots = 0.8f;
         /// <summary>Set by the winter shop while it is open.</summary>
         public bool InputBlocked;
+        /// <summary>Pause menu open: no sim tick (year timer, crows, helpers all stop) and Time.timeScale 0 for views.</summary>
+        public bool Paused { get; private set; }
+
+        public void SetPaused(bool paused)
+        {
+            Paused = paused;
+            Time.timeScale = paused ? 0f : 1f;
+        }
         public Camera Cam;
         public PointerInput Pointer;
         /// <summary>Debug/smoke-test hook: a held pointer at this screen position (bypasses the Input System).</summary>
@@ -69,6 +77,8 @@ namespace TillWinter.Unity
         private void Update()
         {
             if (Sim == null) return;
+            if (Paused) { CurrentRing = null; return; }
+            Sim.AddPlayTime(Time.unscaledDeltaTime); // stats: time played (not while paused or closed)
             float dt = Mathf.Min(Time.deltaTime, 0.1f) * TimeScale;
 
             RingInput? ring = null;

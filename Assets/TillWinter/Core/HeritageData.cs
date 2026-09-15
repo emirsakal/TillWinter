@@ -5,11 +5,46 @@ namespace TillWinter.Core
     /// <summary>Static Heritage table (GDD §7). Costs in Heritage Seeds, placeholders to tune. Never reset.</summary>
     public static class HeritageData
     {
-        private const double G = 1.5;
+        /// <summary>Cost growth per level, per branch (S9: the balance pass tunes growth per branch before base costs).</summary>
+        public static double Growth(Branch b)
+        {
+            switch (b)
+            {
+                case Branch.Hand: return 1.8;
+                case Branch.Soil: return 1.8;
+                case Branch.Field: return 1.8;
+                case Branch.Helpers: return 1.8;
+                case Branch.Calendar: return 1.8;
+                default: return 1.5;
+            }
+        }
         private static readonly string[] None = new string[0];
 
         private static SkillNode N(string id, Branch b, string[] pre, int max, double cost, EffectType fx, double perLevel) =>
-            new SkillNode(id, b, pre, max, cost, G, fx, perLevel, "heritage." + id + ".name", "heritage." + id + ".desc");
+            new SkillNode(id, b, pre, max, cost, Growth(b), fx, perLevel, "heritage." + id + ".name", "heritage." + id + ".desc", null, IconFor(id));
+
+        /// <summary>Node id -> sprite name in the node icon atlas (Kenney Game Icons). Every node must have one (IconTests).</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, string> Icons = new System.Collections.Generic.Dictionary<string, string>
+        {
+            { "h_start_radius", "zoom" },
+            { "h_ring_speeds", "fastForward" },
+            { "h_ring_coins", "star" },
+            { "h_start_irrigation", "import" },
+            { "h_start_sun", "contrast" },
+            { "h_global_growth", "arrowUp" },
+            { "h_unlock_rain_cloud", "export" },
+            { "h_start_field", "larger" },
+            { "h_start_tomato", "plus" },
+            { "h_golden_crop", "trophy" },
+            { "h_free_apprentice", "singleplayer" },
+            { "h_apprentice_yield", "cart" },
+            { "h_scarecrow_immunity", "locked" },
+            { "h_start_year_length", "scrollHorizontal" },
+            { "h_greenhouse_x2", "home" },
+            { "h_almanac_discount", "minus" },
+        };
+
+        private static string IconFor(string id) => Icons.TryGetValue(id, out var k) ? k : "";
 
         public static readonly SkillNode[] Nodes =
         {

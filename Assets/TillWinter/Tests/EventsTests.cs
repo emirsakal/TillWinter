@@ -13,7 +13,7 @@ namespace TillWinter.Tests
 
         private static FarmSim NewSim(Action<FarmConfig> tweak = null, int seed = 1)
         {
-            var cfg = new FarmConfig();
+            var cfg = TestConfig.Classic();
             tweak?.Invoke(cfg);
             return new FarmSim(cfg, seed);
         }
@@ -345,24 +345,15 @@ namespace TillWinter.Tests
             var coins = new List<double>();
             sim.Harvested += e => coins.Add(e.Coins);
             sim.DebugForceRipeAll();
-            Run(sim, 0.55f, Centre); // all 9 harvested in the same tick chain -> combo 1..9
-            Assert.AreEqual(9, coins.Count);
+            // GDD §2.1 (v1.4): the ring harvests one plot at a time (0.5 s each), so harvests chain inside the 1 s window.
+            for (int guard = 0; coins.Count < 12 && guard < 10_000; guard++) sim.Tick(Dt, Centre);
+            Assert.AreEqual(12, coins.Count);
             Assert.That(coins[0], Is.EqualTo(1 * (1 + 0.03 * 1)).Within(1e-9));
             Assert.That(coins[8], Is.EqualTo(1 * (1 + 0.03 * 9)).Within(1e-9));
-            Assert.AreEqual(9, sim.State.Combo);
+            Assert.That(coins[11], Is.EqualTo(1 * (1 + 0.03 * 10)).Within(1e-9), "multiplier caps at 10 stacks");
+            Assert.That(sim.State.Combo, Is.GreaterThanOrEqualTo(10));
             Run(sim, 1.2f, null);
             Assert.AreEqual(0, sim.State.Combo, "window expired");
-            // 12 quick harvests: multiplier caps at 10 stacks.
-            coins.Clear();
-            sim.DebugSkipToWinter();
-            sim.DebugAddCoins(1e6);
-            sim.TryBuy("expand_field");
-            sim.StartNextYear();
-            sim.DebugSetRingRadiusOverride(10f);
-            sim.DebugForceRipeAll();
-            Run(sim, 0.55f, Centre);
-            Assert.AreEqual(16, coins.Count);
-            Assert.That(coins[15], Is.EqualTo(1 * (1 + 0.03 * 10)).Within(1e-9));
         }
 
         [Test]
@@ -505,7 +496,7 @@ namespace TillWinter.Tests
         [Test]
         public void ScarecrowImmunity_NeedsScarecrow2_ThenNoCrows()
         {
-            var cfg = new FarmConfig();
+            var cfg = TestConfig.Classic();
             var only = StatResolver.Resolve(cfg, new Dictionary<string, int>(), new Dictionary<string, int> { ["h_scarecrow_immunity"] = 1 });
             Assert.AreEqual(0.25f, only.CrowSpawnChance, "node alone does nothing");
             var one = StatResolver.Resolve(cfg, new Dictionary<string, int> { ["scarecrow"] = 1 }, new Dictionary<string, int> { ["h_scarecrow_immunity"] = 1 });
@@ -557,7 +548,7 @@ namespace TillWinter.Tests
             foreach (var n in HeritageData.Nodes) ids.Add(n.Id);
             CollectionAssert.AreEquivalent(Applied.Keys, ids, "table ids and the explicit map must match exactly");
 
-            var cfg = new FarmConfig();
+            var cfg = TestConfig.Classic();
             var none = new Dictionary<string, int>();
             var baseline = StatResolver.Resolve(cfg, none, none);
             foreach (var kv in Applied)

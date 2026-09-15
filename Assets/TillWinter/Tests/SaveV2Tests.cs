@@ -50,7 +50,7 @@ namespace TillWinter.Tests
             Assert.AreEqual(1, data.SchemaVersion);
             Assert.AreEqual(9, data.Plots.Length);
             var migrated = SaveMigrations.Migrate(MiniJson.To<SaveData>(V1Fixture), new FarmConfig());
-            Assert.AreEqual(2, migrated.SchemaVersion);
+            Assert.AreEqual(SaveData.CurrentSchemaVersion, migrated.SchemaVersion);
             Assert.IsFalse(migrated.CloudActive);
             Assert.AreEqual(float.MaxValue, migrated.CloudSpawnTime);
             Assert.AreEqual(30f, migrated.TractorTimeToNextSweep, "tractor level 1 starts a full interval away");
@@ -90,7 +90,7 @@ namespace TillWinter.Tests
         [Test]
         public void UnknownVersion_StillNull()
         {
-            Assert.IsNull(SaveMigrations.Migrate(new SaveData { SchemaVersion = 3 }));
+            Assert.IsNull(SaveMigrations.Migrate(new SaveData { SchemaVersion = SaveData.CurrentSchemaVersion + 1 }));
             Assert.IsNull(SaveMigrations.Migrate(new SaveData { SchemaVersion = 0 }));
             var data = MiniJson.To<SaveData>(V1Fixture);
             data.SchemaVersion = 99;
@@ -124,7 +124,7 @@ namespace TillWinter.Tests
             Assert.That(s.Combo, Is.GreaterThanOrEqualTo(1));
 
             var data = sim.ToSave();
-            Assert.AreEqual(2, data.SchemaVersion);
+            Assert.AreEqual(SaveData.CurrentSchemaVersion, data.SchemaVersion);
             var loaded = FarmSim.FromSave(data, new FarmConfig());
             Assert.IsNotNull(loaded);
             var l = loaded.State;
@@ -178,6 +178,9 @@ namespace TillWinter.Tests
     public static class MiniJson
     {
         public static T To<T>(string json) where T : new() => (T)Map(Parse(json), typeof(T));
+
+        /// <summary>Top-level object as a dictionary (values: string, double, bool, List, Dictionary, null).</summary>
+        public static Dictionary<string, object> ParseObject(string json) => (Dictionary<string, object>)Parse(json);
 
         public static string From(object obj)
         {

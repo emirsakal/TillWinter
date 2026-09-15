@@ -1,121 +1,226 @@
 using System;
 using System.Collections.Generic;
+using TillWinter.Core.Feel;
 using UnityEngine;
+using UnityEngine.Audio;
 
 namespace TillWinter.Unity
 {
     public enum SfxId
     {
-        HarvestPop,
-        CoinArrive,
-        Purchase,
-        FrostTick,
-        CrowCaw,
-        CrowScared,
-        WinterChime,
+        HarvestPop, CoinArrive, CoinArriveRich, GoldenHarvest,
+        WaterSplash, Sprout,
+        CrowCaw, CrowScared,
+        CloudTap, TractorStart, Step,
+        FrostTick, WinterChime,
+        Purchase, Denied,
+        RetireSwell, NewGeneration, Expansion,
         UiClick,
-        Denied,
-        WaterSplash,
+    }
+
+    /// <summary>Which Kenney clips back each <see cref="SfxId"/> (Resources/Kenney). Tests assert every id resolves; no generated fallback exists.</summary>
+    public static class SfxTable
+    {
+        public sealed class Row
+        {
+            public string[] Clips;
+            public float Volume;
+            public float PitchJitter;
+            public int MaxPerSecond;
+            public Row(float volume, float jitter, int maxPerSecond, params string[] clips) { Volume = volume; PitchJitter = jitter; MaxPerSecond = maxPerSecond; Clips = clips; }
+        }
+
+        public static readonly Dictionary<SfxId, Row> Rows = new Dictionary<SfxId, Row>
+        {
+            { SfxId.HarvestPop, new Row(0.7f, 0.06f, 12, "impactSoft_medium_000", "impactSoft_medium_001", "impactSoft_medium_002") },
+            { SfxId.CoinArrive, new Row(0.4f, 0.08f, 20, "impactGlass_light_000", "impactGlass_light_001") },
+            { SfxId.CoinArriveRich, new Row(0.45f, 0.06f, 20, "impactGlass_medium_000", "impactGlass_medium_001") },
+            { SfxId.GoldenHarvest, new Row(0.8f, 0.0f, 4, "impactBell_heavy_003") },
+            { SfxId.WaterSplash, new Row(0.4f, 0.12f, 10, "drop_001", "drop_002") },
+            { SfxId.Sprout, new Row(0.35f, 0.1f, 10, "pluck_001", "pluck_002") },
+            { SfxId.CrowCaw, new Row(0.5f, 0.15f, 4, "creak2") },
+            { SfxId.CrowScared, new Row(0.5f, 0.1f, 4, "cloth1", "cloth2") },
+            { SfxId.CloudTap, new Row(0.5f, 0.05f, 4, "drop_003", "drop_004") },
+            { SfxId.TractorStart, new Row(0.55f, 0.05f, 2, "metalLatch") },
+            { SfxId.Step, new Row(0.12f, 0.15f, 6, "footstep_grass_000", "footstep_grass_001", "footstep_grass_002", "footstep_grass_003", "footstep_grass_004") },
+            { SfxId.FrostTick, new Row(0.5f, 0.02f, 4, "tick_001", "tick_002") },
+            { SfxId.WinterChime, new Row(0.8f, 0.0f, 1, "impactBell_heavy_000") },
+            { SfxId.Purchase, new Row(0.7f, 0.03f, 6, "confirmation_001", "impactBell_heavy_001") },
+            { SfxId.Denied, new Row(0.5f, 0.0f, 6, "error_004") },
+            { SfxId.RetireSwell, new Row(0.9f, 0.0f, 1, "maximize_008") },
+            { SfxId.NewGeneration, new Row(0.8f, 0.0f, 1, "open_001", "confirmation_003") },
+            { SfxId.Expansion, new Row(0.6f, 0.05f, 4, "impactWood_medium_000", "impactPlank_medium_001") },
+            { SfxId.UiClick, new Row(0.5f, 0.05f, 12, "click1", "click2", "click3") },
+        };
+
+        /// <summary>Ids whose clips did not all load (empty when the audio folder is complete).</summary>
+        public static List<string> Missing()
+        {
+            var missing = new List<string>();
+            foreach (var kv in Rows)
+                foreach (var clip in kv.Value.Clips)
+                    if (Resources.Load<AudioClip>("Kenney/" + clip) == null) missing.Add(kv.Key + ":" + clip);
+            return missing;
+        }
     }
 
     /// <summary>
-    /// Pitch-randomised one-shots. Loads Kenney CC0 clips from Resources/Kenney when present and
-    /// falls back to clips generated with AudioClip.Create so every hook is exercised offline.
+    /// Pitch-randomised one-shots on a capped voice pool (8) through the Master/SFX/Ambience mixer, every id
+    /// rate-limited (merged plays come out slightly louder), combo pitch, ducking for the big moments, volumes
+    /// from settings.json. No generated fallback: a missing clip logs once and stays silent.
     /// </summary>
     public sealed class AudioManager : MonoBehaviour
     {
-        private const int Voices = 8;
-        private const int SampleRate = 22050;
+        public const int Voices = 8;
+        public const string MixerName = "TillWinterMixer";
 
         private sealed class Entry
         {
             public AudioClip[] Clips;
-            public float Volume;
-            public float PitchJitter;
+            public SfxTable.Row Row;
+            public RateLimiter Limiter;
+            public float PendingVolume, PendingPitch;
+            public bool Pending;
         }
 
         private readonly Dictionary<SfxId, Entry> _table = new Dictionary<SfxId, Entry>();
+        private readonly List<Entry> _entries = new List<Entry>();
         private AudioSource[] _sources;
-        private int _next;
-        private float _lastCoin;
+        private float[] _busyUntil;
+        private AudioMixer _mixer;
+        private AudioMixerGroup _sfxGroup, _ambienceGroup;
+        private float _duckUntil;
+        private float _sfxDb;
         private System.Random _rng = new System.Random(7);
+
+        public static AudioManager Instance { get; private set; }
         public bool UsingKenneyClips { get; private set; }
+        public bool HasMixer => _mixer != null;
+        /// <summary>Pitch multiplier applied to harvest pops (combo); set by the field view.</summary>
+        public float HarvestPitch = 1f;
+
+        /// <summary>Voices playing right now (smoke budget check).</summary>
+        public int ActiveVoices
+        {
+            get
+            {
+                int n = 0;
+                float now = Time.unscaledTime;
+                for (int i = 0; i < _sources.Length; i++) if (_busyUntil[i] > now) n++;
+                return n;
+            }
+        }
 
         public void Init()
         {
+            Instance = this;
+            _mixer = Resources.Load<AudioMixer>(MixerName);
+            if (_mixer != null)
+            {
+                var sfx = _mixer.FindMatchingGroups("SFX");
+                var amb = _mixer.FindMatchingGroups("Ambience");
+                if (sfx.Length > 0) _sfxGroup = sfx[0];
+                if (amb.Length > 0) _ambienceGroup = amb[0];
+            }
             _sources = new AudioSource[Voices];
+            _busyUntil = new float[Voices];
             for (int i = 0; i < Voices; i++)
             {
                 var s = gameObject.AddComponent<AudioSource>();
                 s.playOnAwake = false;
                 s.spatialBlend = 0f;
+                s.outputAudioMixerGroup = _sfxGroup;
                 _sources[i] = s;
             }
-
-            int loaded = 0;
-            Register(SfxId.HarvestPop, 0.7f, 0.12f, ref loaded, () => Gen("pop", 0.09f, t => Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(620f, 260f, t / 0.09f) * t) * Mathf.Exp(-t * 18f)),
-                "impactSoft_medium_000", "impactSoft_medium_001", "impactSoft_medium_002", "impactSoft_medium_003");
-            Register(SfxId.CoinArrive, 0.45f, 0.1f, ref loaded, () => Gen("coin", 0.12f, t => Mathf.Sin(2f * Mathf.PI * 1320f * t) * Mathf.Exp(-t * 22f)),
-                "impactGlass_light_000", "impactGlass_light_001", "impactGlass_light_002", "impactGlass_light_003");
-            Register(SfxId.Purchase, 0.7f, 0.04f, ref loaded, () => Gen("buy", 0.3f, t => (Mathf.Sin(2f * Mathf.PI * 520f * t) + Mathf.Sin(2f * Mathf.PI * 780f * Mathf.Max(0f, t - 0.1f))) * 0.5f * Mathf.Exp(-t * 7f)),
-                "impactBell_heavy_001");
-            Register(SfxId.FrostTick, 0.5f, 0.02f, ref loaded, () => Gen("tick", 0.05f, t => Mathf.Sin(2f * Mathf.PI * 220f * t) * Mathf.Exp(-t * 60f)),
-                "switch8", "switch9");
-            Register(SfxId.CrowCaw, 0.5f, 0.15f, ref loaded, () => Gen("caw", 0.22f, t => (float)(_rng.NextDouble() * 2 - 1) * Mathf.Sin(2f * Mathf.PI * 90f * t) * Mathf.Sin(t / 0.22f * Mathf.PI)));
-            Register(SfxId.CrowScared, 0.5f, 0.1f, ref loaded, () => Gen("flap", 0.3f, t => (float)(_rng.NextDouble() * 2 - 1) * Mathf.Abs(Mathf.Sin(2f * Mathf.PI * 14f * t)) * Mathf.Exp(-t * 6f)));
-            Register(SfxId.WinterChime, 0.8f, 0.0f, ref loaded, () => Gen("chime", 0.9f, t => (Mathf.Sin(2f * Mathf.PI * 880f * t) + 0.6f * Mathf.Sin(2f * Mathf.PI * 1320f * t)) * 0.6f * Mathf.Exp(-t * 3.5f)),
-                "impactBell_heavy_000");
-            Register(SfxId.UiClick, 0.5f, 0.05f, ref loaded, () => Gen("click", 0.04f, t => Mathf.Sin(2f * Mathf.PI * 900f * t) * Mathf.Exp(-t * 90f)),
-                "click1", "click2", "click3");
-            Register(SfxId.Denied, 0.5f, 0.0f, ref loaded, () => Gen("denied", 0.15f, t => Mathf.Sin(2f * Mathf.PI * 160f * t) * Mathf.Exp(-t * 12f)),
-                "impactMetal_light_000");
-            Register(SfxId.WaterSplash, 0.35f, 0.15f, ref loaded, () => Gen("splash", 0.12f, t => (float)(_rng.NextDouble() * 2 - 1) * Mathf.Exp(-t * 30f) * 0.6f),
-                "impactSoft_medium_001", "impactSoft_medium_003");
-            UsingKenneyClips = loaded > 0;
-            Debug.Log("[TillWinter] Audio: " + (UsingKenneyClips ? loaded + " Kenney clips loaded from Resources/Kenney" : "no Kenney clips found, using generated placeholders"));
+            int loaded = 0, expected = 0;
+            foreach (var kv in SfxTable.Rows)
+            {
+                var clips = new List<AudioClip>();
+                foreach (var n in kv.Value.Clips)
+                {
+                    expected++;
+                    var c = Resources.Load<AudioClip>("Kenney/" + n);
+                    if (c != null) { clips.Add(c); loaded++; }
+                    else Debug.LogWarning("[TillWinter] Audio clip missing: Kenney/" + n + " for " + kv.Key);
+                }
+                var e = new Entry { Clips = clips.ToArray(), Row = kv.Value, Limiter = new RateLimiter(kv.Value.MaxPerSecond, 0.15f, 1.6f) };
+                _table[kv.Key] = e;
+                _entries.Add(e);
+            }
+            UsingKenneyClips = loaded == expected && expected > 0;
+            ApplyVolumes();
+            Debug.Log("[TillWinter] Audio: " + loaded + "/" + expected + " Kenney clips" + (_mixer != null ? ", mixer " + MixerName : ", no mixer asset"));
         }
 
-        private void Register(SfxId id, float volume, float pitchJitter, ref int loadedCount, Func<AudioClip> fallback, params string[] resourceNames)
+        /// <summary>Pushes settings.json volumes to the mixer (dB) or, without a mixer, to the sources.</summary>
+        public void ApplyVolumes()
         {
-            var clips = new List<AudioClip>();
-            foreach (var n in resourceNames)
+            var s = SettingsStore.Current;
+            if (_mixer != null)
             {
-                var c = Resources.Load<AudioClip>("Kenney/" + n);
-                if (c != null) clips.Add(c);
+                _mixer.SetFloat("MasterVolume", ToDb(s.MasterVolume));
+                _sfxDb = ToDb(s.SfxVolume);
+                _mixer.SetFloat("SfxVolume", _sfxDb);
+                _mixer.SetFloat("AmbienceVolume", ToDb(s.AmbienceVolume));
             }
-            loadedCount += clips.Count;
-            if (clips.Count == 0) clips.Add(fallback());
-            _table[id] = new Entry { Clips = clips.ToArray(), Volume = volume, PitchJitter = pitchJitter };
+            else
+                foreach (var src in _sources) src.volume = s.MasterVolume * s.SfxVolume;
         }
 
-        private static AudioClip Gen(string name, float seconds, Func<float, float> wave)
+        private static float ToDb(float linear) => linear <= 0.0001f ? -80f : 20f * Mathf.Log10(linear);
+
+        /// <summary>SFX drop by <paramref name="db"/> for <paramref name="seconds"/> (winter chime, retire swell).</summary>
+        public void Duck(float seconds = 1f, float db = -6f)
         {
-            int n = Mathf.CeilToInt(seconds * SampleRate);
-            var data = new float[n];
-            for (int i = 0; i < n; i++)
-            {
-                float t = i / (float)SampleRate;
-                float fadeIn = Mathf.Min(1f, i / 40f);
-                data[i] = Mathf.Clamp(wave(t), -1f, 1f) * fadeIn;
-            }
-            var clip = AudioClip.Create(name, n, 1, SampleRate, false);
-            clip.SetData(data, 0);
-            return clip;
+            _duckUntil = Time.unscaledTime + seconds;
+            if (_mixer != null) _mixer.SetFloat("SfxVolume", _sfxDb + db);
         }
 
-        public void Play(SfxId id, float volumeScale = 1f)
+        public void Play(SfxId id, float volumeScale = 1f, float pitch = 1f)
         {
-            if (!_table.TryGetValue(id, out var e)) return;
-            if (id == SfxId.CoinArrive)
+            if (!_table.TryGetValue(id, out var e) || e.Clips.Length == 0) return;
+            if (id == SfxId.HarvestPop) pitch *= HarvestPitch;
+            if (e.Limiter.Request(Time.unscaledTimeAsDouble, out float intensity)) Fire(e, volumeScale * intensity, pitch);
+            else
             {
-                if (Time.unscaledTime - _lastCoin < 0.035f) return;
-                _lastCoin = Time.unscaledTime;
+                e.Pending = true;
+                e.PendingVolume = volumeScale;
+                e.PendingPitch = pitch;
             }
-            var src = _sources[_next];
-            _next = (_next + 1) % _sources.Length;
-            src.pitch = 1f + UnityEngine.Random.Range(-e.PitchJitter, e.PitchJitter);
-            var clip = e.Clips[UnityEngine.Random.Range(0, e.Clips.Length)];
-            src.PlayOneShot(clip, e.Volume * volumeScale);
+        }
+
+        private void Fire(Entry e, float volumeScale, float pitch)
+        {
+            float now = Time.unscaledTime;
+            // Eight voices max: take a free one, else steal the one that ends soonest (never more than 8 playing).
+            int slot = 0;
+            for (int i = 0; i < _sources.Length; i++)
+            {
+                if (_busyUntil[i] <= now) { slot = i; break; }
+                if (_busyUntil[i] < _busyUntil[slot]) slot = i;
+            }
+            var src = _sources[slot];
+            var clip = e.Clips[_rng.Next(e.Clips.Length)];
+            src.pitch = pitch * (1f + ((float)_rng.NextDouble() * 2f - 1f) * e.Row.PitchJitter);
+            src.PlayOneShot(clip, e.Row.Volume * Mathf.Min(1.5f, volumeScale));
+            _busyUntil[slot] = now + clip.length / Mathf.Max(0.5f, src.pitch);
+        }
+
+        private void LateUpdate()
+        {
+            double now = Time.unscaledTimeAsDouble;
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                var e = _entries[i];
+                if (!e.Pending) continue;
+                if (e.Limiter.Poll(now, out float intensity)) Fire(e, e.PendingVolume * intensity, e.PendingPitch);
+                if (e.Limiter.Pending == 0) e.Pending = false;
+            }
+            if (_duckUntil > 0f && Time.unscaledTime >= _duckUntil)
+            {
+                _duckUntil = 0f;
+                if (_mixer != null) _mixer.SetFloat("SfxVolume", _sfxDb);
+            }
         }
     }
 }

@@ -36,12 +36,20 @@ namespace TillWinter.Core
         public event Action RainCloudTapped;
         public event Action RainCloudLeft;
         public event Action<int> TractorSweepStarted;
+        public event Action<Hint> HintShown;
+        /// <summary>The Golden Year began (every Heritage node maxed, first time).</summary>
+        public event Action GoldenYearStarted;
+        /// <summary>The Golden Year's last day passed: fired before WinterStarted so the ending (credits, stats) can go first.</summary>
+        public event Action GoldenYearEnded;
 
         private Rng _rng;
         private readonly List<Plot> _scratch = new List<Plot>();
         private float _crowSpawnTimer;
         private float? _ringRadiusOverride;
         private bool _offline;
+
+        /// <summary>True while <see cref="SimulateOffline"/> runs; presentation skips per-event FX.</summary>
+        public bool IsSimulatingOffline => _offline;
         private bool _forceGoldenNext;
 
         public FarmSim(FarmConfig config, int seed, IReadOnlyList<SkillNode> almanacNodes = null, IReadOnlyList<SkillNode> heritageNodes = null)
@@ -177,12 +185,53 @@ namespace TillWinter.Core
             if (State.Phase != Phase.Winter) return;
             State.Year++;
             State.Generation.YearsThisGeneration++;
+            State.Generation.YearsTotal++;
             BeginSpring();
+        }
+
+        // ------------------------------------------------------------------ onboarding (GDD §10.5)
+
+        /// <summary>Marks a hint as shown. Returns true the first time only.</summary>
+        public bool MarkHint(Hint hint)
+        {
+            if (State.Onboarding.Has(hint)) return false;
+            State.Onboarding.Set(hint);
+            HintShown?.Invoke(hint);
+            return true;
+        }
+
+        public bool HintPending(Hint hint) => !State.Onboarding.Has(hint);
+
+        /// <summary>Remembers a tree canvas pan/zoom (saved).</summary>
+        public void RememberTreeView(TreeKind tree, float panX, float panY, float zoom)
+        {
+            var m = tree == TreeKind.Almanac ? State.AlmanacView : State.HeritageView;
+            m.HasView = true;
+            m.PanX = panX;
+            m.PanY = panY;
+            m.Zoom = zoom;
         }
 
         // ------------------------------------------------------------------ heritage (GDD §7)
 
         public bool CanRetire => State.Generation.LifetimeCoinsThisGeneration >= Config.HeritageThreshold;
+
+        /// <summary>Every Heritage node is at its max level (GDD §8 ending trigger).</summary>
+        public bool HeritageComplete
+        {
+            get
+            {
+                if (Heritage.Nodes.Count == 0) return false;
+                foreach (var n in Heritage.Nodes) if (!Heritage.IsMaxed(n.Id)) return false;
+                return true;
+            }
+        }
+
+        /// <summary>Real play time for the stats screen (the presentation layer feeds unpaused, unscaled seconds).</summary>
+        public void AddPlayTime(double seconds)
+        {
+            if (seconds > 0 && !double.IsNaN(seconds) && !double.IsInfinity(seconds)) State.Generation.TimePlayedSeconds += seconds;
+        }
 
         /// <summary>floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)).</summary>
         public int SeedsIfRetiredNow => SeedsFor(State.Generation.LifetimeCoinsThisGeneration);
@@ -228,9 +277,15 @@ namespace TillWinter.Core
         {
             if (State.Phase != Phase.Heritage) return;
             State.Year = 1;
+            State.GoldenYearActive = HeritageComplete && !State.EndingSeen;
             ResolveStats();
-            if (State.GridSize != State.Stats.TargetGridSize) BuildField(State.Stats.TargetGridSize, false);
+            if (!State.GoldenYearActive && State.GridSize != State.Stats.TargetGridSize) BuildField(State.Stats.TargetGridSize, false);
             BeginSpring();
+            if (State.GoldenYearActive)
+            {
+                PlantGoldenField(); // after BeginSpring, which resets every plot for the new year
+                GoldenYearStarted?.Invoke();
+            }
             GenerationStarted?.Invoke();
         }
 
@@ -299,6 +354,19 @@ namespace TillWinter.Core
                 ComboTimer = s.ComboTimer,
                 GreenhouseSecondsLeft = s.Greenhouse.SecondsLeftThisWinter,
                 GreenhouseCoinsThisWinter = s.Greenhouse.CoinsThisWinter,
+                OnboardingBits = s.Onboarding.Bits,
+                AlmanacViewHas = s.AlmanacView.HasView, AlmanacViewX = s.AlmanacView.PanX, AlmanacViewY = s.AlmanacView.PanY, AlmanacViewZoom = s.AlmanacView.Zoom,
+                HeritageViewHas = s.HeritageView.HasView, HeritageViewX = s.HeritageView.PanX, HeritageViewY = s.HeritageView.PanY, HeritageViewZoom = s.HeritageView.Zoom,
+                EndingSeen = s.EndingSeen,
+                GoldenYearActive = s.GoldenYearActive,
+                HarvestsRing = s.Generation.HarvestsRing,
+                HarvestsApprentice = s.Generation.HarvestsApprentice,
+                HarvestsTractor = s.Generation.HarvestsTractor,
+                HarvestsLateFrost = s.Generation.HarvestsLateFrost,
+                GoldenHarvests = s.Generation.GoldenHarvests,
+                BestCombo = s.Generation.BestCombo,
+                TimePlayedSeconds = s.Generation.TimePlayedSeconds,
+                YearsTotal = s.Generation.YearsTotal,
             };
             for (int i = 0; i < s.PlotArray.Length; i++)
             {
@@ -338,6 +406,16 @@ namespace TillWinter.Core
             g.SeedsEarnedTotal = data.SeedsEarnedTotal;
             g.CrowsScared = data.CrowsScared;
             g.Harvests = data.Harvests;
+            g.HarvestsRing = data.HarvestsRing;
+            g.HarvestsApprentice = data.HarvestsApprentice;
+            g.HarvestsTractor = data.HarvestsTractor;
+            g.HarvestsLateFrost = data.HarvestsLateFrost;
+            g.GoldenHarvests = data.GoldenHarvests;
+            g.BestCombo = data.BestCombo;
+            g.TimePlayedSeconds = data.TimePlayedSeconds;
+            g.YearsTotal = data.YearsTotal;
+            s.EndingSeen = data.EndingSeen;
+            s.GoldenYearActive = data.GoldenYearActive;
 
             foreach (var pair in data.AlmanacLevels ?? new LevelPair[0]) sim.Almanac.SetLevel(pair.Id, pair.Level);
             foreach (var pair in data.HeritageLevels ?? new LevelPair[0]) sim.Heritage.SetLevel(pair.Id, pair.Level);
@@ -381,6 +459,9 @@ namespace TillWinter.Core
             s.ComboTimer = data.ComboTimer;
             s.Greenhouse.SecondsLeftThisWinter = data.GreenhouseSecondsLeft;
             s.Greenhouse.CoinsThisWinter = data.GreenhouseCoinsThisWinter;
+            s.Onboarding.Bits = data.OnboardingBits;
+            s.AlmanacView.HasView = data.AlmanacViewHas; s.AlmanacView.PanX = data.AlmanacViewX; s.AlmanacView.PanY = data.AlmanacViewY; s.AlmanacView.Zoom = data.AlmanacViewZoom <= 0f ? 1f : data.AlmanacViewZoom;
+            s.HeritageView.HasView = data.HeritageViewHas; s.HeritageView.PanX = data.HeritageViewX; s.HeritageView.PanY = data.HeritageViewY; s.HeritageView.Zoom = data.HeritageViewZoom <= 0f ? 1f : data.HeritageViewZoom;
             sim.UpdateGreenhouseRate();
             return sim;
         }
@@ -401,7 +482,7 @@ namespace TillWinter.Core
         /// </summary>
         public OfflineReport SimulateOffline(double elapsedSeconds)
         {
-            if (State.Phase != Phase.Year || elapsedSeconds <= 0 || double.IsNaN(elapsedSeconds))
+            if (State.Phase != Phase.Year || elapsedSeconds <= 0 || double.IsNaN(elapsedSeconds) || elapsedSeconds < Config.OfflineMinSeconds)
                 return new OfflineReport(0, 0, 0, false);
             bool capped = elapsedSeconds > Config.OfflineCapSeconds;
             double total = Math.Min(elapsedSeconds, Config.OfflineCapSeconds);
@@ -412,6 +493,9 @@ namespace TillWinter.Core
 
             double coinsBefore = State.Coins;
             int harvestsBefore = State.Generation.Harvests;
+            int apprentice = 0, tractor = 0;
+            Action<HarvestEvent> count = e => { if (e.Source == HarvestSource.Apprentice) apprentice++; else if (e.Source == HarvestSource.Tractor) tractor++; };
+            Harvested += count;
             var ringBefore = State.Ring;
             State.Ring = null;
             _offline = true;
@@ -422,8 +506,9 @@ namespace TillWinter.Core
                 UpdateTractor(step);
             }
             _offline = false;
+            Harvested -= count;
             State.Ring = ringBefore;
-            return new OfflineReport(steps * (double)step, State.Coins - coinsBefore, State.Generation.Harvests - harvestsBefore, capped);
+            return new OfflineReport(steps * (double)step, State.Coins - coinsBefore, State.Generation.Harvests - harvestsBefore, capped, apprentice, tractor);
         }
 
         // ------------------------------------------------------------------ debug hooks
@@ -436,9 +521,42 @@ namespace TillWinter.Core
             State.Generation.LifetimeCoinsTotal += amount;
         }
 
+        /// <summary>Every Heritage node to its max level (smoke / developer panel: reach the ending).</summary>
+        public void DebugMaxHeritage()
+        {
+            foreach (var n in Heritage.Nodes) Heritage.SetLevel(n.Id, n.MaxLevel < 0 ? 1 : n.MaxLevel);
+            ResolveStats();
+        }
+
         public void DebugSkipToWinter()
         {
             if (State.Phase == Phase.Year) EnterWinter();
+        }
+
+        /// <summary>Jumps the year clock to a season (start of it; Autumn lands just inside the frost warning). Smoke/art hook.</summary>
+        public void DebugSetSeason(Season season)
+        {
+            if (State.Phase != Phase.Year) return;
+            float length = State.Stats.YearLength;
+            switch (season)
+            {
+                case Season.Spring: State.YearTime = 0f; break;
+                case Season.Summer: State.YearTime = length * 0.4f; break;
+                default: State.YearTime = Math.Max(length * 2f / 3f + 0.01f, length - State.Stats.FrostWarningSeconds * 0.9f); break;
+            }
+            var s = SeasonAt(State.YearTime, length);
+            if (s != State.Season)
+            {
+                State.Season = s;
+                SeasonChanged?.Invoke(s);
+            }
+        }
+
+        /// <summary>Sets the generation number (decor/house progression) without touching seeds or trees. Smoke/art hook.</summary>
+        public void DebugSetGeneration(int generation)
+        {
+            State.Generation.Generation = Math.Max(1, generation);
+            GenerationStarted?.Invoke();
         }
 
         /// <summary>Force a crow onto a plot (ripening it if needed). Ignores year/scarecrow rules.</summary>
@@ -525,7 +643,7 @@ namespace TillWinter.Core
             State.YearTime += dt;
             float length = State.Stats.YearLength;
 
-            if (!State.FrostWarning && State.YearTime >= length - State.Stats.FrostWarningSeconds)
+            if (!State.GoldenYearActive && !State.FrostWarning && State.YearTime >= length - State.Stats.FrostWarningSeconds)
             {
                 State.FrostWarning = true;
                 FrostWarningStarted?.Invoke();
@@ -555,6 +673,12 @@ namespace TillWinter.Core
 
         private void EnterWinter()
         {
+            bool goldenEnded = State.GoldenYearActive;
+            if (goldenEnded)
+            {
+                State.GoldenYearActive = false;
+                State.EndingSeen = true;
+            }
             // late_frost: nearly-grown crops pay half instead of being lost.
             if (State.Stats.LateFrost)
             {
@@ -576,6 +700,16 @@ namespace TillWinter.Core
             State.Greenhouse.SecondsLeftThisWinter = Config.GreenhouseWinterCapSeconds;
             State.Greenhouse.CoinsThisWinter = 0;
             UpdateGreenhouseRate();
+            if (goldenEnded)
+            {
+                // The game continues as a normal generation: the golden field gives way to the Heritage starting field.
+                ResolveStats();
+                State.PlotArray = null;
+                State.GridSize = 0;
+                BuildField(State.Stats.TargetGridSize, false);
+                ResolveStats();
+                GoldenYearEnded?.Invoke();
+            }
             SeasonChanged?.Invoke(Season.Winter);
             WinterStarted?.Invoke();
         }
@@ -587,6 +721,7 @@ namespace TillWinter.Core
         private void UpdatePlots(float dt)
         {
             var st = State.Stats;
+            var ringHarvest = _offline ? null : RingHarvestTarget();
             foreach (var plot in State.PlotArray)
             {
                 bool under = !_offline && State.IsUnderRing(plot.Pos);
@@ -621,7 +756,7 @@ namespace TillWinter.Core
                     }
                     case PlotState.Ripe:
                     {
-                        if (!under) break;
+                        if (plot != ringHarvest) break; // GDD §2.1 (v1.4): the ring harvests one plot at a time
                         plot.Progress += st.RingHarvestMult / crop.Harvest * dt;
                         if (plot.Progress >= 1f)
                             Harvest(plot, HarvestSource.Ring, -1);
@@ -629,6 +764,31 @@ namespace TillWinter.Core
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// GDD §2.1 (v1.4): the ring waters and grows every plot under it, but harvests one Ripe plot at a time —
+        /// the one furthest along (a started harvest finishes), ties to the plot nearest the ring centre, then array order.
+        /// </summary>
+        private Plot RingHarvestTarget()
+        {
+            if (State.Ring == null) return null;
+            var r = State.Ring.Value;
+            Plot best = null;
+            float bestProgress = -1f, bestDist = float.MaxValue;
+            foreach (var p in State.PlotArray)
+            {
+                if (!p.IsRipe || !State.IsUnderRing(p.Pos)) continue;
+                float dx = p.Pos.X - r.X, dy = p.Pos.Y - r.Y;
+                float d = dx * dx + dy * dy;
+                if (p.Progress > bestProgress || (p.Progress == bestProgress && d < bestDist))
+                {
+                    best = p;
+                    bestProgress = p.Progress;
+                    bestDist = d;
+                }
+            }
+            return best;
         }
 
         private void Harvest(Plot plot, HarvestSource source, int apprenticeIndex)
@@ -650,7 +810,16 @@ namespace TillWinter.Core
                     break;
             }
             AddCoins(coins);
-            State.Generation.Harvests++;
+            var gen = State.Generation;
+            gen.Harvests++;
+            switch (source)
+            {
+                case HarvestSource.Ring: gen.HarvestsRing++; break;
+                case HarvestSource.Apprentice: gen.HarvestsApprentice++; break;
+                case HarvestSource.Tractor: gen.HarvestsTractor++; break;
+                case HarvestSource.LateFrost: gen.HarvestsLateFrost++; break;
+            }
+            if (golden) gen.GoldenHarvests++;
             int tier = plot.Tier;
             Replant(plot, source == HarvestSource.Apprentice && st.HelperWater);
             if (plot.HasCrow)
@@ -666,6 +835,11 @@ namespace TillWinter.Core
         {
             plot.Reset();
             if (startWet) plot.State = PlotState.Wet;
+            if (State.GoldenYearActive)
+            {
+                plot.IsGolden = true;
+                return;
+            }
             if (_forceGoldenNext)
             {
                 plot.IsGolden = true;
@@ -681,6 +855,7 @@ namespace TillWinter.Core
         {
             State.Combo = State.ComboTimer <= Config.ComboWindowSeconds && State.Combo > 0 ? State.Combo + 1 : 1;
             State.ComboTimer = 0f;
+            if (State.Combo > State.Generation.BestCombo) State.Generation.BestCombo = State.Combo;
         }
 
         private void UpdateCombo(float dt)
@@ -999,7 +1174,7 @@ namespace TillWinter.Core
                 }
             }
 
-            if (State.Year < Config.CrowFirstYear) return;
+            if (State.Year < Config.CrowFirstYear || State.GoldenYearActive) return;
 
             _crowSpawnTimer += dt;
             while (_crowSpawnTimer >= Config.CrowSpawnInterval)
@@ -1069,6 +1244,21 @@ namespace TillWinter.Core
             foreach (var a in State.ApprenticeList) PlaceIdle(a);
         }
 
+        /// <summary>Golden Year field: the largest field, every plot the top tier (Golden Wheat), golden, just planted (Wet).</summary>
+        private void PlantGoldenField()
+        {
+            State.PlotArray = null;
+            State.GridSize = 0;
+            BuildField(Config.MaxGridSize, false);
+            foreach (var p in State.PlotArray)
+            {
+                p.Tier = Config.MaxTier;
+                p.IsGolden = true;
+                p.State = PlotState.Wet;
+                p.Progress = 0f;
+            }
+        }
+
         private Plot FindLowestUpgradablePlot(Plot exclude)
         {
             int cap = State.Stats.MaxTierUnlocked;
@@ -1103,6 +1293,11 @@ namespace TillWinter.Core
         private void ResolveStats()
         {
             State.Stats = StatResolver.Resolve(Config, Almanac.Levels, Heritage.Levels, Almanac.Nodes, Heritage.Nodes);
+            if (State.GoldenYearActive)
+            {
+                State.Stats.YearLength = Config.GoldenYearSeconds;
+                State.Stats.FrostWarningSeconds = 0f;
+            }
             State.RingRadius = _ringRadiusOverride ?? State.Stats.RingRadius;
             bool ownedBefore = State.Tractor.Owned;
             State.Tractor.Owned = State.Stats.TractorLevel > 0;
