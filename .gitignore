@@ -108,3 +108,12 @@ InitTestScene*.unity*
 
 # TillWinter test output
 /TestResults/
+
+# Session 8: build pipeline output and signing material (never committed)
+/Assets/StreamingAssets/
+/Assets/StreamingAssets.meta
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.provisionprofile
