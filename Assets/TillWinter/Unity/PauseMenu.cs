@@ -37,6 +37,7 @@ namespace TillWinter.Unity
         private float _resetHeld;
         private bool _resetDone;
         private Action _afterStats;
+        private bool _fromMenu;
 
         public bool IsOpen => _pause.activeSelf || _settings.activeSelf || _credits.activeSelf || _stats.activeSelf;
 
@@ -63,10 +64,11 @@ namespace TillWinter.Unity
 
         private void BuildPause(RectTransform canvas)
         {
-            _pause = Sheet(canvas, "PauseSheet", "pause.title", 560f, out var p);
+            _pause = Sheet(canvas, "PauseSheet", "pause.title", 664f, out var p);
             Btn(p, "pause.resume", Resume, -150f);
             Btn(p, "pause.settings", () => Show(_settings), -150f - RowHeight);
             Btn(p, "pause.stats", () => ShowStats(() => Show(_pause)), -150f - 2f * RowHeight);
+            Btn(p, "pause.main_menu", ToMainMenu, -150f - 3f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle);
         }
 
         private void BuildSettings(RectTransform canvas)
@@ -129,7 +131,7 @@ namespace TillWinter.Unity
 
             _version = Text(p, "Version", "", y, 24, _theme.SheetMuted, TextAnchor.MiddleCenter, 40f);
             y -= 70f;
-            Btn(p, "settings.back", () => { SettingsStore.Save(); Show(_pause); }, y);
+            Btn(p, "settings.back", () => { SettingsStore.Save(); if (_fromMenu) CloseSheets(); else Show(_pause); }, y);
         }
 
         private void BuildCredits(RectTransform canvas)
@@ -149,6 +151,37 @@ namespace TillWinter.Unity
             Text(p, "Font", Strings.Get("credits.font"), y, 30, _theme.SheetInk, TextAnchor.MiddleCenter);
             y -= 140f;
             Btn(p, "settings.back", () => Show(_settings), y);
+        }
+
+        /// <summary>Main menu entry: Settings (and Credits from it); Back closes the sheets instead of showing Pause.</summary>
+        public void OpenSettingsFrom(Action unused)
+        {
+            _fromMenu = true;
+            Show(_settings);
+        }
+
+        /// <summary>Main menu entry: Credits; Back goes to Settings, whose Back then closes.</summary>
+        public void OpenCreditsFrom(Action unused)
+        {
+            _fromMenu = true;
+            Show(_credits);
+        }
+
+        /// <summary>Hides every sheet without resuming play or showing the pause button (main menu).</summary>
+        public void CloseSheets()
+        {
+            HideAll();
+            SettingsStore.Save();
+            _fromMenu = false;
+        }
+
+        /// <summary>Saves and loads the title scene (Menu.unity).</summary>
+        private void ToMainMenu()
+        {
+            Resume();
+            _save.SaveNow();
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(SceneNames.Menu);
         }
 
         private void BuildStats(RectTransform canvas)
@@ -175,7 +208,7 @@ namespace TillWinter.Unity
         {
             HideAll();
             SettingsStore.Save();
-            _game.SetPaused(false);
+            _game?.SetPaused(false);
             _pauseButton.gameObject.SetActive(true);
         }
 
@@ -185,7 +218,7 @@ namespace TillWinter.Unity
         public void ShowStats(Action after)
         {
             _afterStats = after;
-            if (!_game.Paused) _game.SetPaused(true);
+            if (_game != null && !_game.Paused) _game.SetPaused(true);
             FillStats();
             Show(_stats);
         }
@@ -230,7 +263,7 @@ namespace TillWinter.Unity
             if (GameLanguage.Current == lang && SettingsStore.Current.Language == lang) return;
             SettingsStore.Current.Language = lang;
             SettingsStore.Save();
-            _save.SaveNow();
+            _save?.SaveNow();
             Reload();
         }
 
@@ -251,15 +284,20 @@ namespace TillWinter.Unity
         {
             _resetDone = true;
             Haptics.Play(HapticKind.Heavy);
-            _save.Detach();
-            _save.DeleteSave();
+            if (_save != null)
+            {
+                _save.Detach();
+                _save.DeleteSave();
+            }
+            else SaveController.DeleteFiles(SaveController.FilePath); // title scene: no farm is running
             Debug.Log("[TillWinter] " + Strings.Get("settings.reset_done"));
             Reload();
         }
 
         private void Reload()
         {
-            _game.SetPaused(false);
+            if (_game != null) _game.SetPaused(false);
+            else Time.timeScale = 1f;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 

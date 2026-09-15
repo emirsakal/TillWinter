@@ -10,12 +10,16 @@ namespace TillWinter.Unity
     [CreateAssetMenu(menuName = "Till Winter/Tree Theme", fileName = "TreeTheme")]
     public sealed class TreeTheme : ScriptableObject
     {
+        /// <summary>Bumped when the page look changes; UiSetup restyles an older asset in place (S9: dark page, opaque overlay).</summary>
+        public const int CurrentStyle = 1;
+        public int StyleVersion;
+
         [Header("Almanac page")]
-        public Color Paper = new Color(0.97f, 0.93f, 0.84f, 0.93f);
-        public Color PaperVignette = new Color(0.62f, 0.5f, 0.34f, 0.35f);
-        public Color Ink = new Color(0.16f, 0.12f, 0.08f);
-        public Color InkMuted = new Color(0.45f, 0.4f, 0.34f);
-        public Color Overlay = new Color(0.05f, 0.08f, 0.14f, 0.55f);
+        public Color Paper = new Color(0.14f, 0.12f, 0.1f, 1f);
+        public Color PaperVignette = new Color(0f, 0f, 0f, 0.45f);
+        public Color Ink = new Color(0.95f, 0.9f, 0.8f);
+        public Color InkMuted = new Color(0.68f, 0.63f, 0.55f);
+        public Color Overlay = new Color(0.09f, 0.08f, 0.06f, 1f);
         public Color Accent = new Color(0.95f, 0.62f, 0.2f);
         public Color Danger = new Color(0.8f, 0.25f, 0.2f);
         public Color Gold = new Color(0.95f, 0.78f, 0.25f);
@@ -35,7 +39,7 @@ namespace TillWinter.Unity
         public float LockedSaturation = 0.25f;
         public float LockedAlpha = 0.75f;
         public float EdgeWidth = 6f;
-        public Color EdgeDim = new Color(0.55f, 0.48f, 0.4f, 0.45f);
+        public Color EdgeDim = new Color(0.62f, 0.56f, 0.48f, 0.4f);
         public float PulseAmplitude = 0.05f;
         public float ZoomMin = 0.5f;
         public float ZoomMax = 1.6f;
@@ -75,6 +79,19 @@ namespace TillWinter.Unity
             return t;
         }
 
+        /// <summary>S9: the dark Almanac page (the cream page tired the eyes) and an opaque overlay so no sky shows.</summary>
+        public static void ApplyAlmanacPage(TreeTheme t)
+        {
+            var d = CreateInstance<TreeTheme>();
+            t.Paper = d.Paper;
+            t.PaperVignette = d.PaperVignette;
+            t.Ink = d.Ink;
+            t.InkMuted = d.InkMuted;
+            t.Overlay = d.Overlay;
+            t.EdgeDim = d.EdgeDim;
+            DestroyImmediate(d);
+        }
+
         /// <summary>Heirloom look: deep green page, gold accents, seed currency, darker branch colours.</summary>
         public static void ApplyHeritageDefaults(TreeTheme t)
         {
@@ -82,7 +99,7 @@ namespace TillWinter.Unity
             t.PaperVignette = new Color(0f, 0.05f, 0.02f, 0.5f);
             t.Ink = new Color(0.96f, 0.9f, 0.72f);
             t.InkMuted = new Color(0.75f, 0.72f, 0.6f);
-            t.Overlay = new Color(0.03f, 0.08f, 0.05f, 0.98f);
+            t.Overlay = new Color(0.03f, 0.08f, 0.05f, 1f);
             t.Accent = new Color(0.9f, 0.72f, 0.28f);
             t.Danger = new Color(0.95f, 0.45f, 0.35f);
             t.Gold = new Color(1f, 0.85f, 0.4f);

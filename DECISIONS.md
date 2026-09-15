@@ -603,3 +603,42 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **Privacy.** `com.unity.modules.unityanalytics` removed from `Packages/manifest.json`;
   `docs/PRIVACY.md` added (no accounts, analytics, ads or network; all data stays on device).
 - **Version 1.0.0**, set through `BuildPipeline.Version`.
+
+## Follow-up: playtest polish and title screen (2026-09-16)
+
+- **SoilRipple removed from watering.** Grown to 2.4x a 0.5 quad, larger than a tile, it read as a
+  dark square spilling over the plot; the soil's own Dry->Wet colour blend already shows watering.
+  The `VfxId` stays in the catalogue, unused.
+- **Ring square tint dropped.** The ring is shown only by its round decal; plots under it no
+  longer get a square tint/lift/emission, since that made a round ring look square. Which plots
+  the ring affects was always a circle test on plot centres (`FarmState.IsUnderRing`) — no rule
+  changed.
+- **Diorama back strip + centred fence.** The island gets a 1.7-unit back strip
+  (`DioramaView.BackDepth`); the house and back trees stand on it behind the fence instead of on
+  the fence line. The fence is centred: panel count `floor(2*edge - 0.2)`, equal gaps left and
+  right, the middle panel (two on an even count) is the gate.
+- **Frost heartbeat is now a colour breath, not a scale pulse.** The sin^8 4-9 Hz scale pulse read
+  as jitter; the season bar now breathes colour toward frost blue instead.
+- **Skill tree screens go full screen, opaque, and the Almanac page is dark.** No 20 px inset, no
+  rounded corners, opaque overlay so no sky shows. Almanac paper moved to dark (0.14/0.12/0.10,
+  light ink) — the cream page tired the eyes. `TreeTheme.StyleVersion` lets `ui-setup.bat` restyle
+  existing theme assets in place.
+- **Carrot "green final stage" left open.** A new editor preview (`PreviewRender`, menu "Till
+  Winter/Preview crop stages", batch `-executeMethod TillWinter.EditorTools.PreviewRender.CropsBatch
+  -out <png> [-autumn]`) renders every tier's three stages. The carrot is sprout -> green leaves ->
+  orange carrot in both spring and autumn; the reported "green final stage" could not be reproduced
+  from the art, so it stays open pending an in-game screenshot.
+- **Title screen is its own scene** (`Menu.unity`, built in code by `MenuBootstrap`; created and
+  put first in the build order by `ui-setup.bat`; `BuildPipeline` builds Menu then Farm). The
+  first overlay version drew the menu over the live farm and HUD, which read cluttered. The scene
+  tells the game in one loop: a small floating 3x3 plot where mixed crops sprout, grow and ripen
+  in a diagonal wave while the seasons turn every 5 s (petals in Spring, leaves in Autumn, snow
+  and an empty field in Winter). Buttons: Play (Continue when a save exists), New game (confirm;
+  deletes the save files, keeps settings), Settings and Credits (the pause sheets, which now work
+  without a running farm), Quit (hidden on iOS). Statistics stay in the pause menu. Play fades to
+  the boot colour and loads Farm.unity, whose boot fade continues it seamlessly. The pause menu's
+  Main menu button saves and loads Menu.unity. SceneTests checks the build order.
+- **Crow views pooled (6 pre-warmed).** A landing used to create a GameObject mid-play, which the
+  smoke test's per-frame allocation check caught once the one-plot ring harvest left ripe plots
+  waiting longer. The smoke test now prints the per-marker allocation breakdown inside the FAIL
+  line (the smoke test opens Farm.unity directly).

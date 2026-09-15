@@ -460,8 +460,9 @@ namespace TillWinter.EditorTools
                         Check(_harvests > 0, "harvests happened during the burst");
                         Log("Gameplay script allocations during the burst: " + FrameAlloc.Describe());
                         Log("Frame-wide GC Allocated In Frame (Unity profiler counter, engine + scripts + editor): " + FrameAlloc.DescribeFrameWide());
-                        Log("GC.Alloc by marker under PlayerLoop during the burst (Editor profiler): " + ProfilerStopAndAttribute());
-                        Check(FrameAlloc.Frames > 30 && FrameAlloc.MaxBytes == 0, "no per-frame allocations in gameplay scripts (" + FrameAlloc.Describe() + ")");
+                        string byMarker = ProfilerStopAndAttribute();
+                        Log("GC.Alloc by marker under PlayerLoop during the burst (Editor profiler): " + byMarker);
+                        Check(FrameAlloc.Frames > 30 && FrameAlloc.MaxBytes == 0, "no per-frame allocations in gameplay scripts (" + FrameAlloc.Describe() + "; by marker: " + byMarker + ")");
                         _game.Sim.DebugSetSeason(Season.Summer);
                         Next();
                     }

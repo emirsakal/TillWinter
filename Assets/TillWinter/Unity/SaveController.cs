@@ -17,7 +17,8 @@ namespace TillWinter.Unity
         public float AutosaveSeconds = 30f;
 
         public static SaveController Instance { get; private set; }
-        public string Path => System.IO.Path.Combine(Application.persistentDataPath, FileName);
+        public string Path => FilePath;
+        public static string FilePath => System.IO.Path.Combine(Application.persistentDataPath, FileName);
         public string LastResult { get; private set; } = "";
 
         private GameController _game;
@@ -146,12 +147,18 @@ namespace TillWinter.Unity
 
         public void DeleteSave()
         {
-            foreach (var p in new[] { Path, Path + ".bak", Path + ".tmp" })
+            DeleteFiles(Path);
+            LastResult = "save deleted";
+        }
+
+        /// <summary>Deletes the save, its .bak and .tmp (also from the title scene, where no farm is running).</summary>
+        public static void DeleteFiles(string path)
+        {
+            foreach (var p in new[] { path, path + ".bak", path + ".tmp" })
             {
                 try { if (File.Exists(p)) File.Delete(p); }
                 catch (Exception e) { Debug.LogWarning("[TillWinter] Could not delete " + p + ": " + e.Message); }
             }
-            LastResult = "save deleted";
         }
     }
 }

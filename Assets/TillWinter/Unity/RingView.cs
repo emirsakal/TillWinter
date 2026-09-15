@@ -77,7 +77,7 @@ namespace TillWinter.Unity
             }
             else
             {
-                _ring.position = _pos + Vector3.up * 0.27f; // above lifted plots (soil top 0.16 + 0.05 lift)
+                _ring.position = _pos + Vector3.up * 0.22f; // just above the soil top (0.16)
                 _ring.localScale = Vector3.one * d;
                 var c = Color.Lerp(Color.white, new Color(1f, 0.92f, 0.55f), combo);
                 c.a = Mathf.Min(1f, (0.85f + 0.15f * combo) * _alpha);

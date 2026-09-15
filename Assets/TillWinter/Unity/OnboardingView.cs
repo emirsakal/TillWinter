@@ -86,6 +86,7 @@ namespace TillWinter.Unity
 
         private void Update()
         {
+            if (_game.Paused) return; // hints wait while the pause menu is open
             var sim = _game.Sim;
             var s = _game.State;
             float dt = Time.unscaledDeltaTime;

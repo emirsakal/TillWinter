@@ -47,6 +47,7 @@ namespace TillWinter.EditorTools
             CreateTheme();
             CreateExtraAssets();
             WireBootstrap();
+            CreateMenuScene();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("[UiSetup] done");
@@ -104,6 +105,31 @@ namespace TillWinter.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(FontAssetPath, ImportAssetOptions.ForceUpdate);
             Debug.Log("[UiSetup] font asset created: " + FontAssetPath + " (" + asset.characterTable.Count + " characters)");
+        }
+
+        private const string MenuScenePath = "Assets/TillWinter/Scenes/Menu.unity";
+
+        /// <summary>The title scene: one MenuBootstrap with both string tables; build order Menu, Farm (edited through the editor, never by hand).</summary>
+        private static void CreateMenuScene()
+        {
+            var en = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/TillWinter/Unity/Localization/en.json");
+            var tr = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/TillWinter/Unity/Localization/tr.json");
+            var scene = File.Exists(MenuScenePath)
+                ? UnityEditor.SceneManagement.EditorSceneManager.OpenScene(MenuScenePath)
+                : UnityEditor.SceneManagement.EditorSceneManager.NewScene(UnityEditor.SceneManagement.NewSceneSetup.EmptyScene, UnityEditor.SceneManagement.NewSceneMode.Single);
+            var boot = UnityEngine.Object.FindFirstObjectByType<MenuBootstrap>();
+            if (boot == null) boot = new GameObject("MenuBootstrap").AddComponent<MenuBootstrap>();
+            boot.StringTable = en;
+            boot.StringTableTr = tr;
+            EditorUtility.SetDirty(boot);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene, MenuScenePath);
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene(MenuScenePath, true),
+                new EditorBuildSettingsScene("Assets/TillWinter/Scenes/Farm.unity", true),
+            };
+            Debug.Log("[UiSetup] title scene ready; build order Menu, Farm");
         }
 
         /// <summary>Adds any Characters glyph the existing atlas lacks, in place (keeps the asset and its GUID).</summary>
@@ -173,13 +199,30 @@ namespace TillWinter.EditorTools
         {
             if (File.Exists(ThemePath))
             {
-                Debug.Log("[UiSetup] theme already present");
+                Restyle(AssetDatabase.LoadAssetAtPath<TreeTheme>(ThemePath), false);
+                Restyle(AssetDatabase.LoadAssetAtPath<TreeTheme>("Assets/TillWinter/Unity/Resources/HeritageTheme.asset"), true);
                 return;
             }
             Directory.CreateDirectory(Path.GetDirectoryName(ThemePath));
             var theme = ScriptableObject.CreateInstance<TreeTheme>();
+            theme.StyleVersion = TreeTheme.CurrentStyle;
             AssetDatabase.CreateAsset(theme, ThemePath);
             Debug.Log("[UiSetup] theme created: " + ThemePath);
+        }
+
+        /// <summary>Brings an existing theme asset up to <see cref="TreeTheme.CurrentStyle"/> in place (S9: dark Almanac page, opaque overlays).</summary>
+        private static void Restyle(TreeTheme theme, bool heritage)
+        {
+            if (theme == null || theme.StyleVersion >= TreeTheme.CurrentStyle) { Debug.Log("[UiSetup] theme already present"); return; }
+            if (heritage)
+            {
+                var o = theme.Overlay;
+                theme.Overlay = new Color(o.r, o.g, o.b, 1f);
+            }
+            else TreeTheme.ApplyAlmanacPage(theme);
+            theme.StyleVersion = TreeTheme.CurrentStyle;
+            EditorUtility.SetDirty(theme);
+            Debug.Log("[UiSetup] " + theme.name + " restyled to style " + TreeTheme.CurrentStyle);
         }
     }
 }

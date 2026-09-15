@@ -70,9 +70,9 @@ namespace TillWinter.Unity
             ApplySafeArea();
 
             // Paper page with a soft vignette.
-            var page = UiKit.Panel(_safe, "Page", _theme.Paper, true, false);
+            var page = UiKit.Panel(_safe, "Page", _theme.Paper, false, false);
             _page = page;
-            UiKit.Stretch(page.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 20f), new Vector2(-20f, -20f));
+            UiKit.Stretch(page.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero); // full screen: no sky around the page
             var vignette = UiKit.Panel(page.transform, "Vignette", _theme.PaperVignette, true, false);
             vignette.sprite = Prims.CircleSprite(256);
             vignette.type = Image.Type.Simple;

@@ -27,6 +27,8 @@ namespace TillWinter.EditorTools.Build
         public const string BundleId = "com.efsgames.tillwinter";
         public const string Version = "1.0.0";
         public const string ScenePath = "Assets/TillWinter/Scenes/Farm.unity";
+        /// <summary>The title scene opens every launch; it is built first.</summary>
+        public const string MenuScenePath = "Assets/TillWinter/Scenes/Menu.unity";
         public const string DebugDefine = "TW_DEBUG";
         /// <summary>The brief asked for 24; Unity 6000.3's lowest supported level is 25 (Android 7.1). API 25 still takes the pre-26 haptics fallback.</summary>
         public const int AndroidMinSdk = 25;
@@ -227,7 +229,7 @@ namespace TillWinter.EditorTools.Build
             if (target == BuildTarget.Android) EditorUserBuildSettings.buildAppBundle = appBundle;
             var options = new BuildPlayerOptions
             {
-                scenes = new[] { ScenePath },
+                scenes = new[] { MenuScenePath, ScenePath },
                 locationPathName = path,
                 target = target,
                 targetGroup = UnityEditor.BuildPipeline.GetBuildTargetGroup(target),

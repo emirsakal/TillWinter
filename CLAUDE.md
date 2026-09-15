@@ -21,7 +21,7 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - `[System.Serializable]` on Core classes is fine; `UnityEngine.*` is not. Editor tooling lives in `Assets/TillWinter/Editor/`.
 - **Every node does something.** No `NotImplemented` flag exists; a new node must be applied in `StatResolver` or a `FarmSim` switch and added to the explicit map in `EventsTests` in the same commit.
 - **Onboarding hints are one-shot flags in Core.** `Hint` enum + `OnboardingFlags` on `FarmState` (saved); `FarmSim.MarkHint` returns true only the first time. The Unity layer never invents its own "shown before" bool or reads/writes `PlayerPrefs` for this — a hint that must fire once has to round-trip through Core.
-- Presentation is built in code from one `Bootstrap` object in `Farm.unity` (`GameBootstrap`); visuals via `VisualCatalog`, uGUI via `UiKit`, input via `PointerInput`, strings via `Localize`.
+- Presentation is built in code from one `Bootstrap` object in `Farm.unity` (`GameBootstrap`); visuals via `VisualCatalog`, uGUI via `UiKit`, input via `PointerInput`, strings via `Localize`. The title scene `Menu.unity` is built the same way from `MenuBootstrap` and opens first (build order Menu, Farm).
 
 ## Conventions
 

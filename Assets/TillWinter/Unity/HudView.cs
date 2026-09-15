@@ -383,9 +383,9 @@ namespace TillWinter.Unity
             {
                 float left = state.SecondsUntilWinter;
                 float f = 1f - Mathf.Clamp01(left / state.Stats.FrostWarningSeconds);
-                float beat = Mathf.Pow(Mathf.Abs(Mathf.Sin(Time.time * Mathf.Lerp(4f, 9f, f))), 8f);
-                _bar.localScale = Vector3.one * (1f + 0.08f * beat);
-                _elapsedImage.color = Color.Lerp(_theme.BarElapsed, _theme.Frost, beat);
+                // Minimal heartbeat: a slow colour breath toward frost blue, no scaling (the old sharp scale pulse read as jitter).
+                float beat = 0.5f - 0.5f * Mathf.Cos(Time.time * Mathf.Lerp(2f, 4f, f));
+                _elapsedImage.color = Color.Lerp(_theme.BarElapsed, _theme.Frost, beat * (0.4f + 0.6f * f));
                 float sec = Mathf.Ceil(left);
                 if (sec != _lastFrostSecond)
                 {

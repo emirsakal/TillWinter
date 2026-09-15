@@ -139,7 +139,8 @@ namespace TillWinter.Unity
             if (offline.CoinsEarned > 0) away.Show(offline);
         }
 
-        private static RectTransform BuildCanvas(Transform parent)
+        /// <summary>EventSystem + overlay canvas at 1080x2340, matched on width. Shared with the title scene.</summary>
+        internal static RectTransform BuildCanvas(Transform parent)
         {
             var es = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
             es.transform.SetParent(parent, false);
