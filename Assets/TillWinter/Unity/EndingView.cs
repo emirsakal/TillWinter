@@ -40,22 +40,22 @@ namespace TillWinter.Unity
             _roll = UiKit.Rect("Roll", overlay.transform);
             UiKit.Box(_roll, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(960f, 10f));
             float y = 0f;
-            Line("ending.title", 76, _theme.Gold, FontStyles.Bold, ref y, 130f);
-            Line("ending.caption", 38, _theme.Text, FontStyles.Normal, ref y, 160f);
+            Line("ending.title", UiType.Hero, _theme.Gold, FontStyles.Bold, ref y, 130f);
+            Line("ending.caption", UiType.Heading, _theme.Text, FontStyles.Normal, ref y, 160f);
             y -= 220f;
-            Line("credits.title", 52, _theme.Gold, FontStyles.Bold, ref y, 110f);
-            Line("credits.made_by", 40, _theme.Text, FontStyles.Bold, ref y, 100f);
-            Line("credits.unity", 34, _theme.Text, FontStyles.Normal, ref y, 130f);
-            Line("credits.kenney", 34, _theme.Text, FontStyles.Normal, ref y, 80f);
-            Line("credits.kits_art", 28, _theme.TextMuted, FontStyles.Normal, ref y, 110f);
-            Line("credits.kits_audio", 28, _theme.TextMuted, FontStyles.Normal, ref y, 140f);
-            Line("credits.font", 32, _theme.Text, FontStyles.Normal, ref y, 100f);
+            Line("credits.title", UiType.Title, _theme.Gold, FontStyles.Bold, ref y, 110f);
+            Line("credits.made_by", UiType.Heading, _theme.Text, FontStyles.Bold, ref y, 100f);
+            Line("credits.unity", UiType.Body, _theme.Text, FontStyles.Normal, ref y, 130f);
+            Line("credits.kenney", UiType.Body, _theme.Text, FontStyles.Normal, ref y, 80f);
+            Line("credits.kits_art", UiType.Label, _theme.TextMuted, FontStyles.Normal, ref y, 110f);
+            Line("credits.kits_audio", UiType.Label, _theme.TextMuted, FontStyles.Normal, ref y, 140f);
+            Line("credits.font", UiType.Body, _theme.Text, FontStyles.Normal, ref y, 100f);
             y -= 260f;
-            Line("credits.thanks", 46, _theme.Gold, FontStyles.Bold, ref y, 110f);
-            Line("ending.after", 32, _theme.TextMuted, FontStyles.Normal, ref y, 110f);
+            Line("credits.thanks", UiType.Heading, _theme.Gold, FontStyles.Bold, ref y, 110f);
+            Line("ending.after", UiType.Body, _theme.TextMuted, FontStyles.Normal, ref y, 110f);
             _rollHeight = -y;
 
-            _skip = UiKit.Label(overlay.transform, "Skip", Strings.Get("credits.skip"), 30, _theme.TextMuted, TextAnchor.MiddleCenter);
+            _skip = UiKit.Label(overlay.transform, "Skip", Strings.Get("credits.skip"), UiType.Label, _theme.TextMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_skip.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(800f, 60f));
             UiKit.Outline(_skip, 0.12f);
 

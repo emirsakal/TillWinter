@@ -94,7 +94,7 @@ namespace TillWinter.Unity
             var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
             t.font = Font;
             t.text = text;
-            t.fontSize = size;
+            t.fontSize = UiType.Size(size); // one type scale, one accessibility multiplier
             t.color = color;
             t.alignment = Map(anchor);
             t.fontStyle = style == FontStyle.Bold ? FontStyles.Bold : style == FontStyle.Italic ? FontStyles.Italic : FontStyles.Normal;

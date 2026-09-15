@@ -1,0 +1,76 @@
+# Till Winter — Visual & UI/UX Backlog
+
+A living list of visual, UI and UX improvements, worked through group by group. Each item states what exists today, then the change.
+
+---
+
+## 1. Highest impact (first five)
+
+- **Done.** **Type scale.** Font sizes are hard-coded per call site (26..150). Define a named scale in the theme (Display/Title/Heading/Body/Label/Caption) with one global multiplier, and route every `UiKit.Label` through it. Shipped as `UiType` (Display 140 / Hero 84 / Big 64 / Title 56 / Heading 44 / Body 34 / Label 28 / Caption 24) with a global `UiType.Scale` multiplier applied inside `UiKit.Label`; 71 literal sizes across the HUD, Winter screen, pause sheets, title scene, away and generation cards, ending and onboarding now use it.
+- **Done.** **One sheet shell.** Pause, settings, credits, stats, confirm dialogs, away card and the hint sheet all repeat "dim scrim + rounded box" and appear instantly. Build one shared sheet component with a 0.2 s rise+scale open/close. Shipped as `SheetTransition` (scrim fades, page rises 54 px and scales 0.96 to 1 over 0.2 s, unscaled time), attached to the four pause sheets, the new-game confirm, the away card and the Winter screen's confirm and first-retire sheets.
+- **Done.** **Onboarding hand and arrow.** Primitives today (a circle plus a rectangle, and an 18x70 bar). Use real icons from the Kenney Game Icons atlas already in the project. The hand is now a beating dot with an expanding ripple (the Kenney icon set has no hand), and the arrow is the real arrowUp icon from the node atlas, turned over to point down.
+- **Done.** **No bloom.** Ripe glow, golden harvest, the Golden Year and node purchases are all emissive, but the only post is colour adjustments and vignette. Add a mild bloom to the season Volume, off on the Low quality tier. A mild bloom (threshold 0.9, intensity 0.55, scatter 0.6, warm tint) was added to the season Volume; it is off on the Low quality tier, which disables post entirely.
+- **Done.** **Skill tree branch identity.** Five branches differ only by node ring colour. Add a tinted region behind each branch and a branch name label. Each branch now has a tinted rounded region behind its nodes (branch colour at 10% alpha, padded by 0.85 node sizes) and its localized name above it.
+
+Next: section 2 (world and visual language).
+
+---
+
+## 2. World and visual language
+
+- **No outline or rim light.** `TW_Toon` is a two-step ramp only. Add a rim light or an inverted-hull outline pass.
+- **Sky is a plain gradient quad.** Add two or three slow stylised cloud layers that recolour per season.
+- **The island ends in a hard box.** Hang roots, rocks and soil chunks under it (matters most on the title scene).
+- **Shadows are off entirely on the Low tier.** Give characters, trees and the house a soft blob shadow so objects sit on the ground.
+- **No water anywhere, although there is a well.** Add a pond, an irrigation channel or a millstream.
+- **Season changes are colour-only (1.5 s lerp).** Drop leaves in Autumn, settle snow on trees in Winter (the shader already has a snow global), blossom in Spring.
+- **No life outside the field.** Butterflies, bees, a sparrow or hens, a couple of them changing per season.
+- **Crop middle stages repeat one green leaf model across tiers.** Give tomato, corn and pumpkin their own mid-stage silhouette, at least a different size and tone.
+- **The camera only refits when the field grows.** Add a slow breathing drift, a millimetric push-in on combo, a slight pull-back in Winter.
+- **Every harvest looks the same except golden.** Scale particle count, colour temperature and ring brightness with the combo.
+
+---
+
+## 3. UI infrastructure
+
+- **No icon system beyond node icons.** Small icons for coins, seeds, years, harvests, crows and time, used by the stats, winter and away screens.
+- **No shadow or gradient primitives in `UiKit`.** A soft drop shadow under cards, a thin gradient on top bands.
+- **Weak button feedback (only a 0.06 s colour tint).** One shared press animation (0.96 scale, click sound, Selection haptic).
+- **No toggle component.** Settings show on/off as button text. Build a real switch.
+- **No scroll view helper.** Stats and credits are fixed height and will overflow.
+- **Volume sliders show no value and play no sample sound while dragging.**
+- **Motion is ad hoc per view.** Define shared durations and curves (fast 0.12 s, normal 0.22 s, slow 0.4 s).
+
+---
+
+## 4. Screen by screen
+
+- **HUD season bar** is four flat blocks. Add season glyphs, an icon on the progress marker, a hatched frost span; during the frost warning lean on the screen-edge ice rather than the bar.
+- **HUD coin counter** works; add a small earning-rate readout or a brief rising "+N".
+- **The retire chip appears abruptly.** Give it a flash and a haptic when it unlocks.
+- **Winter screen is plain text.** Add a small winter vista strip, a year summary (harvests, coins this year) and a hint of the next goal.
+- **Skill tree nodes are flat circles.** A filling ring instead of pips, a stronger pulse on affordable nodes, a padlock glyph when locked, an outward wave on purchase.
+- **Node card is text-heavy.** Show the effect as "now -> next" in two columns with a small increase bar.
+- **Generation card.** Put the farm silhouette or a per-generation seal behind the counting seeds.
+- **Away card is fully static.** Fly the coins into the counter and reveal the source lines in sequence.
+- **Ending credits are a plain scroll.** Fade lines in groups, end on the game name and a seal.
+- **Stats screen is two text columns.** Row icons, thin dividers, a highlight on a couple of values.
+- **Title scene.** A soft sun glow behind the name, a very slow island sway, snow gathering in Winter, and a "Generation 3, Year 12" line above Continue.
+
+---
+
+## 5. Accessibility and polish
+
+- **Seasons and branches are colour-only.** Branch icons exist; add season glyphs so nothing depends on colour.
+- **Large-text option in settings**, once the type scale has one multiplier.
+- **Safe area** is applied to the HUD and sheets; verify on notched devices.
+- **A language change reloads the scene with no warning.** Show a short "changing language" transition.
+
+---
+
+## Order
+
+1. **Foundations** — type scale, sheet shell, button feedback, motion constants.
+2. **Cheap and visible** — onboarding icons, bloom, blob shadows, icon set, season glyphs.
+3. **Depth** — tree branches and nodes, winter summary, away/generation card motion.
+4. **World enrichment** — clouds, island underside, pond, seasonal trees, small life, camera breathing.

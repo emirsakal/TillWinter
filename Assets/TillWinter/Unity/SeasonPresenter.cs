@@ -19,6 +19,7 @@ namespace TillWinter.Unity
         private Light _sun;
         private ColorAdjustments _color;
         private Vignette _vignette;
+        private Bloom _bloom;
         private VfxPlayer _fx;
         private Season _fromSeason, _toSeason;
         private Material _skyMaterial;
@@ -86,6 +87,16 @@ namespace TillWinter.Unity
             _vignette.color.value = new Color(0.55f, 0.75f, 1f);
             _vignette.smoothness.overrideState = true;
             _vignette.smoothness.value = 0.7f;
+            // Ripe glow, golden harvests, node purchases and the Golden Year are all emissive: let them bleed a little.
+            _bloom = profile.Add<Bloom>(true);
+            _bloom.threshold.overrideState = true;
+            _bloom.threshold.value = 0.9f;
+            _bloom.intensity.overrideState = true;
+            _bloom.intensity.value = 0.55f;
+            _bloom.scatter.overrideState = true;
+            _bloom.scatter.value = 0.6f;
+            _bloom.tint.overrideState = true;
+            _bloom.tint.value = new Color(1f, 0.96f, 0.88f);
             var vol = volGo.AddComponent<Volume>();
             vol.isGlobal = true;
             vol.priority = 10f;

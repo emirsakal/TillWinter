@@ -30,19 +30,20 @@ namespace TillWinter.Unity
             _panel = dim.gameObject;
             var box = UiKit.Panel(dim.transform, "Box", new Color(0.12f, 0.14f, 0.2f, 0.98f), true, true);
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 640f));
-            var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.away_title"), 48, theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.away_title"), UiType.Title, theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(860f, 70f));
-            _duration = UiKit.Label(box.transform, "Duration", "", 32, theme.TextMuted, TextAnchor.MiddleCenter);
+            _duration = UiKit.Label(box.transform, "Duration", "", UiType.Body, theme.TextMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_duration.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -125f), new Vector2(860f, 44f));
             UiKit.CircleImage(box.transform, "CoinIcon", theme.Coin, new Vector2(-150f, 40f), 56f);
-            _coins = UiKit.Label(box.transform, "Coins", "", 64, theme.Coin, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _coins = UiKit.Label(box.transform, "Coins", "", UiType.Big, theme.Coin, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_coins.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40f, 40f), new Vector2(400f, 80f));
-            _sources = UiKit.Label(box.transform, "Sources", "", 28, theme.TextMuted, TextAnchor.UpperCenter);
+            _sources = UiKit.Label(box.transform, "Sources", "", UiType.Label, theme.TextMuted, TextAnchor.UpperCenter);
             UiKit.Box(_sources.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(800f, 110f));
-            _capped = UiKit.Label(box.transform, "Capped", "", 24, theme.HintAccent, TextAnchor.MiddleCenter);
+            _capped = UiKit.Label(box.transform, "Capped", "", UiType.Caption, theme.HintAccent, TextAnchor.MiddleCenter);
             UiKit.Box(_capped.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 170f), new Vector2(800f, 34f));
-            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("ui.ok"), 38, theme.HintAccent, new Color(0.12f, 0.1f, 0.08f), Apply);
+            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("ui.ok"), UiType.Heading, theme.HintAccent, new Color(0.12f, 0.1f, 0.08f), Apply);
             UiKit.Box(ok.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(400f, 110f));
+            _panel.AddComponent<SheetTransition>().Page = box.rectTransform;
             _panel.SetActive(false);
         }
 

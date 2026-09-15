@@ -85,18 +85,18 @@ namespace TillWinter.Unity
             // Top bar.
             var top = UiKit.Rect("TopBar", _safe);
             UiKit.Stretch(top, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(40f, -220f), new Vector2(-40f, -30f));
-            _title = UiKit.Label(top, "Title", "", 56, _theme.Ink, TextAnchor.UpperLeft, FontStyle.Bold);
+            _title = UiKit.Label(top, "Title", "", UiType.Title, _theme.Ink, TextAnchor.UpperLeft, FontStyle.Bold);
             UiKit.Stretch(_title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.58f, 1f), Vector2.zero, Vector2.zero);
             _title.fontSize = 44;
-            _coins = UiKit.Label(top, "Coins", "0", 52, _theme.Ink, TextAnchor.UpperRight, FontStyle.Bold);
+            _coins = UiKit.Label(top, "Coins", "0", UiType.Title, _theme.Ink, TextAnchor.UpperRight, FontStyle.Bold);
             _coinsRt = _coins.rectTransform;
             UiKit.Stretch(_coinsRt, new Vector2(0.58f, 0.5f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-200f, 0f));
             _coins.fontSize = 42;
-            _greenhouse = UiKit.Label(top, "Greenhouse", "", 26, _theme.InkMuted, TextAnchor.LowerLeft);
+            _greenhouse = UiKit.Label(top, "Greenhouse", "", UiType.Label, _theme.InkMuted, TextAnchor.LowerLeft);
             UiKit.Stretch(_greenhouse.rectTransform, new Vector2(0f, 0f), new Vector2(0.6f, 0.5f), Vector2.zero, Vector2.zero);
-            _retireHint = UiKit.Label(top, "RetireHint", "", 26, _theme.Seed, TextAnchor.LowerRight, FontStyle.Bold);
+            _retireHint = UiKit.Label(top, "RetireHint", "", UiType.Label, _theme.Seed, TextAnchor.LowerRight, FontStyle.Bold);
             UiKit.Stretch(_retireHint.rectTransform, new Vector2(0.4f, 0f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(-210f, 0f));
-            _treeToggle = UiKit.Button(top, "TreeToggle", Strings.Get("ui.heritage"), 24, _theme.Seed, _theme.Paper, ToggleTree);
+            _treeToggle = UiKit.Button(top, "TreeToggle", Strings.Get("ui.heritage"), UiType.Caption, _theme.Seed, _theme.Paper, ToggleTree);
             UiKit.Box(_treeToggle.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0f, -30f), new Vector2(200f, 52f));
 
             // Tree canvases.
@@ -114,18 +114,18 @@ namespace TillWinter.Unity
             BuildSheet();
 
             // Bottom buttons.
-            _nextYear = UiKit.Button(_safe, "NextYear", Strings.Get("ui.next_year") + "  »", 40, _theme.Accent, _theme.Ink, OnNextYear);
+            _nextYear = UiKit.Button(_safe, "NextYear", Strings.Get("ui.next_year") + "  »", UiType.Heading, _theme.Accent, _theme.Ink, OnNextYear);
             UiKit.Box(_nextYear.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(12f, 40f), new Vector2(490f, 120f));
-            _retire = UiKit.Button(_safe, "Retire", Strings.Get("ui.pass_on"), 30, _theme.Seed, _theme.Paper, OnRetirePressed);
+            _retire = UiKit.Button(_safe, "Retire", Strings.Get("ui.pass_on"), UiType.Label, _theme.Seed, _theme.Paper, OnRetirePressed);
             UiKit.Box(_retire.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(-12f, 40f), new Vector2(490f, 120f));
-            _startGen = UiKit.Button(_safe, "StartGeneration", Strings.Get("ui.start_generation") + "  »", 40, _theme.Accent, _theme.Ink, OnStartGeneration);
+            _startGen = UiKit.Button(_safe, "StartGeneration", Strings.Get("ui.start_generation") + "  »", UiType.Heading, _theme.Accent, _theme.Ink, OnStartGeneration);
             UiKit.Box(_startGen.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(900f, 120f));
 
             BuildConfirm();
 
             var cap = UiKit.Panel(_safe, "HintCaption", new Color(0.1f, 0.08f, 0.06f, 0.85f), true, false);
             UiKit.Box(cap.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 190f), new Vector2(960f, 70f));
-            _hintCaption = UiKit.Label(cap.transform, "Text", "", 28, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _hintCaption = UiKit.Label(cap.transform, "Text", "", UiType.Label, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
             cap.gameObject.SetActive(false);
             BuildRetireSheet();
 
@@ -163,21 +163,21 @@ namespace TillWinter.Unity
 
             _sheetTag = UiKit.Panel(_sheet, "Tag", _theme.Hand, true, false);
             UiKit.Box(_sheetTag.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -20f), new Vector2(190f, 44f));
-            _sheetBranch = UiKit.Label(_sheetTag.transform, "BranchName", "", 24, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
-            _sheetName = UiKit.Label(_sheet, "Name", "", 42, _theme.Ink, TextAnchor.UpperLeft, FontStyle.Bold);
+            _sheetBranch = UiKit.Label(_sheetTag.transform, "BranchName", "", UiType.Caption, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _sheetName = UiKit.Label(_sheet, "Name", "", UiType.Heading, _theme.Ink, TextAnchor.UpperLeft, FontStyle.Bold);
             UiKit.Stretch(_sheetName.rectTransform, new Vector2(0f, 1f), new Vector2(0.66f, 1f), new Vector2(230f, -70f), new Vector2(0f, -14f));
-            _sheetLevel = UiKit.Label(_sheet, "Level", "", 26, _theme.InkMuted, TextAnchor.UpperRight);
+            _sheetLevel = UiKit.Label(_sheet, "Level", "", UiType.Label, _theme.InkMuted, TextAnchor.UpperRight);
             UiKit.Stretch(_sheetLevel.rectTransform, new Vector2(0.6f, 1f), new Vector2(1f, 1f), new Vector2(0f, -60f), new Vector2(-24f, -18f));
-            _sheetDesc = UiKit.Label(_sheet, "Desc", "", 30, _theme.Ink, TextAnchor.UpperLeft);
+            _sheetDesc = UiKit.Label(_sheet, "Desc", "", UiType.Label, _theme.Ink, TextAnchor.UpperLeft);
             UiKit.Stretch(_sheetDesc.rectTransform, new Vector2(0f, 0f), new Vector2(0.62f, 1f), new Vector2(24f, 24f), new Vector2(0f, -84f));
 
-            _buy = UiKit.Button(_sheet, "Buy", Strings.Get("ui.buy"), 34, _theme.Accent, _theme.Ink, OnBuy);
+            _buy = UiKit.Button(_sheet, "Buy", Strings.Get("ui.buy"), UiType.Body, _theme.Accent, _theme.Ink, OnBuy);
             UiKit.Box(_buy.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-24f, 24f), new Vector2(330f, 96f));
             _sheetCoin = UiKit.CircleImage(_sheet, "Currency", _theme.Coin, Vector2.zero, 36f);
             UiKit.Box(_sheetCoin.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-330f, 150f), new Vector2(36f, 36f));
-            _sheetCost = UiKit.Label(_sheet, "Cost", "", 34, _theme.Ink, TextAnchor.MiddleRight, FontStyle.Bold);
+            _sheetCost = UiKit.Label(_sheet, "Cost", "", UiType.Body, _theme.Ink, TextAnchor.MiddleRight, FontStyle.Bold);
             UiKit.Box(_sheetCost.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-24f, 150f), new Vector2(280f, 44f));
-            _sheetReason = UiKit.Label(_sheet, "Reason", "", 22, _theme.Danger, TextAnchor.MiddleRight);
+            _sheetReason = UiKit.Label(_sheet, "Reason", "", UiType.Caption, _theme.Danger, TextAnchor.MiddleRight);
             UiKit.Box(_sheetReason.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-24f, 120f), new Vector2(330f, 30f));
             _sheetHome = _sheet.anchoredPosition;
             _sheet.gameObject.SetActive(false);
@@ -190,10 +190,11 @@ namespace TillWinter.Unity
             _retireSheet = dim.gameObject;
             var box = UiKit.Panel(dim.transform, "Box", _theme.Paper, true, true);
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 420f));
-            var text = UiKit.Label(box.transform, "Text", Strings.Get("hint.first_can_retire"), 32, _theme.Ink, TextAnchor.MiddleCenter);
+            var text = UiKit.Label(box.transform, "Text", Strings.Get("hint.first_can_retire"), UiType.Body, _theme.Ink, TextAnchor.MiddleCenter);
             UiKit.Stretch(text.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 150f), new Vector2(-50f, -40f));
-            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("hint.got_it"), 32, _theme.Seed, _theme.Paper, () => { _audio.Play(SfxId.UiClick); _retireSheet.SetActive(false); });
+            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("hint.got_it"), UiType.Body, _theme.Seed, _theme.Paper, () => { _audio.Play(SfxId.UiClick); _retireSheet.SetActive(false); });
             UiKit.Box(ok.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 36f), new Vector2(360f, 96f));
+            _retireSheet.AddComponent<SheetTransition>().Page = box.rectTransform;
             _retireSheet.SetActive(false);
         }
 
@@ -210,14 +211,15 @@ namespace TillWinter.Unity
             _confirm = dim.gameObject;
             var box = UiKit.Panel(dim.transform, "ConfirmBox", _theme.Paper, true, true);
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 640f));
-            var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.confirm_title"), 48, _theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.confirm_title"), UiType.Title, _theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(860f, 70f));
-            _confirmText = UiKit.Label(box.transform, "Text", "", 30, _theme.Ink, TextAnchor.UpperLeft);
+            _confirmText = UiKit.Label(box.transform, "Text", "", UiType.Label, _theme.Ink, TextAnchor.UpperLeft);
             UiKit.Stretch(_confirmText.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 170f), new Vector2(-50f, -120f));
-            var yes = UiKit.Button(box.transform, "Yes", Strings.Get("ui.retire"), 34, _theme.Seed, _theme.Paper, OnRetireConfirmed);
+            var yes = UiKit.Button(box.transform, "Yes", Strings.Get("ui.retire"), UiType.Body, _theme.Seed, _theme.Paper, OnRetireConfirmed);
             UiKit.Box(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(20f, 40f), new Vector2(380f, 110f));
-            var no = UiKit.Button(box.transform, "No", Strings.Get("ui.cancel"), 34, _theme.InkMuted, _theme.Paper, () => { _audio.Play(SfxId.UiClick); _confirm.SetActive(false); });
+            var no = UiKit.Button(box.transform, "No", Strings.Get("ui.cancel"), UiType.Body, _theme.InkMuted, _theme.Paper, () => { _audio.Play(SfxId.UiClick); _confirm.SetActive(false); });
             UiKit.Box(no.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(-20f, 40f), new Vector2(380f, 110f));
+            _confirm.AddComponent<SheetTransition>().Page = box.rectTransform;
             _confirm.SetActive(false);
         }
 

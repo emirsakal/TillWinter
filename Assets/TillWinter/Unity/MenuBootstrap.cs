@@ -187,12 +187,12 @@ namespace TillWinter.Unity
 
             var safe = UiKit.Rect("Safe", root);
             SafeArea.Apply(safe);
-            var title = UiKit.Label(safe, "Name", Strings.Get("menu.title"), 150, _theme.MenuTitle, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var title = UiKit.Label(safe, "Name", Strings.Get("menu.title"), UiType.Display, _theme.MenuTitle, TextAnchor.MiddleCenter, FontStyle.Bold);
             _title = title.rectTransform;
             UiKit.Box(_title, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -230f), new Vector2(1040f, 200f));
             UiKit.Outline(title, 0.24f);
             _titleBase = _title.anchoredPosition;
-            var subtitle = UiKit.Label(safe, "Subtitle", Strings.Get("menu.subtitle"), 44, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
+            var subtitle = UiKit.Label(safe, "Subtitle", Strings.Get("menu.subtitle"), UiType.Heading, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
             UiKit.Box(subtitle.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -410f), new Vector2(1000f, 70f));
             UiKit.Outline(subtitle, 0.16f);
 
@@ -205,7 +205,7 @@ namespace TillWinter.Unity
             for (int i = 0; i < entries.Count; i++)
             {
                 var (key, action, primary) = entries[i];
-                var b = UiKit.Button(safe, key, Strings.Get(key), primary ? 48 : 38, primary ? _theme.MenuPrimary : _theme.MenuSecondary, _theme.MenuButtonText, action);
+                var b = UiKit.Button(safe, key, Strings.Get(key), primary ? UiType.Title : UiType.Heading, primary ? _theme.MenuPrimary : _theme.MenuSecondary, _theme.MenuButtonText, action);
                 if (primary) UiKit.ButtonLabel(b).fontStyle = FontStyles.Bold;
                 var rt = b.GetComponent<RectTransform>();
                 float y = BottomMargin + (entries.Count - 1 - i) * (ButtonHeight + ButtonGap) + (primary ? ButtonGap : 0f);
@@ -214,7 +214,7 @@ namespace TillWinter.Unity
                 _buttonGroups.Add(b.gameObject.AddComponent<CanvasGroup>());
                 _buttonBase.Add(rt.anchoredPosition);
             }
-            _version = UiKit.Label(safe, "Version", "", 26, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
+            _version = UiKit.Label(safe, "Version", "", UiType.Label, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
             UiKit.Box(_version.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 80f), new Vector2(900f, 50f));
             RefreshVersion();
             BuildConfirm(root);
@@ -231,14 +231,15 @@ namespace TillWinter.Unity
             _confirm = overlay.gameObject;
             var page = UiKit.Panel(overlay.transform, "Page", _theme.SheetPaper, true, true);
             UiKit.Box(page.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 560f));
-            var t = UiKit.Label(page.transform, "Title", Strings.Get("menu.new_game_title"), 52, _theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var t = UiKit.Label(page.transform, "Title", Strings.Get("menu.new_game_title"), UiType.Title, _theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(t.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(820f, 90f));
-            var body = UiKit.Label(page.transform, "Body", Strings.Get("menu.new_game_body"), 34, _theme.SheetMuted, TextAnchor.MiddleCenter);
+            var body = UiKit.Label(page.transform, "Body", Strings.Get("menu.new_game_body"), UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter);
             UiKit.Box(body.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -150f), new Vector2(800f, 160f));
-            var yes = UiKit.Button(page.transform, "Yes", Strings.Get("menu.new_game_yes"), 36, _theme.SheetDanger, _theme.SheetButtonText, NewGame);
+            var yes = UiKit.Button(page.transform, "Yes", Strings.Get("menu.new_game_yes"), UiType.Body, _theme.SheetDanger, _theme.SheetButtonText, NewGame);
             UiKit.Box(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-200f, 50f), new Vector2(360f, 104f));
-            var no = UiKit.Button(page.transform, "Cancel", Strings.Get("ui.cancel"), 36, _theme.SheetIdle, _theme.SheetButtonText, () => _confirm.SetActive(false));
+            var no = UiKit.Button(page.transform, "Cancel", Strings.Get("ui.cancel"), UiType.Body, _theme.SheetIdle, _theme.SheetButtonText, () => _confirm.SetActive(false));
             UiKit.Box(no.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(200f, 50f), new Vector2(360f, 104f));
+            _confirm.AddComponent<SheetTransition>().Page = page.rectTransform;
             _confirm.SetActive(false);
         }
 
