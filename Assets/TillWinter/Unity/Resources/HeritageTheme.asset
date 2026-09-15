@@ -12,11 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c52b02ea12d1ad4478f33e0ad9945aae, type: 3}
   m_Name: HeritageTheme
   m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.TreeTheme
+  StyleVersion: 1
   Paper: {r: 0.09, g: 0.2, b: 0.14, a: 0.97}
   PaperVignette: {r: 0, g: 0.05, b: 0.02, a: 0.5}
   Ink: {r: 0.96, g: 0.9, b: 0.72, a: 1}
   InkMuted: {r: 0.75, g: 0.72, b: 0.6, a: 1}
-  Overlay: {r: 0.03, g: 0.08, b: 0.05, a: 0.98}
+  Overlay: {r: 0.03, g: 0.08, b: 0.05, a: 1}
   Accent: {r: 0.9, g: 0.72, b: 0.28, a: 1}
   Danger: {r: 0.95, g: 0.45, b: 0.35, a: 1}
   Gold: {r: 1, g: 0.85, b: 0.4, a: 1}

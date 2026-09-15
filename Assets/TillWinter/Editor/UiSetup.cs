@@ -173,13 +173,30 @@ namespace TillWinter.EditorTools
         {
             if (File.Exists(ThemePath))
             {
-                Debug.Log("[UiSetup] theme already present");
+                Restyle(AssetDatabase.LoadAssetAtPath<TreeTheme>(ThemePath), false);
+                Restyle(AssetDatabase.LoadAssetAtPath<TreeTheme>("Assets/TillWinter/Unity/Resources/HeritageTheme.asset"), true);
                 return;
             }
             Directory.CreateDirectory(Path.GetDirectoryName(ThemePath));
             var theme = ScriptableObject.CreateInstance<TreeTheme>();
+            theme.StyleVersion = TreeTheme.CurrentStyle;
             AssetDatabase.CreateAsset(theme, ThemePath);
             Debug.Log("[UiSetup] theme created: " + ThemePath);
+        }
+
+        /// <summary>Brings an existing theme asset up to <see cref="TreeTheme.CurrentStyle"/> in place (S9: dark Almanac page, opaque overlays).</summary>
+        private static void Restyle(TreeTheme theme, bool heritage)
+        {
+            if (theme == null || theme.StyleVersion >= TreeTheme.CurrentStyle) { Debug.Log("[UiSetup] theme already present"); return; }
+            if (heritage)
+            {
+                var o = theme.Overlay;
+                theme.Overlay = new Color(o.r, o.g, o.b, 1f);
+            }
+            else TreeTheme.ApplyAlmanacPage(theme);
+            theme.StyleVersion = TreeTheme.CurrentStyle;
+            EditorUtility.SetDirty(theme);
+            Debug.Log("[UiSetup] " + theme.name + " restyled to style " + TreeTheme.CurrentStyle);
         }
     }
 }
