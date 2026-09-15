@@ -20,10 +20,25 @@ namespace TillWinter.Unity
             _fx = fx;
             _audio = audio;
             _catalog = catalog;
+            for (int i = 0; i < PoolSize; i++) _pool.Push(CreateView()); // a landing never builds a crow mid-play
             _game.Sim.CrowLanded += OnLanded;
             _game.Sim.CrowScared += OnScared;
             _game.Sim.CrowAte += OnAte;
             _game.Sim.WinterStarted += OnWinter;
+        }
+
+        /// <summary>Crows on the field (at most FarmConfig.MaxCrows) plus the ones still flying off.</summary>
+        private const int PoolSize = 6;
+        private readonly Stack<CrowView> _pool = new Stack<CrowView>(PoolSize);
+
+        private CrowView CreateView()
+        {
+            var go = new GameObject("Crow");
+            go.transform.SetParent(transform, false);
+            var view = go.AddComponent<CrowView>();
+            view.Build(_catalog);
+            go.SetActive(false);
+            return view;
         }
 
         private void OnDestroy()
@@ -38,10 +53,8 @@ namespace TillWinter.Unity
         private void OnLanded(CrowEvent e)
         {
             if (_crows.ContainsKey(e.Pos)) return;
-            var go = new GameObject("Crow " + e.Pos);
-            go.transform.SetParent(transform, false);
-            var view = go.AddComponent<CrowView>();
-            view.Build(_catalog);
+            var view = _pool.Count > 0 ? _pool.Pop() : CreateView();
+            view.gameObject.SetActive(true);
             view.Land(_game.PlotToWorld(e.Pos, 0.16f));
             _crows.Add(e.Pos, view);
             _audio.Play(SfxId.CrowCaw);
@@ -94,7 +107,8 @@ namespace TillWinter.Unity
             {
                 if (_leaving[i].TickLeaving(dt))
                 {
-                    Destroy(_leaving[i].gameObject);
+                    _leaving[i].gameObject.SetActive(false);
+                    _pool.Push(_leaving[i]);
                     _leaving.RemoveAt(i);
                 }
             }
@@ -124,6 +138,9 @@ namespace TillWinter.Unity
             _home = at;
             transform.position = at + Vector3.up * 2.5f;
             _landT = 0f;
+            _leaveT = -1f; // pooled views: reset whatever the last landing left behind
+            _t = 0f;
+            _body.localScale = Vector3.one;
             transform.localRotation = Quaternion.Euler(0f, Random.Range(-40f, 40f), 0f);
         }
 
