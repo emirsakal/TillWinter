@@ -9,6 +9,7 @@ namespace TillWinter.Unity
         public Camera Cam { get; private set; }
         public static CameraRig Instance { get; private set; }
         private float _shakeAmount, _shakeUntil, _shakeSeconds;
+        public bool Shaking => Time.unscaledTime < _shakeUntil;
 
         /// <summary>Tilt from straight-down. 40 degrees reads as a gentle 3/4 view.</summary>
         public float TiltFromTopDown = 40f;
@@ -25,6 +26,7 @@ namespace TillWinter.Unity
         /// <summary>Camera micro-shake. Only golden harvest and retire may call this (CLAUDE.md feel rules).</summary>
         public void Shake(float amount, float seconds)
         {
+            if (!SettingsStore.MotionAllowed) return; // reduce motion
             _shakeAmount = Mathf.Max(_shakeAmount, amount);
             _shakeSeconds = seconds;
             _shakeUntil = Time.unscaledTime + seconds;

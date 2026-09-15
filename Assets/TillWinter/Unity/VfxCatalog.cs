@@ -14,6 +14,7 @@ namespace TillWinter.Unity
         PlotPop,
         Petals, Leaves, Snow,
         RetireSnow, MeltSparkle,
+        GoldMotes,
     }
 
     /// <summary>One pooled particle prefab per <see cref="VfxId"/>; colours come from the Palette at play time.</summary>

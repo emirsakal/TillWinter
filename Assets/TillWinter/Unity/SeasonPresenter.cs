@@ -93,15 +93,23 @@ namespace TillWinter.Unity
 
             _season = _game.State.Season;
             _fromSeason = _toSeason = _season;
-            _from = _to = _current = _palette.For(_season);
+            _from = _to = _current = _palette.For(_season, _game.State.GoldenYearActive);
             Apply(_current, 0f);
 
             _game.Sim.SeasonChanged += OnSeasonChanged;
+            _game.Sim.GoldenYearStarted += OnGoldenYear;
+        }
+
+        private void OnGoldenYear()
+        {
+            _from = _current;
+            _to = _palette.For(_season, true);
+            _blend = 0f;
         }
 
         private void OnDestroy()
         {
-            if (_game != null && _game.Sim != null) { _game.Sim.SeasonChanged -= OnSeasonChanged; _game.Sim.GenerationStarted -= OnGenerationStarted; }
+            if (_game != null && _game.Sim != null) { _game.Sim.SeasonChanged -= OnSeasonChanged; _game.Sim.GenerationStarted -= OnGenerationStarted; _game.Sim.GoldenYearStarted -= OnGoldenYear; }
         }
 
         /// <summary>New generation: the snow melts at once instead of lingering for a particle lifetime.</summary>
@@ -113,7 +121,7 @@ namespace TillWinter.Unity
             _toSeason = s;
             _season = s;
             _from = _current;
-            _to = _palette.For(s);
+            _to = _palette.For(s, _game.State.GoldenYearActive);
             _blend = 0f;
         }
 
@@ -139,7 +147,9 @@ namespace TillWinter.Unity
             float leaves = (_fromSeason == Season.Autumn ? wFrom : 0f) + (_toSeason == Season.Autumn ? wTo : 0f);
             float snow = (_fromSeason == Season.Winter ? wFrom : 0f) + (_toSeason == Season.Winter ? wTo : 0f);
             bool year = state.Phase == Phase.Year;
-            _fx.SetRate(VfxId.Petals, year ? 5f * petals : 0f);
+            bool golden = state.GoldenYearActive;
+            _fx.SetRate(VfxId.Petals, year && !golden ? 5f * petals : 0f);
+            _fx.SetRate(VfxId.GoldMotes, year && golden ? 14f : 0f);
             _fx.SetRate(VfxId.Leaves, year ? 9f * leaves : 0f);
             _fx.SetRate(VfxId.Snow, state.IsWinter ? 70f : Mathf.Max(70f * snow, frost * 12f));
 

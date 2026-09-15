@@ -92,6 +92,7 @@ namespace TillWinter.EditorTools
                 new Spec { Id = VfxId.Snow, Continuous = true, Size = 0.05f, SizeMax = 0.11f, Life = 9f, Speed = 0.15f, Gravity = 0.045f, Color = PaletteSlot.Snow, Box = new Vector3(10f, 0.5f, 10f), Height = 6f, Noise = true, Pool = 1 },
                 new Spec { Id = VfxId.RetireSnow, Size = 0.08f, Life = 1.5f, Speed = 1f, Gravity = 0.3f, Count = 80, Color = PaletteSlot.Snow, Box = new Vector3(6f, 0.5f, 6f), Height = 3f, PerSecond = 1, Pool = 1 },
                 new Spec { Id = VfxId.MeltSparkle, Size = 0.06f, Life = 0.8f, Speed = 0.8f, Gravity = -0.3f, Count = 40, Color = PaletteSlot.Snow, Color2 = PaletteSlot.Golden, UseColor2 = true, Box = new Vector3(6f, 0.2f, 6f), Height = 0.2f, PerSecond = 1, Pool = 1 },
+                new Spec { Id = VfxId.GoldMotes, Continuous = true, Size = 0.04f, SizeMax = 0.08f, Life = 7f, Speed = 0.12f, Gravity = -0.02f, Color = PaletteSlot.Golden, Color2 = PaletteSlot.Snow, UseColor2 = true, Box = new Vector3(10f, 0.5f, 10f), Height = 0.3f, Noise = true, Pool = 1 },
             };
             foreach (var s in specs)
             {

@@ -29,16 +29,24 @@ namespace TillWinter.Unity
             _sun = sun;
             _cam = cam;
             var settings = SettingsStore.Current;
-            if (Application.isMobilePlatform && settings.QualityTier >= 0)
+            if (settings.QualityTier >= 0)
             {
-                Reason = "remembered";
+                Reason = "chosen";
                 Apply((QualityTier)Mathf.Clamp(settings.QualityTier, 0, 1), false);
                 return;
             }
             var tier = AutoSelect(SystemInfo.systemMemorySize, SystemInfo.graphicsMemorySize, SystemInfo.processorCount, SystemInfo.graphicsShaderLevel,
                 Application.isMobilePlatform, Application.platform == RuntimePlatform.IPhonePlayer, out string reason);
             Reason = "auto: " + reason;
-            Apply(tier, Application.isMobilePlatform);
+            Apply(tier, false); // Auto stays Auto (-1); the hardware check is cheap and deterministic
+        }
+
+        /// <summary>Settings sheet: -1 Auto, 0 Low, 1 Default. Saved to settings.json.</summary>
+        public static void ApplyChoice(int choice)
+        {
+            SettingsStore.Current.QualityTier = Mathf.Clamp(choice, -1, 1);
+            SettingsStore.Save();
+            Init(_sun, _cam);
         }
 
         /// <summary>

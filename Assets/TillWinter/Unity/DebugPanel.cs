@@ -30,8 +30,7 @@ namespace TillWinter.Unity
             _save = save;
             _away = away;
 
-            var toggle = UiKit.Button(canvas, "DebugToggle", "DBG", 30, new Color(0f, 0f, 0f, 0.45f), UiKit.Paper, Toggle);
-            UiKit.Box(toggle.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -30f), new Vector2(120f, 80f));
+            // Opened from Settings -> Developer (S9); the corner belongs to the pause button.
 
             var panel = UiKit.Panel(canvas, "DebugPanel", new Color(0.06f, 0.06f, 0.08f, 0.92f), true, true);
             _panel = panel.gameObject;
@@ -61,6 +60,8 @@ namespace TillWinter.Unity
             ButtonAt(rt, "+30 s greenhouse", 3, y, bw, () => _game.Sim.DebugAddGreenhouseSeconds(30f));
             y -= 100f;
             ButtonAt(rt, "Balance table", 0, y, bw, PrintBalance);
+            ButtonAt(rt, "Max Heritage", 2, y, bw, () => _game.Sim.DebugMaxHeritage());
+            ButtonAt(rt, "Close", 3, y, bw, Toggle);
             _qualityBtn = ButtonAt(rt, "Quality: " + QualityTiers.Current, 1, y, bw, () => { QualityTiers.Toggle(); UiKit.ButtonLabel(_qualityBtn).text = "Quality: " + QualityTiers.Current; });
             y -= 100f;
 
@@ -135,7 +136,7 @@ namespace TillWinter.Unity
             Debug.Log("[Balance] from current state, one generation, seed 7\n" + player.ToTable());
         }
 
-        private void Toggle()
+        public void Toggle()
         {
             _audio.Play(SfxId.UiClick);
             _panel.SetActive(!_panel.activeSelf);

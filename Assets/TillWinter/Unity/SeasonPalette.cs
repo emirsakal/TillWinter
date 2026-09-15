@@ -79,6 +79,19 @@ namespace TillWinter.Unity
             SkyTop = new Color(0.55f, 0.62f, 0.78f), SkyBottom = new Color(0.86f, 0.9f, 0.96f), SnowAmount = 1f,
         };
 
+        /// <summary>The Golden Year (GDD §8): warm low sun, amber sky, gilded grass.</summary>
+        public SeasonLook Golden = new SeasonLook
+        {
+            Light = new Color(1f, 0.86f, 0.55f), Intensity = 1.25f, Angle = new Vector3(38f, -35f, 0f),
+            AmbientSky = new Color(0.95f, 0.8f, 0.55f), AmbientEquator = new Color(0.85f, 0.7f, 0.45f), AmbientGround = new Color(0.45f, 0.35f, 0.2f),
+            FogColor = new Color(1f, 0.85f, 0.6f), FogStart = 32f, FogEnd = 58f,
+            GrassTint = new Color(1.15f, 0.95f, 0.6f), LeafTint = new Color(1.2f, 0.95f, 0.5f), ColorFilter = new Color(1f, 0.92f, 0.75f),
+            SkyTop = new Color(0.95f, 0.72f, 0.45f), SkyBottom = new Color(1f, 0.92f, 0.7f), SnowAmount = 0f,
+        };
+
+        /// <summary>Every season of the Golden Year looks golden; its Winter is a normal Winter.</summary>
+        public SeasonLook For(Season s, bool golden) => golden && s != Season.Winter ? Golden : For(s);
+
         public SeasonLook For(Season s)
         {
             switch (s)

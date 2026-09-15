@@ -141,6 +141,9 @@ namespace TillWinter.Unity
             }
         }
 
+        /// <summary>Reset save: stop every save trigger so nothing writes the old farm back before the reload.</summary>
+        public void Detach() => _hooked = false;
+
         public void DeleteSave()
         {
             foreach (var p in new[] { Path, Path + ".bak", Path + ".tmp" })
