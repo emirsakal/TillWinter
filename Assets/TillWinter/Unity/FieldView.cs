@@ -9,26 +9,32 @@ namespace TillWinter.Unity
     {
         private GameController _game;
         private CameraRig _camera;
-        private FxManager _fx;
+        private VfxPlayer _fx;
+        private readonly HashSet<GridPos> _newPlots = new HashSet<GridPos>();
+        private float _sheen;
+        private static readonly Color[] TierColors = new Color[6];
         private AudioManager _audio;
         private VisualCatalog _catalog;
         private readonly Dictionary<GridPos, PlotView> _plots = new Dictionary<GridPos, PlotView>();
         private FarmDecorView _decor;
         private float _reveal = 99f;
 
-        public void Init(GameController game, CameraRig camera, FxManager fx, AudioManager audio, VisualCatalog catalog)
+        public void Init(GameController game, CameraRig camera, VfxPlayer fx, AudioManager audio, VisualCatalog catalog)
         {
             _game = game;
             _camera = camera;
             _fx = fx;
             _audio = audio;
             _catalog = catalog;
+            var palette = Palette.Load();
+            for (int t = 0; t < 6; t++) TierColors[t] = palette.Crop(t);
             Rebuild();
             _game.Sim.Harvested += OnHarvested;
             _game.Sim.PlotWatered += OnWatered;
             _game.Sim.PlotRipened += OnRipened;
             _game.Sim.CrowAte += OnCrowAte;
-            _game.Sim.FieldExpanded += Rebuild;
+            _game.Sim.FieldExpanded += OnFieldExpanded;
+            _game.Sim.RainCloudTapped += OnRainSweep;
             _game.Sim.Retired += _ => Rebuild();
             _game.Sim.GenerationStarted += OnGenerationStarted;
             _decor = new GameObject("FarmDecor").AddComponent<FarmDecorView>();
@@ -43,7 +49,8 @@ namespace TillWinter.Unity
             _game.Sim.PlotWatered -= OnWatered;
             _game.Sim.PlotRipened -= OnRipened;
             _game.Sim.CrowAte -= OnCrowAte;
-            _game.Sim.FieldExpanded -= Rebuild;
+            _game.Sim.FieldExpanded -= OnFieldExpanded;
+            _game.Sim.RainCloudTapped -= OnRainSweep;
             _game.Sim.GenerationStarted -= OnGenerationStarted;
         }
 
@@ -63,8 +70,9 @@ namespace TillWinter.Unity
                 var go = _catalog.Spawn(_catalog.Plot, transform, "Plot");
                 go.name = "Plot " + plot.Pos;
                 var view = go.AddComponent<PlotView>();
-                view.Init(plot, _catalog);
+                view.Init(plot, _catalog, _game);
                 _plots.Add(plot.Pos, view);
+                _newPlots.Add(plot.Pos);
             }
             foreach (var kv in _plots)
                 kv.Value.transform.localPosition = _game.PlotToWorld(kv.Key);
@@ -74,45 +82,82 @@ namespace TillWinter.Unity
         /// <summary>New generation: plots appear one by one bottom-left to top-right (0.03 s stagger). Tap after 0.5 s skips.</summary>
         private void OnGenerationStarted()
         {
+            _newPlots.Clear();
             Rebuild();
             _reveal = 0f;
-            foreach (var kv in _plots) kv.Value.transform.localScale = Vector3.one * 0.001f;
+            foreach (var kv in _plots) { kv.Value.transform.localScale = Vector3.one * 0.001f; _newPlots.Add(kv.Key); }
+            _fx.Play(VfxId.MeltSparkle, Vector3.zero);
+        }
+
+        /// <summary>Expansion: only the new plots pop in, staggered, each with a dust puff.</summary>
+        private void OnFieldExpanded()
+        {
+            _newPlots.Clear();
+            Rebuild();
+            if (_newPlots.Count == 0) return;
+            _reveal = 0f;
+            foreach (var pos in _newPlots) _plots[pos].transform.localScale = Vector3.one * 0.001f;
+            _audio.Play(SfxId.Expansion);
+        }
+
+        /// <summary>Rain cloud tapped: sweep across the field and a brief wet sheen on every plot.</summary>
+        private void OnRainSweep()
+        {
+            _fx.Play(VfxId.RainSweep, Vector3.zero);
+            _sheen = 1f;
         }
 
         public void SkipReveal()
         {
             _reveal = 99f;
             foreach (var kv in _plots) kv.Value.transform.localScale = Vector3.one;
+            _newPlots.Clear();
             _decor.CompleteReveal();
         }
 
         private void OnHarvested(HarvestEvent e)
         {
             if (_game.Sim.IsSimulatingOffline) return;
-            if (_plots.TryGetValue(e.Pos, out var view))
+            var at = _game.PlotToWorld(e.Pos, 0.4f);
+            if (_plots.TryGetValue(e.Pos, out var view)) view.Pop();
+            bool ring = e.Source == HarvestSource.Ring;
+            // Combo pitch: +2 % per step, capped at +30 %, reset on break (Combo is 0 then).
+            _audio.HarvestPitch = 1f + Mathf.Min(0.3f, 0.02f * Mathf.Max(0, _game.State.Combo - 1));
+            if (e.WasGolden)
             {
-                view.Pop();
-                _fx.HarvestBurst(_game.PlotToWorld(e.Pos, 0.4f), e.Tier);
+                _fx.Play(VfxId.HarvestGolden, at);
+                _audio.Play(SfxId.GoldenHarvest);
+                Haptics.Play(HapticKind.Medium);
+                if (CameraRig.Instance != null) CameraRig.Instance.Shake(0.04f, 0.15f);
+                HudView.Instance?.Flash(0.1f, 0.06f);
             }
-            _audio.Play(SfxId.HarvestPop);
+            else
+            {
+                _fx.Play(VfxId.Harvest, at, ring ? 1f + e.Tier * 0.15f : 0.6f, TierColors[Mathf.Clamp(e.Tier, 0, 5)]);
+                _audio.Play(SfxId.HarvestPop, ring ? 1f : 0.7f);
+                if (ring) Haptics.Play(HapticKind.Light);
+            }
         }
 
         private void OnWatered(GridPos pos)
         {
             if (_plots.TryGetValue(pos, out var view)) view.SproutPop();
-            _fx.WaterSplash(_game.PlotToWorld(pos, 0.25f));
+            var at = _game.PlotToWorld(pos, 0.2f);
+            _fx.Play(VfxId.WaterSplash, at);
+            _fx.Play(VfxId.SoilRipple, _game.PlotToWorld(pos, 0.175f));
             _audio.Play(SfxId.WaterSplash);
         }
 
         private void OnRipened(GridPos pos)
         {
             if (_plots.TryGetValue(pos, out var view)) view.RipePop();
+            _fx.Play(VfxId.RipeSparkle, _game.PlotToWorld(pos, 0.6f));
         }
 
         private void OnCrowAte(CrowEvent e)
         {
             if (_plots.TryGetValue(e.Pos, out var view)) view.Vanish();
-            _fx.Puff(_game.PlotToWorld(e.Pos, 0.35f));
+            _fx.Play(VfxId.SoilPuff, _game.PlotToWorld(e.Pos, 0.35f));
         }
 
         private void LateUpdate()
@@ -125,21 +170,26 @@ namespace TillWinter.Unity
                 _reveal += dt;
                 int n = state.GridSize;
                 bool done = true;
+                int order = 0;
                 foreach (var kv in _plots)
                 {
-                    float delay = (kv.Key.Y * n + kv.Key.X) * 0.03f;
+                    if (!_newPlots.Contains(kv.Key)) continue;
+                    float delay = (_newPlots.Count == _plots.Count ? kv.Key.Y * n + kv.Key.X : order++) * 0.03f;
+                    float prev = Mathf.Clamp01((_reveal - dt - delay) / 0.25f);
                     float p = Mathf.Clamp01((_reveal - delay) / 0.25f);
+                    if (prev <= 0f && p > 0f) _fx.Play(VfxId.PlotPop, _game.PlotToWorld(kv.Key, 0.15f));
                     if (p < 1f) done = false;
                     kv.Value.transform.localScale = Vector3.one * Mathf.Max(0.001f, p < 1f ? Mathf.Lerp(0.001f, 1.1f, Prims.EaseOutQuad(p)) : 1f);
                 }
                 if (_reveal > 0.5f && _game.Pointer != null && _game.Pointer.Current.Tapped) SkipReveal();
                 else if (done) _reveal = 99f;
             }
+            _sheen = Mathf.Max(0f, _sheen - dt / 1.2f);
             foreach (var kv in _plots)
             {
                 var plot = state.GetPlot(kv.Key);
                 bool underRing = !state.IsWinter && state.IsUnderRing(kv.Key);
-                kv.Value.Tick(plot, state.IsWinter, underRing, dt, t);
+                kv.Value.Tick(plot, state.IsWinter, underRing, dt, t, _sheen);
             }
         }
     }
@@ -154,6 +204,7 @@ namespace TillWinter.Unity
         private const float VanishSeconds = 0.18f;
 
         private VisualCatalog _catalog;
+        private GameController _game;
         private PaletteBinder _soilBinder;
         private GameObject _cracks, _droplets;
         private Transform _cropRoot;
@@ -174,9 +225,10 @@ namespace TillWinter.Unity
         private float _ripePunch;
         private float _lift;
 
-        public void Init(Plot plot, VisualCatalog catalog)
+        public void Init(Plot plot, VisualCatalog catalog, GameController game)
         {
             _catalog = catalog;
+            _game = game;
             _phase = (plot.Pos.X * 7 + plot.Pos.Y * 13) * 0.37f;
             _soilBinder = GetComponent<PaletteBinder>();
             _cracks = transform.Find("Cracks")?.gameObject;
@@ -210,8 +262,14 @@ namespace TillWinter.Unity
         private void ShowStage(int stage)
         {
             if (stage == _stage) return;
+            bool sprouted = _stage == 0 && stage == 1;
             _stage = stage;
             for (int i = 0; i < 3; i++) _stages[i].SetActive(i == stage);
+            if (sprouted && _game != null && !_game.Sim.IsSimulatingOffline)
+            {
+                VfxPlayer.Fire(VfxId.Sprout, transform.position + Vector3.up * 0.25f);
+                AudioManager.Instance?.Play(SfxId.Sprout);
+            }
         }
 
         private void SetGolden(bool golden, float simTime)
@@ -252,7 +310,7 @@ namespace TillWinter.Unity
 
         public void RipePop() => _ripePunch = 1f;
 
-        public void Tick(Plot plot, bool winter, bool underRing, float dt, float simTime)
+        public void Tick(Plot plot, bool winter, bool underRing, float dt, float simTime, float sheen = 0f)
         {
             if (plot.Tier != _builtTier) BuildCrop(plot.Tier);
 
@@ -301,7 +359,9 @@ namespace TillWinter.Unity
             bool golden = plot.IsGolden && !winter;
             if (golden || _golden) SetGolden(golden, simTime);
             var stageBinder = _stageBinders[stage];
-            if (stageBinder != null && !golden) stageBinder.SetEmission(Color.Lerp(Color.black, new Color(0.3f, 0.24f, 0.08f), _ripeGlow));
+            float breathe = ripe ? 0.75f + 0.25f * Mathf.Sin(simTime * 3f + _phase) : 0f;
+            float pulse = Mathf.Clamp01(_ripePunch) * 0.8f;
+            if (stageBinder != null && !golden) stageBinder.SetEmission(Color.Lerp(Color.black, new Color(0.3f, 0.24f, 0.08f), _ripeGlow * breathe + pulse));
 
             // Soil: Dry -> Wet -> ring lift -> winter white, all through the binder.
             _wetBlend = Prims.Damp(_wetBlend, dry || winter ? 0f : 1f, 10f, dt);
@@ -311,7 +371,8 @@ namespace TillWinter.Unity
             var soil = Color.Lerp(palette.SoilDry, palette.SoilWet, _wetBlend);
             soil = Color.Lerp(soil, palette.SoilRing, _ringGlow * 0.6f);
             _soilBinder.Override(PaletteSlot.SoilDry, soil);
-            _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(1.18f, 1.14f, 1.05f), _ringGlow));
+            var lift = Color.Lerp(Color.white, new Color(1.18f, 1.14f, 1.05f), _ringGlow);
+            _soilBinder.SetTintMultiplier(Color.Lerp(lift, new Color(0.85f, 0.92f, 1.15f), sheen * 0.6f));
             _soilBinder.SetEmission(Color.Lerp(Color.black, new Color(0.2f, 0.14f, 0.04f), _ringGlow));
             _lift = Prims.Damp(_lift, underRing ? 0.05f : 0f, 12f, dt);
             var pos = transform.localPosition;

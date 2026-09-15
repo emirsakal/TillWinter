@@ -25,6 +25,9 @@ retire, new generation, next year, on pause/focus loss/quit and every 30 s durin
 Loading resumes mid-year and shows a "While you were away" card when passive systems earned
 coins (max 8 h). To reset: press `DBG` -> "Delete save" and restart Play, or delete the file.
 
+Audio/haptics preferences (master/SFX/ambience volume, haptics on/off) live separately in
+`settings.json` next to the save file, so clearing them does not touch game progress.
+
 ## Controls
 
 | Input | Effect |
@@ -95,6 +98,11 @@ primitive meshes (house, well, windmill, tractor, etc.), per-`PaletteSlot` mater
 `Palette`, node-icon sprite atlas, and the `VisualCatalog` Resources asset every view spawns
 from. Idempotent; re-run after cloning or after changing a prefab default in code.
 
+`feel-setup.bat` builds the Session 7 feel/audio assets: one pooled toon-material particle prefab
+per `VfxId` under `Assets/Art/Vfx` (`VfxCatalog` Resources asset), and `Resources/TillWinterMixer`
+(Master/SFX/Ambience groups with exposed volume parameters). Idempotent; re-run after changing a
+`VfxId` spec or adding an `SfxId`.
+
 ## Project layout
 
 ```
@@ -139,12 +147,24 @@ Everything the kits don't cover (house, well, windmill, greenhouse, tractor, cro
 path tile, signpost, flowerbed, trellis) is built from primitives by `ArtSetup`/`art-setup.bat`.
 UI font is Nunito (SIL OFL 1.1, see `Assets/Fonts/OFL.txt`), covered under Fonts and licences above.
 
+Audio is Kenney CC0 (public domain, no attribution required — credited here anyway), under
+`Assets/Audio/Kenney/Resources/Kenney` with each pack's original licence kept alongside it as
+`License-<Pack>.txt` (index: `Assets/Audio/LICENSES.md`):
+
+- [Impact Sounds](https://kenney.nl/assets/impact-sounds)
+- [Interface Sounds](https://kenney.nl/assets/interface-sounds)
+- [RPG Audio](https://kenney.nl/assets/rpg-audio)
+- [UI Audio](https://kenney.nl/assets/ui-audio)
+
+38 clips are committed, mapped one-for-one to every `SfxId` in `SfxTable`; there is no generated
+fallback. Casual Game Sounds could not be resolved for download this session and was not used; no
+pack used contains a wind/birds loop, so the optional season ambience loop is not implemented.
+
 ## What is intentionally missing
 
-Not yet built (see the GDD roadmap): localization (EN placeholder strings only), sound design
-beyond placeholders (Kenney CC0 clips, generated blips as fallback), performance work beyond the
-Session 6 draw-call budget, store/build settings. No monetization, ever. Balance is a first guess
-and deliberately untuned.
+Not yet built (see the GDD roadmap): localization (EN placeholder strings only), a season ambience
+loop (no suitable CC0 source found), performance work beyond the Session 6 draw-call budget,
+store/build settings. No monetization, ever. Balance is a first guess and deliberately untuned.
 
 See `DECISIONS.md` for choices the design brief left open, and `CLAUDE.md` for the
 architecture rules future sessions must keep.

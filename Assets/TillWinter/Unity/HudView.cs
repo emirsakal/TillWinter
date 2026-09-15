@@ -19,6 +19,7 @@ namespace TillWinter.Unity
             public Vector2 From, Ctrl, To;
             public float Delay, T, Duration;
             public double Value;
+            public bool Punch, Rich, Golden;
         }
 
         private GameController _game;
@@ -42,9 +43,16 @@ namespace TillWinter.Unity
         private float _lastFrostSecond = -1f;
         private Season _shownSeason = Season.Winter;
         private float _seasonFade;
+        private Image _flash, _frostEdge;
+        private float _flashUntil, _flashAlpha, _frostAlpha;
+        private RectTransform _comboRt;
+        private float _comboFade;
+        private int _lastCombo;
+        public static HudView Instance { get; private set; }
 
         public void Init(GameController game, AudioManager audio, RectTransform canvas)
         {
+            Instance = this;
             _game = game;
             _audio = audio;
             _canvas = canvas;
@@ -88,11 +96,33 @@ namespace TillWinter.Unity
 
             _fxLayer = UiKit.Rect("CoinFx", canvas);
             UiKit.Stretch(_fxLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _comboRt = _combo.rectTransform;
+            _comboRt.SetParent(_fxLayer, false); // floats near the ring in canvas space, like the coins
+            _comboRt.anchorMin = _comboRt.anchorMax = new Vector2(0.5f, 0.5f); // WorldToCanvas is centre-relative, like the coins
+            _comboRt.pivot = new Vector2(0f, 0.5f);
+            // Frost creeping in from the screen edges (UI overlay under the coin FX), and the golden-harvest flash.
+            _frostEdge = UiKit.Panel(canvas, "FrostEdge", new Color(0.8f, 0.9f, 1f, 0f), false, false);
+            _frostEdge.sprite = Prims.EdgeFadeSprite(256, 0.45f);
+            _frostEdge.type = Image.Type.Simple;
+            UiKit.Stretch(_frostEdge.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _frostEdge.transform.SetSiblingIndex(_fxLayer.GetSiblingIndex());
+            _flash = UiKit.Panel(canvas, "Flash", new Color(1f, 1f, 1f, 0f), false, false);
+            UiKit.Stretch(_flash.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             _game.Sim.Harvested += OnHarvested;
             _game.Sim.CrowScared += OnCrowScared;
             _game.Sim.YearStarted += OnYearStarted;
             _game.Sim.WinterStarted += OnWinter;
+            _game.Sim.FrostWarningStarted += OnFrostWarning;
+        }
+
+        private void OnFrostWarning() => Haptics.Play(HapticKind.Light);
+
+        /// <summary>Brief white screen flash (golden harvest: 60 ms at 10 %).</summary>
+        public void Flash(float alpha, float seconds)
+        {
+            _flashAlpha = alpha;
+            _flashUntil = Time.unscaledTime + seconds;
         }
 
         private void BuildSeasonBar(RectTransform top)
@@ -138,6 +168,7 @@ namespace TillWinter.Unity
 
         private void OnWinter()
         {
+            _audio.Duck(1f, -6f);
             _audio.Play(SfxId.WinterChime);
             foreach (var c in _coins)
             {
@@ -151,19 +182,22 @@ namespace TillWinter.Unity
         private void OnHarvested(HarvestEvent e)
         {
             if (_game.Sim.IsSimulatingOffline) return;
-            int count = Mathf.Clamp(3 + e.Tier + (e.Source == HarvestSource.Apprentice ? 1 : 0) + (e.WasGolden ? 3 : 0), 3, 10);
-            SpawnCoins(_game.PlotToWorld(e.Pos, 0.5f), e.Coins, count);
+            bool ring = e.Source == HarvestSource.Ring;
+            // Ring harvests: 3–8 coins by value, counter punch on arrival. Helpers: fewer coins, tick only.
+            int count = ring ? Mathf.Clamp(3 + (int)(e.Coins / 4.0), 3, 8) : Mathf.Clamp(2 + e.Tier / 2, 2, 4);
+            if (e.WasGolden) count = 8;
+            SpawnCoins(_game.PlotToWorld(e.Pos, 0.5f), e.Coins, count, ring, e.Tier >= 3 || e.WasGolden, e.WasGolden);
         }
 
         private void OnCrowScared(CrowEvent e)
         {
-            if (e.Coins > 0) SpawnCoins(_game.PlotToWorld(e.Pos, 0.6f), e.Coins, 4);
+            if (e.Coins > 0) SpawnCoins(_game.PlotToWorld(e.Pos, 0.6f), e.Coins, 4, true, false, false);
         }
 
         /// <summary>Counter punch without coin flight (away card OK).</summary>
         public void Punch() => _counterPunch = 1f;
 
-        private void SpawnCoins(Vector3 world, double coins, int count)
+        private void SpawnCoins(Vector3 world, double coins, int count, bool punch, bool rich, bool golden)
         {
             Vector2 from = WorldToCanvas(world);
             Vector2 to = _canvas.InverseTransformPoint(_coinGroup.TransformPoint(new Vector3(-190f, 0f, 0f)));
@@ -178,7 +212,9 @@ namespace TillWinter.Unity
                     Delay = i * 0.045f,
                     Duration = Random.Range(0.5f, 0.65f),
                     Value = share,
+                    Punch = punch, Rich = rich, Golden = golden,
                 };
+                coin.Rt.GetComponent<Image>().color = golden ? _theme.Gold : _theme.Coin;
                 var mid = (coin.From + coin.To) * 0.5f;
                 coin.Ctrl = mid + new Vector2(Random.Range(-220f, 220f), Random.Range(120f, 320f));
                 coin.Rt.anchoredPosition = coin.From;
@@ -218,8 +254,8 @@ namespace TillWinter.Unity
                 if (t >= 1f)
                 {
                     _pending -= c.Value;
-                    _counterPunch = 1f;
-                    _audio.Play(SfxId.CoinArrive);
+                    if (c.Punch) _counterPunch = 1f;
+                    _audio.Play(c.Rich ? SfxId.CoinArriveRich : SfxId.CoinArrive, c.Punch ? 1f : 0.7f);
                     c.Rt.gameObject.SetActive(false);
                     _pool.Push(c.Rt);
                     _coins.RemoveAt(i);
@@ -239,8 +275,38 @@ namespace TillWinter.Unity
             _coinGroup.localScale = Vector3.one * (1f + 0.22f * Prims.EaseOutQuad(_counterPunch));
 
             _subText.text = "Year " + state.Year + "  ·  Gen " + state.Generation.Generation;
-            _combo.text = state.Combo >= 2 ? "x" + state.Combo : "";
-            _combo.rectTransform.localScale = Vector3.one * (1f + 0.15f * Mathf.Max(0f, 1f - state.ComboTimer * 4f));
+            // Combo floats near the ring; on a break it keeps the last value and fades out.
+            if (state.Combo >= 2)
+            {
+                _combo.text = "×" + state.Combo;
+                _comboFade = 1f;
+                if (state.Combo != _lastCombo) _comboRt.localScale = Vector3.one * 1.35f;
+            }
+            else _comboFade = Mathf.Max(0f, _comboFade - dt / 0.4f);
+            _lastCombo = state.Combo;
+            var ring = _game.CurrentRing;
+            if (ring.HasValue)
+            {
+                var sp = WorldToCanvas(_game.PlotToWorld(ring.Value.X, ring.Value.Y, 0.3f));
+                _comboRt.anchoredPosition = sp + new Vector2(state.RingRadius * 90f + 40f, 90f);
+            }
+            _comboRt.localScale = Vector3.one * Mathf.Max(0.0001f, Prims.Damp(_comboRt.localScale.x, _comboFade > 0f ? 1f : 0.6f, 10f, dt));
+            var comboColor = _theme.Combo;
+            comboColor.a = _comboFade;
+            _combo.color = comboColor;
+
+            // Golden flash and frost edges.
+            float flashLeft = _flashUntil - Time.unscaledTime;
+            var flashColor = _flash.color;
+            flashColor.a = flashLeft > 0f ? _flashAlpha : Mathf.Max(0f, flashColor.a - dt * 4f);
+            _flash.color = flashColor;
+            float frostTarget = state.FrostWarning && state.Phase == Phase.Year
+                ? Mathf.Clamp01(1f - state.SecondsUntilWinter / Mathf.Max(0.01f, state.Stats.FrostWarningSeconds))
+                : state.IsWinter ? 0.35f : 0f;
+            _frostAlpha = Prims.Damp(_frostAlpha, frostTarget, 2f, dt);
+            var fc = _frostEdge.color;
+            fc.a = _frostAlpha * 0.55f;
+            _frostEdge.color = fc;
             bool canRetire = _game.Sim.CanRetire;
             if (_seedChipRt.gameObject.activeSelf != canRetire) _seedChipRt.gameObject.SetActive(canRetire);
             if (canRetire) _seedChip.text = "Retire: " + _game.Sim.SeedsIfRetiredNow;

@@ -47,6 +47,14 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 - Kenney assets are imported only through `ArtSetup`/`art-setup.bat`, with each kit's `License.txt` kept next to it and indexed in `Assets/Art/LICENSES.md`. Strip unused kit files on import.
 - `art-setup.bat` regenerates prefabs, per-slot materials and `VisualCatalog`; it is idempotent — re-run after changing a prefab default in code.
 
+## Feel and audio rules
+
+- All effects go through the catalogues: VFX only via `VfxCatalog`/`VfxPlayer` (one pooled prefab per `VfxId`, built by `feel-setup.bat`), SFX only via `SfxTable`/`AudioManager`. Never `Instantiate` a particle prefab or create an ad hoc `AudioSource` in a view.
+- Any repeatable-event trigger (harvest, coin, splash, etc.) must go through `TillWinter.Core.Feel.RateLimiter`; over-budget calls merge into the next allowed trigger instead of stacking unbounded.
+- Camera shake is reserved for golden harvest and retire only — no other event may add it.
+- Haptics only through `Haptics` (Light/Medium/Heavy/Selection), gated by `SettingsData.HapticsEnabled` (`settings.json`, separate from the save). No direct `Vibrator`/platform calls elsewhere.
+- No generated/synthesised audio. Missing a clip for an `SfxId` is a bug to fix in `SfxTable`, never a runtime fallback.
+
 ## Token rules
 
 - Run tests only through the `test-runner` subagent, which uses `run-tests-summary.bat` / `smoke-test-summary.bat`. A hook rewrites the raw scripts; never look at `TestResults/`.

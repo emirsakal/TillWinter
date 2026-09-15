@@ -292,7 +292,7 @@ namespace TillWinter.Unity
 
         private void OnStartGeneration()
         {
-            _audio.Play(SfxId.UiClick);
+            _audio.Play(SfxId.NewGeneration);
             _game.Sim.StartNewGeneration();
             Close();
         }
@@ -317,7 +317,11 @@ namespace TillWinter.Unity
             int seeds = sim.SeedsIfRetiredNow;
             if (sim.Retire())
             {
-                _audio.Play(SfxId.WinterChime);
+                _audio.Duck(1f, -6f);
+                _audio.Play(SfxId.RetireSwell);
+                Haptics.Play(HapticKind.Heavy);
+                if (CameraRig.Instance != null) CameraRig.Instance.Shake(0.06f, 0.35f);
+                VfxPlayer.Fire(VfxId.RetireSnow, Vector3.zero);
                 _showingHeritage = true;
                 _selectedId = null;
                 _group.alpha = 0f;
@@ -339,6 +343,7 @@ namespace TillWinter.Unity
             if (_game.Sim.TryBuy(_selectedId))
             {
                 _audio.Play(SfxId.Purchase);
+                Haptics.Play(HapticKind.Medium);
             }
             else
             {

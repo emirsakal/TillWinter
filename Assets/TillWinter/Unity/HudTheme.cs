@@ -11,6 +11,8 @@ namespace TillWinter.Unity
         public Color Text = new Color(1f, 0.97f, 0.9f);
         public Color TextMuted = new Color(1f, 0.97f, 0.9f, 0.8f);
         public Color Coin = new Color(1f, 0.82f, 0.2f);
+        /// <summary>Golden-harvest coins in flight.</summary>
+        public Color Gold = new Color(1f, 0.92f, 0.5f);
         public Color CoinInner = new Color(0.85f, 0.6f, 0.1f);
         public Color Combo = new Color(1f, 0.9f, 0.5f);
         public Color Seed = new Color(0.78f, 0.6f, 0.95f);
