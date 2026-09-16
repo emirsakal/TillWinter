@@ -110,7 +110,7 @@ namespace TillWinter.Unity
             Place(_catalog.Pond, "Pond", new Vector3(edge - 2.9f, 0f, back - 0.15f), 15f);
             // The kennel is scenery and batches with the rest; the dog must not, or batching would freeze its wag.
             Place(_catalog.Kennel, "Kennel", new Vector3(edge - 1.95f, 0f, back - 0.35f), -25f);
-            PlaceDog(new Vector3(edge - 1.55f, 0f, back - 0.75f), -35f);
+            PlaceDog(new Vector3(edge - 1.3f, 0f, back - 1.05f), -35f); // in front of the kennel, where it can be seen
             OnSeasonChanged(_game.State.Season);
             StaticBatchingUtility.Combine(_scenery.gameObject);
         }

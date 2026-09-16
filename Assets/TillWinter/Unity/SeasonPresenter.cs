@@ -42,6 +42,7 @@ namespace TillWinter.Unity
             _fx = fx;
             _palette = SeasonPalette.Load();
             _game.Sim.GenerationStarted += OnGenerationStarted;
+            _game.Sim.YearStarted += OnYearStarted;
 
             var sunGo = new GameObject("Sun");
             sunGo.transform.SetParent(transform, false);
@@ -120,11 +121,14 @@ namespace TillWinter.Unity
 
         private void OnDestroy()
         {
-            if (_game != null && _game.Sim != null) { _game.Sim.SeasonChanged -= OnSeasonChanged; _game.Sim.GenerationStarted -= OnGenerationStarted; _game.Sim.GoldenYearStarted -= OnGoldenYear; }
+            if (_game != null && _game.Sim != null) { _game.Sim.SeasonChanged -= OnSeasonChanged; _game.Sim.GenerationStarted -= OnGenerationStarted; _game.Sim.YearStarted -= OnYearStarted; _game.Sim.GoldenYearStarted -= OnGoldenYear; }
         }
 
         /// <summary>New generation: the snow melts at once instead of lingering for a particle lifetime.</summary>
         private void OnGenerationStarted() => _fx.Clear(VfxId.Snow);
+
+        /// <summary>A new year: the emission stops with Winter, but flakes already in the air lived on into Spring.</summary>
+        private void OnYearStarted() => _fx.Clear(VfxId.Snow);
 
         private void OnSeasonChanged(Season s)
         {

@@ -333,8 +333,11 @@ namespace TillWinter.EditorTools
 
         private static void OnLog(string condition, string stackTrace, LogType type)
         {
-            if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
-                Error("CONSOLE " + type + ": " + condition);
+            if (type != LogType.Error && type != LogType.Exception && type != LogType.Assert) return;
+            // The editor's own Package Manager window reports when it cannot reach the registry; that is the
+            // machine being offline, not the game failing.
+            if (condition.StartsWith("[Package Manager")) { Log("SKIP editor: " + condition); return; }
+            Error("CONSOLE " + type + ": " + condition);
         }
 
         private static void Error(string line)

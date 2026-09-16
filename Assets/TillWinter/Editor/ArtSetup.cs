@@ -502,11 +502,12 @@ namespace TillWinter.EditorTools
         private static GameObject BuildKennel()
         {
             var (root, b) = Root("Kennel");
-            Prim(PrimitiveType.Cube, root.transform, "Body", new Vector3(0f, 0.22f, 0f), new Vector3(0.62f, 0.44f, 0.7f), b, PaletteSlot.WoodLight);
-            Prim(PrimitiveType.Cube, root.transform, "Doorway", new Vector3(0f, 0.17f, -0.36f), new Vector3(0.3f, 0.34f, 0.06f), b, PaletteSlot.Wood);
-            var roofL = Prim(PrimitiveType.Cube, root.transform, "RoofL", new Vector3(-0.17f, 0.54f, 0f), new Vector3(0.46f, 0.07f, 0.78f), b, PaletteSlot.Roof);
+            // Small, dark wood and a green roof: with the house's red roof and its size it read as a second house.
+            Prim(PrimitiveType.Cube, root.transform, "Body", new Vector3(0f, 0.17f, 0f), new Vector3(0.46f, 0.34f, 0.52f), b, PaletteSlot.Wood);
+            Prim(PrimitiveType.Cube, root.transform, "Doorway", new Vector3(0f, 0.13f, -0.265f), new Vector3(0.22f, 0.26f, 0.04f), b, PaletteSlot.Crow); // the Eye slot is the white of an eye
+            var roofL = Prim(PrimitiveType.Cube, root.transform, "RoofL", new Vector3(-0.13f, 0.42f, 0f), new Vector3(0.35f, 0.06f, 0.6f), b, PaletteSlot.LeafDark);
             roofL.transform.localRotation = Quaternion.Euler(0f, 0f, 38f);
-            var roofR = Prim(PrimitiveType.Cube, root.transform, "RoofR", new Vector3(0.17f, 0.54f, 0f), new Vector3(0.46f, 0.07f, 0.78f), b, PaletteSlot.Roof);
+            var roofR = Prim(PrimitiveType.Cube, root.transform, "RoofR", new Vector3(0.13f, 0.42f, 0f), new Vector3(0.35f, 0.06f, 0.6f), b, PaletteSlot.LeafDark);
             roofR.transform.localRotation = Quaternion.Euler(0f, 0f, -38f);
             return root;
         }
@@ -518,24 +519,24 @@ namespace TillWinter.EditorTools
         private static GameObject BuildDog()
         {
             var (root, b) = Root("Dog");
-            Prim(PrimitiveType.Capsule, root.transform, "Body", new Vector3(0f, 0.2f, 0f), new Vector3(0.22f, 0.2f, 0.22f), b, PaletteSlot.Wood)
+            Prim(PrimitiveType.Capsule, root.transform, "Body", new Vector3(0f, 0.2f, 0f), new Vector3(0.22f, 0.2f, 0.22f), b, PaletteSlot.WoodLight)
                 .transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            Prim(PrimitiveType.Sphere, root.transform, "Head", new Vector3(0f, 0.34f, 0.22f), Vector3.one * 0.23f, b, PaletteSlot.Wood);
-            Prim(PrimitiveType.Sphere, root.transform, "Snout", new Vector3(0f, 0.3f, 0.34f), Vector3.one * 0.12f, b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Sphere, root.transform, "Head", new Vector3(0f, 0.34f, 0.22f), Vector3.one * 0.23f, b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Sphere, root.transform, "Snout", new Vector3(0f, 0.3f, 0.34f), Vector3.one * 0.12f, b, PaletteSlot.Wall);
             Prim(PrimitiveType.Sphere, root.transform, "Nose", new Vector3(0f, 0.31f, 0.4f), Vector3.one * 0.06f, b, PaletteSlot.Eye);
             Prim(PrimitiveType.Sphere, root.transform, "EyeL", new Vector3(-0.07f, 0.38f, 0.32f), Vector3.one * 0.05f, b, PaletteSlot.Eye);
             Prim(PrimitiveType.Sphere, root.transform, "EyeR", new Vector3(0.07f, 0.38f, 0.32f), Vector3.one * 0.05f, b, PaletteSlot.Eye);
-            Prim(PrimitiveType.Cube, root.transform, "EarL", new Vector3(-0.11f, 0.44f, 0.2f), new Vector3(0.07f, 0.11f, 0.05f), b, PaletteSlot.WoodLight);
-            Prim(PrimitiveType.Cube, root.transform, "EarR", new Vector3(0.11f, 0.44f, 0.2f), new Vector3(0.07f, 0.11f, 0.05f), b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Cube, root.transform, "EarL", new Vector3(-0.11f, 0.44f, 0.2f), new Vector3(0.07f, 0.11f, 0.05f), b, PaletteSlot.Wood);
+            Prim(PrimitiveType.Cube, root.transform, "EarR", new Vector3(0.11f, 0.44f, 0.2f), new Vector3(0.07f, 0.11f, 0.05f), b, PaletteSlot.Wood);
             for (int i = 0; i < 4; i++)
                 Prim(PrimitiveType.Cube, root.transform, "Leg" + i, new Vector3(i % 2 == 0 ? -0.09f : 0.09f, 0.06f, i < 2 ? 0.12f : -0.12f),
-                    new Vector3(0.07f, 0.12f, 0.07f), b, PaletteSlot.Wood);
+                    new Vector3(0.07f, 0.12f, 0.07f), b, PaletteSlot.WoodLight);
 
             // The tail is its own child so the view can wag it.
             var tail = new GameObject("Tail");
             tail.transform.SetParent(root.transform, false);
             tail.transform.localPosition = new Vector3(0f, 0.3f, -0.2f);
-            Prim(PrimitiveType.Cube, tail.transform, "Wag", new Vector3(0f, 0.07f, -0.03f), new Vector3(0.05f, 0.17f, 0.05f), b, PaletteSlot.WoodLight)
+            Prim(PrimitiveType.Cube, tail.transform, "Wag", new Vector3(0f, 0.07f, -0.03f), new Vector3(0.05f, 0.17f, 0.05f), b, PaletteSlot.Wood)
                 .transform.localRotation = Quaternion.Euler(-35f, 0f, 0f);
 
             // Hidden until patted.
@@ -623,16 +624,16 @@ namespace TillWinter.EditorTools
 
         private static GameObject Apprentice(string model, int index)
         {
-            var root = Kit("mini-characters", model, 0.72f);
+            var root = Kit("mini-characters", model, 0.52f); // 0.72 hid the whole plot the helper stood on
             root.name = "Apprentice" + index;
             var b = root.GetComponent<PaletteBinder>();
             AddIdleAnimator(root.transform.Find("Model").gameObject, Kenney + "mini-characters/Models/" + model + ".fbx");
             var slot = (PaletteSlot)((int)PaletteSlot.Cloth0 + index);
             var hat = new GameObject("Hat").transform;
             hat.SetParent(root.transform, false);
-            hat.localPosition = new Vector3(0f, 0.7f, 0f);
-            Prim(PrimitiveType.Cylinder, hat, "Brim", Vector3.zero, new Vector3(0.36f, 0.015f, 0.36f), b, slot);
-            Prim(PrimitiveType.Cylinder, hat, "Crown", new Vector3(0f, 0.05f, 0f), new Vector3(0.17f, 0.05f, 0.17f), b, slot);
+            hat.localPosition = new Vector3(0f, 0.505f, 0f);
+            Prim(PrimitiveType.Cylinder, hat, "Brim", Vector3.zero, new Vector3(0.26f, 0.011f, 0.26f), b, slot);
+            Prim(PrimitiveType.Cylinder, hat, "Crown", new Vector3(0f, 0.036f, 0f), new Vector3(0.123f, 0.036f, 0.123f), b, slot);
             return root;
         }
 

@@ -195,6 +195,158 @@ All five sections are done; new items go at the bottom as they come up.
 
 ---
 
+## 9. Visual review, round three
+
+A full-game review from the play-mode screenshot tour, worked through group by group; the developer reviews between groups.
+
+### 9.0 Bugs seen during the review (do these first)
+
+- **Done.** [H] **Coin counter overlap.** The coin counter overlaps the "Year · Generation" line
+  when the number grows (e.g. "4,1K"). The line started 30 units inside the coin row; it now sits
+  below it, and the earning-rate label moved under the Year line since a long number ran into it
+  beside the counter.
+- **Done.** [H] **Snow keeps falling after Next Year.** It carries on into Spring. Emission already
+  stopped with Winter, but flakes in the air lived on; a new year now clears them, as a new
+  generation already did.
+- **Done.** [M] **Kennel reads as a second house.** Red roof, too big; the dog disappears into its
+  doorway. It is smaller, dark wood with a green roof and a dark doorway; the dog has a light coat
+  and stands in front of it.
+- **Done.** [M] **Apprentices too big for the plots.** One covers a whole plot. They are 0.52 tall
+  instead of 0.72, hats scaled to match.
+- **Done.** [M] **End year and pause buttons out of style.** Translucent grey, does not match the
+  new button style. Solid like the other buttons; a translucent face on a translucent lip had read
+  as a grey smudge.
+
+### 9.1 Visual language
+
+- **Open.** [H] **One documented colour palette.** Menu grey, cream sheets, brown winter and green
+  heritage should read as one family (warm earth, cream, sage green, honey).
+- **Open.** [H] **Surface language for UI.** Light texture (paper, wood, cloth) or a thin border and
+  inner shadow, a "farm notebook" feel.
+- **Open.** [M] **One standard for corner radius, shadow and border** across cards, chips and
+  buttons.
+- **Open.** [M] **Bridge the low-poly 3D and flat 2D UI** (subtle facets or soft shadows in UI).
+
+### 9.2 Play screen (HUD)
+
+- **Open.** [H] **Empty bottom third of the screen.** Today's goal, next crop, or a small "this
+  year" panel; or move the island down and enlarge it.
+- **Open.** [H] **Coin area.** Tighten icon-to-number spacing, glow on the coin, counting animation
+  when the number changes.
+- **Open.** [M] **Season bar thin, glyphs small.** A thicker, illustrated timeline.
+- **Open.** [M] **Frost warning.** Pulse on the bar, a slight blue tint, frost on the field.
+- **Open.** [M] **Retire chip.** A clearer badge with a seed icon that glows when ready.
+- **Open.** [L] **Combo counter.** Fiery/sparkling number that grows with the streak.
+
+### 9.3 Island and 3D world
+
+- **Open.** [H] **Island is a flat green slab.** Grass tufts, flowers and stones on the edges; soil
+  layers and roots on the side profile.
+- **Open.** [H] **Empty grass left and right of the field.** Set dressing (hay bale, wheelbarrow,
+  watering can, scarecrow, well, coop).
+- **Open.** [M] **Underside of the floating island.** Rocks, hanging roots, light mist.
+- **Open.** [M] **Fence.** Posts at the corners, a path to the gate, maybe a low fence around the
+  field.
+- **Open.** [M] **Path tile under the field looks detached.** A path running to the house.
+- **Open.** [M] **Lasting visual rewards as generations pass** (barn, greenhouse, windmill), beyond
+  the growing house.
+- **Open.** [L] **Background layer.** Hills, tree silhouettes, other islands.
+
+### 9.4 Field and crops
+
+- **Open.** [H] **Crops small for their plots.** Scale up or plant 2-4 per plot.
+- **Open.** [H] **Soil is a flat box.** Furrows, a dark sheen when wet, crack texture when dry.
+- **Open.** [M] **Each crop with its own identity** (tomato on a stake, tall corn, pumpkin on
+  trailing leaves).
+- **Open.** [M] **Ripeness signal.** A small sparkle, light ring or bouncing icon in addition to the
+  wobble and warm tint.
+- **Open.** [M] **Player's ring.** Rotating dots on the edge, water-drop and sun-ray effects under
+  it.
+- **Open.** [L] **Golden crop.** A clearer light shaft and particle shower.
+
+### 9.5 Characters and creatures
+
+- **Open.** [M] **Apprentices.** Smaller, with dig/water/pick animations and small status icons.
+- **Open.** [M] **Dog.** Leaves the kennel, wanders, follows apprentices, chases crows.
+- **Open.** [M] **Crows.** Landing, pecking and flight animations; feathers when scared.
+- **Open.** [L] **Ambient creatures.** Bees, chickens, a cat, flocks of birds, a frog at the pond.
+
+### 9.6 Sky, light, weather and seasons
+
+- **Open.** [H] **Sky still plain.** Sun/moon disc, layered clouds, colour through the day.
+- **Open.** [H] **Season transitions.** Spring blossom, summer haze, autumn leaf wind, snow cover
+  arriving gradually.
+- **Open.** [M] **Weather.** Light rain, rainbow, autumn wind, morning mist.
+- **Open.** [M] **Light.** Stronger shadow direction, warm rim light, lit house windows on winter
+  evenings.
+- **Open.** [L] **Starry winter night** behind the Winter screen.
+
+### 9.7 Animation and game feel
+
+- **Open.** [H] **Purchases lack a visible change on the farm** (a new plot landing, an irrigation
+  pipe appearing).
+- **Open.** [H] **Screen transitions.** Freezing into Winter, thawing out of it.
+- **Open.** [M] **UI micro-interactions.** Selected/hover states, a light bounce when sheets open.
+- **Open.** [M] **Coin flight.** A pop and colour flash on the counter when coins land.
+- **Open.** [M] **Passing on the farm is the biggest moment.** Island darkens and is reborn; a more
+  cinematic generation card.
+- **Open.** [L] **Idle motion.** Trees swaying, a flag, ripples on the pond.
+
+### 9.8 Winter screen and skill tree
+
+- **Open.** [H] **Tree unreadable at overview.** Node icons and "0/3" are tiny; show only state
+  colour far away and detail up close.
+- **Open.** [H] **Hub is a plain grey circle.** A trunk, seed or farm emblem, with branches growing
+  from it.
+- **Open.** [H] **Connection lines thin and straight.** Thick organic branches that grow as nodes
+  are bought.
+- **Open.** [M] **Branch plates too small.** Readable size and a branch icon.
+- **Open.** [M] **No winter atmosphere.** Light snowfall, window condensation, warm lamp light
+  instead of a flat dark page.
+- **Open.** [M] **Empty space above and below.** A light zoom-in on first open.
+- **Open.** [M] **Node sheet.** A large node icon and a small preview of what it unlocks.
+- **Open.** [L] **Heritage tree.** A distinct golden/aged texture.
+
+### 9.9 Menu, splash and loading
+
+- **Open.** [M] **Main menu gap between island and buttons.** Enlarge the island or join logo and
+  island.
+- **Open.** [M] **"Till Winter" title.** A custom logotype (crop letters, snowflake i).
+- **Open.** [M] **Menu buttons dark and heavy.** Tie them to the palette with cream/wood tones.
+- **Open.** [L] **Splash.** A light scale/glow animation on the logo.
+- **Open.** [L] **Loading screen.** Seedling tinted by season, tip text below.
+
+### 9.10 Sheets and buttons
+
+- **Open.** [H] **Sheets are plain cream cards.** A title band, thin frame and corner ornaments
+  ("notebook/signboard" identity).
+- **Open.** [M] **Icons on buttons** (Continue, Settings, Statistics, Main menu).
+- **Open.** [M] **Pause sheet has empty space.** A summary of year, coins and generation.
+- **Open.** [M] **Confirmation dialogs.** Two iconed columns for what is lost and what is gained.
+- **Open.** [L] **Settings sections** (Sound, Display, Account) with headings.
+
+### 9.11 Typography, icons, colour
+
+- **Open.** [M] **Clearer type hierarchy** between titles, body and captions.
+- **Open.** [M] **One icon set in a single style** (filled, rounded); the Kenney icons vary in
+  weight.
+- **Open.** [M] **Large numbers (4,1K)** presented more legibly and with colour.
+- **Open.** [L] **A characterful display face for titles**; Figtree stays for body text.
+
+### 9.12 Accessibility and screen sizes
+
+- **Open.** [M] **Colour blindness.** Seasons and ripeness must not rely on colour alone.
+- **Open.** [M] **Tablets and short (16:9) screens.** Check the new layouts; extend the UI tour with
+  device settings.
+- **Open.** [L] **Reduce motion must cover every new animation.**
+
+### 9.13 Storefront
+
+- **Open.** [M] **App icon** that shows the island and winter at a glance.
+- **Open.** [L] **Store screenshots**, using the UI tour infrastructure.
+
+---
+
 ## Order
 
 1. **Foundations** — type scale, sheet shell, button feedback, motion constants.
