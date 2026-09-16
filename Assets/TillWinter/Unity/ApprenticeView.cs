@@ -45,7 +45,7 @@ namespace TillWinter.Unity
         private float _bob;
         private float _facing;
         private bool _placed;
-        private float _lastSin;
+        private float _idle;
 
         public ApprenticeView Setup(VisualCatalog catalog = null)
         {
@@ -90,10 +90,18 @@ namespace TillWinter.Unity
                 _facing = Mathf.LerpAngle(_facing, Mathf.Atan2(delta.x, delta.z) * Mathf.Rad2Deg, 1f - Mathf.Exp(-dt * 14f));
             }
             float bobY = walking ? Mathf.Abs(Mathf.Sin(_bob)) * 0.07f : 0f;
-            float squash = a.IsHarvesting ? 1f - 0.18f * Mathf.Sin(a.HarvestProgress * Mathf.PI) : 1f;
-            _body.localPosition = new Vector3(0f, bobY, 0f);
-            _body.localScale = new Vector3(1f / Mathf.Sqrt(squash), squash, 1f / Mathf.Sqrt(squash));
-            _body.localRotation = Quaternion.Euler(walking ? Mathf.Sin(_bob) * 4f : 0f, _facing, 0f);
+            // Picking: bend down to the bed and straighten with a little hop as the crop comes up.
+            float pick = a.IsHarvesting ? Mathf.Sin(a.HarvestProgress * Mathf.PI) : 0f;
+            float lift = a.IsHarvesting && a.HarvestProgress > 0.8f ? Mathf.Sin((a.HarvestProgress - 0.8f) / 0.2f * Mathf.PI) * 0.05f : 0f;
+            float squash = 1f - 0.1f * pick;
+            // Standing still: breathe, and look about now and then.
+            bool idle = !walking && !a.IsHarvesting;
+            _idle = idle ? _idle + dt : 0f;
+            float breathe = idle ? 1f + 0.02f * Mathf.Sin(_idle * 2.4f) : 1f;
+            float look = idle ? Mathf.Sin(_idle * 0.6f) * Mathf.Clamp01(_idle - 0.5f) * 30f : 0f;
+            _body.localPosition = new Vector3(0f, bobY + lift, 0f);
+            _body.localScale = new Vector3(1f / Mathf.Sqrt(squash), squash * breathe, 1f / Mathf.Sqrt(squash));
+            _body.localRotation = Quaternion.Euler(walking ? Mathf.Sin(_bob) * 4f : pick * 28f, _facing + look, 0f);
             _lastPos = target;
         }
     }

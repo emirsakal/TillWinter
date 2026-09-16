@@ -276,6 +276,35 @@ namespace TillWinter.EditorTools
             return root;
         }
 
+        /// <summary>Bee: striped body and two wings (WingL/WingR) the critter view flaps.</summary>
+        private static GameObject BuildBee()
+        {
+            var (root, b) = Root("Bee");
+            Prim(PrimitiveType.Sphere, root.transform, "Body", Vector3.zero, new Vector3(0.07f, 0.06f, 0.09f), b, PaletteSlot.Crop5, null, null, false);
+            Prim(PrimitiveType.Cube, root.transform, "Stripe", new Vector3(0f, 0f, -0.01f), new Vector3(0.072f, 0.062f, 0.018f), b, PaletteSlot.Eye, null, null, false);
+            Prim(PrimitiveType.Sphere, root.transform, "Head", new Vector3(0f, 0.005f, 0.05f), Vector3.one * 0.04f, b, PaletteSlot.Eye, null, null, false);
+            var l = Prim(PrimitiveType.Cube, root.transform, "WingL", new Vector3(-0.035f, 0.035f, 0f), new Vector3(0.05f, 0.004f, 0.035f), b, PaletteSlot.Cloud, null, null, false);
+            var r = Prim(PrimitiveType.Cube, root.transform, "WingR", new Vector3(0.035f, 0.035f, 0f), new Vector3(0.05f, 0.004f, 0.035f), b, PaletteSlot.Cloud, null, null, false);
+            foreach (var go in new[] { l, r }) go.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            return root;
+        }
+
+        /// <summary>Pond frog: a squat body, two eye bumps and a throat the view puffs ("Throat").</summary>
+        private static GameObject BuildFrog()
+        {
+            var (root, b) = Root("Frog");
+            Prim(PrimitiveType.Sphere, root.transform, "Body", new Vector3(0f, 0.06f, 0f), new Vector3(0.17f, 0.11f, 0.19f), b, PaletteSlot.LeafDark);
+            Prim(PrimitiveType.Sphere, root.transform, "Throat", new Vector3(0f, 0.05f, 0.08f), new Vector3(0.09f, 0.06f, 0.06f), b, PaletteSlot.Sprout);
+            for (int i = 0; i < 2; i++)
+            {
+                float x = i == 0 ? -0.045f : 0.045f;
+                Prim(PrimitiveType.Sphere, root.transform, "Bump" + i, new Vector3(x, 0.115f, 0.05f), Vector3.one * 0.05f, b, PaletteSlot.LeafDark);
+                Prim(PrimitiveType.Sphere, root.transform, "Eye" + i, new Vector3(x, 0.125f, 0.065f), Vector3.one * 0.028f, b, PaletteSlot.Eye);
+                Prim(PrimitiveType.Sphere, root.transform, "Foot" + i, new Vector3(x * 2f, 0.02f, -0.05f), new Vector3(0.06f, 0.03f, 0.08f), b, PaletteSlot.Leaf);
+            }
+            return root;
+        }
+
         /// <summary>Butterfly: a body and two wings the view flaps (children named WingL/WingR, like the crow).</summary>
         private static GameObject BuildButterfly()
         {
@@ -377,6 +406,8 @@ namespace TillWinter.EditorTools
             };
             c.HangingRock = Save("HangingRock", BuildHangingRock());
             c.Butterfly = Save("Butterfly", BuildButterfly());
+            c.Bee = Save("Bee", BuildBee());
+            c.Frog = Save("Frog", BuildFrog());
             c.BlobShadow = Save("BlobShadow", BuildBlobShadow());
         }
 

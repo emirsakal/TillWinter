@@ -71,6 +71,8 @@ namespace TillWinter.Unity
         /// <summary>Beads around the player's ring, unit radius.</summary>
         public GameObject RingDots;
         public GameObject Butterfly;
+        public GameObject Bee;
+        public GameObject Frog;
         /// <summary>Soft dark disc parented under characters and props so they sit on the ground when shadows are off.</summary>
         public GameObject BlobShadow;
 

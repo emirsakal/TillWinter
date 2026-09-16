@@ -22,6 +22,8 @@ namespace TillWinter.Unity
         private MeshFilter _blockFilter;
         private Transform _scenery;
         private Transform _dog;
+        private DogView _dogView;
+        private FrogView _frog;
         private readonly List<(Vector2 at, float radius)> _avoid = new List<(Vector2, float)>();
         private int _builtSize = -1, _builtGen = -1;
         private readonly List<GameObject> _treesGreen = new List<GameObject>();
@@ -115,6 +117,9 @@ namespace TillWinter.Unity
             // The kennel is scenery and batches with the rest; the dog must not, or batching would freeze its wag.
             Place(_catalog.Kennel, "Kennel", new Vector3(edge - 1.95f, 0f, back - 0.35f), -25f);
             PlaceDog(new Vector3(edge - 1.3f, 0f, back - 1.05f), -35f); // in front of the kennel, where it can be seen
+            // It trots along the grass strip just behind the fence, clear of the pond and the house.
+            _dogView?.SetArea(new Vector3(edge - 1.3f, 0f, back - 1.05f), -edge + 1.9f, edge - 0.5f, half + 0.55f + 0.3f, half + 0.55f + 0.42f);
+            PlaceFrog(new Vector3(edge - 2.9f + 0.62f, 0f, back - 0.15f - 0.5f), 200f);
             Dress(n, half, edge, back, panels);
             OnSeasonChanged(_game.State.Season);
             StaticBatchingUtility.Combine(_scenery.gameObject);
@@ -236,10 +241,26 @@ namespace TillWinter.Unity
                 var go = _catalog.Spawn(_catalog.Dog, transform, "Dog");
                 if (go == null) return;
                 _dog = go.transform;
-                go.AddComponent<DogView>().Init(_game, AudioManager.Instance);
+                _dogView = go.AddComponent<DogView>();
+                _dogView.Init(_game, AudioManager.Instance);
             }
             _dog.localPosition = pos;
             _dog.localRotation = Quaternion.Euler(0f, yaw, 0f);
+        }
+
+        /// <summary>Like the dog: animated, so it lives outside the batched scenery and moves with a rebuild.</summary>
+        private void PlaceFrog(Vector3 pos, float yaw)
+        {
+            if (_catalog.Frog == null) return;
+            if (_frog == null)
+            {
+                var go = _catalog.Spawn(_catalog.Frog, transform, "Frog");
+                _frog = go.AddComponent<FrogView>();
+                _frog.Init(_game);
+            }
+            _frog.transform.localPosition = pos;
+            _frog.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            _frog.SetHome(pos);
         }
 
         private GameObject Place(GameObject prefab, string name, Vector3 pos, float yaw)
