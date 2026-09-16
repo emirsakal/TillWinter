@@ -745,3 +745,18 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **Language change warning.** The language and text-size switches cover the screen with a short
   "Applying…" panel for 0.4 s before the scene reloads.
 - docs/VISUAL-BACKLOG.md: all five groups are worked through.
+
+## Follow-up: visual fixes from developer screenshots (2026-09-16)
+
+- **Skill tree layout: lanes to radial star.** Changed from five side-by-side lanes to a radial
+  star at the developer's request; the layout contract is now "branch angle + prerequisite depth =
+  radius", so a node always sits further from the centre than its prerequisites. `LayoutTests` now
+  asserts sector membership and radius ordering instead of lane X ranges.
+- **Branch identity moved to a name plate.** The tinted background box behind each branch is
+  replaced by a name plate at the end of each ray, because boxes around rays necessarily overlap at
+  the shared centre.
+- **Retire chip out of the fading HUD band.** It now hides itself outside the Year phase rather than
+  inheriting the top band's fade.
+- **`TreeTheme.CurrentStyle` bumped 1 -> 2** so existing theme assets get restyled in place; the
+  Heritage restyle path now also refreshes muted ink, dim edges and initial zoom, which it
+  previously left at their old values.

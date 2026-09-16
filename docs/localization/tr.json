@@ -11,6 +11,7 @@
   "ui.retire_now": "Şimdi devret: {seeds} tohum",
   "ui.year_summary": "Bu yıl: {harvests} hasat · {coins} jeton",
   "ui.greenhouse": "Sera +{coins}, kalan süre {seconds} s",
+  "ui.loading": "Yükleniyor",
   "ui.buy": "Satın al",
   "ui.locked": "Kilitli",
   "ui.maxed": "Tamamlandı",

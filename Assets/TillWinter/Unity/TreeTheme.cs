@@ -11,14 +11,14 @@ namespace TillWinter.Unity
     public sealed class TreeTheme : ScriptableObject
     {
         /// <summary>Bumped when the page look changes; UiSetup restyles an older asset in place (S9: dark page, opaque overlay).</summary>
-        public const int CurrentStyle = 1;
+        public const int CurrentStyle = 2;
         public int StyleVersion;
 
         [Header("Almanac page")]
         public Color Paper = new Color(0.14f, 0.12f, 0.1f, 1f);
         public Color PaperVignette = new Color(0f, 0f, 0f, 0.45f);
         public Color Ink = new Color(0.95f, 0.9f, 0.8f);
-        public Color InkMuted = new Color(0.68f, 0.63f, 0.55f);
+        public Color InkMuted = new Color(0.86f, 0.82f, 0.74f); // costs and levels on the dark page were barely above it
         public Color Overlay = new Color(0.09f, 0.08f, 0.06f, 1f);
         public Color Accent = new Color(0.95f, 0.62f, 0.2f);
         public Color Danger = new Color(0.8f, 0.25f, 0.2f);
@@ -39,11 +39,11 @@ namespace TillWinter.Unity
         public float LockedSaturation = 0.25f;
         public float LockedAlpha = 0.75f;
         public float EdgeWidth = 6f;
-        public Color EdgeDim = new Color(0.62f, 0.56f, 0.48f, 0.4f);
+        public Color EdgeDim = new Color(0.74f, 0.68f, 0.58f, 0.55f);
         public float PulseAmplitude = 0.05f;
         public float ZoomMin = 0.5f;
         public float ZoomMax = 1.6f;
-        public float InitialZoom = 0.85f;
+        public float InitialZoom = 0.62f; // the star reaches further than the old row of lanes
 
         public Color BranchColor(Branch b)
         {
@@ -98,7 +98,7 @@ namespace TillWinter.Unity
             t.Paper = new Color(0.09f, 0.2f, 0.14f, 0.97f);
             t.PaperVignette = new Color(0f, 0.05f, 0.02f, 0.5f);
             t.Ink = new Color(0.96f, 0.9f, 0.72f);
-            t.InkMuted = new Color(0.75f, 0.72f, 0.6f);
+            t.InkMuted = new Color(0.9f, 0.86f, 0.72f);
             t.Overlay = new Color(0.03f, 0.08f, 0.05f, 1f);
             t.Accent = new Color(0.9f, 0.72f, 0.28f);
             t.Danger = new Color(0.95f, 0.45f, 0.35f);
@@ -108,10 +108,10 @@ namespace TillWinter.Unity
             t.Hand = new Color(0.75f, 0.42f, 0.14f);
             t.Soil = new Color(0.48f, 0.3f, 0.16f);
             t.Field = new Color(0.28f, 0.5f, 0.24f);
-            t.InitialZoom = 0.62f; // five branches side by side: show the whole row
+            t.InitialZoom = 0.6f; // show the whole star
             t.Helpers = new Color(0.22f, 0.42f, 0.66f);
             t.Calendar = new Color(0.46f, 0.3f, 0.62f);
-            t.EdgeDim = new Color(0.55f, 0.6f, 0.5f, 0.4f);
+            t.EdgeDim = new Color(0.7f, 0.76f, 0.66f, 0.55f);
         }
     }
 }

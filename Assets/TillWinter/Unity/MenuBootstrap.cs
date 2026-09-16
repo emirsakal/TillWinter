@@ -303,7 +303,7 @@ namespace TillWinter.Unity
                 var c = _fade.color;
                 c.a = Mathf.Clamp01(_leaveT / 0.35f);
                 _fade.color = c;
-                if (_leaveT >= 0.4f) { _leaveT = -2f; SceneManager.LoadScene(SceneNames.Farm); }
+                if (_leaveT >= 0.4f) { _leaveT = -2f; SceneLoader.Load(SceneNames.Farm); }
             }
             else if (_leaveT > -2f)
             {

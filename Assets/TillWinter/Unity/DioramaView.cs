@@ -75,7 +75,7 @@ namespace TillWinter.Unity
                 Place(_catalog.PathTile, "Path", new Vector3(0f, 0.001f, z), 0f);
             // Fence line along the far edge, centred so both ends sit the same distance from the island sides;
             // the middle panel (two on an even count) is the gate.
-            int panels = Mathf.FloorToInt(2f * edge - 0.2f);
+            int panels = Mathf.FloorToInt(2f * edge - 1.0f); // stops clear of the block's taper, which made a full-width fence look off-centre
             for (int i = 0; i < panels; i++)
             {
                 float x = -(panels - 1) * 0.5f + i;
@@ -99,7 +99,8 @@ namespace TillWinter.Unity
             Place(_catalog.Bush, "Bush", bush, 20f);
             Shadow(bush, 0.8f);
             Place(_catalog.Rock, "Rock", new Vector3(-edge + 0.45f, 0f, half - 0.4f), 0f);
-            Place(_catalog.Pond, "Pond", new Vector3(-edge + 1.0f, 0f, -half - 0.85f), 15f);
+            // The island ends at -half - Margin; the pond used to hang over that lip.
+            Place(_catalog.Pond, "Pond", new Vector3(-edge + 1.6f, 0f, -half - 0.4f), 15f);
             OnSeasonChanged(_game.State.Season);
             StaticBatchingUtility.Combine(_scenery.gameObject);
         }

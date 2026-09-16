@@ -17,20 +17,33 @@ namespace TillWinter.Core
     }
 
     /// <summary>
-    /// Deterministic portrait-friendly tree layout (GDD §6): the five branch roots sit on a bottom arc,
-    /// each branch grows upward in its own lane; layer = prerequisite depth inside the branch; nodes of a
-    /// layer spread around the lane centre. Cross-branch prerequisites do not move nodes.
+    /// Deterministic star layout (GDD §6): the five branches leave one centre at fixed angles, 72° apart, and grow
+    /// outward; layer = prerequisite depth inside the branch, so a node always sits further out than what it needs.
+    /// Nodes of the same layer spread perpendicular to their branch. Cross-branch prerequisites do not move nodes.
+    /// (Side-by-side lanes crowded the middle of the canvas and read as one block on a phone.)
     /// </summary>
     public static class SkillTreeLayout
     {
-        public const float LaneWidth = 2.8f;
-        public const float LayerHeight = 1.3f;
-        public const float SiblingSpacing = 0.9f;
-        public const float ArcCurvature = 0.25f;
-        /// <summary>Guaranteed by the lane geometry (lanes 2.8 apart, at most three siblings 0.9 apart).</summary>
+        /// <summary>Distance from the centre to a branch's root.</summary>
+        public const float RootRadius = 2.4f;
+        /// <summary>Each prerequisite layer sits this much further out.</summary>
+        public const float LayerStep = 1.55f;
+        /// <summary>Spread of nodes sharing a layer, perpendicular to the branch.</summary>
+        public const float SiblingSpacing = 1.05f;
+        /// <summary>Guaranteed by the geometry (branches 72° apart, siblings at least 1.05 apart).</summary>
         public const float MinDistance = 0.85f;
+        /// <summary>The first branch points straight up; the rest follow clockwise.</summary>
+        public const float FirstAngleDegrees = 90f;
 
         public static readonly Branch[] BranchOrder = { Branch.Hand, Branch.Soil, Branch.Field, Branch.Helpers, Branch.Calendar };
+
+        /// <summary>The direction a branch grows in, in degrees (90 = up).</summary>
+        public static float AngleOf(Branch branch)
+        {
+            int index = Array.IndexOf(BranchOrder, branch);
+            if (index < 0) index = BranchOrder.Length;
+            return FirstAngleDegrees - index * (360f / BranchOrder.Length);
+        }
 
         public static Dictionary<string, LayoutPos> Compute(IReadOnlyList<SkillNode> nodes)
         {
@@ -52,18 +65,19 @@ namespace TillWinter.Core
             var result = new Dictionary<string, LayoutPos>();
             foreach (var kv in layers)
             {
-                int lane = Array.IndexOf(BranchOrder, kv.Key);
-                if (lane < 0) lane = BranchOrder.Length;
-                float centreX = (lane - (BranchOrder.Length - 1) * 0.5f) * LaneWidth;
-                float baseY = ArcCurvature * (lane - 2) * (lane - 2);
+                double radians = AngleOf(kv.Key) * Math.PI / 180.0;
+                float dirX = (float)Math.Cos(radians), dirY = (float)Math.Sin(radians);
+                float perpX = -dirY, perpY = dirX;
                 foreach (var layer in kv.Value)
                 {
                     var list = layer.Value;
+                    float radius = RootRadius + layer.Key * LayerStep;
                     for (int k = 0; k < list.Count; k++)
                     {
                         var n = list[k];
-                        float x = centreX + (k - (list.Count - 1) * 0.5f) * SiblingSpacing;
-                        float y = baseY + layer.Key * LayerHeight;
+                        float spread = (k - (list.Count - 1) * 0.5f) * SiblingSpacing;
+                        float x = dirX * radius + perpX * spread;
+                        float y = dirY * radius + perpY * spread;
                         if (n.LayoutOverride.HasValue) { x += n.LayoutOverride.Value.X; y += n.LayoutOverride.Value.Y; }
                         result[n.Id] = new LayoutPos(x, y);
                     }

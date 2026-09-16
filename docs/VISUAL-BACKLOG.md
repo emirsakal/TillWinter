@@ -76,6 +76,38 @@ All five sections are done; new items go at the bottom as they come up.
 
 ---
 
+## 6. Follow-up: developer screenshot feedback
+
+- **Done.** **Ripe crop model timing.** The ripe model (orange carrot) could appear on a plot that
+  was only 80% through Wet, so an almost-grown plot showed the same model as one ready to harvest
+  and the colour read backwards. It now only appears once a plot is actually Ripe; an almost-grown
+  plot shows green foliage instead.
+- **Done.** **Plot spacing.** A 3x3 field had visible gaps left and right but none above and below,
+  because the camera's downward tilt foreshortens gaps in z to nothing. The soil tile is now shorter
+  in z than in x (0.94 x 0.86).
+- **Done.** **Pond placement.** The pond used to hang over the island's front lip; it now sits fully
+  on the island.
+- **Done.** **Fence length.** A full-width fence read as off-centre where it crossed the island
+  block's taper. The fence is now shortened so it stops clear of the taper.
+- **Done.** **Season name legibility.** Season colours sat close to the sky colour behind them,
+  relying on an outline to read. The season name now sits on a dark chip instead.
+- **Done.** **Bottom of the play screen.** The bottom of the screen sat empty. The retire chip moved
+  to the bottom left and the pause button to the bottom right, both in thumb reach.
+- **Done.** **Skill tree layout.** Five side-by-side lanes overlapped. The tree is rebuilt as a
+  star: the five branches leave one centre 72 degrees apart and grow outward. Each branch is marked
+  by a name plate past its outermost node plus a hub in the middle; the old tinted boxes behind
+  branches, which overlapped in the centre where every branch begins, are gone.
+- **Done.** **Skill tree contrast.** Muted ink and dim edges were hard to read on the dark page;
+  both were lightened, and the initial zoom was lowered since the star reaches further out than the
+  old row of lanes did.
+- **Done.** **Safe area.** Confirmed on every scene: menu, HUD, pause and sheets, winter screen and
+  the skill trees inside it.
+- **Done.** **Scene transitions.** Menu to game now shows a real loading screen (cover fades in, the
+  scene loads asynchronously, cover fades out); opening a skill tree gets a short fade, skipped when
+  Reduce motion is on.
+
+---
+
 ## Order
 
 1. **Foundations** — type scale, sheet shell, button feedback, motion constants.

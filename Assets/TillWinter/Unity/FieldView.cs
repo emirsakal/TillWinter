@@ -347,8 +347,9 @@ namespace TillWinter.Unity
                 scale = _visualScale;
             }
 
-            // Stage by Wet progress: 0–0.33 sprout, 0.33–0.8 growing, 0.8–1 and Ripe = ripe mesh.
-            int stage = ripe || (wet && plot.Progress >= 0.8f) ? 2 : wet && plot.Progress >= 0.33f ? 1 : 0;
+            // The ripe model is the only thing that says "harvest me", so it waits for Ripe: an almost-grown plot
+            // used to show the same orange carrot as a ready one, which read as the reverse of the truth.
+            int stage = ripe ? 2 : wet && plot.Progress >= 0.45f ? 1 : 0;
             ShowStage(stage);
 
             _ripePunch = Mathf.Max(0f, _ripePunch - dt * 4f);

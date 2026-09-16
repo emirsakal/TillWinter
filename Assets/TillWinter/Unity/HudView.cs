@@ -31,6 +31,7 @@ namespace TillWinter.Unity
         private RectTransform _coinGroup;
         private TMP_Text _coinText, _subText, _seasonName, _combo, _seedChip;
         private RectTransform _seedChipRt;
+        private Image _seasonChip;
         private RectTransform _bar, _elapsed, _frostSpan;
         private Image _elapsedImage;
         private RectTransform _fxLayer;
@@ -110,10 +111,12 @@ namespace TillWinter.Unity
             UiKit.Box(_combo.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, 0.5f), new Vector2(260f, -_theme.TopPadding - 90f), new Vector2(300f, 60f));
             UiKit.Outline(_combo);
 
-            var chip = UiKit.Panel(top, "SeedChip", _theme.SeedChip, true, false);
+            // The bottom of a tall phone was empty while the top carried everything: the retire chip moves down,
+            // into thumb reach, and hangs off the safe area rather than the fading top band.
+            var chip = UiKit.Panel(_safe, "SeedChip", _theme.SeedChip, true, false);
             _seedChipRt = chip.rectTransform;
-            UiKit.Box(_seedChipRt, new Vector2(0.5f, 1f), new Vector2(1f, 0.5f), new Vector2(-260f, -_theme.TopPadding - 90f), new Vector2(260f, 56f));
-            UiKit.CircleImage(_seedChipRt, "Seed", _theme.Seed, new Vector2(-100f, 0f), 30f);
+            UiKit.Box(_seedChipRt, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 54f), new Vector2(280f, 76f));
+            UiKit.CircleImage(_seedChipRt, "Seed", _theme.Seed, new Vector2(-104f, 0f), 34f);
             _rate = UiKit.Label(top, "Rate", "", UiType.Caption, _theme.TextMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_rate.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 148f), new Vector2(500f, 40f));
             UiKit.Outline(_rate, 0.12f);
@@ -123,9 +126,13 @@ namespace TillWinter.Unity
 
             BuildSeasonBar(top);
 
-            _seasonName = UiKit.Label(top, "SeasonName", "", UiType.Heading, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Box(_seasonName.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameY), new Vector2(600f, 50f));
-            UiKit.Outline(_seasonName);
+            // A dark chip carries the season name: its colour is close to the sky it sits on, so outline alone lost it.
+            var seasonChip = UiKit.Panel(top, "SeasonChip", _theme.HintBackground, true, false);
+            UiKit.Box(seasonChip.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameY), new Vector2(340f, 56f));
+            _seasonChip = seasonChip;
+            _seasonName = UiKit.Label(seasonChip.transform, "SeasonName", "", UiType.Heading, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Stretch(_seasonName.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Outline(_seasonName, 0.26f);
 
             _fxLayer = UiKit.Rect("CoinFx", canvas);
             UiKit.Stretch(_fxLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -386,7 +393,7 @@ namespace TillWinter.Unity
             _frostEdge.color = fc;
             MFlashFrost.End();
             MSeedsBar.Begin();
-            bool canRetire = _game.Sim.CanRetire;
+            bool canRetire = _game.Sim.CanRetire && state.Phase == Phase.Year; // outside the top band, so it hides itself in Winter
             if (_seedChipRt.gameObject.activeSelf != canRetire) _seedChipRt.gameObject.SetActive(canRetire);
             if (canRetire && !_chipShown)
             {
@@ -431,6 +438,9 @@ namespace TillWinter.Unity
             var sc = _seasonName.color;
             sc.a = fade;
             _seasonName.color = sc;
+            var cc = _theme.HintBackground;
+            cc.a = _theme.HintBackground.a * fade;
+            _seasonChip.color = cc;
 
             MSeedsBar.End();
             if (state.FrostWarning && state.Phase == Phase.Year)

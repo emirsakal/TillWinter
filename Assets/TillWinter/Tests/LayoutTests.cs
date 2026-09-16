@@ -22,6 +22,24 @@ namespace TillWinter.Tests
             }
         }
 
+        private static float Radius(LayoutPos p) => (float)Math.Sqrt(p.X * p.X + p.Y * p.Y);
+
+        /// <summary>Signed degrees between a node's direction from the centre and its branch axis.</summary>
+        private static float AngleOff(LayoutPos p, Branch branch)
+        {
+            float angle = (float)(Math.Atan2(p.Y, p.X) * 180.0 / Math.PI);
+            float diff = Math.Abs(Mathf(angle - SkillTreeLayout.AngleOf(branch)));
+            return diff;
+        }
+
+        /// <summary>Wraps a degree difference into -180..180.</summary>
+        private static float Mathf(float degrees)
+        {
+            while (degrees > 180f) degrees -= 360f;
+            while (degrees < -180f) degrees += 360f;
+            return degrees;
+        }
+
         [Test]
         public void Almanac_LaysOut_Deterministically_NoOverlap()
         {
@@ -43,29 +61,37 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void Roots_OnBottomArc_BranchesGrowUpward_LanesDoNotOverlap()
+        public void Branches_LeaveTheCentre_AtEvenAngles()
+        {
+            var order = SkillTreeLayout.BranchOrder;
+            Assert.AreEqual(90f, SkillTreeLayout.AngleOf(order[0]), "the first branch points up");
+            for (int i = 0; i < order.Length; i++)
+            {
+                float expected = 90f - i * 72f;
+                Assert.That(SkillTreeLayout.AngleOf(order[i]), Is.EqualTo(expected).Within(1e-4f), order[i].ToString());
+            }
+        }
+
+        [Test]
+        public void Roots_SitOnTheInnerRing_AndPrerequisitesStayCloserToTheCentre()
         {
             var layout = SkillTreeLayout.Compute(AlmanacData.Nodes);
-            // Roots: y equals the arc height of their lane, centre lane lowest.
-            Assert.AreEqual(0f, layout["expand_field"].Y, "centre lane root at the bottom");
-            Assert.That(layout["irrigation"].Y, Is.GreaterThan(0f));
-            Assert.That(layout["ring_radius"].Y, Is.GreaterThan(layout["irrigation"].Y), "outer lanes higher on the arc");
-            Assert.AreEqual(layout["ring_radius"].Y, layout["year_length"].Y, "symmetric arc");
-            // Deeper nodes are higher than their prerequisites.
+            // A branch root (no prerequisite inside its branch) sits on the root ring.
+            Assert.That(Radius(layout["ring_radius"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(1e-3f));
+            Assert.That(Radius(layout["irrigation"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(1e-3f));
+            Assert.That(Radius(layout["expand_field"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(1e-3f));
+            // Everything a node needs sits closer to the centre than the node itself.
             foreach (var n in AlmanacData.Nodes)
             foreach (var p in n.Prerequisites)
-                Assert.That(layout[n.Id].Y, Is.GreaterThan(layout[p].Y), n.Id + " above " + p);
-            // Every node stays inside its branch lane.
-            var lanes = new Dictionary<Branch, (float min, float max)>();
+                Assert.That(Radius(layout[n.Id]), Is.GreaterThan(Radius(layout[p]) - 1e-3f), n.Id + " outside " + p);
+        }
+
+        [Test]
+        public void EveryNode_StaysInItsBranchSector()
+        {
+            var layout = SkillTreeLayout.Compute(AlmanacData.Nodes);
             foreach (var n in AlmanacData.Nodes)
-            {
-                var pos = layout[n.Id];
-                if (!lanes.TryGetValue(n.Branch, out var r)) r = (pos.X, pos.X);
-                lanes[n.Branch] = (Math.Min(r.min, pos.X), Math.Max(r.max, pos.X));
-            }
-            var order = SkillTreeLayout.BranchOrder;
-            for (int i = 0; i < order.Length - 1; i++)
-                Assert.That(lanes[order[i]].max, Is.LessThan(lanes[order[i + 1]].min), order[i] + " lane overlaps " + order[i + 1]);
+                Assert.That(AngleOff(layout[n.Id], n.Branch), Is.LessThan(36f), n.Id + " drifted out of its branch sector");
         }
 
         [Test]
@@ -91,7 +117,7 @@ namespace TillWinter.Tests
                 new SkillNode("b", Branch.Soil, new[] { "a" }, 1, 1, 1.6, EffectType.Irrigation, 0.15, "b", "b"),
             };
             var layout = SkillTreeLayout.Compute(nodes);
-            Assert.AreEqual(SkillTreeLayout.ArcCurvature * 1, layout["b"].Y, "b is a root of its own lane despite the cross-branch edge");
+            Assert.That(Radius(layout["b"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(1e-3f), "b is a root of its own branch despite the cross-branch edge");
         }
     }
 }

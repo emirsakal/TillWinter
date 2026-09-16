@@ -11,6 +11,7 @@
   "ui.retire_now": "Retire now: {seeds} seeds",
   "ui.year_summary": "This year: {harvests} harvests · {coins} coins",
   "ui.greenhouse": "Greenhouse +{coins}, {seconds} s",
+  "ui.loading": "Loading",
   "ui.buy": "Buy",
   "ui.locked": "Locked",
   "ui.maxed": "Maxed",

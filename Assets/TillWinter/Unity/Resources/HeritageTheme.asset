@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c52b02ea12d1ad4478f33e0ad9945aae, type: 3}
   m_Name: HeritageTheme
   m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.TreeTheme
-  StyleVersion: 1
+  StyleVersion: 2
   Paper: {r: 0.09, g: 0.2, b: 0.14, a: 0.97}
   PaperVignette: {r: 0, g: 0.05, b: 0.02, a: 0.5}
   Ink: {r: 0.96, g: 0.9, b: 0.72, a: 1}
-  InkMuted: {r: 0.75, g: 0.72, b: 0.6, a: 1}
+  InkMuted: {r: 0.9, g: 0.86, b: 0.72, a: 1}
   Overlay: {r: 0.03, g: 0.08, b: 0.05, a: 1}
   Accent: {r: 0.9, g: 0.72, b: 0.28, a: 1}
   Danger: {r: 0.95, g: 0.45, b: 0.35, a: 1}
@@ -33,8 +33,8 @@ MonoBehaviour:
   LockedSaturation: 0.25
   LockedAlpha: 0.75
   EdgeWidth: 6
-  EdgeDim: {r: 0.55, g: 0.6, b: 0.5, a: 0.4}
+  EdgeDim: {r: 0.7, g: 0.76, b: 0.66, a: 0.55}
   PulseAmplitude: 0.05
   ZoomMin: 0.5
   ZoomMax: 1.6
-  InitialZoom: 0.62
+  InitialZoom: 0.6
