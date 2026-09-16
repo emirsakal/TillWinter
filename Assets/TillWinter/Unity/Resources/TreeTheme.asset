@@ -12,17 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c52b02ea12d1ad4478f33e0ad9945aae, type: 3}
   m_Name: TreeTheme
   m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.TreeTheme
-  StyleVersion: 5
-  Paper: {r: 0.14, g: 0.12, b: 0.1, a: 1}
+  StyleVersion: 6
+  Paper: {r: 0.16, g: 0.135, b: 0.12, a: 1}
   PaperVignette: {r: 0, g: 0, b: 0, a: 0.45}
   Ink: {r: 0.95, g: 0.9, b: 0.8, a: 1}
   InkMuted: {r: 0.86, g: 0.82, b: 0.74, a: 1}
   Overlay: {r: 0.09, g: 0.08, b: 0.06, a: 1}
-  Accent: {r: 0.95, g: 0.62, b: 0.2, a: 1}
-  Danger: {r: 0.8, g: 0.25, b: 0.2, a: 1}
+  Accent: {r: 0.91, g: 0.66, b: 0.24, a: 1}
+  Danger: {r: 0.74, g: 0.32, b: 0.24, a: 1}
   Gold: {r: 0.95, g: 0.78, b: 0.25, a: 1}
   Coin: {r: 1, g: 0.82, b: 0.2, a: 1}
-  Seed: {r: 0.62, g: 0.42, b: 0.85, a: 1}
+  Seed: {r: 0.55, g: 0.42, b: 0.74, a: 1}
   Hand: {r: 0.95, g: 0.55, b: 0.2, a: 1}
   Soil: {r: 0.6, g: 0.4, b: 0.22, a: 1}
   Field: {r: 0.35, g: 0.65, b: 0.3, a: 1}

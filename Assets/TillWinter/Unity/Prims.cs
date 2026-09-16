@@ -162,6 +162,34 @@ namespace TillWinter.Unity
             return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f));
         }
 
+        /// <summary>Soft value noise for a paper grain; tiles seamlessly because the lattice wraps.</summary>
+        public static Sprite GrainSprite(int size = 96)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear };
+            const int cells = 12;
+            var rnd = new System.Random(11);
+            var lattice = new float[cells, cells];
+            for (int y = 0; y < cells; y++)
+            for (int x = 0; x < cells; x++)
+                lattice[x, y] = (float)rnd.NextDouble();
+            var fine = new System.Random(23);
+            var px = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float fx = x * cells / (float)size, fy = y * cells / (float)size;
+                int x0 = (int)fx, y0 = (int)fy;
+                float tx = fx - x0, ty = fy - y0;
+                float a = Mathf.Lerp(lattice[x0 % cells, y0 % cells], lattice[(x0 + 1) % cells, y0 % cells], tx);
+                float b = Mathf.Lerp(lattice[x0 % cells, (y0 + 1) % cells], lattice[(x0 + 1) % cells, (y0 + 1) % cells], tx);
+                float v = Mathf.Lerp(a, b, ty) * 0.7f + (float)fine.NextDouble() * 0.3f; // fibres over blotches
+                px[y * size + x] = new Color32(255, 255, 255, (byte)(v * 255f));
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+        }
+
         public static Sprite CircleSprite(int size = 64)
         {
             var tex = RadialGradient(size, 0.9f, 1f);

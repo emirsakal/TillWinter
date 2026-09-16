@@ -163,10 +163,7 @@ namespace TillWinter.Unity
         {
             _sheet = UiKit.Rect("Sheet", _safe);
             UiKit.Stretch(_sheet, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(34f, 180f), new Vector2(-34f, 560f));
-            var bg = UiKit.Panel(_sheet, "Bg", _theme.Paper, true, true);
-            var shade = UiKit.Panel(_sheet, "Shade", new Color(0f, 0f, 0f, 0.06f), true, false);
-            UiKit.Stretch(shade.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, -6f), new Vector2(0f, -6f));
-            shade.transform.SetAsFirstSibling();
+            UiKit.Card(_sheet, "Bg", _theme.Paper); // its own shadow replaces the hand-made shade
 
             _sheetTag = UiKit.Panel(_sheet, "Tag", _theme.Hand, true, false);
             UiKit.Box(_sheetTag.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -20f), new Vector2(190f, 44f));
@@ -205,7 +202,7 @@ namespace TillWinter.Unity
         {
             var dim = UiKit.Panel(_safe, "RetireHintDim", new Color(0f, 0f, 0f, 0.5f), false, true);
             _retireSheet = dim.gameObject;
-            var box = UiKit.Panel(dim.transform, "Box", _theme.Paper, true, true);
+            var box = UiKit.Card(dim.transform, "Box", _theme.Paper);
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 420f));
             var text = UiKit.Label(box.transform, "Text", Strings.Get("hint.first_can_retire"), UiType.Body, _theme.Ink, TextAnchor.MiddleCenter);
             UiKit.Stretch(text.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 150f), new Vector2(-50f, -40f));
@@ -226,7 +223,7 @@ namespace TillWinter.Unity
         {
             var dim = UiKit.Panel(_safe, "ConfirmDim", new Color(0f, 0f, 0f, 0.6f), false, true);
             _confirm = dim.gameObject;
-            var box = UiKit.Panel(dim.transform, "ConfirmBox", _theme.Paper, true, true);
+            var box = UiKit.Card(dim.transform, "ConfirmBox", _theme.Paper);
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 620f));
             var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.confirm_title"), UiType.Title, _theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -36f), new Vector2(860f, 70f));

@@ -190,8 +190,20 @@ namespace TillWinter.EditorTools
             }
             if (!File.Exists(dir + "HudTheme.asset"))
             {
-                AssetDatabase.CreateAsset(ScriptableObject.CreateInstance<HudTheme>(), dir + "HudTheme.asset");
+                var hud = ScriptableObject.CreateInstance<HudTheme>();
+                HudTheme.ApplyPalette(hud);
+                AssetDatabase.CreateAsset(hud, dir + "HudTheme.asset");
                 Debug.Log("[UiSetup] HudTheme created");
+            }
+            else
+            {
+                var hud = AssetDatabase.LoadAssetAtPath<HudTheme>(dir + "HudTheme.asset");
+                if (hud != null && hud.StyleVersion < HudTheme.CurrentStyle)
+                {
+                    HudTheme.ApplyPalette(hud);
+                    EditorUtility.SetDirty(hud);
+                    Debug.Log("[UiSetup] HudTheme restyled to style " + HudTheme.CurrentStyle);
+                }
             }
             if (!File.Exists(dir + "FarmDecor.asset"))
             {

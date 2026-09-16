@@ -11,20 +11,20 @@ namespace TillWinter.Unity
     public sealed class TreeTheme : ScriptableObject
     {
         /// <summary>Bumped when the page look changes; UiSetup restyles an older asset in place (S9: dark page, opaque overlay).</summary>
-        public const int CurrentStyle = 5;
+        public const int CurrentStyle = 6;
         public int StyleVersion;
 
         [Header("Almanac page")]
-        public Color Paper = new Color(0.14f, 0.12f, 0.1f, 1f);
+        public Color Paper = new Color(0.16f, 0.135f, 0.12f, 1f); // UiPalette.Night
         public Color PaperVignette = new Color(0f, 0f, 0f, 0.45f);
         public Color Ink = new Color(0.95f, 0.9f, 0.8f);
         public Color InkMuted = new Color(0.86f, 0.82f, 0.74f); // costs and levels on the dark page were barely above it
         public Color Overlay = new Color(0.09f, 0.08f, 0.06f, 1f);
-        public Color Accent = new Color(0.95f, 0.62f, 0.2f);
-        public Color Danger = new Color(0.8f, 0.25f, 0.2f);
+        public Color Accent = new Color(0.91f, 0.66f, 0.24f); // UiPalette.Honey
+        public Color Danger = new Color(0.74f, 0.32f, 0.24f); // UiPalette.Brick
         public Color Gold = new Color(0.95f, 0.78f, 0.25f);
         public Color Coin = new Color(1f, 0.82f, 0.2f);
-        public Color Seed = new Color(0.62f, 0.42f, 0.85f);
+        public Color Seed = new Color(0.55f, 0.42f, 0.74f); // UiPalette.Plum
 
         [Header("Branches")]
         public Color Hand = new Color(0.95f, 0.55f, 0.2f);
@@ -90,6 +90,9 @@ namespace TillWinter.Unity
             t.Overlay = d.Overlay;
             t.EdgeDim = d.EdgeDim;
             t.ZoomMin = d.ZoomMin;
+            t.Accent = d.Accent;
+            t.Danger = d.Danger;
+            t.Seed = d.Seed;
             t.InitialZoom = d.InitialZoom; // the layout's reach changed, so the opening framing has to follow it
             DestroyImmediate(d);
         }
