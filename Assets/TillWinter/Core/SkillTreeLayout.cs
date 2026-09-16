@@ -28,7 +28,7 @@ namespace TillWinter.Core
     public static class SkillTreeLayout
     {
         /// <summary>Distance from the centre to a branch's first nodes. Wide enough that a branch's fan cannot reach its neighbour's.</summary>
-        public const float RootRadius = 3.2f;
+        public const float RootRadius = 2.6f;
         /// <summary>Each prerequisite layer sits this much further out.</summary>
         public const float LayerStep = 1.6f;
         /// <summary>Spacing between siblings, measured along their arc so it holds at any radius.</summary>
