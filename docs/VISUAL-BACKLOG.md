@@ -18,16 +18,18 @@ Next: section 2 (world and visual language).
 
 ## 2. World and visual language
 
-- **No outline or rim light.** `TW_Toon` is a two-step ramp only. Add a rim light or an inverted-hull outline pass.
-- **Sky is a plain gradient quad.** Add two or three slow stylised cloud layers that recolour per season.
-- **The island ends in a hard box.** Hang roots, rocks and soil chunks under it (matters most on the title scene).
-- **Shadows are off entirely on the Low tier.** Give characters, trees and the house a soft blob shadow so objects sit on the ground.
-- **No water anywhere, although there is a well.** Add a pond, an irrigation channel or a millstream.
-- **Season changes are colour-only (1.5 s lerp).** Drop leaves in Autumn, settle snow on trees in Winter (the shader already has a snow global), blossom in Spring.
-- **No life outside the field.** Butterflies, bees, a sparrow or hens, a couple of them changing per season.
-- **Crop middle stages repeat one green leaf model across tiers.** Give tomato, corn and pumpkin their own mid-stage silhouette, at least a different size and tone.
-- **The camera only refits when the field grows.** Add a slow breathing drift, a millimetric push-in on combo, a slight pull-back in Winter.
-- **Every harvest looks the same except golden.** Scale particle count, colour temperature and ring brightness with the combo.
+- **Done.** **No outline or rim light.** `TW_Toon` is a two-step ramp only. Add a rim light or an inverted-hull outline pass. A rim light was added to TW_Toon (rim colour, power 3, strength 0.25, scaled by how lit the surface is); no outline pass was needed.
+- **Done.** **Sky is a plain gradient quad.** Add two or three slow stylised cloud layers that recolour per season. A SkyClouds view drifts three cloud prefabs high over the farm and the title scene, wrapping around, shadows off.
+- **Done.** **The island ends in a hard box.** Hang roots, rocks and soil chunks under it (matters most on the title scene). DioramaView.BuildBlock now tapers the bottom to 55% about the block centre and the block is thicker (1.6), so the island hangs instead of ending in a flat box.
+- **Done.** **Shadows are off entirely on the Low tier.** Give characters, trees and the house a soft blob shadow so objects sit on the ground. A TW_Shadow shader (hand-written, unlit, alpha-blended) plus a BlobShadow prefab; apprentices, the house, the trees and the bush get a soft contact disc. The art rule in CLAUDE.md now lists three project shaders.
+- **Done.** **No water anywhere, although there is a well.** Add a pond, an irrigation channel or a millstream. A Pond prefab (water disc with a stone rim) sits at the front-left of the island.
+- **Done.** **Season changes are colour-only (1.5 s lerp).** Drop leaves in Autumn, settle snow on trees in Winter (the shader already has a snow global), blossom in Spring. The default tree has an autumn twin (tree_default_fall); DioramaView spawns both and swaps them on SeasonChanged. Snow on trees already came from the shader's snow global.
+- **Done.** **No life outside the field.** Butterflies, bees, a sparrow or hens, a couple of them changing per season. A CrittersView flies two butterflies (body plus flapping wings) over the field in Spring and Summer; they shrink away in Autumn and Winter.
+- **Done.** **Crop middle stages repeat one green leaf model across tiers.** Give tomato, corn and pumpkin their own mid-stage silhouette, at least a different size and tone. Tomato now grows through plant_bush and pumpkin through plant_bushLarge instead of both reusing the same leaf model.
+- **Done.** **The camera only refits when the field grows.** Add a slow breathing drift, a millimetric push-in on combo, a slight pull-back in Winter. A slow breath (0.6% over ~3 s), a 3% push-in that follows the combo, and a 5% pull-back in Winter, all damped.
+- **Done.** **Every harvest looks the same except golden.** Scale particle count, colour temperature and ring brightness with the combo. The burst scales with the streak (up to +35% size) and its colour warms toward gold.
+
+Next: section 3 (UI infrastructure).
 
 ---
 

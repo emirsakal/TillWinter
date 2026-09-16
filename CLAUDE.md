@@ -44,7 +44,7 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 
 - All visuals are spawned through `VisualCatalog.Spawn` (Resources asset); `GameBootstrap` and views never build primitives at runtime — primitive builders live only in `Assets/TillWinter/Editor/ArtSetup.cs`.
 - All colours come from `Palette`, `PaletteBinder` or `SeasonPalette`; no literal `Color` in a view. `PaletteBinder` (one `MaterialPropertyBlock` per renderer) is the only place per-object colour variation happens.
-- Only `TW_Toon.shader` (+ `TW_Sky.shader`, UI shaders) may appear on a material under `Assets/Art`; no Standard/Lit materials, no Shader Graph.
+- Only `TW_Toon.shader` (+ `TW_Sky.shader`, `TW_Shadow.shader`, UI shaders) may appear on a material under `Assets/Art`; no Standard/Lit materials, no Shader Graph.
 - Kenney assets are imported only through `ArtSetup`/`art-setup.bat`, with each kit's `License.txt` kept next to it and indexed in `Assets/Art/LICENSES.md`. Strip unused kit files on import.
 - `art-setup.bat` regenerates prefabs, per-slot materials and `VisualCatalog`; it is idempotent — re-run after changing a prefab default in code.
 
