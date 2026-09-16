@@ -364,6 +364,15 @@ namespace TillWinter.EditorTools
             c.Pond = Save("Pond", BuildPond());
             c.Kennel = Save("Kennel", BuildKennel());
             c.Dog = Save("Dog", BuildDog());
+            c.GrassTuft = Save("GrassTuft", BuildGrassTuft());
+            c.Pebbles = Save("Pebbles", BuildPebbles());
+            c.Flowers = new[]
+            {
+                Save("FlowerRed", Kit("nature-kit", "flower_redA", 0.2f)),
+                Save("FlowerYellow", Kit("nature-kit", "flower_yellowA", 0.2f)),
+                Save("FlowerPurple", Kit("nature-kit", "flower_purpleA", 0.2f)),
+            };
+            c.HangingRock = Save("HangingRock", BuildHangingRock());
             c.Butterfly = Save("Butterfly", BuildButterfly());
             c.BlobShadow = Save("BlobShadow", BuildBlobShadow());
         }
@@ -496,6 +505,47 @@ namespace TillWinter.EditorTools
         {
             var go = new GameObject(name);
             return (go, go.AddComponent<PaletteBinder>());
+        }
+
+        /// <summary>A tuft of grass: thin blades leaning out from one root. Scattered along the island's rim.</summary>
+        private static GameObject BuildGrassTuft()
+        {
+            var (root, b) = Root("GrassTuft");
+            var rnd = new System.Random(5);
+            for (int i = 0; i < 6; i++)
+            {
+                float a = (i * 60f + (float)rnd.NextDouble() * 25f) * Mathf.Deg2Rad;
+                float h = 0.12f + (float)rnd.NextDouble() * 0.08f;
+                var blade = ConeObj(root.transform, "Blade" + i, new Vector3(Mathf.Cos(a) * 0.03f, 0f, Mathf.Sin(a) * 0.03f),
+                    new Vector3(0.022f, h, 0.022f), b, i % 2 == 0 ? PaletteSlot.Leaf : PaletteSlot.LeafDark);
+                blade.transform.localRotation = Quaternion.Euler(Mathf.Sin(a) * 22f, 0f, -Mathf.Cos(a) * 22f);
+            }
+            return root;
+        }
+
+        /// <summary>Two flat stones.</summary>
+        private static GameObject BuildPebbles()
+        {
+            var (root, b) = Root("Pebbles");
+            Prim(PrimitiveType.Sphere, root.transform, "A", new Vector3(0f, 0.015f, 0f), new Vector3(0.12f, 0.05f, 0.09f), b, PaletteSlot.Stone);
+            Prim(PrimitiveType.Sphere, root.transform, "B", new Vector3(0.09f, 0.01f, 0.05f), new Vector3(0.07f, 0.035f, 0.06f), b, PaletteSlot.Stone);
+            return root;
+        }
+
+        /// <summary>
+        /// Rock and a root hanging from the underside of the island: it floats, so the underside should look like torn
+        /// earth rather than a clean cut. Hangs below its root transform.
+        /// </summary>
+        private static GameObject BuildHangingRock()
+        {
+            var (root, b) = Root("HangingRock");
+            ConeObj(root.transform, "Rock", Vector3.zero, new Vector3(0.42f, 0.7f, 0.42f), b, PaletteSlot.SoilBlock)
+                .transform.localRotation = Quaternion.Euler(180f, 20f, 0f);
+            ConeObj(root.transform, "Tip", new Vector3(0.16f, 0f, 0.05f), new Vector3(0.18f, 0.45f, 0.18f), b, PaletteSlot.Stone)
+                .transform.localRotation = Quaternion.Euler(180f, 0f, 0f);
+            Prim(PrimitiveType.Cylinder, root.transform, "Root", new Vector3(-0.2f, -0.24f, 0.02f), new Vector3(0.022f, 0.24f, 0.022f), b, PaletteSlot.Wood)
+                .transform.localRotation = Quaternion.Euler(0f, 0f, 12f);
+            return root;
         }
 
         /// <summary>A little gabled kennel for beside the house. No kit has one, so it is primitives like the well.</summary>
