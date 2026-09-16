@@ -141,11 +141,70 @@ namespace TillWinter.Unity
             btn.colors = colors;
             var label = Label(img.transform, "Label", text, fontSize, fg, TextAnchor.MiddleCenter, FontStyle.Bold);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 4f), new Vector2(-12f, -4f));
+            img.gameObject.AddComponent<ButtonFeedback>(); // squeeze + click + haptic, one place for every button
             if (onClick != null) btn.onClick.AddListener(onClick);
             return btn;
         }
 
         public static TMP_Text ButtonLabel(Button b) => b.GetComponentInChildren<TMP_Text>();
+
+        /// <summary>A soft drop shadow behind a card: the same rounded shape, offset down and darkened.</summary>
+        public static Image Shadow(RectTransform card, Color color, float offset = 8f, float spread = 6f)
+        {
+            var shadow = Panel(card.parent, card.name + "Shadow", color, true, false);
+            var rt = shadow.rectTransform;
+            rt.anchorMin = card.anchorMin;
+            rt.anchorMax = card.anchorMax;
+            rt.pivot = card.pivot;
+            rt.sizeDelta = card.sizeDelta + Vector2.one * spread;
+            rt.anchoredPosition = card.anchoredPosition + new Vector2(0f, -offset);
+            shadow.transform.SetSiblingIndex(card.GetSiblingIndex());
+            return shadow;
+        }
+
+        /// <summary>A vertical gradient panel (opaque at the top edge or the bottom one), tinted by <paramref name="color"/>.</summary>
+        public static Image Gradient(Transform parent, string name, Color color, bool topOpaque)
+        {
+            var img = Panel(parent, name, color, false, false);
+            img.sprite = Prims.VerticalFadeSprite(topOpaque);
+            img.type = Image.Type.Simple;
+            return img;
+        }
+
+        /// <summary>An on/off switch: rounded track, sliding knob. Returns the component; hook its Changed event.</summary>
+        public static UiSwitch Switch(Transform parent, string name, bool value, Color on, Color off, Color knob)
+        {
+            var track = Panel(parent, name, off);
+            var sw = track.gameObject.AddComponent<UiSwitch>();
+            var knobImg = CircleImage(track.transform, "Knob", knob, Vector2.zero, 10f);
+            var knobRt = knobImg.rectTransform;
+            knobRt.anchorMin = knobRt.anchorMax = new Vector2(0f, 0.5f);
+            knobRt.pivot = new Vector2(0.5f, 0.5f);
+            sw.Init(track, knobRt, on, off, value);
+            return sw;
+        }
+
+        /// <summary>A vertical scroll view; add content to <paramref name="content"/> (its height grows downward).</summary>
+        public static ScrollRect ScrollView(Transform parent, string name, out RectTransform content)
+        {
+            var viewport = Rect(name, parent);
+            var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            viewport.gameObject.AddComponent<RectMask2D>();
+            var blocker = viewport.gameObject.AddComponent<Image>();
+            blocker.color = new Color(0f, 0f, 0f, 0.002f); // catches the drag without showing
+            content = Rect("Content", viewport);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.offsetMin = new Vector2(0f, 0f);
+            content.offsetMax = new Vector2(0f, 0f);
+            scroll.content = content;
+            scroll.viewport = viewport;
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Elastic;
+            scroll.scrollSensitivity = 40f;
+            return scroll;
+        }
 
         public static Slider Slider(Transform parent, string name, float min, float max, float value, UnityAction<float> onChanged)
         {

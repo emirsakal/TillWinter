@@ -686,3 +686,24 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **New rule.** TW_Shadow.shader joins TW_Toon and TW_Sky as the project's own shaders (the
   contact-shadow disc needs alpha blending); ArtTests' allow-list and the CLAUDE.md art rule were
   updated.
+
+## Follow-up: visual pass 3, UI infrastructure (2026-09-16)
+
+- **Icon system.** `UiIcons` maps generation, year, coin, harvest, ring, apprentice, tractor, crow,
+  golden, combo and time to keys in the Kenney icon atlas the skill tree already uses; the
+  statistics sheet now shows them per row.
+- **Shadow and gradient primitives.** `UiKit.Shadow` draws the same rounded shape behind a card,
+  offset and darkened; `UiKit.Gradient` plus `Prims.VerticalFadeSprite` give vertical shades (the
+  title scene's own copy was deleted in favour of it).
+- **Button feedback.** `ButtonFeedback` is added by `UiKit.Button` to every button — a 0.96
+  squeeze, the click sound and a Selection haptic; the hand-written `Play(SfxId.UiClick)` calls in
+  the Winter screen and the away card were removed so a press clicks once.
+- **Toggle.** `UiSwitch` is a real switch (rounded track, sliding knob, animated at
+  `UiMotion.Fast`); Vibration and Reduce motion in Settings use it instead of a button whose label
+  said On or Off.
+- **Scroll view.** `UiKit.ScrollView` builds a masked vertical scroller; the statistics and
+  credits sheets are inside one, so longer content no longer overflows.
+- **Volume sliders.** Each row now shows the level as a percentage and plays a short sample sound
+  while dragging (rate-limited to one every 0.12 s).
+- **Motion constants.** `UiMotion` defines Fast 0.12 s, Normal 0.22 s and Slow 0.4 s plus
+  EaseOut/EaseInOut and a damping helper; sheets, switches and button presses all read from it.

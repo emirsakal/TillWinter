@@ -183,9 +183,7 @@ namespace TillWinter.Unity
             var root = UiKit.Rect("Title", canvas);
             UiKit.Stretch(root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _group = root.gameObject.AddComponent<CanvasGroup>();
-            var shade = UiKit.Panel(root, "BottomShade", _theme.MenuShade, false, false);
-            shade.sprite = VerticalFade();
-            shade.type = Image.Type.Simple;
+            var shade = UiKit.Gradient(root, "BottomShade", _theme.MenuShade, false);
             UiKit.Stretch(shade.rectTransform, Vector2.zero, new Vector2(1f, 0.46f), Vector2.zero, Vector2.zero);
 
             var safe = UiKit.Rect("Safe", root);
@@ -244,19 +242,6 @@ namespace TillWinter.Unity
             UiKit.Box(no.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(200f, 50f), new Vector2(360f, 104f));
             _confirm.AddComponent<SheetTransition>().Page = page.rectTransform;
             _confirm.SetActive(false);
-        }
-
-        /// <summary>A 1x64 alpha ramp, opaque at the bottom edge; tinted by the theme colour.</summary>
-        private static Sprite VerticalFade()
-        {
-            var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-            for (int y = 0; y < 64; y++)
-            {
-                float a = 1f - y / 63f;
-                tex.SetPixel(0, y, new Color(1f, 1f, 1f, a * a * (3f - 2f * a)));
-            }
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0f, 0f, 1f, 64f), new Vector2(0.5f, 0.5f));
         }
 
         private void RefreshVersion()

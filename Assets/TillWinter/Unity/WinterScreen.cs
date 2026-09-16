@@ -192,7 +192,7 @@ namespace TillWinter.Unity
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 420f));
             var text = UiKit.Label(box.transform, "Text", Strings.Get("hint.first_can_retire"), UiType.Body, _theme.Ink, TextAnchor.MiddleCenter);
             UiKit.Stretch(text.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 150f), new Vector2(-50f, -40f));
-            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("hint.got_it"), UiType.Body, _theme.Seed, _theme.Paper, () => { _audio.Play(SfxId.UiClick); _retireSheet.SetActive(false); });
+            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("hint.got_it"), UiType.Body, _theme.Seed, _theme.Paper, () => { _retireSheet.SetActive(false); });
             UiKit.Box(ok.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 36f), new Vector2(360f, 96f));
             _retireSheet.AddComponent<SheetTransition>().Page = box.rectTransform;
             _retireSheet.SetActive(false);
@@ -217,7 +217,7 @@ namespace TillWinter.Unity
             UiKit.Stretch(_confirmText.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 170f), new Vector2(-50f, -120f));
             var yes = UiKit.Button(box.transform, "Yes", Strings.Get("ui.retire"), UiType.Body, _theme.Seed, _theme.Paper, OnRetireConfirmed);
             UiKit.Box(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(20f, 40f), new Vector2(380f, 110f));
-            var no = UiKit.Button(box.transform, "No", Strings.Get("ui.cancel"), UiType.Body, _theme.InkMuted, _theme.Paper, () => { _audio.Play(SfxId.UiClick); _confirm.SetActive(false); });
+            var no = UiKit.Button(box.transform, "No", Strings.Get("ui.cancel"), UiType.Body, _theme.InkMuted, _theme.Paper, () => { _confirm.SetActive(false); });
             UiKit.Box(no.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(-20f, 40f), new Vector2(380f, 110f));
             _confirm.AddComponent<SheetTransition>().Page = box.rectTransform;
             _confirm.SetActive(false);
@@ -294,7 +294,6 @@ namespace TillWinter.Unity
         private void ToggleTree()
         {
             if (_game.State.Phase == Phase.Heritage) return;
-            _audio.Play(SfxId.UiClick);
             ActiveView.OnClosed();
             _showingHeritage = !_showingHeritage;
             _selectedId = null;
@@ -304,14 +303,12 @@ namespace TillWinter.Unity
 
         private void OnSelected(string id)
         {
-            _audio.Play(SfxId.UiClick);
             _selectedId = id;
             RefreshSheet();
         }
 
         private void OnNextYear()
         {
-            _audio.Play(SfxId.UiClick);
             _game.Sim.StartNextYear();
             Close();
         }
@@ -325,7 +322,6 @@ namespace TillWinter.Unity
 
         private void OnRetirePressed()
         {
-            _audio.Play(SfxId.UiClick);
             if (!_game.Sim.CanRetire) return;
             var s = _game.State;
             _confirmText.text = Strings.Format("ui.confirm_body",
