@@ -60,8 +60,12 @@ namespace TillWinter.Unity
         public float SubFontSize = 38f;
         public float BarWidth = 960f;
         public float BarHeight = 18f;
-        public float BarY = -330f;
-        public float SeasonNameY = -380f;
+        /// <summary>The season band sits below the island, not at the top: this is its height above the safe area's bottom.</summary>
+        public float SeasonBandY = 560f;
+        public float SeasonBandHeight = 132f;
+        /// <summary>Bar and season name inside that band, measured down from its top edge.</summary>
+        public float BarYInBand = -26f;
+        public float SeasonNameYInBand = -58f;
 
         public Color SeasonColor(Season s)
         {

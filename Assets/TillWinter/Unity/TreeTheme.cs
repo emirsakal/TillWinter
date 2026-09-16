@@ -11,7 +11,7 @@ namespace TillWinter.Unity
     public sealed class TreeTheme : ScriptableObject
     {
         /// <summary>Bumped when the page look changes; UiSetup restyles an older asset in place (S9: dark page, opaque overlay).</summary>
-        public const int CurrentStyle = 2;
+        public const int CurrentStyle = 5;
         public int StyleVersion;
 
         [Header("Almanac page")]
@@ -41,9 +41,9 @@ namespace TillWinter.Unity
         public float EdgeWidth = 6f;
         public Color EdgeDim = new Color(0.74f, 0.68f, 0.58f, 0.55f);
         public float PulseAmplitude = 0.05f;
-        public float ZoomMin = 0.5f;
+        public float ZoomMin = 0.3f; // low enough that the opening view holds the whole Almanac canopy
         public float ZoomMax = 1.6f;
-        public float InitialZoom = 0.62f; // the star reaches further than the old row of lanes
+        public float InitialZoom = 0.52f; // the curved canopy reaches further out than the old lanes or the first star
 
         public Color BranchColor(Branch b)
         {
@@ -89,6 +89,8 @@ namespace TillWinter.Unity
             t.InkMuted = d.InkMuted;
             t.Overlay = d.Overlay;
             t.EdgeDim = d.EdgeDim;
+            t.ZoomMin = d.ZoomMin;
+            t.InitialZoom = d.InitialZoom; // the layout's reach changed, so the opening framing has to follow it
             DestroyImmediate(d);
         }
 
@@ -108,7 +110,7 @@ namespace TillWinter.Unity
             t.Hand = new Color(0.75f, 0.42f, 0.14f);
             t.Soil = new Color(0.48f, 0.3f, 0.16f);
             t.Field = new Color(0.28f, 0.5f, 0.24f);
-            t.InitialZoom = 0.6f; // show the whole star
+            t.InitialZoom = 0.5f; // show the whole canopy
             t.Helpers = new Color(0.22f, 0.42f, 0.66f);
             t.Calendar = new Color(0.46f, 0.3f, 0.62f);
             t.EdgeDim = new Color(0.7f, 0.76f, 0.66f, 0.55f);

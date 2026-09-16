@@ -108,6 +108,93 @@ All five sections are done; new items go at the bottom as they come up.
 
 ---
 
+## 7. Follow-up: developer playtest feedback, round two
+
+- **Done.** **Credits entry path.** Opening credits straight from the main menu and closing it used
+  to show Settings, because both entry points set the same flag. Credits now records whether it was
+  reached via Settings and retraces that path.
+- **Done.** **Ripe plots reading green.** The stage-to-model mapping was already correct; Kenney's
+  carrot is a green leafy top with the orange root at soil level, so at the game's camera angle a
+  ripe plant looked like a growing one. The ripe model's foliage now warms toward the crop's own
+  colour through PaletteBinder.
+- **Done.** **Field expansion scenery.** Expanding the field to 4x4/5x5/6x6 scrambled the scenery:
+  Rebuild() destroyed the old scenery with Destroy (which only takes effect at end of frame), placed
+  the new scenery under the same root, then ran static batching over a root that was already batched
+  and still held dying children. Each rebuild now builds into a fresh root.
+- **Done.** **Season bar placement.** The season bar and season name moved from the top band into
+  their own band below the island, next to the farm they measure; coins and the earning rate stay at
+  the top.
+- **Done.** **Season name legibility.** The dark chip behind the season name is gone; a new
+  UiKit.OutlineStrong (outline plus a soft TMP underlay shadow) keeps it legible over any sky.
+- **Done.** **Pond and island size.** The pond moved onto the back strip beside the house instead of
+  sitting in front of the field, the island grew (Margin 1.1 -> 1.6), and the camera's ExtraWidth
+  grew with it so the wider island is not cropped.
+- **Done.** **Plot soil depth.** Plot soil depth reduced further in z so the gap above and below a
+  plot matches the gap left and right under the camera's tilt.
+- **Done.** **Plot crack variation.** Each plot now rotates and mirrors its baked crack detail
+  deterministically from its grid position, so a field no longer reads as one stamped tile repeated.
+- **Done.** **End year early.** Players can end a year early from the HUD instead of waiting the
+  clock out; it costs the standing crop exactly as frost would.
+- **Done.** **Developer panel entry point.** The developer panel's toggle moved out of Settings into
+  its own button in the play scene.
+- **Done.** **Farm dog and kennel.** A farm dog and kennel beside the house, built from primitives
+  because no kit has an animal; tapping the dog pops a heart for two seconds and swallows the tap so
+  petting it never waters the plot behind it.
+- **Done.** **Skill tree distribution.** The skill tree became an organic distribution rather than a
+  rigid five-spoke star: branches curve further round with each layer, siblings fan along an arc, and
+  each node carries a small deterministic offset.
+- **Done.** **UI font.** UI font swapped from Nunito to Figtree.
+- **Done.** **Button styling.** Buttons restyled: a face sitting on a darker lip, so they have a near
+  edge and read as pressable.
+- **Done.** **Title scene sky.** The title scene now uses the same sky gradient the farm already had;
+  it had been clearing to a single flat colour.
+- **Done.** **Winter snow amount.** Winter no longer washes everything white (snow amount 1.0 -> 0.55).
+- **Done.** **Loading screen.** The loading screen grows a seed while it waits, and an EFS Games
+  studio mark plays once per app run.
+
+---
+
+## 8. Follow-up: developer playtest feedback, round three
+
+- **Done.** **Settings switch knob missing.** The knob was created 10 px wide and positioned once,
+  before the switch had its size, and never again. It now sizes to the track and re-places itself
+  whenever the switch is resized or shown.
+- **Done.** **Settings switch row spacing.** Switch rows sat 34 px below their labels and ran into
+  the next row; they are centred on their labels like the sliders.
+- **Done.** **Button label wrapping.** Button labels wrapped mid-word ("Otoma / tik"); every button
+  label now stays on its lines and shrinks to fit instead. Callers that want a smaller label lower
+  the maximum size, not the size.
+- **Done.** **Slider knob stretch.** Slider knobs were stretched into tall ellipses by the Slider
+  component; the knob now lives inside an invisible holder and keeps its size.
+- **Done.** **Reset-save and quality buttons.** The reset-save button matches the other buttons;
+  quality buttons are aligned with the rest of the column.
+- **Done.** **Main menu Generation/Year line.** It was hidden behind the Continue button; it is now
+  placed above the primary button whatever the button count.
+- **Done.** **Credits font name.** Credits named the old font (Nunito); it now says Figtree, the
+  lines are grouped, and the sheet is shorter.
+- **Done.** **EFS Games splash never showed.** The first frames after a scene load are long enough
+  to finish the fade in one step. Splash and loading-screen fades now advance at most a thirtieth of
+  a second per frame; the logo also loads if it was imported as a plain texture.
+- **Done.** **Loading screen leaves.** They now grow from the tip of the stem.
+- **Done.** **HUD.** The season name stays legible (light text, no longer fading to 35%), the End
+  year button sits below the season bar, and the onboarding hint moved below the season band where
+  it had covered it.
+- **Done.** **Winter screen.** The pause button moved to the top right while Winter is open (it sat
+  on top of Next Year); the developer toggle moved clear of the title and hint; the hint caption is
+  light text at the top of the tree (it was dark on dark and under the node sheet).
+- **Done.** **Node sheet.** The current value grew out of the sheet's left edge (its right edge was
+  pinned at x = 24); the coin sits against the price; the description stays above the effect row.
+- **Done.** **Retire confirm and stats.** The retire confirm body text no longer starts inside the
+  title. Stats: the Continue button no longer touches the last row.
+- **Done.** **Skill trees open fully framed.** The view fits and centres the tree's bounds including
+  the branch name plates (whose far edge, not centre, sets the padding); the Field branch now starts
+  down-left so its curve carries it down the portrait screen instead of flat to the right edge; name
+  plates are placed clear of their nodes; the onboarding focus no longer pans branches off screen;
+  the zoom floor was lowered to 0.3 so the whole Almanac fits.
+- **Done.** **Developer panel.** Slider knobs and the status block no longer overlap.
+
+---
+
 ## Order
 
 1. **Foundations** — type scale, sheet shell, button feedback, motion constants.

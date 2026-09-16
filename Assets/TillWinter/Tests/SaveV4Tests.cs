@@ -53,7 +53,8 @@ namespace TillWinter.Tests
             // v3 fields survive untouched.
             Assert.AreEqual(3, d.OnboardingBits);
             Assert.AreEqual(2150, d.Harvests);
-            Assert.IsTrue(d.AlmanacViewHas);
+            // The chain runs on to the current version, and v6 drops views remembered for the old tree layout.
+            Assert.IsFalse(d.AlmanacViewHas);
         }
 
         [Test]

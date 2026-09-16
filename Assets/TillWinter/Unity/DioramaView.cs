@@ -12,7 +12,7 @@ namespace TillWinter.Unity
     /// </summary>
     public sealed class DioramaView : MonoBehaviour
     {
-        public float Margin = 1.1f;
+        public float Margin = 1.6f; // more grass around the field: props crowded the plots at 1.1
         public float Thickness = 1.6f;
         /// <summary>Extra grass behind the field so the house and trees stand behind the fence, not on it.</summary>
         public float BackDepth = 1.7f;
@@ -21,6 +21,7 @@ namespace TillWinter.Unity
         private VisualCatalog _catalog;
         private MeshFilter _blockFilter;
         private Transform _scenery;
+        private Transform _dog;
         private int _builtSize = -1, _builtGen = -1;
         private readonly List<GameObject> _treesGreen = new List<GameObject>();
         private readonly List<GameObject> _treesAutumn = new List<GameObject>();
@@ -66,7 +67,13 @@ namespace TillWinter.Unity
             _builtGen = gen;
             _blockFilter.sharedMesh = BlockMesh(n);
 
-            for (int i = _scenery.childCount - 1; i >= 0; i--) Destroy(_scenery.GetChild(i).gameObject);
+            // A fresh root every rebuild. StaticBatchingUtility.Combine bakes a root's children into one batched
+            // mesh, and Destroy only takes effect at end of frame — so re-combining this root would batch an
+            // already-batched hierarchy that still holds the previous build's dying children, which scrambled the
+            // scenery when the field grew.
+            if (_scenery != null) Destroy(_scenery.gameObject);
+            _scenery = new GameObject("Scenery").transform;
+            _scenery.SetParent(transform, false);
             float half = n * 0.5f;
             float edge = HalfExtent;
 
@@ -99,10 +106,31 @@ namespace TillWinter.Unity
             Place(_catalog.Bush, "Bush", bush, 20f);
             Shadow(bush, 0.8f);
             Place(_catalog.Rock, "Rock", new Vector3(-edge + 0.45f, 0f, half - 0.4f), 0f);
-            // The island ends at -half - Margin; the pond used to hang over that lip.
-            Place(_catalog.Pond, "Pond", new Vector3(-edge + 1.6f, 0f, -half - 0.4f), 15f);
+            // Up on the back strip beside the house, where there is room for it: down in front it crowded the field.
+            Place(_catalog.Pond, "Pond", new Vector3(edge - 2.9f, 0f, back - 0.15f), 15f);
+            // The kennel is scenery and batches with the rest; the dog must not, or batching would freeze its wag.
+            Place(_catalog.Kennel, "Kennel", new Vector3(edge - 1.95f, 0f, back - 0.35f), -25f);
+            PlaceDog(new Vector3(edge - 1.55f, 0f, back - 0.75f), -35f);
             OnSeasonChanged(_game.State.Season);
             StaticBatchingUtility.Combine(_scenery.gameObject);
+        }
+
+        /// <summary>
+        /// Spawned once, outside the scenery root so static batching leaves it animatable, and moved to the new spot
+        /// whenever the island is rebuilt.
+        /// </summary>
+        private void PlaceDog(Vector3 pos, float yaw)
+        {
+            if (_catalog.Dog == null) return;
+            if (_dog == null)
+            {
+                var go = _catalog.Spawn(_catalog.Dog, transform, "Dog");
+                if (go == null) return;
+                _dog = go.transform;
+                go.AddComponent<DogView>().Init(_game, AudioManager.Instance);
+            }
+            _dog.localPosition = pos;
+            _dog.localRotation = Quaternion.Euler(0f, yaw, 0f);
         }
 
         private GameObject Place(GameObject prefab, string name, Vector3 pos, float yaw)

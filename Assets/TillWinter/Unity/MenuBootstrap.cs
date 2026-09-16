@@ -36,6 +36,10 @@ namespace TillWinter.Unity
 
         private Camera _cam;
         private Light _sun;
+        private Material _skyMaterial;
+        private Transform _sky;
+        private static readonly int SkyTopId = Shader.PropertyToID("_Top");
+        private static readonly int SkyBottomId = Shader.PropertyToID("_Bottom");
         private VisualCatalog _catalog;
         private SeasonPalette _seasons;
         private Palette _palette;
@@ -88,6 +92,7 @@ namespace TillWinter.Unity
             _sheets.Init(null, audio, canvas, null); // settings + credits sheets, no running farm
             _sheets.SetButtonVisible(false);
             BuildUi(canvas);
+            StudioSplash.PlayOnce(canvas); // after the menu is built, so the mark covers a finished screen, not a half-built one
             StartCoroutine(BuildInfo.Load());
             ApplySeason(0f);
         }
@@ -110,6 +115,23 @@ namespace TillWinter.Unity
             data.renderPostProcessing = false;
             data.renderShadows = true;
             _cam.transform.rotation = Quaternion.Euler(50f, 0f, 0f); // the farm camera's 40 degrees from top-down
+
+            // The same TW_Sky gradient the farm uses. The title scene used to clear to one flat colour, which is why
+            // its sky read as paint rather than air.
+            _skyMaterial = _catalog != null && _catalog.Sky != null ? new Material(_catalog.Sky) : null;
+            if (_skyMaterial != null)
+            {
+                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                quad.name = "Sky";
+                Destroy(quad.GetComponent<Collider>());
+                quad.transform.SetParent(_cam.transform, false);
+                quad.transform.localPosition = new Vector3(0f, 0f, _cam.farClipPlane - 1f);
+                var r = quad.GetComponent<Renderer>();
+                r.sharedMaterial = _skyMaterial;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+                _sky = quad.transform;
+            }
             FrameCamera();
 
             _sun = new GameObject("Sun").AddComponent<Light>();
@@ -174,6 +196,8 @@ namespace TillWinter.Unity
         {
             float size = IslandWidth / (2f * Mathf.Max(0.2f, _cam.aspect));
             _cam.orthographicSize = size;
+            // A unit quad covers nothing: the sky is stretched to the orthographic view, and re-stretched with it.
+            if (_sky != null) _sky.localScale = new Vector3(size * 2f * Mathf.Max(0.2f, _cam.aspect) + 1f, size * 2f + 1f, 1f);
             float shift = (0.5f - IslandScreenY) * 2f * size;
             var lookAt = _cam.transform.up * shift;
             _cam.transform.position = lookAt - _cam.transform.forward * 30f;
@@ -202,6 +226,7 @@ namespace TillWinter.Unity
             UiKit.Box(subtitle.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -410f), new Vector2(1000f, 70f));
             UiKit.Outline(subtitle, 0.16f);
 
+            RectTransform progressRt = null;
             bool hasSave = File.Exists(SaveController.FilePath);
             if (hasSave)
             {
@@ -211,8 +236,8 @@ namespace TillWinter.Unity
                 {
                     var progress = UiKit.Label(safe, "Progress", Strings.Format("menu.progress", ("gen", save.Generation), ("year", save.Year)),
                         UiType.Label, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
-                    UiKit.Box(progress.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, BottomMargin + 5f * (ButtonHeight + ButtonGap)), new Vector2(900f, 44f));
-                    UiKit.Outline(progress, 0.14f);
+                    progressRt = UiKit.Box(progress.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(900f, 44f));
+                    UiKit.OutlineStrong(progress, 0.22f);
                 }
             }
             var entries = new List<(string key, UnityAction action, bool primary)> { (hasSave ? "menu.continue" : "menu.play", StartGame, true) };
@@ -228,6 +253,8 @@ namespace TillWinter.Unity
                 var rt = b.GetComponent<RectTransform>();
                 float y = BottomMargin + (entries.Count - 1 - i) * (ButtonHeight + ButtonGap) + (primary ? ButtonGap : 0f);
                 UiKit.Box(rt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, y), new Vector2(primary ? ButtonWidth + 60f : ButtonWidth, primary ? ButtonHeight + 20f : ButtonHeight));
+                // The progress line sits just above the primary button. It was placed for a fixed button count and hid behind it.
+                if (primary && progressRt != null) progressRt.anchoredPosition = new Vector2(0f, y + ButtonHeight + 20f + 14f);
                 _buttons.Add(rt);
                 _buttonGroups.Add(b.gameObject.AddComponent<CanvasGroup>());
                 _buttonBase.Add(rt.anchoredPosition);
@@ -334,7 +361,12 @@ namespace TillWinter.Unity
             RenderSettings.ambientSkyColor = look.AmbientSky;
             RenderSettings.ambientEquatorColor = look.AmbientEquator;
             RenderSettings.ambientGroundColor = look.AmbientGround;
-            _cam.backgroundColor = Color.Lerp(look.SkyBottom, look.SkyTop, 0.35f);
+            _cam.backgroundColor = Color.Lerp(look.SkyBottom, look.SkyTop, 0.35f); // still the fallback if the quad is missing
+            if (_skyMaterial != null)
+            {
+                _skyMaterial.SetColor(SkyTopId, look.SkyTop);
+                _skyMaterial.SetColor(SkyBottomId, look.SkyBottom);
+            }
             PaletteBinder.SetSeason(look.SnowAmount, look.LeafTint, look.GrassTint);
             bool winter = season == Season.Winter;
             _fx.SetRate(VfxId.Snow, winter ? 45f : 0f);

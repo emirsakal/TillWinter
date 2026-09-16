@@ -140,7 +140,8 @@ namespace TillWinter.Unity
                 plateRt.anchorMin = plateRt.anchorMax = new Vector2(0.5f, 0.5f);
                 plateRt.pivot = new Vector2(0.5f, 0.5f);
                 plateRt.sizeDelta = new Vector2(240f, 52f);
-                plateRt.anchoredPosition = kv.Value + dir * (_theme.NodeSize * 0.95f);
+                // Far enough out that the plate's own half-size clears the node, whichever way the branch points.
+                plateRt.anchoredPosition = kv.Value + dir * (_theme.NodeSize * 0.6f + Mathf.Abs(dir.x) * 120f + Mathf.Abs(dir.y) * 28f);
                 var name = UiKit.Label(plate.transform, "Name", Strings.Branch(branch), UiType.Label, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
                 UiKit.Stretch(name.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             }
@@ -216,9 +217,11 @@ namespace TillWinter.Unity
         private void ComputeBounds()
         {
             var b = SkillTreeLayout.Bounds(_layout);
-            float pad = _theme.NodeSize * 1.2f;
-            _contentMin = new Vector2(b.minX, b.minY) * _theme.UnitPixels - Vector2.one * pad;
-            _contentMax = new Vector2(b.maxX, b.maxY) * _theme.UnitPixels + Vector2.one * pad;
+            // Room for the branch name plates (240 x 52) past the outermost nodes. Measured to the plate's far edge,
+            // not its centre: a plate on a level branch reaches about 0.6 node + 120 out plus its own half-width.
+            var pad = new Vector2(_theme.NodeSize * 0.6f + 256f, _theme.NodeSize * 0.6f + 150f);
+            _contentMin = new Vector2(b.minX, b.minY) * _theme.UnitPixels - pad;
+            _contentMax = new Vector2(b.maxX, b.maxY) * _theme.UnitPixels + pad;
         }
 
         // ------------------------------------------------------------------ state
@@ -310,23 +313,23 @@ namespace TillWinter.Unity
 
         // ------------------------------------------------------------------ camera
 
+        /// <summary>
+        /// The opening view. The whole canopy, name plates included, is
+        /// fitted and centred. (It used to aim at the roots of side-by-side lanes, which put the radial
+        /// tree off-centre with branches cut at both edges.) Before the viewport has a size, the theme's zoom is used.
+        /// </summary>
         public void CenterOnRoots()
         {
-            float sumX = 0f, minY = float.MaxValue;
-            int n = 0;
-            foreach (var node in _tree.Nodes)
-            {
-                if (node.Prerequisites.Length > 0) continue;
-                var p = ToPixels(_layout[node.Id]);
-                sumX += p.x;
-                minY = Mathf.Min(minY, p.y);
-                n++;
-            }
-            if (n == 0) return;
-            _zoom = Mathf.Clamp(_theme.InitialZoom, _theme.ZoomMin, _theme.ZoomMax);
+            // The canopy is lopsided (branches differ in depth), so it is the tree's bounds that get centred and
+            // fitted, not the hub: centring the hub left one side short of room and cut the longest branch off.
+            var size = _viewport.rect.size;
+            var extent = _contentMax - _contentMin;
+            float zoom = size.x > 1f && size.y > 1f
+                ? Mathf.Min(size.x / Mathf.Max(1f, extent.x), size.y / Mathf.Max(1f, extent.y))
+                : _theme.InitialZoom;
+            _zoom = Mathf.Clamp(zoom, _theme.ZoomMin, _theme.ZoomMax);
             _content.localScale = Vector3.one * _zoom;
-            var focus = new Vector2(sumX / n, minY + _theme.NodeSize * 1.6f) * _zoom;
-            _content.anchoredPosition = -focus + new Vector2(0f, -_viewport.rect.height * 0.28f);
+            _content.anchoredPosition = -(_contentMin + _contentMax) * 0.5f * _zoom;
             ClampPan(true);
             _viewInitialised = true;
         }
@@ -386,7 +389,15 @@ namespace TillWinter.Unity
             int n = 0;
             foreach (var id in ids) if (_layout.ContainsKey(id)) { sum += ToPixels(_layout[id]); n++; }
             if (n == 0) return;
-            _content.anchoredPosition = -(sum / n) * _zoom;
+            var target = -(sum / n) * _zoom;
+            // While the whole canopy fits, the pan stays inside the range that keeps all of it on screen: the
+            // onboarding pulse already says which nodes matter, and centring them pushed whole branches off the edge.
+            var half = _viewport.rect.size * 0.5f;
+            var lo = -half - _contentMin * _zoom;
+            var hi = half - _contentMax * _zoom;
+            if (lo.x <= hi.x) target.x = Mathf.Clamp(target.x, lo.x, hi.x);
+            if (lo.y <= hi.y) target.y = Mathf.Clamp(target.y, lo.y, hi.y);
+            _content.anchoredPosition = target;
             ClampPan(true);
         }
 

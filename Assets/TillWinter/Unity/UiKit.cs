@@ -18,13 +18,13 @@ namespace TillWinter.Unity
         private static TMP_FontAsset _font;
         private static Sprite _rounded, _circle;
 
-        /// <summary>Nunito SDF from Resources (Latin + Turkish), with the TMP default font as fallback for missing glyphs.</summary>
+        /// <summary>Figtree SDF from Resources (Latin + Turkish), with the TMP default font as fallback for missing glyphs.</summary>
         public static TMP_FontAsset Font
         {
             get
             {
                 if (_font != null) return _font;
-                _font = Resources.Load<TMP_FontAsset>("NunitoSDF");
+                _font = Resources.Load<TMP_FontAsset>("FigtreeSDF"); // built by UiSetup; the two spellings must match
                 if (_font == null) _font = TMP_Settings.defaultFontAsset;
                 else if (TMP_Settings.defaultFontAsset != null && !_font.fallbackFontAssetTable.Contains(TMP_Settings.defaultFontAsset))
                     _font.fallbackFontAssetTable.Add(TMP_Settings.defaultFontAsset);
@@ -112,6 +112,24 @@ namespace TillWinter.Unity
             t.outlineColor = new Color32(0, 0, 0, 150);
         }
 
+        /// <summary>
+        /// Outline plus a soft drop shadow, for HUD text that must stay legible over any sky without a plate behind
+        /// it. Touching fontMaterial instances the material for this one label, so use it on the few labels that
+        /// sit directly on the world, never per item in a list.
+        /// </summary>
+        public static void OutlineStrong(TMP_Text t, float width = 0.3f)
+        {
+            t.outlineWidth = width;
+            t.outlineColor = new Color32(0, 0, 0, 225);
+            var m = t.fontMaterial;
+            m.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+            m.SetColor(ShaderUtilities.ID_UnderlayColor, new Color(0f, 0f, 0f, 0.7f));
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -0.25f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0.1f);
+            m.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0.35f);
+        }
+
         private static TextAlignmentOptions Map(TextAnchor a)
         {
             switch (a)
@@ -128,10 +146,20 @@ namespace TillWinter.Unity
             }
         }
 
+        /// <summary>
+        /// Darkens a colour without touching its hue, for the lip under a button face. Derived from the caller's own
+        /// theme colour rather than a constant, so a restyle carries through on its own.
+        /// </summary>
+        public static Color LipColor(Color c) => new Color(c.r * 0.62f, c.g * 0.62f, c.b * 0.62f, c.a);
+
         public static Button Button(Transform parent, string name, string text, int fontSize, Color bg, Color fg, UnityAction onClick)
         {
-            var img = Panel(parent, name, bg);
-            var btn = img.gameObject.AddComponent<Button>();
+            // A flat rounded rectangle read as a placeholder. The button is now a face sitting on a darker lip, so it
+            // has a near edge and catches the eye as something pressable; ButtonFeedback's squeeze does the rest.
+            var lip = Panel(parent, name, LipColor(bg));
+            var img = Panel(lip.transform, "Face", bg, true, false);
+            Stretch(img.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 7f), Vector2.zero);
+            var btn = lip.gameObject.AddComponent<Button>();
             btn.targetGraphic = img;
             var colors = btn.colors;
             colors.highlightedColor = new Color(1.06f, 1.06f, 1.06f);
@@ -141,6 +169,12 @@ namespace TillWinter.Unity
             btn.colors = colors;
             var label = Label(img.transform, "Label", text, fontSize, fg, TextAnchor.MiddleCenter, FontStyle.Bold);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 4f), new Vector2(-12f, -4f));
+            // A button label never wraps mid-word ("Otoma / tik"): it keeps its lines and shrinks to fit instead.
+            // Explicit line breaks still work. Callers that want a smaller label lower fontSizeMax, not fontSize.
+            label.enableWordWrapping = false;
+            label.enableAutoSizing = true;
+            label.fontSizeMax = label.fontSize;
+            label.fontSizeMin = Mathf.Max(12f, label.fontSize * 0.5f);
             img.gameObject.AddComponent<ButtonFeedback>(); // squeeze + click + haptic, one place for every button
             if (onClick != null) btn.onClick.AddListener(onClick);
             return btn;
@@ -218,13 +252,15 @@ namespace TillWinter.Unity
             Stretch(fill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var handleArea = Rect("Handle Slide Area", rt);
             Stretch(handleArea, Vector2.zero, Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, 0f));
-            var handle = Panel(handleArea, "Handle", Paper);
-            handle.sprite = Circle;
-            handle.type = Image.Type.Simple;
-            Stretch(handle.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(-24f, -24f), new Vector2(24f, 24f));
+            // The Slider stretches its handle to the full height of the control, which turned a round knob into a
+            // tall ellipse that ran over the label above it. The handle is an invisible holder; the knob inside it
+            // keeps its own size.
+            var handle = Rect("Handle", handleArea);
+            Stretch(handle, Vector2.zero, new Vector2(0f, 1f), new Vector2(-24f, 0f), new Vector2(24f, 0f));
+            var knob = CircleImage(handle, "Knob", Paper, Vector2.zero, 44f, true);
             slider.fillRect = fill.rectTransform;
-            slider.handleRect = handle.rectTransform;
-            slider.targetGraphic = handle;
+            slider.handleRect = handle;
+            slider.targetGraphic = knob;
             slider.direction = UnityEngine.UI.Slider.Direction.LeftToRight;
             slider.minValue = min;
             slider.maxValue = max;

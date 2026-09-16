@@ -220,6 +220,7 @@ namespace TillWinter.Unity
         private int _builtTier = -1;
         private int _stage = -1;
         private bool _golden;
+        private bool _ripeTinted;
 
         private float _visualScale;
         private float _pop = -1f;
@@ -237,6 +238,17 @@ namespace TillWinter.Unity
             _phase = (plot.Pos.X * 7 + plot.Pos.Y * 13) * 0.37f;
             _soilBinder = GetComponent<PaletteBinder>();
             _cracks = transform.Find("Cracks")?.gameObject;
+            // Every plot instantiates the same prefab, whose crack layout was baked once with a fixed seed, so a
+            // field read as one stamped tile repeated. A deterministic quarter-turn, a small skew and a mirror per
+            // grid position give each plot its own dirt without touching the shared mesh.
+            if (_cracks != null)
+            {
+                int h = (plot.Pos.X * 73856093) ^ (plot.Pos.Y * 19349663);
+                if (h < 0) h = -h;
+                _cracks.transform.localRotation = Quaternion.Euler(0f, (h % 4) * 90f + (h / 4 % 5) * 6f, 0f);
+                var cs = _cracks.transform.localScale;
+                _cracks.transform.localScale = new Vector3(cs.x * ((h / 32 % 2) == 0 ? 1f : -1f), cs.y, cs.z);
+            }
             _droplets = transform.Find("Droplets")?.gameObject;
             _cropRoot = transform.Find("CropAnchor");
             if (_cropRoot == null)
@@ -364,6 +376,23 @@ namespace TillWinter.Unity
             _cropRoot.localRotation = Quaternion.Euler(wobble2, 0f, wobble);
             bool golden = plot.IsGolden && !winter;
             if (golden || _golden) SetGolden(golden, simTime);
+
+            // A ready plant has to read "ready" from across the board. Kenney's carrot is mostly leafy top with the
+            // root at soil level, so at this camera angle a ripe one looked as green as a growing one whatever the
+            // stage rule said; the ripe model's foliage warms toward the crop's own colour instead. Golden keeps its
+            // own override, and the tint is dropped the moment the plot stops being ripe.
+            bool warmRipe = ripe && !golden;
+            if (warmRipe != _ripeTinted)
+            {
+                _ripeTinted = warmRipe;
+                var ripeBinder = _stageBinders[2];
+                if (ripeBinder != null)
+                {
+                    if (warmRipe) ripeBinder.Override(PaletteSlot.Sprout, Color.Lerp(Palette.Load().Sprout, Palette.Load().Crop(plot.Tier), 0.7f));
+                    else ripeBinder.ClearOverride(PaletteSlot.Sprout);
+                }
+            }
+
             var stageBinder = _stageBinders[stage];
             float breathe = ripe ? 0.75f + 0.25f * Mathf.Sin(simTime * 3f + _phase) : 0f;
             float pulse = Mathf.Clamp01(_ripePunch) * 0.8f;

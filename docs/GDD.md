@@ -72,6 +72,7 @@ Crop tiers are per plot. `UpgradePlot` raises the lowest-tier plot by one (row-m
 - **Frost warning**: last **10 s** of Autumn (extendable by Almanac). Cold vignette, blue light, timer heartbeat, tick SFX.
 - **Winter**: all plots reset to Dry with progress 0 (unharvested crops lost). Coins are kept. Field freezes; ring does nothing; the Almanac opens. Greenhouse (if owned) still produces a trickle.
 - **Next Year**: year counter +1, Spring starts, plots keep tiers.
+- *(v1.5)* **End the year early**: the player may bring Winter forward at any point during a year from the HUD. It runs the same Winter transition the timer does, so the standing crop is lost (or half-harvested with `late_frost`) exactly as it would have been — the choice trades the rest of the year's income for reaching the Almanac sooner, and never skips a cost.
 
 ---
 

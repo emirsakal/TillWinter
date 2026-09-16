@@ -17,7 +17,7 @@ namespace TillWinter.Unity
     {
         public const float ResetHoldSeconds = 3f;
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
-        private const float SettingsHeight = 1584f;
+        private const float SettingsHeight = 1480f; // one row shorter since the developer row left
         private const float LabelX = -230f, LabelWidth = 380f, ControlX = 225f, ControlWidth = 410f;
 
         public static PauseMenu Instance { get; private set; }
@@ -31,7 +31,7 @@ namespace TillWinter.Unity
         private Button _pauseButton;
         private GameObject _pause, _settings, _credits, _stats;
         private TMP_Text _version;
-        private Button _devButton, _langEn, _langTr;
+        private Button _langEn, _langTr;
         private UiSwitch _hapticsSwitch, _motionSwitch, _largeTextSwitch;
         private Image _applying;
         private TMP_Text _sfxValue, _ambienceValue;
@@ -44,6 +44,8 @@ namespace TillWinter.Unity
         private bool _resetDone;
         private Action _afterStats;
         private bool _fromMenu;
+        /// <summary>Credits reached through Settings, so Back owes the player a trip back to Settings; straight from the menu it owes them nothing.</summary>
+        private bool _creditsFromSettings;
 
         public bool IsOpen => _pause.activeSelf || _settings.activeSelf || _credits.activeSelf || _stats.activeSelf;
 
@@ -70,7 +72,7 @@ namespace TillWinter.Unity
 
         private void BuildPause(RectTransform canvas)
         {
-            _pause = Sheet(canvas, "PauseSheet", "pause.title", 664f, out var p);
+            _pause = Sheet(canvas, "PauseSheet", "pause.title", 620f, out var p);
             Btn(p, "pause.resume", Resume, -150f);
             Btn(p, "pause.settings", () => Show(_settings), -150f - RowHeight);
             Btn(p, "pause.stats", () => ShowStats(() => Show(_pause)), -150f - 2f * RowHeight);
@@ -119,24 +121,26 @@ namespace TillWinter.Unity
             for (int i = 0; i < 3; i++)
             {
                 int choice = i - 1;
-                _quality[i] = Btn(p, q[i], () => { QualityTiers.ApplyChoice(choice); RefreshSettings(); }, y, 132f, 88f + i * 137f);
-                UiKit.ButtonLabel(_quality[i]).fontSize = 28;
+                _quality[i] = Btn(p, q[i], () => { QualityTiers.ApplyChoice(choice); RefreshSettings(); }, y, 134f, 88f + i * 137f); // same right edge as the switches
+                UiKit.ButtonLabel(_quality[i]).fontSizeMax = UiType.Size(28);
             }
             y -= RowHeight + 20f;
 
-            Btn(p, "settings.credits", () => Show(_credits), y);
-            y -= RowHeight;
-            _devButton = Btn(p, "settings.developer", () => { Resume(); DeveloperToggle?.Invoke(); }, y, ButtonWidth, 0f, _theme.SheetIdle);
+            // The developer panel is opened from its own button in the play scene now, not buried in Settings.
+            Btn(p, "settings.credits", () => { _creditsFromSettings = true; Show(_credits); }, y);
             y -= RowHeight + 16f;
 
             // Reset save: hold for three seconds; the fill shows the progress.
+            // Same face-on-a-lip shape as every other button, so the one dangerous button does not look like a different kind of thing.
+            var resetLip = UiKit.Panel(p, "ResetSaveLip", UiKit.LipColor(_theme.SheetDanger), true, false);
+            UiKit.Box(resetLip.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y), new Vector2(ButtonWidth, RowHeight - 14f));
             var reset = UiKit.Panel(p, "ResetSave", _theme.SheetDanger, true, true);
-            UiKit.Box(reset.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y), new Vector2(ButtonWidth, RowHeight - 14f));
+            UiKit.Box(reset.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y), new Vector2(ButtonWidth, RowHeight - 21f));
             _reset = reset.gameObject.AddComponent<HoldButton>();
             var fill = UiKit.Panel(reset.transform, "Fill", _theme.SheetInk, true, false);
             _resetFill = fill.rectTransform;
             UiKit.Stretch(_resetFill, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
-            var resetText = UiKit.Label(reset.transform, "Label", Strings.Get("settings.reset"), UiType.Heading, _theme.SheetButtonText, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var resetText = UiKit.Label(reset.transform, "Label", Strings.Get("settings.reset"), UiType.Body, _theme.SheetButtonText, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Stretch(resetText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             y -= RowHeight - 10f;
             Text(p, "ResetHint", Strings.Get("settings.reset_hold"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 44f);
@@ -149,23 +153,30 @@ namespace TillWinter.Unity
 
         private void BuildCredits(RectTransform canvas)
         {
-            _credits = Sheet(canvas, "CreditsSheet", "credits.title", 1100f, out var page);
+            _credits = Sheet(canvas, "CreditsSheet", "credits.title", 820f, out var page);
             UiKit.ScrollView(page, "Scroll", out var p);
             UiKit.Stretch((RectTransform)p.parent, Vector2.zero, Vector2.one, new Vector2(0f, 120f), new Vector2(0f, -110f));
             p.sizeDelta = new Vector2(0f, 1000f);
             float y = -20f;
+            // Grouped tightly: the lines used to sit in tall boxes that left gaps bigger than the text.
             Text(p, "MadeBy", Strings.Get("credits.made_by"), y, UiType.Heading, _theme.SheetInk, TextAnchor.MiddleCenter, 70f).fontStyle = FontStyles.Bold;
             y -= 90f;
             Text(p, "Unity", Strings.Get("credits.unity"), y, UiType.Body, _theme.SheetInk, TextAnchor.MiddleCenter);
-            y -= 110f;
+            y -= 90f;
             Text(p, "Kenney", Strings.Get("credits.kenney"), y, UiType.Body, _theme.SheetInk, TextAnchor.MiddleCenter);
-            y -= 70f;
-            Text(p, "KitsArt", Strings.Get("credits.kits_art"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 110f);
-            y -= 120f;
-            Text(p, "KitsAudio", Strings.Get("credits.kits_audio"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 110f);
-            y -= 150f;
+            y -= 60f;
+            Text(p, "KitsArt", Strings.Get("credits.kits_art"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 50f);
+            y -= 50f;
+            Text(p, "KitsAudio", Strings.Get("credits.kits_audio"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 50f);
+            y -= 90f;
             Text(p, "Font", Strings.Get("credits.font"), y, UiType.Label, _theme.SheetInk, TextAnchor.MiddleCenter);
-            Btn(page, "settings.back", () => Show(_settings), -1000f);
+            // Back retraces the way in: Settings if Credits was opened from there, otherwise straight out.
+            Btn(page, "settings.back", () =>
+            {
+                if (_creditsFromSettings) { _creditsFromSettings = false; Show(_settings); }
+                else if (_fromMenu) CloseSheets();
+                else Show(_pause);
+            }, -700f);
         }
 
         /// <summary>Main menu entry: Settings (and Credits from it); Back closes the sheets instead of showing Pause.</summary>
@@ -175,10 +186,11 @@ namespace TillWinter.Unity
             Show(_settings);
         }
 
-        /// <summary>Main menu entry: Credits; Back goes to Settings, whose Back then closes.</summary>
+        /// <summary>Main menu entry: Credits; Back closes it, because the player never passed through Settings to get here.</summary>
         public void OpenCreditsFrom(Action unused)
         {
             _fromMenu = true;
+            _creditsFromSettings = false;
             Show(_credits);
         }
 
@@ -188,6 +200,7 @@ namespace TillWinter.Unity
             HideAll();
             SettingsStore.Save();
             _fromMenu = false;
+            _creditsFromSettings = false;
         }
 
         /// <summary>Saves and loads the title scene (Menu.unity).</summary>
@@ -201,7 +214,7 @@ namespace TillWinter.Unity
 
         private void BuildStats(RectTransform canvas)
         {
-            _stats = Sheet(canvas, "StatsSheet", "stats.title", 1180f, out var page);
+            _stats = Sheet(canvas, "StatsSheet", "stats.title", 1300f, out var page); // tall enough that every row shows above the button
             UiKit.ScrollView(page, "Scroll", out var rows);
             UiKit.Stretch((RectTransform)rows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -110f));
             rows.sizeDelta = new Vector2(0f, StatKeys.Length * StatRow + 20f);
@@ -223,7 +236,7 @@ namespace TillWinter.Unity
                     highlight ? _theme.SheetButton : _theme.SheetInk, TextAnchor.MiddleRight, FontStyle.Bold);
                 UiKit.Stretch(_statValues[i].rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 0f), new Vector2(-6f, 0f));
             }
-            Btn(page, "stats.continue", ContinueFromStats, -1040f);
+            Btn(page, "stats.continue", ContinueFromStats, -1180f);
         }
 
         // ------------------------------------------------------------------ flow
@@ -245,6 +258,17 @@ namespace TillWinter.Unity
         }
 
         public void SetButtonVisible(bool visible) => _pauseButton.gameObject.SetActive(visible);
+
+        /// <summary>
+        /// Bottom right during a year; top right while the Winter screen is up, whose own buttons fill the bottom
+        /// edge (the pause button used to sit on top of Next Year).
+        /// </summary>
+        public void PlaceButton(bool top)
+        {
+            var rt = _pauseButton.GetComponent<RectTransform>();
+            if (top) UiKit.Box(rt, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -24f), new Vector2(110f, 96f));
+            else UiKit.Box(rt, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), new Vector2(130f, 110f));
+        }
 
         /// <summary>The statistics sheet; <paramref name="after"/> runs on Continue (null = resume play).</summary>
         public void ShowStats(Action after)
@@ -356,7 +380,6 @@ namespace TillWinter.Unity
             Tint(_langEn, GameLanguage.Current == GameLanguage.English);
             Tint(_langTr, GameLanguage.Current == GameLanguage.Turkish);
             for (int i = 0; i < 3; i++) Tint(_quality[i], s.QualityTier == i - 1);
-            _devButton.gameObject.SetActive(DeveloperToggle != null);
             var info = BuildInfo.Current;
             _version.text = info != null && info.Build > 0
                 ? Strings.Format("settings.version", ("version", info.Version), ("build", info.Build))
@@ -440,7 +463,7 @@ namespace TillWinter.Unity
         private UiSwitch SwitchRow(RectTransform page, string name, bool value, Action<bool> changed, float y)
         {
             var sw = UiKit.Switch(page, name, value, _theme.SheetButton, _theme.SheetIdle, _theme.SheetButtonText);
-            UiKit.Box((RectTransform)sw.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(ControlX + 100f, y - 45f), new Vector2(140f, 68f));
+            UiKit.Box((RectTransform)sw.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(ControlX + 100f, y - 11f), new Vector2(140f, 68f)); // centred on its label, like the sliders
             sw.Changed += on => { changed(on); SettingsStore.Save(); };
             return sw;
         }

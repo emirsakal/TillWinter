@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 5;
+        public const int CurrentSchemaVersion = 6;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -121,6 +121,7 @@ namespace TillWinter.Core
                     case 2: data = V2ToV3(data); break;
                     case 3: data = V3ToV4(data); break;
                     case 4: data = V4ToV5(data); break;
+                    case 5: data = V5ToV6(data); break;
                     default: return null;
                 }
             }
@@ -188,6 +189,22 @@ namespace TillWinter.Core
             d.CoinsThisYear = 0;
             d.HarvestsThisYear = 0;
             d.SchemaVersion = 5;
+            return d;
+        }
+
+        /// <summary>
+        /// v5 -> v6: the remembered tree views are forgotten. They were pan offsets and zooms into the old lane layout;
+        /// against the radial one they open the tree off-centre with branches cut off, so each tree opens framed again.
+        /// </summary>
+        private static SaveData V5ToV6(SaveData d)
+        {
+            d.AlmanacViewHas = false;
+            d.AlmanacViewX = d.AlmanacViewY = 0f;
+            d.AlmanacViewZoom = 1f;
+            d.HeritageViewHas = false;
+            d.HeritageViewX = d.HeritageViewY = 0f;
+            d.HeritageViewZoom = 1f;
+            d.SchemaVersion = 6;
             return d;
         }
     }

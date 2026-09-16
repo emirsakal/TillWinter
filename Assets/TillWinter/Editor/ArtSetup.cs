@@ -362,6 +362,8 @@ namespace TillWinter.EditorTools
             c.Stump = Save("Stump", Kit("nature-kit", "stump_round", 0.3f));
             c.TreeAutumn = Save("TreeAutumn", Kit("nature-kit", "tree_default_fall", 1.35f));
             c.Pond = Save("Pond", BuildPond());
+            c.Kennel = Save("Kennel", BuildKennel());
+            c.Dog = Save("Dog", BuildDog());
             c.Butterfly = Save("Butterfly", BuildButterfly());
             c.BlobShadow = Save("BlobShadow", BuildBlobShadow());
         }
@@ -496,12 +498,66 @@ namespace TillWinter.EditorTools
             return (go, go.AddComponent<PaletteBinder>());
         }
 
+        /// <summary>A little gabled kennel for beside the house. No kit has one, so it is primitives like the well.</summary>
+        private static GameObject BuildKennel()
+        {
+            var (root, b) = Root("Kennel");
+            Prim(PrimitiveType.Cube, root.transform, "Body", new Vector3(0f, 0.22f, 0f), new Vector3(0.62f, 0.44f, 0.7f), b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Cube, root.transform, "Doorway", new Vector3(0f, 0.17f, -0.36f), new Vector3(0.3f, 0.34f, 0.06f), b, PaletteSlot.Wood);
+            var roofL = Prim(PrimitiveType.Cube, root.transform, "RoofL", new Vector3(-0.17f, 0.54f, 0f), new Vector3(0.46f, 0.07f, 0.78f), b, PaletteSlot.Roof);
+            roofL.transform.localRotation = Quaternion.Euler(0f, 0f, 38f);
+            var roofR = Prim(PrimitiveType.Cube, root.transform, "RoofR", new Vector3(0.17f, 0.54f, 0f), new Vector3(0.46f, 0.07f, 0.78f), b, PaletteSlot.Roof);
+            roofR.transform.localRotation = Quaternion.Euler(0f, 0f, -38f);
+            return root;
+        }
+
+        /// <summary>
+        /// The farm dog, with the heart and speech bubble it shows when patted built in and hidden. They ride in the
+        /// prefab rather than becoming a VfxId, because one cosmetic flourish does not earn a pooled particle system.
+        /// </summary>
+        private static GameObject BuildDog()
+        {
+            var (root, b) = Root("Dog");
+            Prim(PrimitiveType.Capsule, root.transform, "Body", new Vector3(0f, 0.2f, 0f), new Vector3(0.22f, 0.2f, 0.22f), b, PaletteSlot.Wood)
+                .transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            Prim(PrimitiveType.Sphere, root.transform, "Head", new Vector3(0f, 0.34f, 0.22f), Vector3.one * 0.23f, b, PaletteSlot.Wood);
+            Prim(PrimitiveType.Sphere, root.transform, "Snout", new Vector3(0f, 0.3f, 0.34f), Vector3.one * 0.12f, b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Sphere, root.transform, "Nose", new Vector3(0f, 0.31f, 0.4f), Vector3.one * 0.06f, b, PaletteSlot.Eye);
+            Prim(PrimitiveType.Sphere, root.transform, "EyeL", new Vector3(-0.07f, 0.38f, 0.32f), Vector3.one * 0.05f, b, PaletteSlot.Eye);
+            Prim(PrimitiveType.Sphere, root.transform, "EyeR", new Vector3(0.07f, 0.38f, 0.32f), Vector3.one * 0.05f, b, PaletteSlot.Eye);
+            Prim(PrimitiveType.Cube, root.transform, "EarL", new Vector3(-0.11f, 0.44f, 0.2f), new Vector3(0.07f, 0.11f, 0.05f), b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Cube, root.transform, "EarR", new Vector3(0.11f, 0.44f, 0.2f), new Vector3(0.07f, 0.11f, 0.05f), b, PaletteSlot.WoodLight);
+            for (int i = 0; i < 4; i++)
+                Prim(PrimitiveType.Cube, root.transform, "Leg" + i, new Vector3(i % 2 == 0 ? -0.09f : 0.09f, 0.06f, i < 2 ? 0.12f : -0.12f),
+                    new Vector3(0.07f, 0.12f, 0.07f), b, PaletteSlot.Wood);
+
+            // The tail is its own child so the view can wag it.
+            var tail = new GameObject("Tail");
+            tail.transform.SetParent(root.transform, false);
+            tail.transform.localPosition = new Vector3(0f, 0.3f, -0.2f);
+            Prim(PrimitiveType.Cube, tail.transform, "Wag", new Vector3(0f, 0.07f, -0.03f), new Vector3(0.05f, 0.17f, 0.05f), b, PaletteSlot.WoodLight)
+                .transform.localRotation = Quaternion.Euler(-35f, 0f, 0f);
+
+            // Hidden until patted.
+            var bubble = new GameObject("Bubble");
+            bubble.transform.SetParent(root.transform, false);
+            bubble.transform.localPosition = new Vector3(0f, 0.72f, 0.1f);
+            Prim(PrimitiveType.Sphere, bubble.transform, "Puff", Vector3.zero, new Vector3(0.36f, 0.26f, 0.2f), b, PaletteSlot.Cloud);
+            Prim(PrimitiveType.Sphere, bubble.transform, "Tail", new Vector3(-0.1f, -0.15f, 0f), Vector3.one * 0.08f, b, PaletteSlot.Cloud);
+            Prim(PrimitiveType.Sphere, bubble.transform, "HeartL", new Vector3(-0.05f, 0.04f, -0.12f), Vector3.one * 0.11f, b, PaletteSlot.Crop1);
+            Prim(PrimitiveType.Sphere, bubble.transform, "HeartR", new Vector3(0.05f, 0.04f, -0.12f), Vector3.one * 0.11f, b, PaletteSlot.Crop1);
+            Prim(PrimitiveType.Cube, bubble.transform, "HeartTip", new Vector3(0f, -0.05f, -0.12f), new Vector3(0.11f, 0.11f, 0.02f), b, PaletteSlot.Crop1)
+                .transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            bubble.SetActive(false);
+            return root;
+        }
+
         private static GameObject BuildPlot()
         {
             var (root, b) = Root("Plot");
             // The camera looks down, so a gap in z is foreshortened to nothing: the tile is shorter in z than in x
             // to leave a visible gap on all four sides of a plot.
-            var soil = Prim(PrimitiveType.Cube, root.transform, "Soil", new Vector3(0f, 0.08f, 0f), new Vector3(0.94f, 0.16f, 0.86f), b, PaletteSlot.SoilDry);
+            var soil = Prim(PrimitiveType.Cube, root.transform, "Soil", new Vector3(0f, 0.08f, 0f), new Vector3(0.94f, 0.16f, 0.8f), b, PaletteSlot.SoilDry);
             soil.GetComponent<Renderer>().receiveShadows = true;
             soil.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
             var cracks = new GameObject("Cracks").transform;

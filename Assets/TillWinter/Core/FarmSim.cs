@@ -179,6 +179,17 @@ namespace TillWinter.Core
             return true;
         }
 
+        /// <summary>
+        /// Ends the running year now and brings Winter forward (GDD §2.4 v1.5). Waiting out the clock was the only
+        /// way into the Almanac, which made a finished field dead time; the harvest still standing is resolved by the
+        /// same <see cref="EnterWinter"/> the timer uses, so ending early costs whatever late frost would have cost.
+        /// </summary>
+        public void EndYearNow()
+        {
+            if (State.Phase != Phase.Year) return;
+            EnterWinter();
+        }
+
         /// <summary>Leave the winter Almanac and start Spring of the next year.</summary>
         public void StartNextYear()
         {

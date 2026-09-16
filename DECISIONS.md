@@ -760,3 +760,53 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **`TreeTheme.CurrentStyle` bumped 1 -> 2** so existing theme assets get restyled in place; the
   Heritage restyle path now also refreshes muted ink, dim edges and initial zoom, which it
   previously left at their old values.
+
+## Follow-up: developer playtest feedback, round two (2026-09-16)
+
+- **Font: Fredoka rejected, Figtree chosen.** Fredoka was picked first for its rounded, friendly
+  look, then rejected on evidence — it contains no Turkish glyphs at all (no G-breve, dotted I or
+  S-cedilla), which would have set half the Turkish UI in the fallback font mid-word. Figtree was
+  verified against the full baked character set before the swap. The rule that a candidate font
+  must cover the Turkish alphabet is now recorded in Assets/Art/LICENSES.md so the mistake is not
+  repeated.
+- **Skill tree layout contract.** Branch angle plus prerequisite depth equals radius, and per-node
+  jitter is expressed as an arc offset rather than an angle, because a fixed angle is a small nudge
+  near the centre and a large one at the rim and would pull the outermost siblings under the
+  minimum spacing the tests enforce.
+- **Branch identity stays a name plate plus hub.** A name plate at the end of each ray plus a centre
+  hub, because boxes drawn around rays necessarily overlap at the shared centre.
+- **Ending a year early ships without a confirmation step.** The developer asked to be able to end
+  it on demand, and the cost is documented in the GDD rather than guarded by a dialog. Flagged as
+  reversible to a hold-to-confirm if a mis-tap proves costly.
+- **The dog is decoration only and swallows its own tap**, so petting it cannot water the plot
+  behind it; its heart and speech bubble ride in the prefab as hidden children rather than becoming
+  a new VfxId, because one cosmetic flourish does not earn a pooled particle system.
+- **The kennel joins the static-batched scenery but the dog is parented outside it**, since batching
+  would freeze its wag.
+- **Button lip colour derives from the caller's own theme colour** rather than a new constant, so a
+  restyle carries through on its own.
+- **New HudTheme and TreeTheme metrics were added as new fields** rather than by changing existing
+  defaults, because a serialized asset ignores a changed default.
+
+## Follow-up: developer playtest feedback, round three (2026-09-16)
+
+- **Save schema v6: remembered skill tree views are dropped on migration.** They were pans and
+  zooms into the lane layout that the radial one replaced, so they opened the tree off-centre with
+  branches cut off. Per the save contract a field whose meaning changed gets a schema bump and a
+  migration step; a v5 fixture test covers it. Only views saved before v6 are dropped; a view
+  remembered afterwards still round-trips.
+- **Skill tree framing fits and centres the tree's bounds rather than its hub**, because the canopy
+  is lopsided (branches differ in depth).
+- **Branch order became Hand, Soil, Helpers, Field, Calendar.** Field is the deepest branch and each
+  layer curves 9 degrees counter-clockwise, so starting it at -126 degrees carries it towards
+  straight down, where a portrait screen has room.
+- **Onboarding focus (CenterOn) keeps the whole canopy on screen while it fits** instead of centring
+  the highlighted nodes; the highlight pulse already points at them.
+- **The pause button moves to the top right while the Winter screen is open** instead of being
+  hidden, so Settings and Main menu stay reachable in Winter.
+- **A new play-mode screenshot tour (ui-tour.bat) was added** because layout problems were only ever
+  found by eye. It opens every panel through its own button, backs up and restores the save and
+  settings around the run, refuses to start if an earlier tour's backup is still on disk, and turns
+  on Application.runInBackground for its own play session because the project's Run In Background is
+  off and the player loop stops whenever the editor loses focus (the same cause as the flaky smoke
+  test while someone is at the machine). The project setting itself was not changed.

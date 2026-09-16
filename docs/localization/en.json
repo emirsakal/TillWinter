@@ -3,6 +3,7 @@
   "ui.heritage_title": "Heritage — Generation {gen}",
   "ui.almanac": "Almanac",
   "ui.heritage": "Heritage",
+  "ui.end_year": "End year",
   "ui.next_year": "Next Year",
   "ui.start_generation": "Start new generation",
   "ui.pass_on": "Pass on the farm",
@@ -117,7 +118,7 @@
   "credits.kenney": "Art and sound by Kenney (kenney.nl), CC0",
   "credits.kits_art": "Nature Kit · Food Kit · Mini Characters · Game Icons",
   "credits.kits_audio": "Impact Sounds · Interface Sounds · RPG Audio · UI Audio",
-  "credits.font": "Font: Nunito, SIL Open Font License 1.1",
+  "credits.font": "Font: Figtree, SIL Open Font License 1.1",
   "credits.thanks": "Thank you for playing.",
   "credits.skip": "tap to skip",
 

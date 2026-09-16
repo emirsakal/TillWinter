@@ -113,5 +113,7 @@ MonoBehaviour:
   Stump: {fileID: 3529740452716127148, guid: 958a7795f0457c846bb74be19ef329fa, type: 3}
   TreeAutumn: {fileID: 6914806526893844081, guid: b557b7ac2df02404daa78c72ce8f6ea4, type: 3}
   Pond: {fileID: 3962788911973399922, guid: 94c9c3d914bc8254380737491a776380, type: 3}
+  Kennel: {fileID: 8423012649212080980, guid: e8c484ba0a34e1d4593257bb3f13ad44, type: 3}
+  Dog: {fileID: 2771797224765781109, guid: c76a6a1fc446e8443b468f0f07d0ac5b, type: 3}
   Butterfly: {fileID: 6964125060097207644, guid: c31080a3f248b6c4b9b6af53309322be, type: 3}
   BlobShadow: {fileID: 5479554026680035742, guid: 22c24bf89efddc940b841c82f1c4dbae, type: 3}
