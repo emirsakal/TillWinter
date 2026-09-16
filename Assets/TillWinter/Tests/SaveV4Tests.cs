@@ -42,7 +42,7 @@ namespace TillWinter.Tests
             var raw = MiniJson.To<SaveData>(V3Fixture);
             Assert.AreEqual(3, raw.SchemaVersion);
             var d = SaveMigrations.Migrate(MiniJson.To<SaveData>(V3Fixture), new FarmConfig());
-            Assert.AreEqual(4, d.SchemaVersion);
+            Assert.AreEqual(SaveData.CurrentSchemaVersion, d.SchemaVersion); // the chain always ends at the current version
             Assert.IsFalse(d.EndingSeen);
             Assert.IsFalse(d.GoldenYearActive);
             Assert.AreEqual(0, d.HarvestsRing + d.HarvestsApprentice + d.HarvestsTractor + d.HarvestsLateFrost);

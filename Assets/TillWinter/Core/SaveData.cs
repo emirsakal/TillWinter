@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 4;
+        public const int CurrentSchemaVersion = 5;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -75,6 +75,10 @@ namespace TillWinter.Core
         public int BestCombo;
         public double TimePlayedSeconds;
         public int YearsTotal;
+
+        // v5: the Winter screen's year summary
+        public double CoinsThisYear;
+        public int HarvestsThisYear;
     }
 
     [Serializable]
@@ -116,6 +120,7 @@ namespace TillWinter.Core
                     case 1: data = V1ToV2(data, config ?? new FarmConfig()); break;
                     case 2: data = V2ToV3(data); break;
                     case 3: data = V3ToV4(data); break;
+                    case 4: data = V4ToV5(data); break;
                     default: return null;
                 }
             }
@@ -174,6 +179,15 @@ namespace TillWinter.Core
             d.TimePlayedSeconds = 0;
             d.YearsTotal = Math.Max(0, d.YearsThisGeneration); // earlier generations' years were never counted
             d.SchemaVersion = 4;
+            return d;
+        }
+
+        /// <summary>v4 → v5: the running year's coins and harvests were never counted, so this year starts at zero.</summary>
+        private static SaveData V4ToV5(SaveData d)
+        {
+            d.CoinsThisYear = 0;
+            d.HarvestsThisYear = 0;
+            d.SchemaVersion = 5;
             return d;
         }
     }
