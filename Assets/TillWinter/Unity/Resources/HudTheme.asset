@@ -12,8 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e152de1fc27b6d4f8d103a5bb4612c2, type: 3}
   m_Name: HudTheme
   m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.HudTheme
-  StyleVersion: 1
+  StyleVersion: 2
   CardDark: {r: 0.16, g: 0.135, b: 0.12, a: 0.97}
+  YearCard: {r: 0.965, g: 0.92, b: 0.84, a: 1}
+  YearCardText: {r: 0.18, g: 0.14, b: 0.105, a: 1}
+  YearCardMuted: {r: 0.18, g: 0.14, b: 0.105, a: 0.65}
+  ComboHot: {r: 0.95, g: 0.42, b: 0.24, a: 1}
   Text: {r: 1, g: 0.97, b: 0.9, a: 1}
   TextMuted: {r: 1, g: 0.97, b: 0.9, a: 0.8}
   Coin: {r: 1, g: 0.82, b: 0.2, a: 1}
@@ -54,8 +58,8 @@ MonoBehaviour:
   CoinFontSize: 96
   SubFontSize: 38
   BarWidth: 960
-  BarHeight: 18
+  BarHeight: 26
   SeasonBandY: 560
   SeasonBandHeight: 132
   BarYInBand: -26
-  SeasonNameYInBand: -58
+  SeasonNameYInBand: -66

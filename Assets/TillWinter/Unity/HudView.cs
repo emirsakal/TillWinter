@@ -33,6 +33,23 @@ namespace TillWinter.Unity
         private RectTransform _seedChipRt;
         private RectTransform _bottomBand;
         private CanvasGroup _bottomGroup;
+        private RectTransform _coinIcon;
+        private Image _coinGlow, _seedChipFace, _seedGlow;
+        private double _displayCoins;
+        private int _coinTextLength = -1;
+        // The "this year" card: numbers are written into char buffers so nothing is allocated when they change.
+        private CanvasGroup _yearGroup;
+        private TMP_Text _yearLine, _nextGenLabel;
+        private RectTransform _nextGenFill;
+        private readonly char[] _cardChars = new char[128];
+        private readonly char[] _nextChars = new char[64];
+        private readonly char[] _numChars = new char[32];
+        private string _ySeg0 = "", _ySeg1 = "", _ySeg2 = "", _nSeg0 = "", _nSeg1 = "";
+        private int _cardHarvests = -1, _cardPercent = -1;
+        private double _cardCoins = -1;
+        private static Sprite _glowSprite;
+        private static Sprite GlowSprite => _glowSprite != null ? _glowSprite
+            : (_glowSprite = Sprite.Create(Prims.RadialGradient(64, 0f, 1f), new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 100f));
         private RectTransform _bar, _elapsed, _frostSpan;
         private Image _elapsedImage;
         private RectTransform _fxLayer;
@@ -94,10 +111,15 @@ namespace TillWinter.Unity
 
             _coinGroup = UiKit.Rect("Coins", top);
             UiKit.Box(_coinGroup, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 90f), new Vector2(700f, 130f));
-            var icon = UiKit.CircleImage(_coinGroup, "Icon", _theme.Coin, new Vector2(-190f, 0f), 76f);
+            // Icon and number are centred as one unit: the number's centre stays put and the icon rides its left
+            // edge, so a short "0" no longer sat far from its coin.
+            _coinGlow = UiKit.CircleImage(_coinGroup, "Glow", _theme.Coin, Vector2.zero, 170f);
+            _coinGlow.sprite = GlowSprite;
+            var icon = UiKit.CircleImage(_coinGroup, "Icon", _theme.Coin, Vector2.zero, 76f);
+            _coinIcon = icon.rectTransform;
             UiKit.CircleImage(icon.transform, "Inner", _theme.CoinInner, Vector2.zero, 48f);
-            _coinText = UiKit.Label(_coinGroup, "Value", "0", (int)_theme.CoinFontSize, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.Stretch(_coinText.rectTransform, Vector2.zero, Vector2.one, new Vector2(240f, 0f), Vector2.zero);
+            _coinText = UiKit.Label(_coinGroup, "Value", "0", (int)_theme.CoinFontSize, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Stretch(_coinText.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 0f), new Vector2(50f, 0f));
             UiKit.Outline(_coinText);
             // Size TMP's buffers for the longest counter once, so growing numbers never resize them mid-play.
             _coinText.SetText("-999.9Qi");
@@ -114,16 +136,36 @@ namespace TillWinter.Unity
 
             // The bottom of a tall phone was empty while the top carried everything: the retire chip moves down,
             // into thumb reach, and hangs off the safe area rather than the fading top band.
-            var chip = UiKit.Panel(_safe, "SeedChip", _theme.SeedChip, true, false);
+            var chip = UiKit.Panel(_safe, "SeedChip", UiKit.LipColor(_theme.SeedChip), true, false);
             _seedChipRt = chip.rectTransform;
-            UiKit.Box(_seedChipRt, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 54f), new Vector2(280f, 76f));
-            UiKit.CircleImage(_seedChipRt, "Seed", _theme.Seed, new Vector2(-104f, 0f), 34f);
+            UiKit.Box(_seedChipRt, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 54f), new Vector2(300f, 88f));
+            _seedChipFace = UiKit.Panel(_seedChipRt, "Face", _theme.SeedChip, true, false);
+            UiKit.Stretch(_seedChipFace.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 7f), Vector2.zero);
+            _seedGlow = UiKit.CircleImage(_seedChipFace.transform, "Glow", _theme.Seed, new Vector2(-104f, 0f), 96f);
+            _seedGlow.sprite = GlowSprite;
+            UiKit.CircleImage(_seedChipFace.transform, "Seed", _theme.Seed, new Vector2(-104f, 0f), 44f);
             _rate = UiKit.Label(top, "Rate", "", UiType.Caption, _theme.TextMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_rate.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 290f), new Vector2(500f, 40f)); // under the Year line: beside the counter a long number ran into it
             UiKit.Outline(_rate, 0.12f);
-            _seedChip = UiKit.Label(_seedChipRt, "Text", "", UiType.Label, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.Stretch(_seedChip.rectTransform, Vector2.zero, Vector2.one, new Vector2(56f, 0f), new Vector2(-10f, 0f));
+            _seedChip = UiKit.Label(_seedChipFace.transform, "Text", "", UiType.Label, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Stretch(_seedChip.rectTransform, Vector2.zero, Vector2.one, new Vector2(78f, 0f), new Vector2(-10f, 0f));
             _seedChipRt.gameObject.SetActive(false);
+
+            // The bottom of the screen: what this year has brought, and how far the farm is from the next generation.
+            var yearCard = UiKit.Card(_safe, "YearCard", _theme.YearCard, false);
+            UiKit.Box(yearCard.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 196f), new Vector2(620f, 136f));
+            _yearGroup = yearCard.gameObject.AddComponent<CanvasGroup>();
+            _yearGroup.blocksRaycasts = false;
+            _yearLine = UiKit.Label(yearCard.transform, "Line", "", UiType.Label, _theme.YearCardText, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(_yearLine.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -14f), new Vector2(580f, 44f));
+            _nextGenLabel = UiKit.Label(yearCard.transform, "NextGen", "", UiType.Caption, _theme.YearCardMuted, TextAnchor.MiddleCenter);
+            UiKit.Box(_nextGenLabel.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 44f), new Vector2(580f, 32f));
+            var track = UiKit.Panel(yearCard.transform, "NextGenTrack", _theme.BarBackground, true, false);
+            UiKit.Box(track.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 22f), new Vector2(540f, 16f));
+            _nextGenFill = UiKit.Panel(track.transform, "Fill", _theme.Seed, true, false).rectTransform;
+            UiKit.Stretch(_nextGenFill, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
+            SplitTemplate(Strings.Get("ui.year_summary"), "{harvests}", "{coins}", out _ySeg0, out _ySeg1, out _ySeg2);
+            SplitTemplate(Strings.Get("hud.next_generation"), "{percent}", null, out _nSeg0, out _nSeg1, out _);
 
             // The year's progress belongs next to the farm it measures, so the bar and the season's name sit in their
             // own band under the island; the top keeps the coins. Its own CanvasGroup, because it no longer hangs off
@@ -180,6 +222,42 @@ namespace TillWinter.Unity
 
         private void OnFrostWarning() => Haptics.Play(HapticKind.Light);
 
+        /// <summary>Splits a localized template around its placeholders once, so the parts can be written into a char buffer.</summary>
+        private static void SplitTemplate(string template, string first, string second, out string s0, out string s1, out string s2)
+        {
+            s1 = s2 = "";
+            int a = template.IndexOf(first, System.StringComparison.Ordinal);
+            if (a < 0) { s0 = template; return; }
+            s0 = template.Substring(0, a);
+            string rest = template.Substring(a + first.Length);
+            int b = second == null ? -1 : rest.IndexOf(second, System.StringComparison.Ordinal);
+            if (b < 0) { s1 = rest; return; }
+            s1 = rest.Substring(0, b);
+            s2 = rest.Substring(b + second.Length);
+        }
+
+        private static int Put(char[] buf, int at, string s)
+        {
+            for (int i = 0; i < s.Length && at < buf.Length; i++) buf[at++] = s[i];
+            return at;
+        }
+
+        private int PutNumber(char[] buf, int at, double value)
+        {
+            int n = NumberFormat.Short(value, _numChars);
+            for (int i = 0; i < n && at < buf.Length; i++) buf[at++] = _numChars[i];
+            return at;
+        }
+
+        private static int PutInt(char[] buf, int at, int value)
+        {
+            if (value < 0) value = 0;
+            int start = at;
+            do { if (at < buf.Length) buf[at++] = (char)('0' + value % 10); value /= 10; } while (value > 0);
+            System.Array.Reverse(buf, start, at - start);
+            return at;
+        }
+
         /// <summary>Brief white screen flash (golden harvest: 60 ms at 10 %).</summary>
         public void Flash(float alpha, float seconds)
         {
@@ -227,8 +305,8 @@ namespace TillWinter.Unity
             var rt = glyph.rectTransform;
             rt.anchorMin = rt.anchorMax = new Vector2((from + to) * 0.5f, 1f);
             rt.pivot = new Vector2(0.5f, 0f);
-            rt.anchoredPosition = new Vector2(0f, 8f);
-            rt.sizeDelta = new Vector2(26f, 26f);
+            rt.anchoredPosition = new Vector2(0f, 10f);
+            rt.sizeDelta = new Vector2(34f, 34f); // big enough to read at a glance on a phone
         }
 
         private void OnDestroy()
@@ -289,7 +367,7 @@ namespace TillWinter.Unity
             // Past the pool size the value lands on the counter without a flight (only in extreme bursts).
             count = Mathf.Min(count, CoinPoolWarm - _coins.Count);
             if (count <= 0) return;
-            Vector2 to = _canvas.InverseTransformPoint(_coinGroup.TransformPoint(new Vector3(-190f, 0f, 0f)));
+            Vector2 to = _canvas.InverseTransformPoint(_coinIcon.position); // the icon moves with the number now
             double share = coins / count;
             for (int i = 0; i < count; i++)
             {
@@ -368,9 +446,56 @@ namespace TillWinter.Unity
             if (_bottomGroup.blocksRaycasts != inYear) _bottomGroup.blocksRaycasts = _bottomGroup.interactable = inYear;
             MCoinText.Begin();
             double shown = System.Math.Max(0, state.Coins - _pending - HeldCoins);
-            if (shown != _coinTextValue) { _coinTextValue = shown; _coinText.SetText(_coinChars, 0, NumberFormat.Short(shown, _coinChars)); }
+            // The counter counts up to its value instead of jumping; spending snaps straight down.
+            if (shown < _displayCoins || shown - _displayCoins < 0.5) _displayCoins = shown;
+            else _displayCoins += (shown - _displayCoins) * (1.0 - System.Math.Exp(-14.0 * dt));
+            double whole = System.Math.Floor(_displayCoins);
+            if (whole != _coinTextValue)
+            {
+                _coinTextValue = whole;
+                int len = NumberFormat.Short(whole, _coinChars);
+                _coinText.SetText(_coinChars, 0, len);
+                if (len != _coinTextLength)
+                {
+                    // The icon sits against the number's left edge; only a change of length can move that edge much.
+                    _coinTextLength = len;
+                    _coinIcon.anchoredPosition = new Vector2(-_coinText.preferredWidth * 0.5f - 12f, 0f);
+                    _coinGlow.rectTransform.anchoredPosition = _coinIcon.anchoredPosition;
+                }
+            }
             _counterPunch = Mathf.Max(0f, _counterPunch - dt * 5f);
             _coinGroup.localScale = Vector3.one * (1f + 0.22f * Prims.EaseOutQuad(_counterPunch));
+            var glow = _theme.Coin;
+            glow.a = 0.22f + 0.1f * Mathf.Sin(Time.unscaledTime * 1.6f) + 0.4f * _counterPunch;
+            _coinGlow.color = glow;
+
+            // Year card: follows the HUD in and out, and rewrites its text only when a number on it changes.
+            _yearGroup.alpha = _topGroup.alpha;
+            int harvests = state.HarvestsThisYear;
+            double yearCoins = state.CoinsThisYear;
+            if (harvests != _cardHarvests || yearCoins != _cardCoins)
+            {
+                _cardHarvests = harvests;
+                _cardCoins = yearCoins;
+                int n = Put(_cardChars, 0, _ySeg0);
+                n = PutNumber(_cardChars, n, harvests);
+                n = Put(_cardChars, n, _ySeg1);
+                n = PutNumber(_cardChars, n, yearCoins);
+                n = Put(_cardChars, n, _ySeg2);
+                _yearLine.SetText(_cardChars, 0, n);
+            }
+            double threshold = _game.Sim.Config.HeritageThreshold;
+            float nextGen = threshold > 0 ? Mathf.Clamp01((float)(state.Generation.LifetimeCoinsThisGeneration / threshold)) : 0f;
+            _nextGenFill.anchorMax = new Vector2(Prims.Damp(_nextGenFill.anchorMax.x, nextGen, 6f, dt), 1f);
+            int percent = Mathf.FloorToInt(nextGen * 100f);
+            if (percent != _cardPercent)
+            {
+                _cardPercent = percent;
+                int n = Put(_nextChars, 0, _nSeg0);
+                n = PutInt(_nextChars, n, percent);
+                n = Put(_nextChars, n, _nSeg1);
+                _nextGenLabel.SetText(_nextChars, 0, n);
+            }
             MCoinText.End();
 
             if (state.Year != _subYear || state.Generation.Generation != _subGen) { _subYear = state.Year; _subGen = state.Generation.Generation; _subText.SetText(_yearGenFormat, state.Year, state.Generation.Generation); }
@@ -390,8 +515,9 @@ namespace TillWinter.Unity
                 var sp = WorldToCanvas(_game.PlotToWorld(ring.Value.X, ring.Value.Y, 0.3f));
                 _comboRt.anchoredPosition = sp + new Vector2(state.RingRadius * 90f + 40f, 90f);
             }
-            _comboRt.localScale = Vector3.one * Mathf.Max(0.0001f, Prims.Damp(_comboRt.localScale.x, _comboFade > 0f ? 1f : 0.6f, 10f, dt));
-            var comboColor = _theme.Combo;
+            float heat = Mathf.Clamp01((state.Combo - 2) / 12f); // a long streak should look like one
+            _comboRt.localScale = Vector3.one * Mathf.Max(0.0001f, Prims.Damp(_comboRt.localScale.x, _comboFade > 0f ? 1f + 0.4f * heat : 0.6f, 10f, dt));
+            var comboColor = state.Combo >= 2 ? Color.Lerp(_theme.Combo, _theme.ComboHot, heat) : _combo.color;
             comboColor.a = _comboFade;
             _combo.color = comboColor;
             MCombo.End();
@@ -425,7 +551,13 @@ namespace TillWinter.Unity
             _seedChipRt.localScale = Vector3.one * (1f + 0.25f * Prims.EaseOutQuad(_chipPunch));
             var chipColor = _theme.SeedChip;
             chipColor.a = Mathf.Lerp(_theme.SeedChip.a, 1f, _chipPunch);
-            _seedChipRt.GetComponent<Image>().color = chipColor;
+            _seedChipFace.color = chipColor;
+            if (canRetire)
+            {
+                var sg = _theme.Seed;
+                sg.a = 0.35f + 0.3f * Mathf.Sin(Time.unscaledTime * 2.4f) + 0.35f * _chipPunch; // ready, and saying so
+                _seedGlow.color = sg;
+            }
 
             // Earning rate: coins per second over the last second, shown while the farm is actually earning.
             double lifetime = state.Generation.LifetimeCoinsThisGeneration;

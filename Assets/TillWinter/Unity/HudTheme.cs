@@ -8,11 +8,19 @@ namespace TillWinter.Unity
     public sealed class HudTheme : ScriptableObject
     {
         /// <summary>Bumped when the look changes; UiSetup restyles an older asset in place (round three: one palette).</summary>
-        public const int CurrentStyle = 1;
+        public const int CurrentStyle = 2;
         public int StyleVersion;
 
         /// <summary>Cards that sit over the field (the away card).</summary>
         public Color CardDark = new Color(0.16f, 0.135f, 0.12f, 0.97f);
+
+        /// <summary>The "this year" card at the bottom of the play screen.</summary>
+        public Color YearCard = new Color(0.965f, 0.92f, 0.84f);
+        public Color YearCardText = new Color(0.18f, 0.14f, 0.105f);
+        public Color YearCardMuted = new Color(0.18f, 0.14f, 0.105f, 0.65f);
+        /// <summary>A long streak warms the combo number toward this.</summary>
+        public Color ComboHot = new Color(0.95f, 0.42f, 0.24f);
+
 
         [Header("Text")]
         public Color Text = new Color(1f, 0.97f, 0.9f);
@@ -107,6 +115,9 @@ namespace TillWinter.Unity
             t.HintAccent = UiPalette.Honey;
             t.SeedChip = UiPalette.WithAlpha(UiPalette.Plum, 0.92f);
             t.CardDark = UiPalette.WithAlpha(UiPalette.Night, 0.97f);
+            // Style 2: a thicker season timeline; the name moves down with it.
+            t.BarHeight = 26f;
+            t.SeasonNameYInBand = -66f;
             t.StyleVersion = CurrentStyle;
         }
 

@@ -59,6 +59,7 @@
   "away.capped": "En fazla 8 saat sayılır.",
   "away.nothing": "Henüz kendiliğinden bir şey yetişmedi.",
 
+  "hud.next_generation": "Sonraki nesil %{percent}",
   "hud.year_gen": "Yıl {0}  ·  Nesil {1}",
   "hud.retire_chip": "Devret: {0}",
   "season.Spring": "İlkbahar",

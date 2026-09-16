@@ -59,6 +59,7 @@
   "away.capped": "Capped at 8 hours.",
   "away.nothing": "Nothing grew on its own yet.",
 
+  "hud.next_generation": "Next generation {percent}%",
   "hud.year_gen": "Year {0}  ·  Gen {1}",
   "hud.retire_chip": "Retire: {0}",
   "season.Spring": "Spring",
