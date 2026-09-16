@@ -64,6 +64,11 @@ namespace TillWinter.Unity
         private static readonly ProfilerMarker MSeedsBar = new ProfilerMarker("Hud.SeedsBar");
         private double _coinTextValue = -1;
         private int _subYear = -1, _subGen = -1, _chipSeeds = -1;
+        private TMP_Text _rate;
+        private double _rateCoins = -1;
+        private float _rateAt;
+        private bool _chipShown;
+        private float _chipPunch;
         private readonly Stack<Coin> _coinObjPool = new Stack<Coin>();
 
         public void Init(GameController game, AudioManager audio, RectTransform canvas)
@@ -109,6 +114,9 @@ namespace TillWinter.Unity
             _seedChipRt = chip.rectTransform;
             UiKit.Box(_seedChipRt, new Vector2(0.5f, 1f), new Vector2(1f, 0.5f), new Vector2(-260f, -_theme.TopPadding - 90f), new Vector2(260f, 56f));
             UiKit.CircleImage(_seedChipRt, "Seed", _theme.Seed, new Vector2(-100f, 0f), 30f);
+            _rate = UiKit.Label(top, "Rate", "", UiType.Caption, _theme.TextMuted, TextAnchor.MiddleCenter);
+            UiKit.Box(_rate.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 148f), new Vector2(500f, 40f));
+            UiKit.Outline(_rate, 0.12f);
             _seedChip = UiKit.Label(_seedChipRt, "Text", "", UiType.Label, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Stretch(_seedChip.rectTransform, Vector2.zero, Vector2.one, new Vector2(56f, 0f), new Vector2(-10f, 0f));
             _seedChipRt.gameObject.SetActive(false);
@@ -171,6 +179,8 @@ namespace TillWinter.Unity
             Segment("Autumn", 2f * w, 3f * w, _theme.Autumn);
             Segment("Winter", 3f * w, 1f, _theme.Winter);
             var frost = UiKit.Panel(_bar, "Frost", _theme.Frost, false, false);
+            frost.sprite = Prims.HatchSprite(); // hatched, so the frost span reads without relying on colour alone
+            frost.type = Image.Type.Tiled;
             _frostSpan = frost.rectTransform;
             UiKit.Stretch(_frostSpan, new Vector2(3f * w - 0.1f, 0f), new Vector2(3f * w, 1f), new Vector2(0f, -3f), new Vector2(0f, 3f));
             _elapsedImage = UiKit.Panel(_bar, "Elapsed", _theme.BarElapsed, true, false);
@@ -178,6 +188,10 @@ namespace TillWinter.Unity
             UiKit.Stretch(_elapsed, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
             var marker = UiKit.Panel(_elapsed, "Marker", _theme.BarMarker, false, false);
             UiKit.Box(marker.rectTransform, new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(6f, _theme.BarHeight + 14f));
+            var knob = UiKit.CircleImage(_elapsed, "MarkerKnob", _theme.BarMarker, Vector2.zero, _theme.BarHeight + 16f);
+            var knobRt = knob.rectTransform;
+            knobRt.anchorMin = knobRt.anchorMax = new Vector2(1f, 0.5f);
+            knobRt.anchoredPosition = Vector2.zero;
         }
 
         private void Segment(string name, float from, float to, Color color)
@@ -232,12 +246,18 @@ namespace TillWinter.Unity
         /// <summary>Counter punch without coin flight (away card OK).</summary>
         public void Punch() => _counterPunch = 1f;
 
-        private void SpawnCoins(Vector3 world, double coins, int count, bool punch, bool rich, bool golden)
+        private void SpawnCoins(Vector3 world, double coins, int count, bool punch, bool rich, bool golden) =>
+            SpawnCoinsFrom(WorldToCanvas(world), coins, count, punch, rich, golden);
+
+        /// <summary>Coins flying into the counter from a point in canvas space (the away card paying out).</summary>
+        public void FlyCoins(Vector2 fromCanvas, double coins, int count) =>
+            SpawnCoinsFrom(fromCanvas, coins, count, true, coins > 200, false);
+
+        private void SpawnCoinsFrom(Vector2 from, double coins, int count, bool punch, bool rich, bool golden)
         {
             // Past the pool size the value lands on the counter without a flight (only in extreme bursts).
             count = Mathf.Min(count, CoinPoolWarm - _coins.Count);
             if (count <= 0) return;
-            Vector2 from = WorldToCanvas(world);
             Vector2 to = _canvas.InverseTransformPoint(_coinGroup.TransformPoint(new Vector3(-190f, 0f, 0f)));
             double share = coins / count;
             for (int i = 0; i < count; i++)
@@ -358,6 +378,30 @@ namespace TillWinter.Unity
             MSeedsBar.Begin();
             bool canRetire = _game.Sim.CanRetire;
             if (_seedChipRt.gameObject.activeSelf != canRetire) _seedChipRt.gameObject.SetActive(canRetire);
+            if (canRetire && !_chipShown)
+            {
+                // The chip used to appear with no ceremony; retiring is the biggest decision in the game.
+                _chipShown = true;
+                _chipPunch = 1f;
+                Haptics.Play(HapticKind.Light);
+            }
+            else if (!canRetire) _chipShown = false;
+            _chipPunch = Mathf.Max(0f, _chipPunch - dt * 2f);
+            _seedChipRt.localScale = Vector3.one * (1f + 0.25f * Prims.EaseOutQuad(_chipPunch));
+            var chipColor = _theme.SeedChip;
+            chipColor.a = Mathf.Lerp(_theme.SeedChip.a, 1f, _chipPunch);
+            _seedChipRt.GetComponent<Image>().color = chipColor;
+
+            // Earning rate: coins per second over the last second, shown while the farm is actually earning.
+            double lifetime = state.Generation.LifetimeCoinsThisGeneration;
+            if (_rateCoins < 0) { _rateCoins = lifetime; _rateAt = Time.unscaledTime; }
+            if (Time.unscaledTime - _rateAt >= 1f)
+            {
+                double perSecond = (lifetime - _rateCoins) / (Time.unscaledTime - _rateAt);
+                _rateCoins = lifetime;
+                _rateAt = Time.unscaledTime;
+                _rate.text = perSecond >= 0.5 && state.Phase == Phase.Year ? "+" + NumberFormat.Short(perSecond) + "/s" : "";
+            }
             if (canRetire && _game.Sim.SeedsIfRetiredNow != _chipSeeds) { _chipSeeds = _game.Sim.SeedsIfRetiredNow; _seedChip.SetText(_retireFormat, _chipSeeds); }
 
             float progress = state.YearLength > 0f ? Mathf.Clamp01(state.YearTime / state.YearLength) * 0.9f : 0f;

@@ -207,7 +207,9 @@ namespace TillWinter.Unity
                 UiIcons.Row(row, StatIcons[i], _theme.SheetMuted, 6f, 34f);
                 var label = UiKit.Label(row, "Label", Strings.Get(StatKeys[i]), UiType.Body, _theme.SheetInk, TextAnchor.MiddleLeft);
                 UiKit.Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(56f, 0f), new Vector2(-260f, 0f));
-                _statValues[i] = UiKit.Label(row, "Value", "", UiType.Body, _theme.SheetInk, TextAnchor.MiddleRight, FontStyle.Bold);
+                bool highlight = StatKeys[i] == "stats.coins" || StatKeys[i] == "stats.best_combo"; // the two numbers players compare
+                _statValues[i] = UiKit.Label(row, "Value", "", highlight ? UiType.Heading : UiType.Body,
+                    highlight ? _theme.SheetButton : _theme.SheetInk, TextAnchor.MiddleRight, FontStyle.Bold);
                 UiKit.Stretch(_statValues[i].rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 0f), new Vector2(-6f, 0f));
             }
             Btn(page, "stats.continue", ContinueFromStats, -1040f);

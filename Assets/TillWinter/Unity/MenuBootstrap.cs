@@ -48,6 +48,7 @@ namespace TillWinter.Unity
         private readonly int[] _shownStage = new int[Grid * Grid];
         private readonly float[] _wet = new float[Grid * Grid];
         private float _t;
+        private Transform _island;
 
         private CanvasGroup _group;
         private RectTransform _title;
@@ -121,6 +122,7 @@ namespace TillWinter.Unity
 
             var root = new GameObject("Island").transform;
             root.SetParent(transform, false);
+            _island = root;
             var block = new GameObject("Block");
             block.transform.SetParent(root, false);
             block.AddComponent<MeshFilter>().sharedMesh = DioramaView.BuildBlock(Grid, 0.8f, 0.9f, 0f);
@@ -188,6 +190,8 @@ namespace TillWinter.Unity
 
             var safe = UiKit.Rect("Safe", root);
             SafeArea.Apply(safe);
+            var glow = UiKit.CircleImage(safe, "TitleGlow", new Color(_theme.MenuTitle.r, _theme.MenuTitle.g, _theme.MenuTitle.b, 0.12f), Vector2.zero, 900f);
+            UiKit.Box(glow.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -330f), new Vector2(900f, 900f));
             var title = UiKit.Label(safe, "Name", Strings.Get("menu.title"), UiType.Display, _theme.MenuTitle, TextAnchor.MiddleCenter, FontStyle.Bold);
             _title = title.rectTransform;
             UiKit.Box(_title, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -230f), new Vector2(1040f, 200f));
@@ -198,6 +202,18 @@ namespace TillWinter.Unity
             UiKit.Outline(subtitle, 0.16f);
 
             bool hasSave = File.Exists(SaveController.FilePath);
+            if (hasSave)
+            {
+                // Where the farm stands, read straight off the save file.
+                var save = SaveController.Load(SaveController.FilePath);
+                if (save != null)
+                {
+                    var progress = UiKit.Label(safe, "Progress", Strings.Format("menu.progress", ("gen", save.Generation), ("year", save.Year)),
+                        UiType.Label, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
+                    UiKit.Box(progress.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, BottomMargin + 5f * (ButtonHeight + ButtonGap)), new Vector2(900f, 44f));
+                    UiKit.Outline(progress, 0.14f);
+                }
+            }
             var entries = new List<(string key, UnityAction action, bool primary)> { (hasSave ? "menu.continue" : "menu.play", StartGame, true) };
             if (hasSave) entries.Add(("menu.new_game", () => _confirm.SetActive(true), false));
             entries.Add(("menu.settings", () => _sheets.OpenSettingsFrom(null), false));
@@ -275,6 +291,7 @@ namespace TillWinter.Unity
         {
             float dt = Time.deltaTime;
             _t += dt;
+            if (_island != null) _island.localRotation = Quaternion.Euler(0f, Mathf.Sin(_t * 0.12f) * 4f, 0f); // the island sways
             ApplySeason(dt);
             if (!_versionFinal && BuildInfo.Current != null) RefreshVersion();
             AnimateUi(Time.timeSinceLevelLoad);
