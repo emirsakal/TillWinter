@@ -427,12 +427,27 @@ Verified with `ui-tour` (tours 31-32), tests passing.
 
 ### 9.10 Sheets and buttons
 
-- **Open.** [H] **Sheets are plain cream cards.** A title band, thin frame and corner ornaments
-  ("notebook/signboard" identity).
-- **Open.** [M] **Icons on buttons** (Continue, Settings, Statistics, Main menu).
-- **Open.** [M] **Pause sheet has empty space.** A summary of year, coins and generation.
+- **Done.** [H] **Sheets are plain cream cards.** A title band, thin frame and corner ornaments
+  ("notebook/signboard" identity). New `UiKit.SheetDecor(card, bandHeight)` adds a tinted title
+  band (colour derived from the card face: toward Earth on light faces, toward Cream on dark
+  ones), a thin rule under it with a diamond at each end, and a small diamond in each lower
+  corner. Used by every pause sheet (pause, settings, credits, stats; titles moved up into the
+  band), the title scene's new-game confirm, the Winter screen's retire confirm and the away card.
+- **Done.** [M] **Icons on buttons** (Continue, Settings, Statistics, Main menu). New
+  `UiKit.ButtonIcon(button, key)` puts an atlas icon at the left of the face (label stays
+  centred): Resume forward, Settings gear, Statistics leaderboardsSimple, Main menu home.
+- **Done.** [M] **Pause sheet has empty space.** A summary of year, coins and generation. A
+  summary line under the title, "Year {year} · Generation {gen} · {coins} coins" (new string
+  `pause.summary`, en/tr), filled when the sheet opens; sheet height 620 -> 700.
 - **Open.** [M] **Confirmation dialogs.** Two iconed columns for what is lost and what is gained.
-- **Open.** [L] **Settings sections** (Sound, Display, Account) with headings.
+- **Done.** [L] **Settings sections** (Sound, Display, Account) with headings. Headings General
+  (language, vibration), Sound (effects, ambience), Display (reduce motion, large text,
+  graphics), Farm data (credits, reset) with a rule under each; small bold caps with letter
+  spacing. Turkish capitals are made by hand (i -> İ before upper-casing) because culture data
+  is not guaranteed in IL2CPP builds. New strings `settings.section.general/sound/display/data`
+  (en/tr). Vibration moved from the display block to General. Settings sheet 1480 -> 1720.
+
+Verified with `ui-tour` (tours 33-34), tests passing.
 
 ### 9.11 Typography, icons, colour
 

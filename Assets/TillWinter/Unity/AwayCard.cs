@@ -34,10 +34,11 @@ namespace TillWinter.Unity
             _panel = dim.gameObject;
             var box = UiKit.Card(dim.transform, "Box", theme.CardDark); // was a navy outside the palette
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 640f));
+            UiKit.SheetDecor(box, 162f);
             var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.away_title"), UiType.Title, theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(860f, 70f));
+            UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(860f, 70f));
             _duration = UiKit.Label(box.transform, "Duration", "", UiType.Body, theme.TextMuted, TextAnchor.MiddleCenter);
-            UiKit.Box(_duration.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -125f), new Vector2(860f, 44f));
+            UiKit.Box(_duration.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -100f), new Vector2(860f, 44f));
             UiKit.CircleImage(box.transform, "CoinIcon", theme.Coin, new Vector2(-150f, 40f), 56f);
             _coins = UiKit.Label(box.transform, "Coins", "", UiType.Big, theme.Coin, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_coins.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40f, 40f), new Vector2(400f, 80f));

@@ -312,8 +312,9 @@ namespace TillWinter.Unity
             _confirm = overlay.gameObject;
             var page = UiKit.Card(overlay.transform, "Page", _theme.SheetPaper);
             UiKit.Box(page.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 560f));
+            UiKit.SheetDecor(page, 128f);
             var t = UiKit.Label(page.transform, "Title", Strings.Get("menu.new_game_title"), UiType.Title, _theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Box(t.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(820f, 90f));
+            UiKit.Box(t.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(820f, 90f));
             var body = UiKit.Label(page.transform, "Body", Strings.Get("menu.new_game_body"), UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter);
             UiKit.Box(body.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -150f), new Vector2(800f, 160f));
             var yes = UiKit.Button(page.transform, "Yes", Strings.Get("menu.new_game_yes"), UiType.Body, _theme.SheetDanger, _theme.SheetButtonText, NewGame);

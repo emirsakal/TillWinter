@@ -17,7 +17,9 @@ namespace TillWinter.Unity
     {
         public const float ResetHoldSeconds = 3f;
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
-        private const float SettingsHeight = 1480f; // one row shorter since the developer row left
+        private const float SettingsHeight = 1720f; // four section headings since round three
+        private const float SectionHeight = 64f;
+        private const float BandHeight = 128f;
         private const float LabelX = -230f, LabelWidth = 380f, ControlX = 225f, ControlWidth = 410f;
 
         public static PauseMenu Instance { get; private set; }
@@ -30,7 +32,7 @@ namespace TillWinter.Unity
         private HudTheme _theme;
         private Button _pauseButton;
         private GameObject _pause, _settings, _credits, _stats;
-        private TMP_Text _version;
+        private TMP_Text _version, _pauseSummary;
         private Button _langEn, _langTr;
         private UiSwitch _hapticsSwitch, _motionSwitch, _largeTextSwitch;
         private Image _applying;
@@ -73,11 +75,14 @@ namespace TillWinter.Unity
 
         private void BuildPause(RectTransform canvas)
         {
-            _pause = Sheet(canvas, "PauseSheet", "pause.title", 620f, out var p);
-            Btn(p, "pause.resume", Resume, -150f);
-            Btn(p, "pause.settings", () => Show(_settings), -150f - RowHeight);
-            Btn(p, "pause.stats", () => ShowStats(() => Show(_pause)), -150f - 2f * RowHeight);
-            Btn(p, "pause.main_menu", ToMainMenu, -150f - 3f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle);
+            _pause = Sheet(canvas, "PauseSheet", "pause.title", 700f, out var p);
+            // Where the farm stands, so the sheet says more than "Paused".
+            _pauseSummary = Text(p, "Summary", "", -150f, UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter, 56f);
+            float y = -230f;
+            UiKit.ButtonIcon(Btn(p, "pause.resume", Resume, y), "forward");
+            UiKit.ButtonIcon(Btn(p, "pause.settings", () => Show(_settings), y - RowHeight), "gear");
+            UiKit.ButtonIcon(Btn(p, "pause.stats", () => ShowStats(() => Show(_pause)), y - 2f * RowHeight), "leaderboardsSimple");
+            UiKit.ButtonIcon(Btn(p, "pause.main_menu", ToMainMenu, y - 3f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle), "home");
         }
 
         private void BuildSettings(RectTransform canvas)
@@ -86,11 +91,16 @@ namespace TillWinter.Unity
             var s = SettingsStore.Current;
             float y = -150f;
 
+            Section(p, "settings.section.general", ref y);
             RowLabel(p, "settings.language", y);
             _langEn = Btn(p, "settings.lang.en", () => SetLanguage(GameLanguage.English), y, 200f, 120f);
             _langTr = Btn(p, "settings.lang.tr", () => SetLanguage(GameLanguage.Turkish), y, 200f, 330f);
             y -= RowHeight;
+            RowLabel(p, "settings.haptics", y);
+            _hapticsSwitch = SwitchRow(p, "Haptics", s.HapticsEnabled, on => { SettingsStore.Current.HapticsEnabled = on; if (on) Haptics.Play(HapticKind.Medium); }, y);
+            y -= RowHeight;
 
+            Section(p, "settings.section.sound", ref y);
             RowLabel(p, "settings.sfx", y);
             _sfxValue = SliderRow(p, "Sfx", s.SfxVolume, v => { SettingsStore.Current.SfxVolume = v; _audio.ApplyVolumes(); Sample(); }, y);
             y -= RowHeight;
@@ -98,10 +108,7 @@ namespace TillWinter.Unity
             _ambienceValue = SliderRow(p, "Ambience", s.AmbienceVolume, v => { SettingsStore.Current.AmbienceVolume = v; _audio.ApplyVolumes(); Sample(); }, y);
             y -= RowHeight;
 
-            RowLabel(p, "settings.haptics", y);
-            _hapticsSwitch = SwitchRow(p, "Haptics", s.HapticsEnabled, on => { SettingsStore.Current.HapticsEnabled = on; if (on) Haptics.Play(HapticKind.Medium); }, y);
-            y -= RowHeight;
-
+            Section(p, "settings.section.display", ref y);
             RowLabel(p, "settings.reduce_motion", y);
             _motionSwitch = SwitchRow(p, "ReduceMotion", s.ReduceMotion, on => SettingsStore.Current.ReduceMotion = on, y);
             y -= RowHeight - 10f;
@@ -128,6 +135,7 @@ namespace TillWinter.Unity
             y -= RowHeight + 20f;
 
             // The developer panel is opened from its own button in the play scene now, not buried in Settings.
+            Section(p, "settings.section.data", ref y);
             Btn(p, "settings.credits", () => { _creditsFromSettings = true; Show(_credits); }, y);
             y -= RowHeight + 16f;
 
@@ -245,6 +253,8 @@ namespace TillWinter.Unity
         public void Open()
         {
             if (IsOpen) return;
+            var st = _game.State;
+            _pauseSummary.text = Strings.Format("pause.summary", ("year", st.Year), ("gen", st.Generation.Generation), ("coins", NumberFormat.Short(st.Coins)));
             _game.SetPaused(true);
             Haptics.Play(HapticKind.Selection);
             Show(_pause);
@@ -431,7 +441,8 @@ namespace TillWinter.Unity
             var paper = UiKit.Card(safe, "Page", _theme.SheetPaper);
             page = paper.rectTransform;
             UiKit.Box(page, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(PageWidth, height));
-            Text(page, "Title", Strings.Get(titleKey), -30f, UiType.Title, _theme.SheetInk, TextAnchor.MiddleCenter, 90f).fontStyle = FontStyles.Bold;
+            UiKit.SheetDecor(paper, BandHeight);
+            Text(page, "Title", Strings.Get(titleKey), -20f, UiType.Title, _theme.SheetInk, TextAnchor.MiddleCenter, 90f).fontStyle = FontStyles.Bold;
             overlay.gameObject.AddComponent<SheetTransition>().Page = page; // every sheet opens the same way
             overlay.gameObject.SetActive(false);
             return overlay.gameObject;
@@ -442,6 +453,24 @@ namespace TillWinter.Unity
             var b = UiKit.Button(page, key, Strings.Get(key), UiType.Body, bg ?? _theme.SheetButton, _theme.SheetButtonText, onClick);
             UiKit.Box(b.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(x, y), new Vector2(width, RowHeight - 14f));
             return b;
+        }
+
+        /// <summary>
+        /// Turkish capitals: i becomes İ, not I ("VERİSİ", not "VERISI"). Done by hand, because culture data is not
+        /// guaranteed in an IL2CPP build.
+        /// </summary>
+        private static string Upper(string text) =>
+            (GameLanguage.Current == GameLanguage.Turkish ? text.Replace('i', 'İ') : text).ToUpperInvariant();
+
+        /// <summary>A small section heading with a rule, then moves <paramref name="y"/> below it.</summary>
+        private void Section(RectTransform page, string key, ref float y)
+        {
+            var t = Text(page, key, Upper(Strings.Get(key)), y + 6f, UiType.Caption, _theme.SheetMuted, TextAnchor.MiddleLeft, 40f);
+            t.fontStyle = FontStyles.Bold;
+            t.characterSpacing = 6f;
+            var rule = UiKit.Panel(page, key + "Rule", _theme.SheetMuted, false, false);
+            UiKit.Box(rule.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y - 30f), new Vector2(PageWidth - 100f, 2f));
+            y -= SectionHeight;
         }
 
         private void RowLabel(RectTransform page, string key, float y)

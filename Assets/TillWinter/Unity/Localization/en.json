@@ -89,6 +89,11 @@
   "pause.main_menu": "Main menu",
 
   "pause.title": "Paused",
+  "pause.summary": "Year {year} · Generation {gen} · {coins} coins",
+  "settings.section.general": "General",
+  "settings.section.sound": "Sound",
+  "settings.section.display": "Display",
+  "settings.section.data": "Farm data",
   "pause.resume": "Resume",
   "pause.settings": "Settings",
   "pause.stats": "Statistics",
