@@ -638,7 +638,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4052232733985578072}
-  - component: {fileID: 2688862063480414728}
+  - component: {fileID: 4900024058417292497}
   m_Layer: 0
   m_Name: Hub
   m_TagString: Untagged
@@ -666,7 +666,7 @@ Transform:
   - {fileID: 6056607382523548542}
   m_Father: {fileID: 6666458382586198144}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2688862063480414728
+--- !u!114 &4900024058417292497
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

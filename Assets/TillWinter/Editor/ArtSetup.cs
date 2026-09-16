@@ -211,6 +211,84 @@ namespace TillWinter.EditorTools
             return m;
         }
 
+        /// <summary>Soft dark disc used as a fake contact shadow (URP shadows are off on the Low tier).</summary>
+        private static Material CreateBlobShadowMaterial()
+        {
+            const int size = 128;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var px = new Color32[size * size];
+            float half = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float d = Mathf.Sqrt((x + 0.5f - half) * (x + 0.5f - half) + (y + 0.5f - half) * (y + 0.5f - half)) / half;
+                float a = 1f - Mathf.SmoothStep(0.2f, 1f, d);
+                px[y * size + x] = new Color32(0, 0, 0, (byte)(a * 255));
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            string texPath = TexturesDir + "BlobShadow.png";
+            File.WriteAllBytes(texPath, tex.EncodeToPNG());
+            Object.DestroyImmediate(tex);
+            AssetDatabase.ImportAsset(texPath);
+            var ti = AssetImporter.GetAtPath(texPath) as TextureImporter;
+            if (ti != null && (ti.mipmapEnabled || !ti.alphaIsTransparency))
+            {
+                ti.mipmapEnabled = false;
+                ti.wrapMode = TextureWrapMode.Clamp;
+                ti.alphaIsTransparency = true;
+                ti.SaveAndReimport();
+            }
+            var texAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+            var shadowShader = Shader.Find("TillWinter/TW_Shadow");
+            if (shadowShader == null) throw new Exception("TillWinter/TW_Shadow shader not found (compile error?)");
+            return Material("TW_BlobShadow", shadowShader, m =>
+            {
+                m.SetTexture("_BaseMap", texAsset);
+                m.SetColor("_BaseColor", new Color(0f, 0f, 0f, 0.32f));
+            });
+        }
+
+        private static GameObject BuildBlobShadow()
+        {
+            var root = new GameObject("BlobShadow");
+            var quad = Primitive(PrimitiveType.Quad, root.transform, "Disc", new Vector3(0f, 0.02f, 0f), Vector3.one, CreateBlobShadowMaterial());
+            quad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            var r = quad.GetComponent<Renderer>();
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            return root;
+        }
+
+        /// <summary>A small pond with a stone rim: the island had a well but no water.</summary>
+        private static GameObject BuildPond()
+        {
+            var (root, b) = Root("Pond");
+            var water = Prim(PrimitiveType.Cylinder, root.transform, "Water", new Vector3(0f, 0.04f, 0f), new Vector3(1.05f, 0.04f, 0.8f), b, PaletteSlot.Water, null, null, false);
+            water.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            var seed = new System.Random(11);
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i / 8f * Mathf.PI * 2f;
+                var stone = Prim(PrimitiveType.Cube, root.transform, "Stone" + i, new Vector3(Mathf.Cos(a) * 0.56f, 0.04f, Mathf.Sin(a) * 0.44f), new Vector3(0.17f, 0.09f, 0.15f), b, PaletteSlot.Stone);
+                stone.transform.localRotation = Quaternion.Euler(0f, (float)(seed.NextDouble() * 90.0), 0f);
+            }
+            return root;
+        }
+
+        /// <summary>Butterfly: a body and two wings the view flaps (children named WingL/WingR, like the crow).</summary>
+        private static GameObject BuildButterfly()
+        {
+            var (root, b) = Root("Butterfly");
+            Prim(PrimitiveType.Cube, root.transform, "Body", new Vector3(0f, 0f, 0f), new Vector3(0.025f, 0.025f, 0.1f), b, PaletteSlot.Wood, null, null, false);
+            var l = Prim(PrimitiveType.Cube, root.transform, "WingL", new Vector3(-0.06f, 0.01f, 0f), new Vector3(0.11f, 0.008f, 0.085f), b, PaletteSlot.Flower, null, null, false);
+            l.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
+            var r = Prim(PrimitiveType.Cube, root.transform, "WingR", new Vector3(0.06f, 0.01f, 0f), new Vector3(0.11f, 0.008f, 0.085f), b, PaletteSlot.Flower, null, null, false);
+            r.transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+            foreach (var rend in root.GetComponentsInChildren<Renderer>()) rend.shadowCastingMode = ShadowCastingMode.Off;
+            return root;
+        }
+
         private static Mesh SaveMesh(Mesh mesh, string name)
         {
             string path = MeshesDir + name + ".asset";
@@ -246,9 +324,9 @@ namespace TillWinter.EditorTools
             c.Plot = Save("Plot", BuildPlot());
             c.Crops = new CropTierVisual[6];
             c.Crops[0] = Tier("Carrot", Kit("nature-kit", "crops_leafsStageA", 0.16f), Kit("nature-kit", "crops_leafsStageB", 0.34f), Kit("nature-kit", "crop_carrot", 0.5f));
-            c.Crops[1] = Tier("Tomato", Kit("nature-kit", "crops_leafsStageA", 0.16f), Kit("nature-kit", "crops_leafsStageB", 0.36f), TomatoPlant());
+            c.Crops[1] = Tier("Tomato", Kit("nature-kit", "crops_leafsStageA", 0.16f), Kit("nature-kit", "plant_bush", 0.26f), TomatoPlant()); // the mid stage stays smaller than the ripe plant
             c.Crops[2] = Tier("Corn", Kit("nature-kit", "crops_cornStageA", 0.22f), Kit("nature-kit", "crops_cornStageB", 0.5f), Kit("nature-kit", "crops_cornStageD", 0.9f));
-            c.Crops[3] = Tier("Pumpkin", Kit("nature-kit", "crops_leafsStageA", 0.16f), Kit("nature-kit", "crops_leafsStageB", 0.38f), Kit("nature-kit", "crop_pumpkin", 0.42f));
+            c.Crops[3] = Tier("Pumpkin", Kit("nature-kit", "crops_leafsStageA", 0.16f), Kit("nature-kit", "plant_bushLarge", 0.3f), Kit("nature-kit", "crop_pumpkin", 0.42f));
             c.Crops[4] = Tier("Grapes", Kit("nature-kit", "crops_leafsStageA", 0.16f), GrapeVine(false), GrapeVine(true));
             c.Crops[5] = Tier("Wheat", Kit("nature-kit", "crops_wheatStageA", 0.2f), Kit("nature-kit", "crops_wheatStageA", 0.5f), Kit("nature-kit", "crops_wheatStageB", 0.8f));
 
@@ -282,6 +360,10 @@ namespace TillWinter.EditorTools
             c.LogStack = Save("LogStack", Kit("nature-kit", "log_stack", 0.4f));
             c.Mushroom = Save("Mushroom", Kit("nature-kit", "mushroom_red", 0.28f));
             c.Stump = Save("Stump", Kit("nature-kit", "stump_round", 0.3f));
+            c.TreeAutumn = Save("TreeAutumn", Kit("nature-kit", "tree_default_fall", 1.35f));
+            c.Pond = Save("Pond", BuildPond());
+            c.Butterfly = Save("Butterfly", BuildButterfly());
+            c.BlobShadow = Save("BlobShadow", BuildBlobShadow());
         }
 
         private static CropTierVisual Tier(string name, GameObject sprout, GameObject growing, GameObject ripe) => new CropTierVisual

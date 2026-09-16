@@ -58,6 +58,12 @@ namespace TillWinter.Unity
         public GameObject LogStack;
         public GameObject Mushroom;
         public GameObject Stump;
+        /// <summary>Autumn variant of the default tree, swapped in by DioramaView when the season turns.</summary>
+        public GameObject TreeAutumn;
+        public GameObject Pond;
+        public GameObject Butterfly;
+        /// <summary>Soft dark disc parented under characters and props so they sit on the ground when shadows are off.</summary>
+        public GameObject BlobShadow;
 
         public Material SlotMaterial(PaletteSlot slot)
         {

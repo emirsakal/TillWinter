@@ -20,7 +20,13 @@ namespace TillWinter.Unity
         /// <summary>Where the field centre sits vertically (0 = bottom, 1 = top). Play band is 18%..80%.</summary>
         public float FieldScreenY = 0.49f;
 
+        /// <summary>0..1 combo excitement: a millimetric push-in (set by FieldView).</summary>
+        public float Excitement;
+        /// <summary>Winter pulls the framing back a touch.</summary>
+        public bool PulledBack;
+
         private float _targetSize = 4f;
+        private float _zoom = 1f;
         private int _gridSize = 3;
 
         /// <summary>Camera micro-shake. Only golden harvest and retire may call this (CLAUDE.md feel rules).</summary>
@@ -69,7 +75,11 @@ namespace TillWinter.Unity
             float width = _gridSize + 2f * SideMargin + ExtraWidth;
             float aspect = Mathf.Max(0.2f, Cam.aspect);
             _targetSize = width / (2f * aspect);
-            Cam.orthographicSize = Prims.Damp(Cam.orthographicSize, _targetSize, 4f, Time.unscaledDeltaTime);
+            // A slow breath, a push-in while a streak runs, a step back in Winter.
+            float zoomTarget = 1f - 0.03f * Mathf.Clamp01(Excitement) + (PulledBack ? 0.05f : 0f);
+            _zoom = Prims.Damp(_zoom, zoomTarget, 2.5f, Time.unscaledDeltaTime);
+            float breath = 1f + Mathf.Sin(Time.unscaledTime * 0.35f) * 0.006f;
+            Cam.orthographicSize = Prims.Damp(Cam.orthographicSize, _targetSize * _zoom * breath, 4f, Time.unscaledDeltaTime);
             Place();
         }
 

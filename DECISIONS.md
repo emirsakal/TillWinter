@@ -660,3 +660,29 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   10% alpha, padded by 0.85 node sizes) and their localized name above them.
 - `docs/VISUAL-BACKLOG.md` holds the full visual/UX list, worked through group by group; section
   1 is done.
+
+## Follow-up: visual pass 2, world (2026-09-16)
+
+- **Outline/rim.** A rim light was added to TW_Toon (rim colour, power 3, strength 0.25, scaled by
+  how lit the surface is); no outline pass was needed.
+- **Sky.** A SkyClouds view drifts three cloud prefabs high over the farm and the title scene,
+  wrapping around, shadows off.
+- **Island underside.** DioramaView.BuildBlock now tapers the bottom to 55% about the block centre
+  and the block is thicker (1.6), so the island hangs instead of ending in a flat box.
+- **Shadows.** A TW_Shadow shader (hand-written, unlit, alpha-blended) plus a BlobShadow prefab;
+  apprentices, the house, the trees and the bush get a soft contact disc. The art rule in
+  CLAUDE.md now lists three project shaders.
+- **Water.** A Pond prefab (water disc with a stone rim) sits at the front-left of the island.
+- **Season changes.** The default tree has an autumn twin (tree_default_fall); DioramaView spawns
+  both and swaps them on SeasonChanged. Snow on trees already came from the shader's snow global.
+- **Life.** A CrittersView flies two butterflies (body plus flapping wings) over the field in
+  Spring and Summer; they shrink away in Autumn and Winter.
+- **Crop mid-stages.** Tomato now grows through plant_bush and pumpkin through plant_bushLarge
+  instead of both reusing the same leaf model.
+- **Camera.** A slow breath (0.6% over ~3 s), a 3% push-in that follows the combo, and a 5%
+  pull-back in Winter, all damped.
+- **Harvest.** The burst scales with the streak (up to +35% size) and its colour warms toward
+  gold.
+- **New rule.** TW_Shadow.shader joins TW_Toon and TW_Sky as the project's own shaders (the
+  contact-shadow disc needs alpha blending); ArtTests' allow-list and the CLAUDE.md art rule were
+  updated.

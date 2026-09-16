@@ -15,6 +15,9 @@ Shader "TillWinter/TW_Toon"
         _RampSoft ("Ramp softness", Range(0.001, 0.5)) = 0.05
         _ShadeTint ("Shade tint", Color) = (0.66, 0.7, 0.86, 1)
         _VertexColor ("Use vertex colour", Range(0, 1)) = 1
+        _RimColor ("Rim light", Color) = (1, 0.97, 0.88, 1)
+        _RimPower ("Rim power", Range(0.5, 8)) = 3
+        _RimStrength ("Rim strength", Range(0, 1)) = 0.25
     }
 
     SubShader
@@ -34,6 +37,9 @@ Shader "TillWinter/TW_Toon"
             float _RampSoft;
             float4 _ShadeTint;
             float _VertexColor;
+            float4 _RimColor;
+            float _RimPower;
+            float _RimStrength;
         CBUFFER_END
 
         UNITY_INSTANCING_BUFFER_START(TWProps)
@@ -120,6 +126,10 @@ Shader "TillWinter/TW_Toon"
                 float3 shade = albedo.rgb * _ShadeTint.rgb;
                 float3 diffuse = lerp(shade, albedo.rgb, lit) * light.color;
                 float3 color = diffuse + albedo.rgb * ambient * 0.9 + emission.rgb;
+                // Rim light: a thin lit edge so flat shapes read against the field instead of merging into it.
+                float3 viewDir = normalize(GetWorldSpaceViewDir(i.positionWS));
+                float rim = pow(saturate(1.0 - saturate(dot(n, viewDir))), _RimPower) * _RimStrength;
+                color += _RimColor.rgb * rim * lerp(0.35, 1.0, lit);
                 color = MixFog(color, i.fog);
                 return half4(color, 1);
             }

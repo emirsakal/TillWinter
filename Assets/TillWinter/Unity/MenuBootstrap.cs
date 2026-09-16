@@ -152,6 +152,9 @@ namespace TillWinter.Unity
             }
             if (_catalog.Trees != null && _catalog.Trees.Length > 0)
                 Place(root, _catalog.Trees[_catalog.Trees.Length > 3 ? 3 : 0], new Vector3(-2.05f, 0f, 1.9f), 30f, 0.9f);
+            var clouds = new GameObject("SkyClouds");
+            clouds.transform.SetParent(transform, false);
+            clouds.AddComponent<SkyClouds>().Init(_catalog, 9f);
             Place(root, _catalog.Bush, new Vector3(2.0f, 0f, -1.95f), 20f, 0.8f);
         }
 
