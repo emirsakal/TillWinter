@@ -40,6 +40,14 @@ namespace TillWinter.Unity
         public float LockedAlpha = 0.75f;
         public float EdgeWidth = 6f;
         public Color EdgeDim = new Color(0.74f, 0.68f, 0.58f, 0.55f);
+        /// <summary>The hub emblem and the unbought roots that leave it.</summary>
+        public Color Trunk = new Color(0.55f, 0.42f, 0.3f, 1f);
+        /// <summary>Levels and padlocks show only from this zoom up; further out a node is just its colour.</summary>
+        public float DetailZoom = 0.55f;
+
+        [Header("Winter page")]
+        public Color Snowfall = new Color(0.95f, 0.96f, 1f, 0.14f);
+        public Color Lamp = new Color(0.91f, 0.66f, 0.24f, 0.14f);
         public float PulseAmplitude = 0.05f;
         public float ZoomMin = 0.3f; // low enough that the opening view holds the whole Almanac canopy
         public float ZoomMax = 1.6f;

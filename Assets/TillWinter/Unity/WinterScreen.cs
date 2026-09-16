@@ -39,7 +39,12 @@ namespace TillWinter.Unity
         private bool _showingHeritage;
         private float _open;
         private float _sheetShown;
+        private const int FlakeCount = 36;
+        private RectTransform _snowLayer;
+        private RectTransform[] _flakes;
+        private float[] _flakeSpeed;
         private bool _closing;
+        private Image _sheetBadge, _sheetIcon;
         private double _coinsTextValue = -1;
         private readonly char[] _coinChars = new char[64];
         private bool _coinsTextHeritage;
@@ -82,6 +87,25 @@ namespace TillWinter.Unity
             var edge = UiKit.Panel(page.transform, "Edge", new Color(0f, 0f, 0f, 0f), true, false);
             edge.color = new Color(_theme.PaperVignette.r, _theme.PaperVignette.g, _theme.PaperVignette.b, 0.18f);
             UiKit.Stretch(edge.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            // A warm lamp over the page and a slow snowfall behind the tree: winter outside, a lit room inside.
+            var lamp = UiKit.Panel(page.transform, "Lamp", _theme.Lamp, false, false);
+            lamp.sprite = Sprite.Create(Prims.RadialGradient(128, 0f, 1f), new Rect(0, 0, 128, 128), new Vector2(0.5f, 0.5f), 100f);
+            lamp.type = Image.Type.Simple;
+            UiKit.Box(lamp.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(1500f, 1100f));
+            _snowLayer = UiKit.Rect("Snowfall", page.transform);
+            UiKit.Stretch(_snowLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _flakes = new RectTransform[FlakeCount];
+            _flakeSpeed = new float[FlakeCount];
+            var rnd = new System.Random(11);
+            for (int i = 0; i < FlakeCount; i++)
+            {
+                float size = 3f + (float)rnd.NextDouble() * 6f;
+                var flake = UiKit.CircleImage(_snowLayer, "Flake", _theme.Snowfall, Vector2.zero, size);
+                flake.raycastTarget = false;
+                _flakes[i] = flake.rectTransform;
+                _flakes[i].anchorMin = _flakes[i].anchorMax = new Vector2((float)rnd.NextDouble(), (float)rnd.NextDouble());
+                _flakeSpeed[i] = 0.015f + size * 0.004f;
+            }
 
             // Top bar.
             var top = UiKit.Rect("TopBar", _safe);
@@ -146,6 +170,22 @@ namespace TillWinter.Unity
             _game.Sim.Retired += _ => { _showingHeritage = true; RefreshAll(); };
         }
 
+        /// <summary>Flakes drift down the page and sway; each wraps to the top when it leaves the bottom.</summary>
+        private void TickSnow(float dt)
+        {
+            if (_flakes == null || !SettingsStore.MotionAllowed) return;
+            float t = Time.unscaledTime;
+            for (int i = 0; i < _flakes.Length; i++)
+            {
+                var f = _flakes[i];
+                var a = f.anchorMin;
+                a.y -= _flakeSpeed[i] * dt;
+                a.x += Mathf.Sin(t * 0.8f + i * 1.7f) * 0.004f * dt * 6f;
+                if (a.y < -0.02f) { a.y = 1.02f; a.x = Mathf.Repeat(a.x + 0.37f, 1f); }
+                f.anchorMin = f.anchorMax = a;
+            }
+        }
+
         private void ApplySafeArea()
         {
             // Device notches/home bars only; the editor Game view reports window-sized safe areas that would shift the page.
@@ -171,6 +211,12 @@ namespace TillWinter.Unity
             _sheetBranch = UiKit.Label(_sheetTag.transform, "BranchName", "", UiType.Caption, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
             _sheetName = UiKit.Label(_sheet, "Name", "", UiType.Heading, _theme.Ink, TextAnchor.UpperLeft, FontStyle.Bold);
             UiKit.Stretch(_sheetName.rectTransform, new Vector2(0f, 1f), new Vector2(0.66f, 1f), new Vector2(230f, -70f), new Vector2(0f, -14f));
+            // The node itself, large, beside its name: the sheet is about that circle on the tree.
+            _sheetBadge = UiKit.CircleImage(_sheet, "Badge", _theme.Hand, Vector2.zero, 112f);
+            UiKit.Box(_sheetBadge.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-80f, -108f), Vector2.one * 86f);
+            var badgeInner = UiKit.CircleImage(_sheetBadge.transform, "Inner", _theme.Paper, Vector2.zero, 64f);
+            _sheetIcon = NodeIcons.Image(badgeInner.transform, "", _theme.Ink);
+            UiKit.Box(_sheetIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * 40f);
             _sheetLevel = UiKit.Label(_sheet, "Level", "", UiType.Label, _theme.InkMuted, TextAnchor.UpperRight);
             UiKit.Stretch(_sheetLevel.rectTransform, new Vector2(0.6f, 1f), new Vector2(1f, 1f), new Vector2(0f, -60f), new Vector2(-24f, -18f));
             _sheetDesc = UiKit.Label(_sheet, "Desc", "", UiType.Label, _theme.Ink, TextAnchor.UpperLeft);
@@ -453,6 +499,9 @@ namespace TillWinter.Unity
             _sheet.gameObject.SetActive(true);
             var col = _theme.BranchColor(node.Branch);
             _sheetTag.color = col;
+            _sheetBadge.color = col;
+            var iconSprite = NodeIcons.Get(node.IconKey);
+            if (iconSprite != null) _sheetIcon.sprite = iconSprite;
             _sheetBranch.text = Strings.Branch(node.Branch);
             _sheetName.text = Strings.Name(node);
             _sheetDesc.text = Strings.Description(sim, node);
@@ -540,6 +589,7 @@ namespace TillWinter.Unity
             if (!_visible) return;
             if (_card.IsOpen) { _group.alpha = 0f; return; }
             float dt = Time.unscaledDeltaTime;
+            TickSnow(dt);
             _open = Mathf.Min(1f, _open + dt / UiMotion.Slow);
             _group.alpha = Prims.EaseOutQuad(_open);
 

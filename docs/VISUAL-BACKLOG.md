@@ -370,18 +370,37 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 
 ### 9.8 Winter screen and skill tree
 
-- **Open.** [H] **Tree unreadable at overview.** Node icons and "0/3" are tiny; show only state
-  colour far away and detail up close.
-- **Open.** [H] **Hub is a plain grey circle.** A trunk, seed or farm emblem, with branches growing
-  from it.
-- **Open.** [H] **Connection lines thin and straight.** Thick organic branches that grow as nodes
-  are bought.
-- **Open.** [M] **Branch plates too small.** Readable size and a branch icon.
-- **Open.** [M] **No winter atmosphere.** Light snowfall, window condensation, warm lamp light
-  instead of a flat dark page.
-- **Open.** [M] **Empty space above and below.** A light zoom-in on first open.
-- **Open.** [M] **Node sheet.** A large node icon and a small preview of what it unlocks.
+- **Done.** [H] **Tree unreadable at overview.** Node icons and "0/3" are tiny; show only state
+  colour far away and detail up close. `SkillTreeLayout.RootRadius` 3.2 -> 2.6 (layout tests still
+  pass), so the canopy is tighter and fits at a larger zoom. Below `TreeTheme.DetailZoom` (0.55)
+  nodes show only their colour and icon; the "0/3" level text and padlocks appear when zoomed in.
+- **Done.** [H] **Hub is a plain grey circle.** A trunk, seed or farm emblem, with branches growing
+  from it. The grey disc is now an emblem: trunk-coloured ring (new `TreeTheme.Trunk`), a paler
+  growth ring, a page-coloured heart with the farmhouse ("home") icon in the accent colour, and a
+  soft halo.
+- **Done.** [H] **Connection lines thin and straight.** Thick organic branches that grow as nodes
+  are bought. `UILines` draws curved (quadratic, per-edge stable bend from a hash of the ids) and
+  tapered strips (`Line.WidthB`, `Line.Bend`, `AddCurve`, `SetWidth`, `PointAt`; one continuous
+  strip per edge). Thick roots now grow from the hub to every branch's first node (trunk colour,
+  branch colour once bought). A bought path thickens (`EdgeWidth` x2 tapering to x1.3); flow sparks
+  follow the curve.
+- **Done.** [M] **Branch plates too small.** Readable size and a branch icon. 380x80 with a branch
+  icon (Hand target, Soil contrast, Field menuGrid, Helpers multiplayer, Calendar scrollHorizontal)
+  and Heading-size text; content padding follows the plate size.
+- **Done.** [M] **No winter atmosphere.** Light snowfall, window condensation, warm lamp light
+  instead of a flat dark page. A warm lamp glow (`TreeTheme.Lamp`, radial gradient) over the top of
+  the page and 36 small, faint snowflakes (`TreeTheme.Snowfall`) drifting down behind the tree, off
+  with Reduce motion. Window condensation not done.
+- **Done.** [M] **Empty space above and below.** A light zoom-in on first open. On the first open
+  (no remembered view) the tree settles in from 86% to its fitted zoom over 0.7 s; any touch
+  cancels it; skipped with Reduce motion. Remembered tree views saved before this change keep their
+  old pan/zoom; the pan clamp keeps the canopy on screen.
+- **Done in part.** [M] **Node sheet.** A large node icon and a small preview of what it unlocks. A
+  large node badge (branch-coloured ring, node icon) sits top-right under the level. A preview of
+  what it unlocks is still open.
 - **Open.** [L] **Heritage tree.** A distinct golden/aged texture.
+
+Verified with `ui-tour` (tours 28-30), 204 tests passing.
 
 ### 9.9 Menu, splash and loading
 

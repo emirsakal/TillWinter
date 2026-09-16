@@ -72,6 +72,11 @@ namespace TillWinter.Unity
         private readonly Dictionary<string, float> _waveT = new Dictionary<string, float>();
         private readonly Dictionary<string, float> _fillShown = new Dictionary<string, float>();
         private readonly Dictionary<string, float> _fillTarget = new Dictionary<string, float>();
+        /// <summary>Root edges from the hub, by line index, with the root node they feed.</summary>
+        private readonly List<(int line, string node)> _rootEdges = new List<(int, string)>();
+        private bool _detail = true;
+        private float _introT = 1f;
+        private float _introTarget;
 
         public SkillTree Tree => _tree;
         public string SelectedId => _selectedId;
@@ -128,8 +133,18 @@ namespace TillWinter.Unity
                 var v = ToPixels(p);
                 if (!farthest.TryGetValue(node.Branch, out var best) || v.sqrMagnitude > best.sqrMagnitude) farthest[node.Branch] = v;
             }
-            var hub = UiKit.CircleImage(_content, "Hub", new Color(_theme.Ink.r, _theme.Ink.g, _theme.Ink.b, 0.12f), Vector2.zero, _theme.NodeSize * 1.4f);
+            // The hub is the farm itself: a trunk ring with the farmhouse at its heart, the roots of every branch leaving it.
+            float hubSize = _theme.NodeSize * 1.7f;
+            var halo = UiKit.CircleImage(_content, "HubHalo", new Color(_theme.Trunk.r, _theme.Trunk.g, _theme.Trunk.b, 0.18f), Vector2.zero, hubSize * 1.45f);
+            halo.raycastTarget = false;
+            var hub = UiKit.CircleImage(_content, "Hub", _theme.Trunk, Vector2.zero, hubSize);
             hub.raycastTarget = false;
+            var growth = UiKit.CircleImage(hub.transform, "Ring", TreeTheme.Desaturate(_theme.Trunk, 0.6f) * 0.8f, Vector2.zero, hubSize * 0.84f);
+            growth.raycastTarget = false;
+            var heart = UiKit.CircleImage(hub.transform, "Heart", _theme.Paper, Vector2.zero, hubSize * 0.66f);
+            heart.raycastTarget = false;
+            var home = NodeIcons.Image(heart.transform, "home", _theme.Accent);
+            UiKit.Box(home.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (hubSize * 0.36f));
             foreach (var kv in farthest)
             {
                 var branch = kv.Key;
@@ -139,11 +154,28 @@ namespace TillWinter.Unity
                 var plateRt = plate.rectTransform;
                 plateRt.anchorMin = plateRt.anchorMax = new Vector2(0.5f, 0.5f);
                 plateRt.pivot = new Vector2(0.5f, 0.5f);
-                plateRt.sizeDelta = new Vector2(240f, 52f);
+                plateRt.sizeDelta = new Vector2(PlateWidth, PlateHeight);
                 // Far enough out that the plate's own half-size clears the node, whichever way the branch points.
-                plateRt.anchoredPosition = kv.Value + dir * (_theme.NodeSize * 0.6f + Mathf.Abs(dir.x) * 120f + Mathf.Abs(dir.y) * 28f);
-                var name = UiKit.Label(plate.transform, "Name", Strings.Branch(branch), UiType.Label, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UiKit.Stretch(name.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                plateRt.anchoredPosition = kv.Value + dir * (_theme.NodeSize * 0.6f + Mathf.Abs(dir.x) * PlateWidth * 0.5f + Mathf.Abs(dir.y) * PlateHeight * 0.55f);
+                var icon = NodeIcons.Image(plate.transform, BranchIcon(branch), _theme.Paper);
+                UiKit.Box(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(22f, 0f), Vector2.one * 48f);
+                var name = UiKit.Label(plate.transform, "Name", Strings.Branch(branch), UiType.Heading, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Stretch(name.rectTransform, Vector2.zero, Vector2.one, new Vector2(80f, 0f), new Vector2(-20f, 0f));
+            }
+        }
+
+        private const float PlateWidth = 380f;
+        private const float PlateHeight = 80f;
+
+        private static string BranchIcon(TillWinter.Core.Branch b)
+        {
+            switch (b)
+            {
+                case TillWinter.Core.Branch.Hand: return "target";
+                case TillWinter.Core.Branch.Soil: return "contrast";
+                case TillWinter.Core.Branch.Field: return "menuGrid";
+                case TillWinter.Core.Branch.Helpers: return "multiplayer";
+                default: return "scrollHorizontal";
             }
         }
 
@@ -200,6 +232,15 @@ namespace TillWinter.Unity
         {
             _lines.Clear();
             _edgeIds.Clear();
+            _rootEdges.Clear();
+            // Roots first, so they sit under the branches: each root node grows out of the hub on a thick curve.
+            foreach (var node in _tree.Nodes)
+            {
+                if (!_layout.ContainsKey(node.Id) || HasLaidOutParent(node)) continue;
+                var to = ToPixels(_layout[node.Id]);
+                _rootEdges.Add((_lines.Count, node.Id));
+                _lines.AddCurve(Vector2.zero, to, _theme.Trunk, RootWidth, RootWidth * 0.55f, BendFor("hub", node.Id));
+            }
             foreach (var node in _tree.Nodes)
             {
                 var list = new List<int>();
@@ -208,10 +249,28 @@ namespace TillWinter.Unity
                     if (!_layout.ContainsKey(p)) continue;
                     _edgeIds.Add((p, node.Id));
                     list.Add(_lines.Count);
-                    _lines.Add(ToPixels(_layout[p]), ToPixels(_layout[node.Id]), _theme.EdgeDim, _theme.EdgeWidth);
+                    _lines.AddCurve(ToPixels(_layout[p]), ToPixels(_layout[node.Id]), _theme.EdgeDim, _theme.EdgeWidth, _theme.EdgeWidth * 0.8f, BendFor(p, node.Id));
                 }
                 _nodes[node.Id].Edges = list.ToArray();
             }
+        }
+
+        private float RootWidth => _theme.EdgeWidth * 2.6f;
+
+        private bool HasLaidOutParent(SkillNode node)
+        {
+            foreach (var p in node.Prerequisites) if (_layout.ContainsKey(p)) return true;
+            return false;
+        }
+
+        /// <summary>A small, stable sideways bow per edge, so siblings do not all curve the same way.</summary>
+        private static float BendFor(string from, string to)
+        {
+            int h = 17;
+            foreach (char c in from) h = h * 31 + c;
+            foreach (char c in to) h = h * 31 + c;
+            if (h < 0) h = -h;
+            return ((h % 2) == 0 ? 1f : -1f) * (0.08f + (h / 2 % 5) * 0.012f);
         }
 
         private void ComputeBounds()
@@ -219,7 +278,7 @@ namespace TillWinter.Unity
             var b = SkillTreeLayout.Bounds(_layout);
             // Room for the branch name plates (240 x 52) past the outermost nodes. Measured to the plate's far edge,
             // not its centre: a plate on a level branch reaches about 0.6 node + 120 out plus its own half-width.
-            var pad = new Vector2(_theme.NodeSize * 0.6f + 256f, _theme.NodeSize * 0.6f + 150f);
+            var pad = new Vector2(_theme.NodeSize * 0.6f + PlateWidth + 16f, _theme.NodeSize * 0.6f + PlateHeight * 1.05f + 90f);
             _contentMin = new Vector2(b.minX, b.minY) * _theme.UnitPixels - pad;
             _contentMax = new Vector2(b.maxX, b.maxY) * _theme.UnitPixels + pad;
         }
@@ -256,7 +315,7 @@ namespace TillWinter.Unity
                 nv.Ring.color = col;
                 nv.Inner.color = available ? _theme.Paper : TreeTheme.Desaturate(_theme.Paper, 0.6f);
                 nv.Icon.color = available ? _theme.Ink : _theme.InkMuted;
-                nv.Lock.gameObject.SetActive(!available);
+                nv.Lock.gameObject.SetActive(!available && _detail);
                 int max = _game.Sim.GetMaxLevel(nv.Node.Id);
                 if (_fills.TryGetValue(nv.Node.Id, out var fillImg))
                 {
@@ -284,7 +343,17 @@ namespace TillWinter.Unity
             {
                 var (from, to) = _edgeIds[i];
                 bool lit = _tree.GetLevel(from) > 0;
-                _lines.SetColor(i, lit ? _nodes[to].BranchColor : _theme.EdgeDim);
+                int line = i + _rootEdges.Count;
+                _lines.SetColor(line, lit ? _nodes[to].BranchColor : _theme.EdgeDim);
+                // A bought path thickens, so the tree visibly grows with the farm.
+                if (lit) _lines.SetWidth(line, _theme.EdgeWidth * 2f, _theme.EdgeWidth * 1.3f);
+                else _lines.SetWidth(line, _theme.EdgeWidth, _theme.EdgeWidth * 0.8f);
+            }
+            foreach (var (line, node) in _rootEdges)
+            {
+                bool grown = _tree.GetLevel(node) > 0;
+                _lines.SetColor(line, grown ? _nodes[node].BranchColor : _theme.Trunk);
+                _lines.SetWidth(line, grown ? RootWidth * 1.25f : RootWidth, grown ? RootWidth * 0.8f : RootWidth * 0.55f);
             }
         }
 
@@ -345,7 +414,17 @@ namespace TillWinter.Unity
                 _content.anchoredPosition = new Vector2(mem.PanX, mem.PanY);
                 _hasSavedView = true;
             }
-            else CenterOnRoots();
+            else
+            {
+                CenterOnRoots();
+                // First open: settle in from a little further out.
+                if (SettingsStore.MotionAllowed)
+                {
+                    _introTarget = _zoom;
+                    ZoomBy(0.86f);
+                    _introT = 0f;
+                }
+            }
             _velocity = Vector2.zero;
             StartCoroutine(OpenFadeRoutine());
         }
@@ -503,6 +582,29 @@ namespace TillWinter.Unity
                 ClampPan(false);
             }
 
+            if (_introT < 1f)
+            {
+                if (_dragging || _pointers > 0) _introT = 1f;
+                else
+                {
+                    _introT = Mathf.Min(1f, _introT + dt / 0.7f);
+                    float want = Mathf.Lerp(_introTarget * 0.86f, _introTarget, UiMotion.EaseInOut(_introT));
+                    if (_zoom > 0f) ZoomBy(want / _zoom);
+                }
+            }
+
+            // Far out a node is just its colour; levels and padlocks appear as the player zooms in.
+            bool detail = _zoom >= _theme.DetailZoom;
+            if (detail != _detail)
+            {
+                _detail = detail;
+                foreach (var nv in _nodeList)
+                {
+                    nv.LevelText.gameObject.SetActive(detail);
+                    nv.Lock.gameObject.SetActive(detail && nv.State == NodeState.Locked);
+                }
+            }
+
             // Node animation: affordable pulse, selection scale, purchase punch, pip fill.
             float pulse = 1f + _theme.PulseAmplitude * Mathf.Sin(Time.unscaledTime * 4f);
             foreach (var nv in _nodeList)
@@ -563,9 +665,9 @@ namespace TillWinter.Unity
                     f.T += dt * 1.6f;
                     if (f.T >= 1f) { _flows.RemoveAt(i); continue; }
                     _flows[i] = f;
-                    var line = _lines.Get(f.Edge);
+                    int edge = f.Edge + _rootEdges.Count;
                     float t0 = Mathf.Clamp01(f.T - 0.15f), t1 = Mathf.Clamp01(f.T);
-                    _flowLines.Add(new UILines.Line { A = Vector2.Lerp(line.A, line.B, t0), B = Vector2.Lerp(line.A, line.B, t1), Color = Color.white, Width = _theme.EdgeWidth * 1.2f });
+                    _flowLines.Add(new UILines.Line { A = _lines.PointAt(edge, t0), B = _lines.PointAt(edge, t1), Color = Color.white, Width = _theme.EdgeWidth * 1.2f });
                 }
                 _lines.SetFlows(_flowLines);
                 if (_flows.Count == 0) { _flowLines.Clear(); _lines.SetFlows(_flowLines); }
