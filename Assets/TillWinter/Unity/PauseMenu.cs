@@ -59,7 +59,8 @@ namespace TillWinter.Unity
 
             var safe = UiKit.Rect("PauseSafe", canvas);
             SafeArea.Apply(safe);
-            _pauseButton = UiKit.Button(safe, "PauseButton", "II", UiType.Heading, _theme.PauseButton, _theme.Text, Open);
+            // Solid, like every other button: a translucent face on a translucent lip read as a grey smudge.
+            _pauseButton = UiKit.Button(safe, "PauseButton", "II", UiType.Heading, _theme.SheetIdle, _theme.SheetButtonText, Open);
             UiKit.Box(_pauseButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), new Vector2(130f, 110f)); // bottom right, opposite the retire chip
 
             BuildPause(canvas);

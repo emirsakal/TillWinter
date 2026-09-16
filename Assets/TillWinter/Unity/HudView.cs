@@ -105,7 +105,7 @@ namespace TillWinter.Unity
             _coinText.SetText("0");
 
             _subText = UiKit.Label(top, "Sub", "", (int)_theme.SubFontSize, _theme.TextMuted, TextAnchor.MiddleCenter);
-            UiKit.Box(_subText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 190f), new Vector2(800f, 50f));
+            UiKit.Box(_subText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 236f), new Vector2(800f, 50f)); // below the coin row: it used to start 30 units inside it
             UiKit.Outline(_subText, 0.12f);
 
             _combo = UiKit.Label(top, "Combo", "", UiType.Heading, _theme.Combo, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -119,7 +119,7 @@ namespace TillWinter.Unity
             UiKit.Box(_seedChipRt, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 54f), new Vector2(280f, 76f));
             UiKit.CircleImage(_seedChipRt, "Seed", _theme.Seed, new Vector2(-104f, 0f), 34f);
             _rate = UiKit.Label(top, "Rate", "", UiType.Caption, _theme.TextMuted, TextAnchor.MiddleCenter);
-            UiKit.Box(_rate.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 148f), new Vector2(500f, 40f));
+            UiKit.Box(_rate.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 290f), new Vector2(500f, 40f)); // under the Year line: beside the counter a long number ran into it
             UiKit.Outline(_rate, 0.12f);
             _seedChip = UiKit.Label(_seedChipRt, "Text", "", UiType.Label, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Stretch(_seedChip.rectTransform, Vector2.zero, Vector2.one, new Vector2(56f, 0f), new Vector2(-10f, 0f));
@@ -144,7 +144,7 @@ namespace TillWinter.Unity
             // costs the standing crop exactly as frost would, so it sits out at the edge of the band rather than
             // anywhere a thumb rests during play.
             var endYear = UiKit.Button(_bottomBand, "EndYear", Strings.Get("ui.end_year"), UiType.Caption,
-                _theme.PauseButton, _theme.Text, () => { _audio.Play(SfxId.UiClick); _game.Sim.EndYearNow(); });
+                _theme.SheetIdle, _theme.SheetButtonText, () => { _audio.Play(SfxId.UiClick); _game.Sim.EndYearNow(); });
             UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f),
                 new Vector2(-24f, _theme.SeasonNameYInBand - 20f), new Vector2(220f, 64f)); // below the bar, not touching its end
 
