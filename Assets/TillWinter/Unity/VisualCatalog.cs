@@ -63,6 +63,11 @@ namespace TillWinter.Unity
         public GameObject Pond;
         public GameObject Kennel;
         public GameObject Dog;
+        /// <summary>Island dressing every farm gets from the first generation (DioramaView scatters it).</summary>
+        public GameObject GrassTuft;
+        public GameObject Pebbles;
+        public GameObject[] Flowers = new GameObject[0];
+        public GameObject HangingRock;
         public GameObject Butterfly;
         /// <summary>Soft dark disc parented under characters and props so they sit on the ground when shadows are off.</summary>
         public GameObject BlobShadow;

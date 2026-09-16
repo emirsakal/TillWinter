@@ -22,6 +22,7 @@ namespace TillWinter.Unity
         private MeshFilter _blockFilter;
         private Transform _scenery;
         private Transform _dog;
+        private readonly List<(Vector2 at, float radius)> _avoid = new List<(Vector2, float)>();
         private int _builtSize = -1, _builtGen = -1;
         private readonly List<GameObject> _treesGreen = new List<GameObject>();
         private readonly List<GameObject> _treesAutumn = new List<GameObject>();
@@ -77,9 +78,12 @@ namespace TillWinter.Unity
             float half = n * 0.5f;
             float edge = HalfExtent;
 
-            // Path from the field's bottom edge to the block edge, one tile wide.
-            for (float z = -half - 0.5f; z > -edge + 0.2f; z -= 1f)
+            // Path from the field's bottom edge all the way to the rim, one tile wide. The last tile sits flush with
+            // the edge: with the wider margin the path used to stop after one tile and read as a stray slab.
+            float pathEnd = -edge + 0.5f;
+            for (float z = -half - 0.5f; z > pathEnd; z -= 1f)
                 Place(_catalog.PathTile, "Path", new Vector3(0f, 0.001f, z), 0f);
+            Place(_catalog.PathTile, "PathEnd", new Vector3(0f, 0.002f, pathEnd), 0f);
             // Fence line along the far edge, centred so both ends sit the same distance from the island sides;
             // the middle panel (two on an even count) is the gate.
             int panels = Mathf.FloorToInt(2f * edge - 1.0f); // stops clear of the block's taper, which made a full-width fence look off-centre
@@ -111,8 +115,113 @@ namespace TillWinter.Unity
             // The kennel is scenery and batches with the rest; the dog must not, or batching would freeze its wag.
             Place(_catalog.Kennel, "Kennel", new Vector3(edge - 1.95f, 0f, back - 0.35f), -25f);
             PlaceDog(new Vector3(edge - 1.3f, 0f, back - 1.05f), -35f); // in front of the kennel, where it can be seen
+            Dress(n, half, edge, back, panels);
             OnSeasonChanged(_game.State.Season);
             StaticBatchingUtility.Combine(_scenery.gameObject);
+        }
+
+        /// <summary>
+        /// Dressing every farm gets from the first generation: tufts, flowers and pebbles along the rim, low clusters in
+        /// the open grass beside the field, rock hanging under the front edge and two small islands far off. Seeded by
+        /// the field size so a farm looks the same every time it loads; the generation decor still adds the big pieces.
+        /// </summary>
+        private void Dress(int n, float half, float edge, float back, int panels)
+        {
+            var rnd = new System.Random(1000 + n);
+            float far = edge + BackDepth; // the back edge of the block
+
+            _avoid.Clear();
+            _avoid.Add((new Vector2(edge - 1.1f, back), 1.3f));        // house
+            _avoid.Add((new Vector2(edge - 1.95f, back - 0.35f), 0.55f)); // kennel
+            _avoid.Add((new Vector2(edge - 1.3f, back - 1.05f), 0.45f));  // dog
+            _avoid.Add((new Vector2(edge - 2.9f, back - 0.15f), 0.85f));  // pond
+            _avoid.Add((new Vector2(-edge + 0.7f, back - 0.2f), 0.5f));   // trees
+            _avoid.Add((new Vector2(-edge + 1.5f, back + 0.4f), 0.5f));
+            _avoid.Add((new Vector2(-edge + 0.5f, -half - 0.9f), 0.5f));
+            _avoid.Add((new Vector2(edge - 0.6f, -half - 0.8f), 0.55f));  // bush
+            _avoid.Add((new Vector2(-edge + 0.45f, half - 0.4f), 0.45f)); // rock
+
+            // Rim: front, both sides, back.
+            const float inset = 0.3f;
+            for (float x = -edge + 0.35f; x < edge - 0.3f; x += 0.5f)
+                Scatter(new Vector3(x + Jit(rnd, 0.2f), 0f, -edge + inset + Jit(rnd, 0.08f)), rnd, half, panels);
+            for (float z = -edge + 0.8f; z < far - 0.3f; z += 0.55f)
+            {
+                Scatter(new Vector3(-edge + inset + Jit(rnd, 0.08f), 0f, z + Jit(rnd, 0.2f)), rnd, half, panels);
+                Scatter(new Vector3(edge - inset + Jit(rnd, 0.08f), 0f, z + Jit(rnd, 0.2f)), rnd, half, panels);
+            }
+            for (float x = -edge + 0.8f; x < edge - 0.8f; x += 0.55f)
+                Scatter(new Vector3(x + Jit(rnd, 0.2f), 0f, far - inset + Jit(rnd, 0.08f)), rnd, half, panels);
+
+            // Low clusters in the open grass either side of the field.
+            float side = half + (edge - half) * 0.5f;
+            foreach (float z in new[] { -half * 0.4f, half * 0.35f })
+                for (int k = 0; k < 4; k++)
+                {
+                    Scatter(new Vector3(-side + Jit(rnd, 0.3f), 0f, z + Jit(rnd, 0.3f)), rnd, half, panels);
+                    Scatter(new Vector3(side + Jit(rnd, 0.3f), 0f, -z + Jit(rnd, 0.3f)), rnd, half, panels);
+                }
+
+            // Torn earth under the front edge, where the tapered block ends.
+            if (_catalog.HangingRock != null)
+            {
+                float bottom = -Thickness, lip = edge * 0.55f;
+                for (int i = 0; i < 5; i++)
+                {
+                    float x = Mathf.Lerp(-lip + 0.4f, lip - 0.4f, i / 4f) + Jit(rnd, 0.15f);
+                    var rock = Place(_catalog.HangingRock, "HangingRock", new Vector3(x, bottom + 0.05f, -lip + 0.25f), (float)rnd.NextDouble() * 360f);
+                    if (rock != null) rock.transform.localScale = Vector3.one * (0.7f + (float)rnd.NextDouble() * 0.4f);
+                }
+            }
+
+            // Two small islands far behind: the farm floats among others.
+            var blockMats = _blockFilter.GetComponent<MeshRenderer>().sharedMaterials;
+            for (int i = 0; i < 2; i++)
+            {
+                var islet = new GameObject("Islet" + i).transform;
+                islet.SetParent(_scenery, false);
+                // Small and well clear of the island: larger and closer they read as stray floor tiles in the sky.
+                islet.localPosition = new Vector3(i == 0 ? -edge * 0.45f : edge * 0.72f, -2.4f - i * 0.4f, far + 3.5f + i * 0.7f);
+                islet.localScale = Vector3.one * (i == 0 ? 0.34f : 0.28f);
+                islet.gameObject.AddComponent<MeshFilter>().sharedMesh = BuildBlock(1, 0.45f, 0.9f, 0f);
+                var mr = islet.gameObject.AddComponent<MeshRenderer>();
+                mr.sharedMaterials = blockMats;
+                mr.shadowCastingMode = ShadowCastingMode.Off;
+                if (_catalog.Trees != null && _catalog.Trees.Length > 0)
+                {
+                    var tree = _catalog.Spawn(_catalog.Trees[(i + 1) % _catalog.Trees.Length], islet, "Tree");
+                    tree.transform.localPosition = new Vector3(0.1f, 0f, 0.05f);
+                }
+                if (_catalog.HangingRock != null)
+                {
+                    var under = _catalog.Spawn(_catalog.HangingRock, islet, "Under"); // torn earth underneath: an island, not a tile
+                    under.transform.localPosition = new Vector3(0f, -0.85f, 0f);
+                    under.transform.localScale = Vector3.one * 1.3f;
+                }
+            }
+        }
+
+        private static float Jit(System.Random rnd, float amount) => ((float)rnd.NextDouble() - 0.5f) * 2f * amount;
+
+        /// <summary>One piece of rim dressing, unless the spot belongs to the field, the fence, the path or a prop.</summary>
+        private void Scatter(Vector3 pos, System.Random rnd, float half, int panels)
+        {
+            float roll = (float)rnd.NextDouble();
+            float yaw = (float)rnd.NextDouble() * 360f;
+            float scale = 0.8f + (float)rnd.NextDouble() * 0.45f;
+            if (Mathf.Abs(pos.x) < half + 0.2f && Mathf.Abs(pos.z) < half + 0.2f) return;                       // field
+            if (Mathf.Abs(pos.z - (half + 0.55f)) < 0.3f && Mathf.Abs(pos.x) < panels * 0.5f + 0.2f) return;  // fence
+            if (Mathf.Abs(pos.x) < 0.65f && pos.z < -half) return;                                                // path
+            var flat = new Vector2(pos.x, pos.z);
+            foreach (var (at, radius) in _avoid)
+                if ((flat - at).sqrMagnitude < radius * radius) return;
+
+            GameObject prefab;
+            if (roll < 0.58f) prefab = _catalog.GrassTuft;
+            else if (roll < 0.82f && _catalog.Flowers != null && _catalog.Flowers.Length > 0) prefab = _catalog.Flowers[rnd.Next(_catalog.Flowers.Length)];
+            else prefab = _catalog.Pebbles;
+            var go = Place(prefab, "Dressing", pos, yaw);
+            if (go != null) go.transform.localScale = Vector3.one * scale;
         }
 
         /// <summary>

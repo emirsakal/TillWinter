@@ -246,17 +246,25 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 
 ### 9.3 Island and 3D world
 
-- **Open.** [H] **Island is a flat green slab.** Grass tufts, flowers and stones on the edges; soil
-  layers and roots on the side profile.
-- **Open.** [H] **Empty grass left and right of the field.** Set dressing (hay bale, wheelbarrow,
-  watering can, scarecrow, well, coop).
-- **Open.** [M] **Underside of the floating island.** Rocks, hanging roots, light mist.
+- **Done.** [H] **Island is a flat green slab.** Grass tufts, flowers and stones on the edges; soil
+  layers and roots on the side profile. Grass tufts, flowers and pebbles now line the rim from the
+  first generation, placed from a seed so a farm looks the same every load and kept clear of the
+  field, fence, path and props. The side profile's soil layers are not done; the torn earth hanging
+  under the front edge covers the side view for now.
+- **Done in part.** [H] **Empty grass left and right of the field.** Set dressing (hay bale,
+  wheelbarrow, watering can, scarecrow, well, coop). Low clusters of tufts and flowers fill it;
+  larger set dressing stays with the generation decor so the two cannot collide.
+- **Done.** [M] **Underside of the floating island.** Rocks, hanging roots, light mist. Rock and
+  roots hang under the tapered front edge, kept small so they stay clear of the season band.
 - **Open.** [M] **Fence.** Posts at the corners, a path to the gate, maybe a low fence around the
   field.
-- **Open.** [M] **Path tile under the field looks detached.** A path running to the house.
-- **Open.** [M] **Lasting visual rewards as generations pass** (barn, greenhouse, windmill), beyond
-  the growing house.
-- **Open.** [L] **Background layer.** Hills, tree silhouettes, other islands.
+- **Done.** [M] **Path tile under the field looks detached.** A path running to the house. The path
+  now runs from the field to the rim; with the wider margin it had stopped after one tile.
+- **Done, already present.** [M] **Lasting visual rewards as generations pass** (barn, greenhouse,
+  windmill), beyond the growing house. `FarmDecorSet` unlocks decor by generation (from generation
+  2), which is also why a first-generation island looked empty.
+- **Done.** [L] **Background layer.** Hills, tree silhouettes, other islands. Two small floating
+  islands with a tree and torn earth under them sit far behind the farm.
 
 ### 9.4 Field and crops
 
