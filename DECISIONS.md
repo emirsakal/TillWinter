@@ -733,3 +733,15 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   Year M" line above Continue read straight from the save file.
 - Save schema v5 adds this year's coins and harvests for the Winter screen's summary; SaveV5Tests
   carries a v4 fixture and the counters reset every Spring.
+
+## Follow-up: visual pass 5, accessibility (2026-09-16)
+
+- **Season glyphs.** Prims.SeasonGlyphSprite draws sprout/sun/leaf/snowflake above the season bar's
+  segments so season reads without colour; branches already had icons.
+- **Large text.** A Settings switch sets SettingsData.LargeText, driving UiType.Scale (1.18);
+  changing it reloads the scene like a language change.
+- **Safe area.** Sheets now build their page inside a SafeArea rect, matching the HUD, title scene
+  and Winter screen, so a notch can't cut a sheet's buttons.
+- **Language change warning.** The language and text-size switches cover the screen with a short
+  "Applying…" panel for 0.4 s before the scene reloads.
+- docs/VISUAL-BACKLOG.md: all five groups are worked through.
