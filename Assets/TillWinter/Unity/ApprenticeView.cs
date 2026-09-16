@@ -46,6 +46,7 @@ namespace TillWinter.Unity
         private float _facing;
         private bool _placed;
         private float _idle;
+        private float _spawn;
 
         public ApprenticeView Setup(VisualCatalog catalog = null)
         {
@@ -72,6 +73,13 @@ namespace TillWinter.Unity
             {
                 _lastPos = target;
                 _placed = true;
+                _spawn = 0f;
+            }
+            // A new helper (hired in Winter) pops in with a puff once the field is in view.
+            if (_spawn < 1f && game.State.Phase == TillWinter.Core.Phase.Year)
+            {
+                if (_spawn <= 0f) VfxPlayer.Fire(VfxId.PlotPop, target + Vector3.up * 0.1f);
+                _spawn = Mathf.Min(1f, _spawn + dt / 0.4f);
             }
             var delta = target - _lastPos;
             transform.position = target;
@@ -100,7 +108,8 @@ namespace TillWinter.Unity
             float breathe = idle ? 1f + 0.02f * Mathf.Sin(_idle * 2.4f) : 1f;
             float look = idle ? Mathf.Sin(_idle * 0.6f) * Mathf.Clamp01(_idle - 0.5f) * 30f : 0f;
             _body.localPosition = new Vector3(0f, bobY + lift, 0f);
-            _body.localScale = new Vector3(1f / Mathf.Sqrt(squash), squash * breathe, 1f / Mathf.Sqrt(squash));
+            float grow = _spawn >= 1f ? 1f : Mathf.Max(0.001f, Prims.EaseOutBack(_spawn));
+            _body.localScale = new Vector3(1f / Mathf.Sqrt(squash), squash * breathe, 1f / Mathf.Sqrt(squash)) * grow;
             _body.localRotation = Quaternion.Euler(walking ? Mathf.Sin(_bob) * 4f : pick * 28f, _facing + look, 0f);
             _lastPos = target;
         }

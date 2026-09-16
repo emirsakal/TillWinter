@@ -51,8 +51,16 @@ namespace TillWinter.Unity
             float e = 1f - (1f - k) * (1f - k);
             if (_group != null) _group.alpha = e;
             if (Page == null) return;
-            Page.anchoredPosition = _base + new Vector2(0f, Rise * (1f - e));
-            Page.localScale = Vector3.one * Mathf.Lerp(0.96f, 1f, e);
+            if (!SettingsStore.MotionAllowed)
+            {
+                Page.anchoredPosition = _base;
+                Page.localScale = Vector3.one;
+                return;
+            }
+            // The page lands with a small overshoot, so a sheet feels placed rather than faded in.
+            float back = Prims.EaseOutBack(k);
+            Page.anchoredPosition = _base + new Vector2(0f, Rise * (1f - back));
+            Page.localScale = Vector3.one * Mathf.LerpUnclamped(0.94f, 1f, back);
         }
     }
 }

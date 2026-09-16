@@ -37,6 +37,7 @@ Material:
     - _Snow: 0
     - _VertexColor: 1
     - _Weathered: 1
+    - _Wind: 0.06
     m_Colors:
     - _BaseColor: {r: 1, g: 0.82, b: 0.25, a: 1}
     - _EmissionColor: {r: 0.9, g: 0.7, b: 0.15, a: 1}

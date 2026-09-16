@@ -125,7 +125,7 @@ namespace TillWinter.EditorTools
             _flat = Material("TW_Flat", _toon, m => { });
             _foodMap = Material("TW_FoodColormap", _toon, m => m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(Kenney + "food-kit/Models/colormap.png")));
             _charMap = Material("TW_CharacterColormap", _toon, m => m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(Kenney + "mini-characters/Models/colormap.png")));
-            _golden = Material("TW_Golden", _toon, m => { m.SetColor("_BaseColor", _palette.Golden); m.SetColor("_EmissionColor", _palette.GoldenGlow); });
+            _golden = Material("TW_Golden", _toon, m => { m.SetColor("_BaseColor", _palette.Golden); m.SetColor("_EmissionColor", _palette.GoldenGlow); m.SetFloat("_Wind", 0.06f); });
             _skyMat = Material("TW_Sky", _sky, m => { });
             _ringDecal = CreateRingDecal();
             // One material per palette slot: identical meshes on the same slot GPU-instance; colours come from the Palette at boot.
@@ -137,6 +137,7 @@ namespace TillWinter.EditorTools
                     m.SetColor("_BaseColor", slot == PaletteSlot.White ? Color.white : _palette.Get(slot));
                     m.SetFloat("_Weathered", Palette.IsWeathered(slot) ? 1f : 0f);
                     m.SetFloat("_SeasonTint", Palette.IsSeasonTinted(slot) ? 1f : 0f);
+                    m.SetFloat("_Wind", Sways(slot) ? 0.06f : 0f);
                 });
             _soilBlock = _slots[(int)PaletteSlot.SoilBlock];
             foreach (var m in new[] { _flat, _foodMap, _charMap, _golden }) m.enableInstancing = true;
@@ -714,6 +715,11 @@ namespace TillWinter.EditorTools
             bubble.SetActive(false);
             return root;
         }
+
+        /// <summary>Slots that lean in the breeze: foliage, flowers and every crop (a crop mesh mixes these slots).</summary>
+        private static bool Sways(PaletteSlot slot) =>
+            slot == PaletteSlot.Leaf || slot == PaletteSlot.LeafDark || slot == PaletteSlot.Sprout || slot == PaletteSlot.Flower ||
+            (slot >= PaletteSlot.Crop0 && slot <= PaletteSlot.Golden);
 
         private static GameObject BuildPlot()
         {

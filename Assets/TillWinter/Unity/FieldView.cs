@@ -167,7 +167,8 @@ namespace TillWinter.Unity
             var state = _game.State;
             float dt = Time.deltaTime;
             float t = _game.SimTime;
-            if (_reveal < 99f)
+            // Plots bought in Winter wait for the field to be in view: they land when the year starts.
+            if (_reveal < 99f && state.Phase == Phase.Year)
             {
                 _reveal += dt;
                 int n = state.GridSize;
