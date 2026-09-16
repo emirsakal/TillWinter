@@ -93,6 +93,8 @@
   "settings.haptics": "Titreşim",
   "settings.reduce_motion": "Hareketi azalt",
   "settings.reduce_motion_hint": "Kamera sarsıntısı ve ekran parlaması olmaz.",
+  "settings.large_text": "Büyük yazı",
+  "settings.applying": "Uygulanıyor…",
   "settings.quality": "Grafik",
   "settings.quality.auto": "Otomatik",
   "settings.quality.low": "Düşük",

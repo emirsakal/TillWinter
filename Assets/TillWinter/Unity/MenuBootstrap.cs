@@ -66,6 +66,7 @@ namespace TillWinter.Unity
         {
             Time.timeScale = 1f;
             Application.targetFrameRate = AppLifecycle.YearFps;
+            UiType.Scale = SettingsStore.Current.LargeText ? UiType.LargeScale : 1f; // before any label is built
             GameLanguage.Apply(GameLanguage.Resolve(SettingsStore.Current.Language, Application.systemLanguage), StringTable, StringTableTr);
             _theme = HudTheme.Load();
             _catalog = VisualCatalog.Load();

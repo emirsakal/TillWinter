@@ -174,10 +174,10 @@ namespace TillWinter.Unity
             var bg = UiKit.Panel(_bar, "Bg", _theme.BarBackground, true, false);
             UiKit.Stretch(bg.rectTransform, Vector2.zero, Vector2.one, new Vector2(-4f, -4f), new Vector2(4f, 4f));
             float w = 0.3f;
-            Segment("Spring", 0f, w, _theme.Spring);
-            Segment("Summer", w, 2f * w, _theme.Summer);
-            Segment("Autumn", 2f * w, 3f * w, _theme.Autumn);
-            Segment("Winter", 3f * w, 1f, _theme.Winter);
+            Segment("Spring", 0f, w, _theme.Spring, 0);
+            Segment("Summer", w, 2f * w, _theme.Summer, 1);
+            Segment("Autumn", 2f * w, 3f * w, _theme.Autumn, 2);
+            Segment("Winter", 3f * w, 1f, _theme.Winter, 3);
             var frost = UiKit.Panel(_bar, "Frost", _theme.Frost, false, false);
             frost.sprite = Prims.HatchSprite(); // hatched, so the frost span reads without relying on colour alone
             frost.type = Image.Type.Tiled;
@@ -194,10 +194,20 @@ namespace TillWinter.Unity
             knobRt.anchoredPosition = Vector2.zero;
         }
 
-        private void Segment(string name, float from, float to, Color color)
+        private void Segment(string name, float from, float to, Color color, int season)
         {
             var img = UiKit.Panel(_bar, name, color, false, false);
             UiKit.Stretch(img.rectTransform, new Vector2(from, 0f), new Vector2(to, 1f), new Vector2(from > 0f ? 2f : 0f, 0f), new Vector2(to < 1f ? -2f : 0f, 0f));
+            // A glyph above each segment: the seasons must read without relying on their colour.
+            var glyph = UiKit.Panel(_bar, name + "Glyph", _theme.Text, false, false);
+            glyph.sprite = Prims.SeasonGlyphSprite(season);
+            glyph.type = Image.Type.Simple;
+            glyph.preserveAspect = true;
+            var rt = glyph.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2((from + to) * 0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 0f);
+            rt.anchoredPosition = new Vector2(0f, 8f);
+            rt.sizeDelta = new Vector2(26f, 26f);
         }
 
         private void OnDestroy()

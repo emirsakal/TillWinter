@@ -93,6 +93,8 @@
   "settings.haptics": "Vibration",
   "settings.reduce_motion": "Reduce motion",
   "settings.reduce_motion_hint": "No camera shake or screen flash.",
+  "settings.large_text": "Large text",
+  "settings.applying": "Applying…",
   "settings.quality": "Graphics",
   "settings.quality.auto": "Auto",
   "settings.quality.low": "Low",

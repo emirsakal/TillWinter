@@ -49,7 +49,7 @@ Next: section 4 (screen by screen).
 
 ## 4. Screen by screen
 
-- **Partly done.** **HUD season bar** is four flat blocks. Add season glyphs, an icon on the progress marker, a hatched frost span; during the frost warning lean on the screen-edge ice rather than the bar. The frost span is now hatched (Prims.HatchSprite) and the progress marker carries a round knob; the season glyphs move to section 5, because the Kenney icon set has no season icons and they will be drawn there with the other generated glyphs.
+- **Done.** **HUD season bar** is four flat blocks. Add season glyphs, an icon on the progress marker, a hatched frost span; during the frost warning lean on the screen-edge ice rather than the bar. The frost span is now hatched (Prims.HatchSprite) and the progress marker carries a round knob; the season glyphs shipped with section 5.
 - **Done.** **HUD coin counter** works; add a small earning-rate readout or a brief rising "+N". A "+N/s" earning rate under the counter, recomputed once a second and hidden outside the year.
 - **Done.** **The retire chip appears abruptly.** Give it a flash and a haptic when it unlocks. It now arrives with a scale punch, a solid background and a Light haptic.
 - **Done.** **Winter screen is plain text.** Add a small winter vista strip, a year summary (harvests, coins this year) and a hint of the next goal. A warm gradient strip and a year summary line ("This year: N harvests · M coins"). Core counts the year separately (save schema v5: CoinsThisYear, HarvestsThisYear, reset every Spring, v4 fixture migrates with both at zero).
@@ -67,10 +67,12 @@ Next: section 5 (accessibility and polish).
 
 ## 5. Accessibility and polish
 
-- **Seasons and branches are colour-only.** Branch icons exist; add season glyphs so nothing depends on colour.
-- **Large-text option in settings**, once the type scale has one multiplier.
-- **Safe area** is applied to the HUD and sheets; verify on notched devices.
-- **A language change reloads the scene with no warning.** Show a short "changing language" transition.
+- **Done.** **Seasons and branches are colour-only.** Branch icons exist; add season glyphs so nothing depends on colour. Four season glyphs (sprout, sun, leaf, snowflake) are drawn in code by Prims.SeasonGlyphSprite and sit above the season bar's segments, so the season reads without colour; branches already had icons.
+- **Done.** **Large-text option in settings**, once the type scale has one multiplier. A Large text switch in Settings sets SettingsData.LargeText, which drives the single UiType.Scale multiplier (1.18) applied before any label is built; changing it reloads the scene like a language change.
+- **Done.** **Safe area** is applied to the HUD and sheets; verify on notched devices. Sheets now build their page inside a SafeArea rect (the HUD, the title scene and the Winter screen already did), so a notch cannot cut a sheet's buttons.
+- **Done.** **A language change reloads the scene with no warning.** Show a short "changing language" transition. The language and text-size switches now cover the screen with a short "Applying…" panel for 0.4 s before the scene reloads.
+
+All five sections are done; new items go at the bottom as they come up.
 
 ---
 
