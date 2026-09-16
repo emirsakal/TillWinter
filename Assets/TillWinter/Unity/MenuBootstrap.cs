@@ -164,7 +164,7 @@ namespace TillWinter.Unity
                 {
                     anchor = new GameObject("CropAnchor").transform;
                     anchor.SetParent(plot.transform, false);
-                    anchor.localPosition = new Vector3(0f, 0.16f, 0f);
+                    anchor.localPosition = new Vector3(0f, 0.2f, 0f);
                 }
                 _cropRoots[i] = anchor;
                 var tier = _catalog.Crops[Tiers[i] % _catalog.Crops.Length];

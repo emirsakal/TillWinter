@@ -121,7 +121,7 @@ namespace TillWinter.Unity
             // Parked left of the field between sweeps, on the row while sweeping.
             float x = t.Sweeping ? t.X : -1.1f;
             float y = t.Sweeping ? t.Row : -0.6f;
-            var target = _game.PlotToWorld(x, y, 0.16f);
+            var target = _game.PlotToWorld(x, y, 0.2f);
             _body.position = t.Sweeping ? target : Prims.Damp(_body.position, target, 6f, Time.deltaTime);
             if (t.Sweeping)
             {

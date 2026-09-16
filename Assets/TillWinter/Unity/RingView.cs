@@ -16,6 +16,11 @@ namespace TillWinter.Unity
         private Material _discMaterial;
         private float _alpha;
         private Vector3 _pos;
+        private Transform _dots;
+        private Transform[] _dotItems;
+        private Vector3[] _dotUnit;
+        private float _dotRadius = -1f;
+        private float _spin;
 
         public void Init(GameController game, VisualCatalog catalog)
         {
@@ -47,6 +52,20 @@ namespace TillWinter.Unity
                 r.receiveShadows = false;
             }
             go.SetActive(false);
+
+            // Beads that walk around the ring's edge (faster with the combo).
+            if (catalog.RingDots != null)
+            {
+                _dots = catalog.Spawn(catalog.RingDots, transform, "RingDots").transform;
+                _dotItems = new Transform[_dots.childCount];
+                _dotUnit = new Vector3[_dotItems.Length];
+                for (int i = 0; i < _dotItems.Length; i++)
+                {
+                    _dotItems[i] = _dots.GetChild(i);
+                    _dotUnit[i] = _dotItems[i].localPosition;
+                }
+                _dots.gameObject.SetActive(false);
+            }
         }
 
         private void LateUpdate()
@@ -58,6 +77,7 @@ namespace TillWinter.Unity
             if (_alpha < 0.01f)
             {
                 if (_ring.gameObject.activeSelf) _ring.gameObject.SetActive(false);
+                if (_dots != null && _dots.gameObject.activeSelf) _dots.gameObject.SetActive(false);
                 return;
             }
             if (!_ring.gameObject.activeSelf) _ring.gameObject.SetActive(true);
@@ -69,6 +89,19 @@ namespace TillWinter.Unity
             float combo = Mathf.Clamp01((_game.State.Combo - 1) / 8f);
             float pulse = 1f + (0.03f + 0.03f * combo) * Mathf.Sin(Time.time * (5f + 3f * combo));
             float d = _game.State.RingRadius * 2f * 1.08f * pulse;
+            if (_dots != null)
+            {
+                if (!_dots.gameObject.activeSelf) _dots.gameObject.SetActive(true);
+                _spin += dt * (40f + 60f * combo);
+                _dots.SetPositionAndRotation(_pos + Vector3.up * 0.3f, Quaternion.Euler(0f, _spin, 0f));
+                // The beads sit just inside the soft edge; they shrink in with the ring as it fades.
+                float radius = d * 0.47f * Mathf.Lerp(0.6f, 1f, _alpha);
+                if (Mathf.Abs(radius - _dotRadius) > 0.001f)
+                {
+                    _dotRadius = radius;
+                    for (int i = 0; i < _dotItems.Length; i++) _dotItems[i].localPosition = _dotUnit[i] * radius;
+                }
+            }
             if (_decal != null)
             {
                 _ring.position = _pos + Vector3.up * 1.5f;
@@ -77,7 +110,7 @@ namespace TillWinter.Unity
             }
             else
             {
-                _ring.position = _pos + Vector3.up * 0.22f; // just above the soil top (0.16)
+                _ring.position = _pos + Vector3.up * 0.24f; // just above the soil ridges (0.21)
                 _ring.localScale = Vector3.one * d;
                 var c = Color.Lerp(Color.white, new Color(1f, 0.92f, 0.55f), combo);
                 c.a = Mathf.Min(1f, (0.85f + 0.15f * combo) * _alpha);

@@ -229,6 +229,7 @@ namespace TillWinter.Unity
         }
 
         public static float EaseOutQuad(float t) => 1f - (1f - t) * (1f - t);
+        public static float EaseOutBack(float t) { t -= 1f; return 1f + t * t * (2.70158f * t + 1.70158f); }
         public static float Damp(float current, float target, float speed, float dt) => Mathf.Lerp(current, target, 1f - Mathf.Exp(-speed * dt));
         public static Color Damp(Color current, Color target, float speed, float dt) => Color.Lerp(current, target, 1f - Mathf.Exp(-speed * dt));
         public static Vector3 Damp(Vector3 current, Vector3 target, float speed, float dt) => Vector3.Lerp(current, target, 1f - Mathf.Exp(-speed * dt));

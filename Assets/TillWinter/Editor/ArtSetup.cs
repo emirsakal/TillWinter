@@ -323,12 +323,15 @@ namespace TillWinter.EditorTools
 
             c.Plot = Save("Plot", BuildPlot());
             c.Crops = new CropTierVisual[6];
-            c.Crops[0] = Tier("Carrot", Kit("nature-kit", "crops_leafsStageA", 0.16f), Kit("nature-kit", "crops_leafsStageB", 0.34f), Kit("nature-kit", "crop_carrot", 0.5f));
-            c.Crops[1] = Tier("Tomato", Kit("nature-kit", "crops_leafsStageA", 0.16f), Kit("nature-kit", "plant_bush", 0.26f), TomatoPlant()); // the mid stage stays smaller than the ripe plant
-            c.Crops[2] = Tier("Corn", Kit("nature-kit", "crops_cornStageA", 0.22f), Kit("nature-kit", "crops_cornStageB", 0.5f), Kit("nature-kit", "crops_cornStageD", 0.9f));
-            c.Crops[3] = Tier("Pumpkin", Kit("nature-kit", "crops_leafsStageA", 0.16f), Kit("nature-kit", "plant_bushLarge", 0.3f), Kit("nature-kit", "crop_pumpkin", 0.42f));
-            c.Crops[4] = Tier("Grapes", Kit("nature-kit", "crops_leafsStageA", 0.16f), GrapeVine(false), GrapeVine(true));
-            c.Crops[5] = Tier("Wheat", Kit("nature-kit", "crops_wheatStageA", 0.2f), Kit("nature-kit", "crops_wheatStageA", 0.5f), Kit("nature-kit", "crops_wheatStageB", 0.8f));
+            // One plant on a whole plot read as a speck from the play camera: every stage is planted as a small bed on
+            // the two soil ridges (four plants, two for the bushy crops, one pumpkin on its own trailing vine).
+            c.Crops[0] = Tier("Carrot", Sprouts(), Clump(Kit("nature-kit", "crops_leafsStageB", 0.36f), Bed4, 3), Clump(Kit("nature-kit", "crop_carrot", 0.56f), Bed4, 4));
+            c.Crops[1] = Tier("Tomato", Sprouts(), Clump(Kit("nature-kit", "plant_bush", 0f, 0.3f), Bed2, 5), Clump(TomatoPlant(), Bed2, 6)); // the mid stage stays smaller than the ripe plant
+            c.Crops[2] = Tier("Corn", Clump(Kit("nature-kit", "crops_cornStageA", 0.24f), Bed4, 7), Clump(Kit("nature-kit", "crops_cornStageB", 0.6f), Bed4, 8), Clump(Kit("nature-kit", "crops_cornStageD", 1.1f), Bed4, 9));
+            c.Crops[3] = Tier("Pumpkin", Sprouts(), Clump(Kit("nature-kit", "plant_bushLarge", 0f, 0.34f), Bed2, 10), PumpkinPatch());
+            c.Crops[4] = Tier("Grapes", Sprouts(), GrapeVine(false), GrapeVine(true));
+            c.Crops[5] = Tier("Wheat", Clump(Kit("nature-kit", "crops_wheatStageA", 0.22f), Bed4, 11), Clump(Kit("nature-kit", "crops_wheatStageA", 0.52f), Bed4, 12), Clump(Kit("nature-kit", "crops_wheatStageB", 0.82f), Bed4, 13));
+            c.RingDots = Save("RingDots", BuildRingDots());
 
             var chars = new[] { "character-male-a", "character-female-a", "character-male-b", "character-female-b", "character-male-c", "character-female-c" };
             c.Apprentices = new GameObject[6];
@@ -375,6 +378,84 @@ namespace TillWinter.EditorTools
             c.HangingRock = Save("HangingRock", BuildHangingRock());
             c.Butterfly = Save("Butterfly", BuildButterfly());
             c.BlobShadow = Save("BlobShadow", BuildBlobShadow());
+        }
+
+        /// <summary>Plant spots on a plot: on the two soil ridges (z = +-RidgeZ), inside the soil tile.</summary>
+        private const float RidgeZ = 0.19f;
+        private static readonly Vector3[] Bed4 = { new Vector3(-0.22f, 0f, -RidgeZ), new Vector3(0.2f, 0f, -RidgeZ), new Vector3(-0.2f, 0f, RidgeZ), new Vector3(0.22f, 0f, RidgeZ) };
+        private static readonly Vector3[] Bed2 = { new Vector3(-0.2f, 0f, -0.12f), new Vector3(0.2f, 0f, 0.12f) };
+
+        private static GameObject Sprouts() => Clump(Kit("nature-kit", "crops_leafsStageA", 0.18f), Bed4, 2);
+
+        /// <summary>
+        /// Plants one single-plant prefab at every spot, each with its own turn and a little size variation. All copies
+        /// stay under the one root binder, so the plot view still tints and lights the whole bed at once.
+        /// </summary>
+        private static GameObject Clump(GameObject single, Vector3[] spots, int seed)
+        {
+            var binder = single.GetComponent<PaletteBinder>();
+            var plant = new GameObject("Plant").transform;
+            plant.SetParent(single.transform, false);
+            for (int i = single.transform.childCount - 1; i >= 0; i--)
+            {
+                var child = single.transform.GetChild(i);
+                if (child != plant) child.SetParent(plant, false);
+            }
+            var originals = plant.GetComponentsInChildren<Renderer>(true);
+            var bindings = new List<PaletteBinder.Binding>(binder.Bindings);
+            var rnd = new System.Random(seed);
+            for (int i = 0; i < spots.Length; i++)
+            {
+                var t = i == 0 ? plant : Object.Instantiate(plant.gameObject, single.transform).transform;
+                t.name = "Plant" + i;
+                t.localPosition = spots[i] + new Vector3((float)(rnd.NextDouble() - 0.5) * 0.04f, 0f, (float)(rnd.NextDouble() - 0.5) * 0.04f);
+                t.localRotation = Quaternion.Euler(0f, (float)rnd.NextDouble() * 360f, 0f);
+                t.localScale = Vector3.one * (0.9f + (float)rnd.NextDouble() * 0.2f);
+                if (i == 0) continue;
+                var copies = t.GetComponentsInChildren<Renderer>(true);
+                foreach (var bd in bindings)
+                {
+                    int k = System.Array.IndexOf(originals, bd.Renderer);
+                    if (k >= 0) binder.Add(copies[k], bd.Slot, bd.Tint, bd.Weathered, bd.MaterialIndex);
+                }
+            }
+            return single;
+        }
+
+        /// <summary>The pumpkin sits on its own vine: one big fruit with trailing leaves across the plot.</summary>
+        private static GameObject PumpkinPatch()
+        {
+            var root = Kit("nature-kit", "crop_pumpkin", 0.5f);
+            root.name = "PumpkinPatch";
+            var b = root.GetComponent<PaletteBinder>();
+            root.transform.Find("Model").localPosition = new Vector3(0.08f, 0f, 0.04f);
+            var rnd = new System.Random(21);
+            var vine = Prim(PrimitiveType.Cylinder, root.transform, "Vine", new Vector3(-0.17f, 0.02f, -0.08f), new Vector3(0.025f, 0.2f, 0.025f), b, PaletteSlot.LeafDark);
+            vine.transform.localRotation = Quaternion.Euler(0f, 30f, 90f);
+            for (int i = 0; i < 5; i++)
+            {
+                float a = -2.4f + i * 0.9f;
+                var leaf = Prim(PrimitiveType.Cube, root.transform, "Leaf" + i,
+                    new Vector3(-0.1f + Mathf.Cos(a) * 0.24f, 0.03f + i * 0.004f, Mathf.Sin(a) * 0.2f),
+                    new Vector3(0.17f, 0.018f, 0.15f), b, i % 2 == 0 ? PaletteSlot.Leaf : PaletteSlot.LeafDark);
+                leaf.transform.localRotation = Quaternion.Euler((float)(rnd.NextDouble() - 0.5) * 16f, (float)rnd.NextDouble() * 90f, (float)(rnd.NextDouble() - 0.5) * 16f);
+            }
+            return root;
+        }
+
+        /// <summary>Beads around the player's ring (unit radius), turned by RingView.</summary>
+        private static GameObject BuildRingDots()
+        {
+            var (root, b) = Root("RingDots");
+            for (int i = 0; i < 10; i++)
+            {
+                float a = i * Mathf.PI * 2f / 10f;
+                var d = Prim(PrimitiveType.Sphere, root.transform, "Dot" + i, new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)), Vector3.one * (i % 2 == 0 ? 0.075f : 0.05f), b, PaletteSlot.Cloud, null, null, false);
+                var r = d.GetComponent<Renderer>();
+                r.shadowCastingMode = ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+            return root;
         }
 
         private static CropTierVisual Tier(string name, GameObject sprout, GameObject growing, GameObject ripe) => new CropTierVisual
@@ -611,6 +692,17 @@ namespace TillWinter.EditorTools
             var soil = Prim(PrimitiveType.Cube, root.transform, "Soil", new Vector3(0f, 0.08f, 0f), new Vector3(0.94f, 0.16f, 0.8f), b, PaletteSlot.SoilDry);
             soil.GetComponent<Renderer>().receiveShadows = true;
             soil.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            // Two raised rows with a furrow between and around them: the flat box read as a tile, not a bed.
+            // Same slot as the soil (Dry/Wet follows), a touch lighter so the rows catch the sun.
+            for (int i = 0; i < 2; i++)
+            {
+                float z = i == 0 ? -RidgeZ : RidgeZ;
+                var ridge = Prim(PrimitiveType.Cube, root.transform, "Ridge" + i, new Vector3(0f, 0.18f, z), new Vector3(0.86f, 0.04f, 0.2f), b, PaletteSlot.SoilDry, null, new Color(1.07f, 1.05f, 1.03f));
+                ridge.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.On;
+                ridge.GetComponent<Renderer>().receiveShadows = true;
+                var crest = Prim(PrimitiveType.Cube, root.transform, "Crest" + i, new Vector3(0f, 0.205f, z), new Vector3(0.8f, 0.012f, 0.12f), b, PaletteSlot.SoilDry, null, new Color(1.13f, 1.1f, 1.06f));
+                crest.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            }
             var cracks = new GameObject("Cracks").transform;
             cracks.SetParent(root.transform, false);
             var seed = new System.Random(7);
@@ -618,7 +710,7 @@ namespace TillWinter.EditorTools
             {
                 float x = (float)(seed.NextDouble() * 0.6 - 0.3), z = (float)(seed.NextDouble() * 0.6 - 0.3);
                 float len = 0.18f + (float)seed.NextDouble() * 0.2f;
-                var crack = Prim(PrimitiveType.Cube, cracks, "Crack" + i, new Vector3(x, 0.161f, z), new Vector3(len, 0.006f, 0.025f), b, PaletteSlot.Wood, null, null, false);
+                var crack = Prim(PrimitiveType.Cube, cracks, "Crack" + i, new Vector3(x, 0.212f, z), new Vector3(len, 0.006f, 0.025f), b, PaletteSlot.Wood, null, null, false);
                 crack.transform.localRotation = Quaternion.Euler(0f, (float)seed.NextDouble() * 180f, 0f);
                 crack.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
             }
@@ -627,13 +719,22 @@ namespace TillWinter.EditorTools
             drops.SetParent(root.transform, false);
             for (int i = 0; i < 3; i++)
             {
-                var d = Prim(PrimitiveType.Sphere, drops, "Drop" + i, new Vector3(-0.25f + i * 0.25f, 0.165f, (i - 1) * 0.2f), Vector3.one * 0.045f, b, PaletteSlot.Water, null, null, false);
+                var d = Prim(PrimitiveType.Sphere, drops, "Drop" + i, new Vector3(-0.25f + i * 0.25f, 0.2f, (i - 1) * 0.2f), Vector3.one * 0.045f, b, PaletteSlot.Water, null, null, false);
                 d.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
             }
             drops.gameObject.SetActive(false);
             var anchor = new GameObject("CropAnchor").transform;
             anchor.SetParent(root.transform, false);
-            anchor.localPosition = new Vector3(0f, 0.16f, 0f);
+            anchor.localPosition = new Vector3(0f, 0.2f, 0f);
+            // "Ready": a small gem that bobs over a ripe bed (shown, coloured and moved by PlotView).
+            var mark = new GameObject("RipeMark").transform;
+            mark.SetParent(root.transform, false);
+            mark.localPosition = new Vector3(0f, 0.9f, 0f);
+            var up = ConeObj(mark, "Top", Vector3.zero, new Vector3(0.075f, 0.07f, 0.075f), b, PaletteSlot.Crop0);
+            var down = ConeObj(mark, "Bottom", Vector3.zero, new Vector3(0.075f, 0.1f, 0.075f), b, PaletteSlot.Crop0);
+            down.transform.localRotation = Quaternion.Euler(180f, 0f, 0f);
+            foreach (var r in mark.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
+            mark.gameObject.SetActive(false);
             return root;
         }
 
@@ -649,15 +750,18 @@ namespace TillWinter.EditorTools
             leaf.transform.localRotation = Quaternion.Euler(0f, 20f, 30f);
             var leaf2 = Prim(PrimitiveType.Cube, root.transform, "Leaf2", new Vector3(0.12f, 0.1f, -0.04f), new Vector3(0.2f, 0.02f, 0.1f), b, PaletteSlot.Leaf);
             leaf2.transform.localRotation = Quaternion.Euler(0f, -30f, -25f);
+            // Tomatoes grow tied to a stake.
+            Prim(PrimitiveType.Cylinder, root.transform, "Stake", new Vector3(0.06f, 0.26f, -0.05f), new Vector3(0.025f, 0.26f, 0.025f), b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Cylinder, root.transform, "Tie", new Vector3(0.06f, 0.3f, -0.05f), new Vector3(0.04f, 0.008f, 0.04f), b, PaletteSlot.Wall);
             return root;
         }
 
         private static GameObject GrapeVine(bool ripe)
         {
             var (root, b) = Root(ripe ? "GrapesRipe" : "GrapesGrowing");
-            Prim(PrimitiveType.Cylinder, root.transform, "PostA", new Vector3(-0.22f, 0.3f, 0f), new Vector3(0.05f, 0.3f, 0.05f), b, PaletteSlot.WoodLight);
-            Prim(PrimitiveType.Cylinder, root.transform, "PostB", new Vector3(0.22f, 0.3f, 0f), new Vector3(0.05f, 0.3f, 0.05f), b, PaletteSlot.WoodLight);
-            Prim(PrimitiveType.Cube, root.transform, "Bar", new Vector3(0f, 0.55f, 0f), new Vector3(0.52f, 0.03f, 0.03f), b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Cylinder, root.transform, "PostA", new Vector3(-0.34f, 0.3f, 0f), new Vector3(0.05f, 0.3f, 0.05f), b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Cylinder, root.transform, "PostB", new Vector3(0.34f, 0.3f, 0f), new Vector3(0.05f, 0.3f, 0.05f), b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Cube, root.transform, "Bar", new Vector3(0f, 0.55f, 0f), new Vector3(0.76f, 0.03f, 0.03f), b, PaletteSlot.WoodLight);
             var leafA = Prim(PrimitiveType.Cube, root.transform, "LeafA", new Vector3(-0.1f, 0.5f, 0.03f), new Vector3(0.2f, 0.02f, 0.14f), b, PaletteSlot.Leaf);
             leafA.transform.localRotation = Quaternion.Euler(10f, 20f, 15f);
             var leafB = Prim(PrimitiveType.Cube, root.transform, "LeafB", new Vector3(0.12f, 0.42f, -0.03f), new Vector3(0.18f, 0.02f, 0.12f), b, PaletteSlot.Leaf);
@@ -667,7 +771,18 @@ namespace TillWinter.EditorTools
                 var bunch = Kit("food-kit", "grapes", 0.26f);
                 bunch.name = "Bunch";
                 bunch.transform.SetParent(root.transform, false);
-                bunch.transform.localPosition = new Vector3(0f, 0.2f, 0.04f);
+                bunch.transform.localPosition = new Vector3(-0.12f, 0.22f, 0.04f);
+                var bunch2 = Kit("food-kit", "grapes", 0.22f);
+                bunch2.name = "Bunch2";
+                bunch2.transform.SetParent(root.transform, false);
+                bunch2.transform.localPosition = new Vector3(0.13f, 0.26f, 0.04f);
+                // Kit roots carry their own binder; fold the fruit into the vine's so the plot view lights it.
+                foreach (var extra in new[] { bunch, bunch2 })
+                {
+                    var eb = extra.GetComponent<PaletteBinder>();
+                    foreach (var bd in eb.Bindings) b.Add(bd.Renderer, bd.Slot, bd.Tint, bd.Weathered, bd.MaterialIndex);
+                    Object.DestroyImmediate(eb);
+                }
             }
             return root;
         }

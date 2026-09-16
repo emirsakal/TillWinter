@@ -268,14 +268,30 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 
 ### 9.4 Field and crops
 
-- **Open.** [H] **Crops small for their plots.** Scale up or plant 2-4 per plot.
-- **Open.** [H] **Soil is a flat box.** Furrows, a dark sheen when wet, crack texture when dry.
-- **Open.** [M] **Each crop with its own identity** (tomato on a stake, tall corn, pumpkin on
-  trailing leaves).
-- **Open.** [M] **Ripeness signal.** A small sparkle, light ring or bouncing icon in addition to the
-  wobble and warm tint.
-- **Open.** [M] **Player's ring.** Rotating dots on the edge, water-drop and sun-ray effects under
-  it.
+- **Done.** [H] **Crops small for their plots.** Scale up or plant 2-4 per plot. Every crop stage
+  is planted as a bed: `ArtSetup.Clump` copies one plant onto 4 spots on the two soil ridges
+  (`Bed4`), or 2 spots for bushy tomato/pumpkin growing stages (`Bed2`), with per-copy turn and
+  ±10% size; all copies share the root PaletteBinder so ripe glow and golden tint still cover the
+  whole bed. Ripe carrot is 0.56, corn 1.1, wheat 0.82. Flat Kenney bushes (plant_bush,
+  plant_bushLarge) are fitted by width so they stay inside the plot.
+- **Done in part.** [H] **Soil is a flat box.** Furrows, a dark sheen when wet, crack texture when
+  dry. The Plot prefab now has two raised ridges with lighter crests (same SoilDry slot, so
+  Dry/Wet colours follow; tint 1.07/1.13). Cracks and droplets moved onto the ridge height, and the
+  crop anchor and the stand height of apprentices, crows and event visitors were raised 0.16 -> 0.2
+  to sit on it. A separate wet sheen beyond the existing darker wet colour is still open.
+- **Done.** [M] **Each crop with its own identity** (tomato on a stake, tall corn, pumpkin on
+  trailing leaves). Tomato is tied to a stake, corn grows as a tall bed, and pumpkin is one large
+  fruit on a trailing vine with five leaves (`PumpkinPatch`); the grape vine spans the plot and
+  carries two bunches, their binders folded into the vine's so the plot lights them.
+- **Done.** [M] **Ripeness signal.** A small sparkle, light ring or bouncing icon in addition to the
+  wobble and warm tint. The Plot prefab carries a `RipeMark` gem (two cones, its Crop0 slot
+  overridden to the tier colour by PlotView). PlotView measures the ripe bed's height when the crop
+  is built and floats the gem just above it; it pops in with EaseOutBack (new
+  `Prims.EaseOutBack`), bobs and turns, and hides while the ring is over the plot.
+- **Done in part.** [M] **Player's ring.** Rotating dots on the edge, water-drop and sun-ray effects
+  under it. A new `RingDots` prefab (10 beads, `VisualCatalog.RingDots`) turns around the ring edge,
+  driven by RingView, faster with the combo and shrinking in as the ring fades. Water-drop and
+  sun-ray effects under the ring are still open.
 - **Open.** [L] **Golden crop.** A clearer light shaft and particle shower.
 
 ### 9.5 Characters and creatures

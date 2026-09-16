@@ -215,6 +215,9 @@ namespace TillWinter.Unity
         private PaletteBinder _soilBinder;
         private GameObject _cracks, _droplets;
         private Transform _cropRoot;
+        private Transform _ripeMark;
+        private float _ripeTop = 0.9f;
+        private float _markShow;
         private readonly GameObject[] _stages = new GameObject[3];
         private readonly PaletteBinder[] _stageBinders = new PaletteBinder[3];
         private int _builtTier = -1;
@@ -255,8 +258,9 @@ namespace TillWinter.Unity
             {
                 _cropRoot = new GameObject("CropAnchor").transform;
                 _cropRoot.SetParent(transform, false);
-                _cropRoot.localPosition = new Vector3(0f, 0.16f, 0f);
+                _cropRoot.localPosition = new Vector3(0f, 0.2f, 0f);
             }
+            _ripeMark = transform.Find("RipeMark");
             BuildCrop(plot.Tier);
             _cropRoot.localScale = Vector3.one * 0.0001f;
         }
@@ -266,12 +270,27 @@ namespace TillWinter.Unity
             for (int i = 0; i < 3; i++) if (_stages[i] != null) Destroy(_stages[i]);
             _builtTier = tier;
             var visual = _catalog.Crops != null && tier < _catalog.Crops.Length ? _catalog.Crops[tier] : null;
+            var rootScale = _cropRoot.localScale;
+            var rootRot = _cropRoot.localRotation;
+            _cropRoot.localScale = Vector3.one;
+            _cropRoot.localRotation = Quaternion.identity;
             for (int i = 0; i < 3; i++)
             {
                 _stages[i] = _catalog.Spawn(visual?.Stage(i), _cropRoot, "Stage" + i);
                 _stageBinders[i] = _stages[i].GetComponent<PaletteBinder>();
+                if (i == 2)
+                {
+                    // The ready marker floats just over the ripe bed, whatever its height (corn is three times a carrot).
+                    float top = 0f;
+                    foreach (var r in _stages[i].GetComponentsInChildren<Renderer>())
+                        top = Mathf.Max(top, transform.InverseTransformPoint(r.bounds.max).y);
+                    _ripeTop = top + 0.22f;
+                }
                 _stages[i].SetActive(false);
             }
+            _cropRoot.localScale = rootScale;
+            _cropRoot.localRotation = rootRot;
+            if (_ripeMark != null) _soilBinder.Override(PaletteSlot.Crop0, Palette.Load().Crop(tier));
             _stage = -1;
             _golden = false;
         }
@@ -408,6 +427,20 @@ namespace TillWinter.Unity
             _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(0.85f, 0.92f, 1.15f), sheen * 0.6f));
             bool showCracks = _wetBlend < 0.5f && _winterBlend < 0.5f;
             if (_cracks != null && _cracks.activeSelf != showCracks) _cracks.SetActive(showCracks);
+            // Ready marker: pops in over a ripe bed, bobs and turns; hidden under the ring while it is being harvested.
+            if (_ripeMark != null)
+            {
+                _markShow = Prims.Damp(_markShow, ripe && !underRing ? 1f : 0f, 12f, dt);
+                bool showMark = _markShow > 0.02f;
+                if (_ripeMark.gameObject.activeSelf != showMark) _ripeMark.gameObject.SetActive(showMark);
+                if (showMark)
+                {
+                    float bob = 0.05f * Mathf.Sin(simTime * 3.2f + _phase);
+                    _ripeMark.localPosition = new Vector3(0f, _ripeTop + bob, 0f);
+                    _ripeMark.localRotation = Quaternion.Euler(0f, simTime * 90f + _phase * 40f, 0f);
+                    _ripeMark.localScale = Vector3.one * Prims.EaseOutBack(_markShow);
+                }
+            }
             bool showDrops = wet && !winter && plot.Progress < 0.5f;
             if (_droplets != null && _droplets.activeSelf != showDrops) _droplets.SetActive(showDrops);
         }
