@@ -68,7 +68,6 @@ namespace TillWinter.Unity
         public void Apply()
         {
             if (!_open) return;
-            _audio.Play(SfxId.UiClick);
             _hud.HeldCoins = 0;
             _hud.Punch();
             _audio.Play(SfxId.Purchase);

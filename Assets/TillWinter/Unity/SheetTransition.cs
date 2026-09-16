@@ -11,7 +11,7 @@ namespace TillWinter.Unity
     public sealed class SheetTransition : MonoBehaviour
     {
         public RectTransform Page;
-        public float Seconds = 0.2f;
+        public float Seconds = UiMotion.Normal;
         public float Rise = 54f;
 
         private CanvasGroup _group;

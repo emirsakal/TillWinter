@@ -90,6 +90,19 @@ namespace TillWinter.Unity
             return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
         }
 
+        /// <summary>A 1xN alpha ramp, opaque at one edge and clear at the other (top and bottom shades).</summary>
+        public static Sprite VerticalFadeSprite(bool topOpaque, int height = 64)
+        {
+            var tex = new Texture2D(1, height, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < height; y++)
+            {
+                float a = topOpaque ? y / (height - 1f) : 1f - y / (height - 1f);
+                tex.SetPixel(0, y, new Color(1f, 1f, 1f, a * a * (3f - 2f * a)));
+            }
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0f, 0f, 1f, height), new Vector2(0.5f, 0.5f));
+        }
+
         public static Sprite CircleSprite(int size = 64)
         {
             var tex = RadialGradient(size, 0.9f, 1f);

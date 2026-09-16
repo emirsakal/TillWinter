@@ -29,8 +29,12 @@ namespace TillWinter.Unity
         private HudTheme _theme;
         private Button _pauseButton;
         private GameObject _pause, _settings, _credits, _stats;
-        private TMP_Text _statsLabels, _statsValues, _version, _haptics, _motion;
-        private Button _hapticsButton, _motionButton, _devButton, _langEn, _langTr;
+        private TMP_Text _version;
+        private Button _devButton, _langEn, _langTr;
+        private UiSwitch _hapticsSwitch, _motionSwitch;
+        private TMP_Text _sfxValue, _ambienceValue;
+        private TMP_Text[] _statValues;
+        private float _sampleAt;
         private readonly Button[] _quality = new Button[3];
         private HoldButton _reset;
         private RectTransform _resetFill;
@@ -83,20 +87,18 @@ namespace TillWinter.Unity
             y -= RowHeight;
 
             RowLabel(p, "settings.sfx", y);
-            SliderRow(p, "Sfx", s.SfxVolume, v => { SettingsStore.Current.SfxVolume = v; _audio.ApplyVolumes(); }, y);
+            _sfxValue = SliderRow(p, "Sfx", s.SfxVolume, v => { SettingsStore.Current.SfxVolume = v; _audio.ApplyVolumes(); Sample(); }, y);
             y -= RowHeight;
             RowLabel(p, "settings.ambience", y);
-            SliderRow(p, "Ambience", s.AmbienceVolume, v => { SettingsStore.Current.AmbienceVolume = v; _audio.ApplyVolumes(); }, y);
+            _ambienceValue = SliderRow(p, "Ambience", s.AmbienceVolume, v => { SettingsStore.Current.AmbienceVolume = v; _audio.ApplyVolumes(); Sample(); }, y);
             y -= RowHeight;
 
             RowLabel(p, "settings.haptics", y);
-            _hapticsButton = Btn(p, "settings.on", ToggleHaptics, y, ControlWidth, ControlX);
-            _haptics = UiKit.ButtonLabel(_hapticsButton);
+            _hapticsSwitch = SwitchRow(p, "Haptics", s.HapticsEnabled, on => { SettingsStore.Current.HapticsEnabled = on; if (on) Haptics.Play(HapticKind.Medium); }, y);
             y -= RowHeight;
 
             RowLabel(p, "settings.reduce_motion", y);
-            _motionButton = Btn(p, "settings.off", ToggleMotion, y, ControlWidth, ControlX);
-            _motion = UiKit.ButtonLabel(_motionButton);
+            _motionSwitch = SwitchRow(p, "ReduceMotion", s.ReduceMotion, on => SettingsStore.Current.ReduceMotion = on, y);
             y -= RowHeight - 10f;
             Text(p, "MotionHint", Strings.Get("settings.reduce_motion_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleLeft, 44f);
             y -= 60f;
@@ -136,8 +138,11 @@ namespace TillWinter.Unity
 
         private void BuildCredits(RectTransform canvas)
         {
-            _credits = Sheet(canvas, "CreditsSheet", "credits.title", 1100f, out var p);
-            float y = -160f;
+            _credits = Sheet(canvas, "CreditsSheet", "credits.title", 1100f, out var page);
+            UiKit.ScrollView(page, "Scroll", out var p);
+            UiKit.Stretch((RectTransform)p.parent, Vector2.zero, Vector2.one, new Vector2(0f, 120f), new Vector2(0f, -110f));
+            p.sizeDelta = new Vector2(0f, 1000f);
+            float y = -20f;
             Text(p, "MadeBy", Strings.Get("credits.made_by"), y, UiType.Heading, _theme.SheetInk, TextAnchor.MiddleCenter, 70f).fontStyle = FontStyles.Bold;
             y -= 90f;
             Text(p, "Unity", Strings.Get("credits.unity"), y, UiType.Body, _theme.SheetInk, TextAnchor.MiddleCenter);
@@ -149,8 +154,7 @@ namespace TillWinter.Unity
             Text(p, "KitsAudio", Strings.Get("credits.kits_audio"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 110f);
             y -= 150f;
             Text(p, "Font", Strings.Get("credits.font"), y, UiType.Label, _theme.SheetInk, TextAnchor.MiddleCenter);
-            y -= 140f;
-            Btn(p, "settings.back", () => Show(_settings), y);
+            Btn(page, "settings.back", () => Show(_settings), -1000f);
         }
 
         /// <summary>Main menu entry: Settings (and Credits from it); Back closes the sheets instead of showing Pause.</summary>
@@ -186,12 +190,27 @@ namespace TillWinter.Unity
 
         private void BuildStats(RectTransform canvas)
         {
-            _stats = Sheet(canvas, "StatsSheet", "stats.title", 1180f, out var p);
-            _statsLabels = Text(p, "Labels", "", -140f, UiType.Body, _theme.SheetInk, TextAnchor.UpperLeft, 860f);
-            _statsValues = Text(p, "Values", "", -140f, UiType.Body, _theme.SheetInk, TextAnchor.UpperRight, 860f);
-            _statsValues.fontStyle = FontStyles.Bold;
-            _statsLabels.lineSpacing = _statsValues.lineSpacing = 18f;
-            Btn(p, "stats.continue", ContinueFromStats, -1040f);
+            _stats = Sheet(canvas, "StatsSheet", "stats.title", 1180f, out var page);
+            UiKit.ScrollView(page, "Scroll", out var rows);
+            UiKit.Stretch((RectTransform)rows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -110f));
+            rows.sizeDelta = new Vector2(0f, StatKeys.Length * StatRow + 20f);
+            _statValues = new TMP_Text[StatKeys.Length];
+            for (int i = 0; i < StatKeys.Length; i++)
+            {
+                var row = UiKit.Rect("Row " + StatKeys[i], rows);
+                UiKit.Box(row, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -i * StatRow), new Vector2(800f, StatRow));
+                if (i > 0)
+                {
+                    var line = UiKit.Panel(row, "Divider", new Color(_theme.SheetInk.r, _theme.SheetInk.g, _theme.SheetInk.b, 0.12f), false, false);
+                    UiKit.Box(line.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(800f, 2f));
+                }
+                UiIcons.Row(row, StatIcons[i], _theme.SheetMuted, 6f, 34f);
+                var label = UiKit.Label(row, "Label", Strings.Get(StatKeys[i]), UiType.Body, _theme.SheetInk, TextAnchor.MiddleLeft);
+                UiKit.Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(56f, 0f), new Vector2(-260f, 0f));
+                _statValues[i] = UiKit.Label(row, "Value", "", UiType.Body, _theme.SheetInk, TextAnchor.MiddleRight, FontStyle.Bold);
+                UiKit.Stretch(_statValues[i].rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 0f), new Vector2(-6f, 0f));
+            }
+            Btn(page, "stats.continue", ContinueFromStats, -1040f);
         }
 
         // ------------------------------------------------------------------ flow
@@ -267,17 +286,12 @@ namespace TillWinter.Unity
             Reload();
         }
 
-        private void ToggleHaptics()
+        /// <summary>A short click while dragging a volume slider, so the level is audible (rate-limited).</summary>
+        private void Sample()
         {
-            SettingsStore.Current.HapticsEnabled = !SettingsStore.Current.HapticsEnabled;
-            Haptics.Play(HapticKind.Selection);
-            RefreshSettings();
-        }
-
-        private void ToggleMotion()
-        {
-            SettingsStore.Current.ReduceMotion = !SettingsStore.Current.ReduceMotion;
-            RefreshSettings();
+            if (_audio == null || Time.unscaledTime < _sampleAt) return;
+            _sampleAt = Time.unscaledTime + 0.12f;
+            _audio.Play(SfxId.CoinArrive);
         }
 
         private void ResetSave()
@@ -304,10 +318,10 @@ namespace TillWinter.Unity
         private void RefreshSettings()
         {
             var s = SettingsStore.Current;
-            _haptics.text = Strings.Get(s.HapticsEnabled ? "settings.on" : "settings.off");
-            Tint(_hapticsButton, s.HapticsEnabled);
-            _motion.text = Strings.Get(s.ReduceMotion ? "settings.on" : "settings.off");
-            Tint(_motionButton, s.ReduceMotion);
+            _hapticsSwitch.Set(s.HapticsEnabled);
+            _motionSwitch.Set(s.ReduceMotion);
+            _sfxValue.text = Mathf.RoundToInt(s.SfxVolume * 100f) + "%";
+            _ambienceValue.text = Mathf.RoundToInt(s.AmbienceVolume * 100f) + "%";
             Tint(_langEn, GameLanguage.Current == GameLanguage.English);
             Tint(_langTr, GameLanguage.Current == GameLanguage.Turkish);
             for (int i = 0; i < 3; i++) Tint(_quality[i], s.QualityTier == i - 1);
@@ -323,22 +337,32 @@ namespace TillWinter.Unity
             if (b != null && b.targetGraphic != null) b.targetGraphic.color = on ? _theme.SheetButton : _theme.SheetIdle;
         }
 
+        private const float StatRow = 86f;
+
+        private static readonly string[] StatKeys =
+        {
+            "stats.generations", "stats.years", "stats.coins", "stats.harvests", "stats.by_ring", "stats.by_apprentice",
+            "stats.by_tractor", "stats.crows", "stats.golden", "stats.best_combo", "stats.time",
+        };
+
+        private static readonly string[] StatIcons =
+        {
+            UiIcons.Generation, UiIcons.Year, UiIcons.Coin, UiIcons.Harvest, UiIcons.Ring, UiIcons.Apprentice,
+            UiIcons.Tractor, UiIcons.Crow, UiIcons.Golden, UiIcons.Combo, UiIcons.Time,
+        };
+
         private void FillStats()
         {
             var g = _game.State.Generation;
-            const string indent = "      ";
-            _statsLabels.text = string.Join("\n",
-                Strings.Get("stats.generations"), Strings.Get("stats.years"), Strings.Get("stats.coins"),
-                Strings.Get("stats.harvests"),
-                indent + Strings.Get("stats.by_ring"), indent + Strings.Get("stats.by_apprentice"), indent + Strings.Get("stats.by_tractor"),
-                Strings.Get("stats.crows"), Strings.Get("stats.golden"), Strings.Get("stats.best_combo"), Strings.Get("stats.time"));
             long minutes = (long)(g.TimePlayedSeconds / 60.0);
-            _statsValues.text = string.Join("\n",
+            string[] values =
+            {
                 g.Generation.ToString(), g.YearsTotal.ToString(), NumberFormat.Short(g.LifetimeCoinsTotal),
-                g.Harvests.ToString(),
-                g.HarvestsRing.ToString(), g.HarvestsApprentice.ToString(), g.HarvestsTractor.ToString(),
-                g.CrowsScared.ToString(), g.GoldenHarvests.ToString(), g.BestCombo.ToString(),
-                Strings.Format("stats.time_value", ("hours", minutes / 60), ("minutes", minutes % 60)));
+                g.Harvests.ToString(), g.HarvestsRing.ToString(), g.HarvestsApprentice.ToString(),
+                g.HarvestsTractor.ToString(), g.CrowsScared.ToString(), g.GoldenHarvests.ToString(),
+                g.BestCombo.ToString(), Strings.Format("stats.time_value", ("hours", minutes / 60), ("minutes", minutes % 60)),
+            };
+            for (int i = 0; i < _statValues.Length && i < values.Length; i++) _statValues[i].text = values[i];
         }
 
         // ------------------------------------------------------------------ builders
@@ -369,10 +393,23 @@ namespace TillWinter.Unity
             UiKit.Box(t.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(LabelX, y), new Vector2(LabelWidth, RowHeight - 14f));
         }
 
-        private void SliderRow(RectTransform page, string name, float value, UnityAction<float> onChanged, float y)
+        /// <summary>A volume row: the slider plus the percentage to its right. Returns the value label.</summary>
+        private TMP_Text SliderRow(RectTransform page, string name, float value, UnityAction<float> onChanged, float y)
         {
             var slider = UiKit.Slider(page, name, 0f, 1f, value, onChanged);
-            UiKit.Box(slider.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(ControlX, y - 20f), new Vector2(ControlWidth, 50f));
+            UiKit.Box(slider.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(ControlX - 40f, y - 20f), new Vector2(ControlWidth - 80f, 50f));
+            var text = UiKit.Label(page, name + "Value", "", UiType.Label, _theme.SheetMuted, TextAnchor.MiddleRight);
+            UiKit.Box(text.rectTransform, new Vector2(0.5f, 1f), new Vector2(1f, 1f), new Vector2(ControlX + ControlWidth * 0.5f, y - 20f), new Vector2(90f, 50f));
+            return text;
+        }
+
+        /// <summary>A settings row with a real switch instead of a button whose label says On or Off.</summary>
+        private UiSwitch SwitchRow(RectTransform page, string name, bool value, Action<bool> changed, float y)
+        {
+            var sw = UiKit.Switch(page, name, value, _theme.SheetButton, _theme.SheetIdle, _theme.SheetButtonText);
+            UiKit.Box((RectTransform)sw.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(ControlX + 100f, y - 45f), new Vector2(140f, 68f));
+            sw.Changed += on => { changed(on); SettingsStore.Save(); };
+            return sw;
         }
 
         private TMP_Text Text(RectTransform page, string name, string text, float y, int size, Color color, TextAnchor anchor = TextAnchor.MiddleLeft, float height = 60f)
