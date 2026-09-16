@@ -111,3 +111,7 @@ MonoBehaviour:
   LogStack: {fileID: 7182601372652008090, guid: 273ee5ba2397351448602acb66464e9b, type: 3}
   Mushroom: {fileID: 5834923060120892947, guid: 2ed2e08698f8e724e9b02b948a058105, type: 3}
   Stump: {fileID: 3529740452716127148, guid: 958a7795f0457c846bb74be19ef329fa, type: 3}
+  TreeAutumn: {fileID: 6914806526893844081, guid: b557b7ac2df02404daa78c72ce8f6ea4, type: 3}
+  Pond: {fileID: 3962788911973399922, guid: 94c9c3d914bc8254380737491a776380, type: 3}
+  Butterfly: {fileID: 6964125060097207644, guid: c31080a3f248b6c4b9b6af53309322be, type: 3}
+  BlobShadow: {fileID: 5479554026680035742, guid: 22c24bf89efddc940b841c82f1c4dbae, type: 3}

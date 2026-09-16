@@ -13,7 +13,7 @@ namespace TillWinter.Unity
     public sealed class DioramaView : MonoBehaviour
     {
         public float Margin = 1.1f;
-        public float Thickness = 1.3f;
+        public float Thickness = 1.6f;
         /// <summary>Extra grass behind the field so the house and trees stand behind the fence, not on it.</summary>
         public float BackDepth = 1.7f;
 
@@ -22,6 +22,8 @@ namespace TillWinter.Unity
         private MeshFilter _blockFilter;
         private Transform _scenery;
         private int _builtSize = -1, _builtGen = -1;
+        private readonly List<GameObject> _treesGreen = new List<GameObject>();
+        private readonly List<GameObject> _treesAutumn = new List<GameObject>();
         private static readonly Dictionary<(int, float, float, float), Mesh> BlockCache = new Dictionary<(int, float, float, float), Mesh>();
 
         public void Init(GameController game, VisualCatalog catalog)
@@ -41,6 +43,7 @@ namespace TillWinter.Unity
             _game.Sim.FieldExpanded += Rebuild;
             _game.Sim.GenerationStarted += Rebuild;
             _game.Sim.Retired += _ => Rebuild();
+            _game.Sim.SeasonChanged += OnSeasonChanged;
         }
 
         private void OnDestroy()
@@ -48,6 +51,7 @@ namespace TillWinter.Unity
             if (_game == null || _game.Sim == null) return;
             _game.Sim.FieldExpanded -= Rebuild;
             _game.Sim.GenerationStarted -= Rebuild;
+            _game.Sim.SeasonChanged -= OnSeasonChanged;
         }
 
         /// <summary>Half extent of the block top (from the field centre).</summary>
@@ -80,24 +84,62 @@ namespace TillWinter.Unity
             }
             // Behind the fence, on the extra back strip: farmhouse far right, trees far left.
             float back = half + 0.55f + (Margin - 0.55f + BackDepth) * 0.55f;
-            Place(_catalog.HouseFor(gen), "House", new Vector3(edge - 1.1f, 0f, back), -15f);
+            var house = new Vector3(edge - 1.1f, 0f, back);
+            Place(_catalog.HouseFor(gen), "House", house, -15f);
+            Shadow(house, 1.9f);
+            _treesGreen.Clear();
+            _treesAutumn.Clear();
             if (_catalog.Trees != null && _catalog.Trees.Length > 0)
             {
-                Place(_catalog.Trees[0 % _catalog.Trees.Length], "Tree", new Vector3(-edge + 0.7f, 0f, back - 0.2f), 0f);
-                Place(_catalog.Trees[2 % _catalog.Trees.Length], "Tree", new Vector3(-edge + 1.5f, 0f, back + 0.4f), -40f);
-                Place(_catalog.Trees[3 % _catalog.Trees.Length], "Tree", new Vector3(-edge + 0.5f, 0f, -half - 0.9f), 70f);
+                PlaceTree(0, new Vector3(-edge + 0.7f, 0f, back - 0.2f), 0f);
+                PlaceTree(2, new Vector3(-edge + 1.5f, 0f, back + 0.4f), -40f);
+                PlaceTree(3, new Vector3(-edge + 0.5f, 0f, -half - 0.9f), 70f);
             }
-            Place(_catalog.Bush, "Bush", new Vector3(edge - 0.6f, 0f, -half - 0.8f), 20f);
+            var bush = new Vector3(edge - 0.6f, 0f, -half - 0.8f);
+            Place(_catalog.Bush, "Bush", bush, 20f);
+            Shadow(bush, 0.8f);
             Place(_catalog.Rock, "Rock", new Vector3(-edge + 0.45f, 0f, half - 0.4f), 0f);
+            Place(_catalog.Pond, "Pond", new Vector3(-edge + 1.0f, 0f, -half - 0.85f), 15f);
+            OnSeasonChanged(_game.State.Season);
             StaticBatchingUtility.Combine(_scenery.gameObject);
         }
 
-        private void Place(GameObject prefab, string name, Vector3 pos, float yaw)
+        private GameObject Place(GameObject prefab, string name, Vector3 pos, float yaw)
         {
-            if (prefab == null) return;
+            if (prefab == null) return null;
             var go = _catalog.Spawn(prefab, _scenery, name);
             go.transform.localPosition = pos;
             go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            return go;
+        }
+
+        /// <summary>A soft dark disc under an object: URP shadows are off on the Low tier, so props would float.</summary>
+        private void Shadow(Vector3 pos, float size)
+        {
+            var go = _catalog.Spawn(_catalog.BlobShadow, _scenery, "Shadow");
+            if (go == null) return;
+            go.transform.localPosition = new Vector3(pos.x, 0.02f, pos.z);
+            go.transform.localScale = Vector3.one * size;
+        }
+
+        /// <summary>Both tree variants at one spot: the autumn one takes over when the season turns.</summary>
+        private void PlaceTree(int index, Vector3 pos, float yaw)
+        {
+            var green = Place(_catalog.Trees[index % _catalog.Trees.Length], "Tree", pos, yaw);
+            var autumn = Place(_catalog.TreeAutumn, "TreeAutumn", pos, yaw);
+            Shadow(pos, 1.1f);
+            if (green != null) _treesGreen.Add(green);
+            if (autumn != null) _treesAutumn.Add(autumn);
+        }
+
+        /// <summary>Autumn turns the trees; Winter leaves them bare-coloured with the shader's snow.</summary>
+        private void OnSeasonChanged(Season season)
+        {
+            bool autumn = season == Season.Autumn;
+            for (int i = 0; i < _treesGreen.Count; i++)
+                if (_treesGreen[i] != null) _treesGreen[i].SetActive(!autumn);
+            for (int i = 0; i < _treesAutumn.Count; i++)
+                if (_treesAutumn[i] != null) _treesAutumn[i].SetActive(autumn);
         }
 
         /// <summary>Box with a grass top (submesh 0) and soil sides/bottom (submesh 1); bevelled top edge.</summary>
@@ -134,12 +176,16 @@ namespace TillWinter.Unity
             Quad(top, new Vector3(e, -bevel, b), new Vector3(ei, 0f, bi), new Vector3(-ei, 0f, bi), new Vector3(-e, -bevel, b)); // back
             Quad(top, new Vector3(-e, -bevel, b), new Vector3(-ei, 0f, bi), new Vector3(-ei, 0f, -ei), new Vector3(-e, -bevel, -e)); // left
             Quad(top, new Vector3(e, -bevel, -e), new Vector3(ei, 0f, -ei), new Vector3(ei, 0f, bi), new Vector3(e, -bevel, b)); // right
-            // Sides and bottom.
-            Quad(side, new Vector3(-e, -d, -e), new Vector3(-e, -bevel, -e), new Vector3(e, -bevel, -e), new Vector3(e, -d, -e)); // front
-            Quad(side, new Vector3(e, -d, b), new Vector3(e, -bevel, b), new Vector3(-e, -bevel, b), new Vector3(-e, -d, b)); // back
-            Quad(side, new Vector3(-e, -d, b), new Vector3(-e, -bevel, b), new Vector3(-e, -bevel, -e), new Vector3(-e, -d, -e)); // left
-            Quad(side, new Vector3(e, -d, -e), new Vector3(e, -bevel, -e), new Vector3(e, -bevel, b), new Vector3(e, -d, b)); // right
-            Quad(side, new Vector3(-e, -d, b), new Vector3(e, -d, b), new Vector3(e, -d, -e), new Vector3(-e, -d, -e)); // bottom
+            // Sides and bottom. The bottom is pulled in, so the island hangs like a chunk of earth instead of
+            // ending in a flat box.
+            float bx = e * 0.55f;
+            float cz = (b - e) * 0.5f, depth = (b + e) * 0.5f * 0.55f;
+            float bzF = cz - depth, bzB = cz + depth;
+            Quad(side, new Vector3(-bx, -d, bzF), new Vector3(-e, -bevel, -e), new Vector3(e, -bevel, -e), new Vector3(bx, -d, bzF)); // front
+            Quad(side, new Vector3(bx, -d, bzB), new Vector3(e, -bevel, b), new Vector3(-e, -bevel, b), new Vector3(-bx, -d, bzB)); // back
+            Quad(side, new Vector3(-bx, -d, bzB), new Vector3(-e, -bevel, b), new Vector3(-e, -bevel, -e), new Vector3(-bx, -d, bzF)); // left
+            Quad(side, new Vector3(bx, -d, bzF), new Vector3(e, -bevel, -e), new Vector3(e, -bevel, b), new Vector3(bx, -d, bzB)); // right
+            Quad(side, new Vector3(-bx, -d, bzB), new Vector3(bx, -d, bzB), new Vector3(bx, -d, bzF), new Vector3(-bx, -d, bzF)); // bottom
 
             var mesh = new Mesh { name = "SoilBlock" + gridSize };
             mesh.SetVertices(verts);

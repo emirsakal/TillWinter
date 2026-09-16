@@ -133,7 +133,10 @@ namespace TillWinter.Unity
             }
             else
             {
-                _fx.Play(VfxId.Harvest, at, ring ? 1f + e.Tier * 0.15f : 0.6f, TierColors[Mathf.Clamp(e.Tier, 0, 5)]);
+                // The streak makes the burst bigger and warmer: the most repeated moment in the game pays off.
+                float streak = Mathf.Clamp01((_game.State.Combo - 1) / 9f);
+                var tint = Color.Lerp(TierColors[Mathf.Clamp(e.Tier, 0, 5)], Palette.Load().Golden, streak * 0.5f);
+                _fx.Play(VfxId.Harvest, at, (ring ? 1f + e.Tier * 0.15f : 0.6f) * (1f + 0.35f * streak), tint);
                 _audio.Play(SfxId.HarvestPop, ring ? 1f : 0.7f);
                 if (ring) Haptics.Play(HapticKind.Light);
             }
@@ -182,6 +185,11 @@ namespace TillWinter.Unity
                 }
                 if (_reveal > 0.5f && _game.Pointer != null && _game.Pointer.Current.Tapped) SkipReveal();
                 else if (done) _reveal = 99f;
+            }
+            if (CameraRig.Instance != null)
+            {
+                CameraRig.Instance.Excitement = Mathf.Clamp01((state.Combo - 1) / 9f);
+                CameraRig.Instance.PulledBack = state.IsWinter;
             }
             _sheen = Mathf.Max(0f, _sheen - dt / 1.2f);
             foreach (var kv in _plots)

@@ -112,6 +112,12 @@ namespace TillWinter.Unity
             var crows = new GameObject("Crows").AddComponent<CrowsView>();
             crows.transform.SetParent(root.transform, false);
             crows.Init(game, fx, audio, catalog);
+            var clouds = new GameObject("SkyClouds").AddComponent<SkyClouds>();
+            clouds.transform.SetParent(root.transform, false);
+            clouds.Init(catalog);
+            var critters = new GameObject("Critters").AddComponent<CrittersView>();
+            critters.transform.SetParent(root.transform, false);
+            critters.Init(game, catalog);
 
             var canvas = BuildCanvas(root.transform);
             var hud = canvas.gameObject.AddComponent<HudView>();

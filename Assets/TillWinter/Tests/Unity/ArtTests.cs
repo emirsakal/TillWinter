@@ -46,7 +46,7 @@ namespace TillWinter.Tests.Unity
         [Test]
         public void NoMaterialInArt_UsesAnotherShader()
         {
-            var allowed = new HashSet<string> { "TillWinter/TW_Toon", "TillWinter/TW_Sky", "Shader Graphs/Decal" };
+            var allowed = new HashSet<string> { "TillWinter/TW_Toon", "TillWinter/TW_Sky", "TillWinter/TW_Shadow", "Shader Graphs/Decal" };
             foreach (var guid in AssetDatabase.FindAssets("t:Material", new[] { "Assets/Art" }))
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);

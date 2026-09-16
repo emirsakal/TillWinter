@@ -25,7 +25,7 @@ namespace TillWinter.Unity
                 var prefab = _catalog.Apprentices != null && _catalog.Apprentices.Length > 0 ? _catalog.Apprentices[i % _catalog.Apprentices.Length] : null;
                 var go = _catalog.Spawn(prefab, transform, "Apprentice");
                 go.name = "Apprentice " + i;
-                _views.Add(go.AddComponent<ApprenticeView>().Setup());
+                _views.Add(go.AddComponent<ApprenticeView>().Setup(_catalog));
             }
             while (_views.Count > list.Count)
             {
@@ -47,7 +47,7 @@ namespace TillWinter.Unity
         private bool _placed;
         private float _lastSin;
 
-        public ApprenticeView Setup()
+        public ApprenticeView Setup(VisualCatalog catalog = null)
         {
             // Everything spawned from the prefab moves under one body pivot so bob/squash apply to model + hat.
             _body = new GameObject("Body").transform;
@@ -55,6 +55,13 @@ namespace TillWinter.Unity
             var children = new List<Transform>();
             foreach (Transform c in transform) if (c != _body) children.Add(c);
             foreach (var c in children) c.SetParent(_body, false);
+            // The contact shadow stays on the root, so it does not bob with the body.
+            var shadow = catalog != null ? catalog.Spawn(catalog.BlobShadow, transform, "Shadow") : null;
+            if (shadow != null)
+            {
+                shadow.transform.localPosition = new Vector3(0f, 0.02f, 0f);
+                shadow.transform.localScale = Vector3.one * 0.5f;
+            }
             return this;
         }
 
