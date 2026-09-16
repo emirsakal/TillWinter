@@ -16,8 +16,13 @@ namespace TillWinter.EditorTools
     /// </summary>
     public static class UiSetup
     {
-        private const string FontSource = "Assets/Fonts/Nunito-Variable.ttf";
-        private const string FontAssetPath = "Assets/Fonts/Resources/NunitoSDF.asset";
+        // Figtree: warmer and more characterful than Nunito, and it carries the whole Turkish alphabet. That last part
+        // is not optional — Fredoka was tried first and has no Ğ ğ İ Ş ş, which would have set half the Turkish UI in
+        // the fallback font mid-word. Check a candidate's cmap before swapping. SIL OFL 1.1, licence kept beside it.
+        // UiKit.Font loads this by name from Resources, so the two spellings must stay in step.
+        private const string FontName = "FigtreeSDF";
+        private const string FontSource = "Assets/Fonts/Figtree-SemiBold.ttf";
+        private const string FontAssetPath = "Assets/Fonts/Resources/" + FontName + ".asset";
         private const string ThemePath = "Assets/TillWinter/Unity/Resources/TreeTheme.asset";
         private const string Characters =
             " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" +
@@ -89,16 +94,16 @@ namespace TillWinter.EditorTools
             Directory.CreateDirectory(Path.GetDirectoryName(FontAssetPath));
             var asset = TMP_FontAsset.CreateFontAsset(font, 72, 8, GlyphRenderMode.SDFAA, 1024, 1024, AtlasPopulationMode.Dynamic, true);
             if (asset == null) throw new InvalidOperationException("TMP_FontAsset.CreateFontAsset returned null");
-            asset.name = "NunitoSDF";
+            asset.name = FontName;
             bool ok = asset.TryAddCharacters(Characters, out string missing);
             Debug.Log("[UiSetup] glyphs added: " + ok + (string.IsNullOrEmpty(missing) ? "" : " missing: " + missing));
             asset.atlasPopulationMode = AtlasPopulationMode.Static;
             AssetDatabase.CreateAsset(asset, FontAssetPath);
-            asset.material.name = "NunitoSDF Material";
+            asset.material.name = FontName + " Material";
             AssetDatabase.AddObjectToAsset(asset.material, asset);
             for (int i = 0; i < asset.atlasTextures.Length; i++)
             {
-                asset.atlasTextures[i].name = "NunitoSDF Atlas " + i;
+                asset.atlasTextures[i].name = FontName + " Atlas " + i;
                 AssetDatabase.AddObjectToAsset(asset.atlasTextures[i], asset);
             }
             EditorUtility.SetDirty(asset);
@@ -145,7 +150,7 @@ namespace TillWinter.EditorTools
             {
                 var tex = asset.atlasTextures[i];
                 if (tex == null || AssetDatabase.Contains(tex)) continue;
-                tex.name = "NunitoSDF Atlas " + i;
+                tex.name = FontName + " Atlas " + i;
                 AssetDatabase.AddObjectToAsset(tex, asset);
             }
             EditorUtility.SetDirty(asset);

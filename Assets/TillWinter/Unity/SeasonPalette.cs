@@ -76,7 +76,9 @@ namespace TillWinter.Unity
             AmbientSky = new Color(0.7f, 0.78f, 0.92f), AmbientEquator = new Color(0.62f, 0.7f, 0.86f), AmbientGround = new Color(0.5f, 0.56f, 0.68f),
             FogColor = new Color(0.8f, 0.86f, 0.95f), FogStart = 26f, FogEnd = 50f,
             GrassTint = new Color(0.9f, 0.92f, 1f), LeafTint = new Color(0.8f, 0.86f, 0.95f), ColorFilter = new Color(0.86f, 0.92f, 1f),
-            SkyTop = new Color(0.55f, 0.62f, 0.78f), SkyBottom = new Color(0.86f, 0.9f, 0.96f), SnowAmount = 1f,
+            // Snow at 1 lerped every upward-facing surface to white and the farm disappeared under it. Just over half
+            // still reads unmistakably as winter while the grass, roofs and crops keep their own colour underneath.
+            SkyTop = new Color(0.55f, 0.62f, 0.78f), SkyBottom = new Color(0.86f, 0.9f, 0.96f), SnowAmount = 0.55f,
         };
 
         /// <summary>The Golden Year (GDD §8): warm low sun, amber sky, gilded grass.</summary>

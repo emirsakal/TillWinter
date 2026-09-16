@@ -18,7 +18,9 @@ Both are Google Fonts under the **SIL Open Font License 1.1**, which permits emb
 | Font | File | Licence text |
 |---|---|---|
 | Nunito | `../Fonts/Nunito-Variable.ttf` | `../Fonts/OFL.txt` |
-| Fredoka | `../Fonts/Fredoka-SemiBold.ttf` | `../Fonts/OFL-Fredoka.txt` |
+| Figtree | `../Fonts/Figtree-SemiBold.ttf` | `../Fonts/OFL-Figtree.txt` |
+
+A candidate font must cover the Turkish alphabet (`Ç ç Ğ ğ İ ı Ö ö Ş ş Ü ü`) before it can be used — the UI ships in EN and TR, and a face missing them sets Turkish words half in the fallback font.
 
 # First-party
 

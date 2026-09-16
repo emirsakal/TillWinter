@@ -22,6 +22,8 @@ namespace TillWinter.Unity
         private Image _cover;
         private TMP_Text _label;
         private CanvasGroup _group;
+        private RectTransform _sprout;
+        private Image _stem, _leafL, _leafR;
 
         /// <summary>Loads a scene by name behind a cover. Ignored while another load is running.</summary>
         public static void Load(string sceneName)
@@ -52,7 +54,18 @@ namespace TillWinter.Unity
             _group = _cover.gameObject.AddComponent<CanvasGroup>();
             _group.alpha = 0f;
             _label = UiKit.Label(_cover.transform, "Label", Strings.Get("ui.loading"), UiType.Title, theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Box(_label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 90f));
+            UiKit.Box(_label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -150f), new Vector2(900f, 90f));
+
+            // A seed growing while you wait, rather than a word on its own: soil line, a stem that rises and two
+            // leaves that open off it. Built from the same primitives every other screen uses.
+            _sprout = UiKit.Rect("Sprout", _cover.transform);
+            UiKit.Box(_sprout, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 40f), new Vector2(260f, 260f));
+            var soil = UiKit.Panel(_sprout, "Soil", theme.SheetInk, true, false);
+            UiKit.Box(soil.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(190f, 14f));
+            _stem = UiKit.Panel(_sprout, "Stem", theme.SheetButton, true, false);
+            UiKit.Box(_stem.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(16f, 150f));
+            _leafL = UiKit.CircleImage(_sprout, "LeafL", theme.SheetButton, new Vector2(-46f, 112f), 84f);
+            _leafR = UiKit.CircleImage(_sprout, "LeafR", theme.SheetButton, new Vector2(46f, 138f), 84f);
             StartCoroutine(Run(sceneName));
         }
 
@@ -74,8 +87,10 @@ namespace TillWinter.Unity
                 var c = _label.color;
                 c.a = 0.55f + 0.45f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f));
                 _label.color = c;
+                Grow(Mathf.Repeat(Time.unscaledTime * 0.55f, 1f));
                 yield return null;
             }
+            Grow(1f);
             yield return new WaitForSecondsRealtime(HoldAfterLoad);
 
             for (float t = 0f; t < FadeOut; t += Time.unscaledDeltaTime)
@@ -85,6 +100,18 @@ namespace TillWinter.Unity
             }
             _active = null;
             Destroy(gameObject);
+        }
+
+        /// <summary>One cycle of the seed growing: the stem rises first, then each leaf opens in turn.</summary>
+        private void Grow(float t)
+        {
+            if (_stem == null) return;
+            float stem = Mathf.Clamp01(t / 0.55f);
+            _stem.rectTransform.sizeDelta = new Vector2(16f, 20f + 130f * UiMotion.EaseOut(stem));
+            float left = Mathf.Clamp01((t - 0.4f) / 0.3f);
+            float right = Mathf.Clamp01((t - 0.6f) / 0.3f);
+            _leafL.rectTransform.localScale = new Vector3(UiMotion.EaseOut(left), UiMotion.EaseOut(left), 1f);
+            _leafR.rectTransform.localScale = new Vector3(UiMotion.EaseOut(right), UiMotion.EaseOut(right), 1f);
         }
     }
 }

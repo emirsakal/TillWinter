@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c52b02ea12d1ad4478f33e0ad9945aae, type: 3}
   m_Name: HeritageTheme
   m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.TreeTheme
-  StyleVersion: 2
+  StyleVersion: 3
   Paper: {r: 0.09, g: 0.2, b: 0.14, a: 0.97}
   PaperVignette: {r: 0, g: 0.05, b: 0.02, a: 0.5}
   Ink: {r: 0.96, g: 0.9, b: 0.72, a: 1}
@@ -37,4 +37,4 @@ MonoBehaviour:
   PulseAmplitude: 0.05
   ZoomMin: 0.5
   ZoomMax: 1.6
-  InitialZoom: 0.6
+  InitialZoom: 0.5

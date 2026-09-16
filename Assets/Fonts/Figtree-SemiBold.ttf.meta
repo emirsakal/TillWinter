@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: d8d1cc1ad94d2fe4dba3cbc55b5e2cef
+guid: 43a8def67df859e4480ec90ec24a6d40
 TrueTypeFontImporter:
   externalObjects: {}
   serializedVersion: 4
@@ -9,7 +9,7 @@ TrueTypeFontImporter:
   characterPadding: 1
   includeFontData: 1
   fontNames:
-  - Fredoka
+  - Figtree
   fallbackFontReferences: []
   customCharacters: 
   fontRenderingMode: 0

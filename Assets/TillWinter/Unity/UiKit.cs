@@ -18,13 +18,13 @@ namespace TillWinter.Unity
         private static TMP_FontAsset _font;
         private static Sprite _rounded, _circle;
 
-        /// <summary>Nunito SDF from Resources (Latin + Turkish), with the TMP default font as fallback for missing glyphs.</summary>
+        /// <summary>Figtree SDF from Resources (Latin + Turkish), with the TMP default font as fallback for missing glyphs.</summary>
         public static TMP_FontAsset Font
         {
             get
             {
                 if (_font != null) return _font;
-                _font = Resources.Load<TMP_FontAsset>("NunitoSDF");
+                _font = Resources.Load<TMP_FontAsset>("FigtreeSDF"); // built by UiSetup; the two spellings must match
                 if (_font == null) _font = TMP_Settings.defaultFontAsset;
                 else if (TMP_Settings.defaultFontAsset != null && !_font.fallbackFontAssetTable.Contains(TMP_Settings.defaultFontAsset))
                     _font.fallbackFontAssetTable.Add(TMP_Settings.defaultFontAsset);
@@ -146,10 +146,20 @@ namespace TillWinter.Unity
             }
         }
 
+        /// <summary>
+        /// Darkens a colour without touching its hue, for the lip under a button face. Derived from the caller's own
+        /// theme colour rather than a constant, so a restyle carries through on its own.
+        /// </summary>
+        private static Color Lip(Color c) => new Color(c.r * 0.62f, c.g * 0.62f, c.b * 0.62f, c.a);
+
         public static Button Button(Transform parent, string name, string text, int fontSize, Color bg, Color fg, UnityAction onClick)
         {
-            var img = Panel(parent, name, bg);
-            var btn = img.gameObject.AddComponent<Button>();
+            // A flat rounded rectangle read as a placeholder. The button is now a face sitting on a darker lip, so it
+            // has a near edge and catches the eye as something pressable; ButtonFeedback's squeeze does the rest.
+            var lip = Panel(parent, name, Lip(bg));
+            var img = Panel(lip.transform, "Face", bg, true, false);
+            Stretch(img.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 7f), Vector2.zero);
+            var btn = lip.gameObject.AddComponent<Button>();
             btn.targetGraphic = img;
             var colors = btn.colors;
             colors.highlightedColor = new Color(1.06f, 1.06f, 1.06f);
