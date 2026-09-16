@@ -89,6 +89,11 @@
   "pause.main_menu": "Ana menü",
 
   "pause.title": "Duraklatıldı",
+  "pause.summary": "Yıl {year} · Nesil {gen} · {coins} jeton",
+  "settings.section.general": "Genel",
+  "settings.section.sound": "Ses",
+  "settings.section.display": "Görünüm",
+  "settings.section.data": "Çiftlik verisi",
   "pause.resume": "Devam et",
   "pause.settings": "Ayarlar",
   "pause.stats": "İstatistikler",

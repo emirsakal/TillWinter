@@ -191,6 +191,51 @@ namespace TillWinter.Unity
             return border;
         }
 
+        /// <summary>
+        /// The notebook look on a card from <see cref="Card"/>: a tinted title band across the top, a thin rule under it
+        /// with a small diamond at each end, and a diamond in each lower corner. Colours come from the card's own face.
+        /// </summary>
+        public static void SheetDecor(Image card, float bandHeight)
+        {
+            var face = card.transform.Find("Face") as RectTransform;
+            if (face == null) return;
+            var faceColor = face.GetComponent<Image>().color;
+            bool light = 0.299f * faceColor.r + 0.587f * faceColor.g + 0.114f * faceColor.b > 0.45f;
+            var band = light ? Color.Lerp(faceColor, UiPalette.Earth, 0.16f) : Color.Lerp(faceColor, UiPalette.Cream, 0.05f);
+            band.a = faceColor.a;
+            var ink = CardBorderColor(faceColor);
+            ink.a = 0.9f;
+            // Rounded band so the top corners follow the face; a square strip hides its rounded bottom edge.
+            var top = Panel(face, "TitleBand", band, true, false);
+            Stretch(top.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -bandHeight), Vector2.zero);
+            var square = Panel(face, "TitleBandBase", band, false, false);
+            Stretch(square.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -bandHeight), new Vector2(0f, -bandHeight * 0.5f));
+            var rule = Panel(face, "Rule", ink, false, false);
+            Stretch(rule.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(48f, -bandHeight - 2f), new Vector2(-48f, -bandHeight + 2f));
+            Diamond(face, new Vector2(0f, 1f), new Vector2(40f, -bandHeight), ink, 16f);
+            Diamond(face, new Vector2(1f, 1f), new Vector2(-40f, -bandHeight), ink, 16f);
+            Diamond(face, new Vector2(0f, 0f), new Vector2(24f, 24f), ink, 12f);
+            Diamond(face, new Vector2(1f, 0f), new Vector2(-24f, 24f), ink, 12f);
+        }
+
+        private static void Diamond(Transform parent, Vector2 anchor, Vector2 pos, Color color, float size)
+        {
+            var d = Panel(parent, "Diamond", color, false, false);
+            Box(d.rectTransform, anchor, new Vector2(0.5f, 0.5f), pos, Vector2.one * size);
+            d.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        }
+
+        /// <summary>An icon at the left of a button face; the label keeps its centre and gains room on both sides.</summary>
+        public static Image ButtonIcon(Button button, string iconKey)
+        {
+            var label = ButtonLabel(button);
+            var face = label.transform.parent;
+            var icon = NodeIcons.Image(face, iconKey, label.color);
+            Box(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(52f, 2f), Vector2.one * 44f);
+            Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(92f, 4f), new Vector2(-92f, -4f));
+            return icon;
+        }
+
         public static Button Button(Transform parent, string name, string text, int fontSize, Color bg, Color fg, UnityAction onClick)
         {
             // A flat rounded rectangle read as a placeholder. The button is now a face sitting on a darker lip, so it

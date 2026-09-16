@@ -272,8 +272,9 @@ namespace TillWinter.Unity
             _confirm = dim.gameObject;
             var box = UiKit.Card(dim.transform, "ConfirmBox", _theme.Paper);
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 620f));
+            UiKit.SheetDecor(box, 118f);
             var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.confirm_title"), UiType.Title, _theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -36f), new Vector2(860f, 70f));
+            UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -24f), new Vector2(860f, 70f));
             _confirmText = UiKit.Label(box.transform, "Text", "", UiType.Label, _theme.Ink, TextAnchor.UpperLeft);
             UiKit.Stretch(_confirmText.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 170f), new Vector2(-50f, -136f)); // the body used to start inside the title
             var yes = UiKit.Button(box.transform, "Yes", Strings.Get("ui.retire"), UiType.Body, _theme.Seed, _theme.Paper, OnRetireConfirmed);
