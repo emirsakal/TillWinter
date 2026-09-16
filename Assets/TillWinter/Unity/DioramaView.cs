@@ -23,6 +23,9 @@ namespace TillWinter.Unity
         private Transform _scenery;
         private Transform _dog;
         private DogView _dogView;
+        private PaletteBinder _windows;
+        private float _windowGlow = -1f;
+        private float _windowTarget;
         private FrogView _frog;
         private readonly List<(Vector2 at, float radius)> _avoid = new List<(Vector2, float)>();
         private int _builtSize = -1, _builtGen = -1;
@@ -98,7 +101,9 @@ namespace TillWinter.Unity
             // Behind the fence, on the extra back strip: farmhouse far right, trees far left.
             float back = half + 0.55f + (Margin - 0.55f + BackDepth) * 0.55f;
             var house = new Vector3(edge - 1.1f, 0f, back);
-            Place(_catalog.HouseFor(gen), "House", house, -15f);
+            var houseGo = Place(_catalog.HouseFor(gen), "House", house, -15f);
+            _windows = houseGo != null ? houseGo.transform.Find("Windows")?.GetComponent<PaletteBinder>() : null;
+            _windowGlow = -1f;
             Shadow(house, 1.9f);
             _treesGreen.Clear();
             _treesAutumn.Clear();
@@ -261,6 +266,20 @@ namespace TillWinter.Unity
             _frog.transform.localPosition = pos;
             _frog.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
             _frog.SetHome(pos);
+        }
+
+        /// <summary>The farmhouse lights its windows as the year cools: a little in Autumn, fully once frost is near.</summary>
+        private void LateUpdate()
+        {
+            if (_windows == null || _game == null || _game.State == null) return;
+            var s = _game.State;
+            _windowTarget = s.IsWinter || s.FrostWarning ? 1f : s.Season == TillWinter.Core.Season.Autumn ? 0.45f : 0f;
+            float next = _windowGlow < 0f ? _windowTarget : Prims.Damp(_windowGlow, _windowTarget, 1.5f, Time.deltaTime);
+            if (Mathf.Abs(next - _windowGlow) < 0.002f) return;
+            _windowGlow = next;
+            var palette = Palette.Load();
+            _windows.Override(PaletteSlot.Glass, Color.Lerp(palette.Get(PaletteSlot.Glass), palette.Golden, _windowGlow));
+            _windows.SetEmission(palette.GoldenGlow * (_windowGlow * 0.8f));
         }
 
         private GameObject Place(GameObject prefab, string name, Vector3 pos, float yaw)

@@ -301,7 +301,7 @@ Transform:
   m_LocalScale: {x: 0.16, y: 0.16, z: 0.02}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 6869235292554165829}
+  m_Father: {fileID: 4699194624021081253}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &1472058735556741751
 MeshFilter:
@@ -391,7 +391,7 @@ Transform:
   m_LocalScale: {x: 0.16, y: 0.16, z: 0.02}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 6869235292554165829}
+  m_Father: {fileID: 4699194624021081253}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &2489297424330536780
 MeshFilter:
@@ -756,8 +756,7 @@ Transform:
   - {fileID: 1670937819145673093}
   - {fileID: 9103854783713130668}
   - {fileID: 8022021488537209897}
-  - {fileID: 5942045004709256559}
-  - {fileID: 7394070702356735962}
+  - {fileID: 4699194624021081253}
   - {fileID: 1523281146400144463}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -804,16 +803,6 @@ MonoBehaviour:
     Slot: 16
     Tint: {r: 1, g: 1, b: 1, a: 1}
     Weathered: 1
-  - Renderer: {fileID: 7782424072004857535}
-    MaterialIndex: 0
-    Slot: 22
-    Tint: {r: 1, g: 1, b: 1, a: 1}
-    Weathered: 0
-  - Renderer: {fileID: 7740683872925725240}
-    MaterialIndex: 0
-    Slot: 22
-    Tint: {r: 1, g: 1, b: 1, a: 1}
-    Weathered: 0
   - Renderer: {fileID: 2547844265373637244}
     MaterialIndex: 0
     Slot: 18
@@ -909,3 +898,60 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &8320161637475767090
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4699194624021081253}
+  - component: {fileID: 4447793781499130534}
+  m_Layer: 0
+  m_Name: Windows
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4699194624021081253
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8320161637475767090}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 5942045004709256559}
+  - {fileID: 7394070702356735962}
+  m_Father: {fileID: 6869235292554165829}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4447793781499130534
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8320161637475767090}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71ffcfb6156fcab43a785b39576cff2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.PaletteBinder
+  Bindings:
+  - Renderer: {fileID: 7782424072004857535}
+    MaterialIndex: 0
+    Slot: 22
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    Weathered: 0
+  - Renderer: {fileID: 7740683872925725240}
+    MaterialIndex: 0
+    Slot: 22
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    Weathered: 0

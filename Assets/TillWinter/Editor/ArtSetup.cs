@@ -923,8 +923,11 @@ namespace TillWinter.EditorTools
             roofR.transform.localRotation = Quaternion.Euler(0f, 0f, -35f);
             Prim(PrimitiveType.Cube, root.transform, "Gable", new Vector3(0f, h + 0.18f, 0f), new Vector3(w * 0.5f, 0.36f, d - 0.02f), b, PaletteSlot.Wall);
             Prim(PrimitiveType.Cube, root.transform, "Door", new Vector3(0f, 0.2f, -d * 0.5f - 0.005f), new Vector3(0.2f, 0.4f, 0.03f), b, PaletteSlot.Wood);
+            // The windows have their own binder so the diorama can light them on cold evenings without the whole house glowing.
+            var (windows, wb) = Root("Windows");
+            windows.transform.SetParent(root.transform, false);
             for (int i = 0; i <= size; i++)
-                Prim(PrimitiveType.Cube, root.transform, "Window" + i, new Vector3(-w * 0.3f + i * (w * 0.6f / Mathf.Max(1, size)), h * 0.6f, -d * 0.5f - 0.005f), new Vector3(0.16f, 0.16f, 0.02f), b, PaletteSlot.Glass, null, null, false);
+                Prim(PrimitiveType.Cube, windows.transform, "Window" + i, new Vector3(-w * 0.3f + i * (w * 0.6f / Mathf.Max(1, size)), h * 0.6f, -d * 0.5f - 0.005f), new Vector3(0.16f, 0.16f, 0.02f), wb, PaletteSlot.Glass, null, null, false);
             if (size >= 1) Prim(PrimitiveType.Cube, root.transform, "Chimney", new Vector3(w * 0.3f, h + 0.45f, d * 0.15f), new Vector3(0.14f, 0.35f, 0.14f), b, PaletteSlot.Stone);
             if (size >= 2) Prim(PrimitiveType.Cube, root.transform, "Porch", new Vector3(0f, 0.03f, -d * 0.5f - 0.2f), new Vector3(w * 0.7f, 0.06f, 0.4f), b, PaletteSlot.WoodLight);
             return root;

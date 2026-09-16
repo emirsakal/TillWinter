@@ -301,7 +301,7 @@ Transform:
   m_LocalScale: {x: 0.16, y: 0.16, z: 0.02}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 5992487100614680223}
+  m_Father: {fileID: 6121240044272147652}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5829727533785040648
 MeshFilter:
@@ -360,6 +360,57 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &3604062363603782717
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6121240044272147652}
+  - component: {fileID: 7221382807647141240}
+  m_Layer: 0
+  m_Name: Windows
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6121240044272147652
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3604062363603782717}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4146901670358365828}
+  m_Father: {fileID: 5992487100614680223}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7221382807647141240
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3604062363603782717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71ffcfb6156fcab43a785b39576cff2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.PaletteBinder
+  Bindings:
+  - Renderer: {fileID: 6578011425724124273}
+    MaterialIndex: 0
+    Slot: 22
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    Weathered: 0
 --- !u!1 &4461118889453223344
 GameObject:
   m_ObjectHideFlags: 0
@@ -666,7 +717,7 @@ Transform:
   - {fileID: 9020099632847698888}
   - {fileID: 7540978660477964167}
   - {fileID: 4867690438806177435}
-  - {fileID: 4146901670358365828}
+  - {fileID: 6121240044272147652}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &782897916138766654
@@ -712,8 +763,3 @@ MonoBehaviour:
     Slot: 16
     Tint: {r: 1, g: 1, b: 1, a: 1}
     Weathered: 1
-  - Renderer: {fileID: 6578011425724124273}
-    MaterialIndex: 0
-    Slot: 22
-    Tint: {r: 1, g: 1, b: 1, a: 1}
-    Weathered: 0

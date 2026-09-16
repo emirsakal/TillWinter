@@ -1,4 +1,6 @@
-// Soft vertical gradient behind the diorama. Drawn on a quad parented to the camera (queue Background, no depth).
+// Sky behind the diorama, drawn on a quad parented to the camera (queue Background, no depth): a vertical gradient,
+// a sun disc with a soft glow, slow stylised clouds in the upper sky and a pale haze along the horizon. Everything but
+// the gradient defaults to off, so a material that sets only _Top/_Bottom stays a plain gradient.
 Shader "TillWinter/TW_Sky"
 {
     Properties
@@ -6,6 +8,13 @@ Shader "TillWinter/TW_Sky"
         _Top ("Top", Color) = (0.62, 0.8, 0.95, 1)
         _Bottom ("Bottom", Color) = (0.9, 0.94, 0.9, 1)
         _Curve ("Curve", Range(0.2, 3)) = 1.2
+        _SunColor ("Sun (a = strength)", Color) = (1, 0.95, 0.8, 0)
+        _SunPos ("Sun position (uv)", Vector) = (0.8, 0.86, 0, 0)
+        _SunSize ("Sun radius", Float) = 0.04
+        _Aspect ("Width / height", Float) = 0.46
+        _Clouds ("Cloud cover", Range(0, 1)) = 0
+        _CloudColor ("Cloud colour", Color) = (1, 1, 1, 1)
+        _Haze ("Horizon haze", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -26,6 +35,13 @@ Shader "TillWinter/TW_Sky"
                 float4 _Top;
                 float4 _Bottom;
                 float _Curve;
+                float4 _SunColor;
+                float4 _SunPos;
+                float _SunSize;
+                float _Aspect;
+                float _Clouds;
+                float4 _CloudColor;
+                float _Haze;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
@@ -39,10 +55,59 @@ Shader "TillWinter/TW_Sky"
                 return o;
             }
 
+            float Hash(float2 p)
+            {
+                p = frac(p * float2(123.34, 456.21));
+                p += dot(p, p + 45.32);
+                return frac(p.x * p.y);
+            }
+
+            float Noise(float2 p)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+                f = f * f * (3.0 - 2.0 * f);
+                float a = Hash(i), b = Hash(i + float2(1, 0)), c = Hash(i + float2(0, 1)), d = Hash(i + float2(1, 1));
+                return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+            }
+
+            float Fbm(float2 p)
+            {
+                return Noise(p) * 0.5 + Noise(p * 2.03 + 7.1) * 0.28 + Noise(p * 4.1 + 3.7) * 0.14 + Noise(p * 8.3 + 1.9) * 0.08;
+            }
+
             half4 Frag(Varyings i) : SV_Target
             {
                 float t = pow(saturate(i.uv.y), _Curve);
-                return half4(lerp(_Bottom.rgb, _Top.rgb, t), 1);
+                float3 col = lerp(_Bottom.rgb, _Top.rgb, t);
+
+                // Sun: a flat disc with a wide soft glow around it.
+                float2 d = (i.uv - _SunPos.xy) * float2(_Aspect, 1.0);
+                float r = length(d);
+                float disc = 1.0 - smoothstep(_SunSize * 0.92, _SunSize, r);
+                float glow = exp(-(r - _SunSize) / (_SunSize * 1.4)) * 0.4;
+                col = lerp(col, _SunColor.rgb, saturate(glow * _SunColor.a));
+                col = lerp(col, _SunColor.rgb * 1.08 + 0.05, disc * _SunColor.a);
+
+                // Clouds: puffy bands that only live in the upper sky and drift to the right.
+                if (_Clouds > 0.001)
+                {
+                    float2 sp = float2(i.uv.x * _Aspect * 3.0 - _Time.y * 0.015, i.uv.y * 3.4);
+                    // A turned domain keeps value noise from lining up with the screen axes.
+                    float2 cp = float2(sp.x * 0.87 - sp.y * 0.5, sp.x * 0.5 + sp.y * 0.87);
+                    float n = Fbm(cp);
+                    float band = smoothstep(0.58, 0.7, i.uv.y) * (1.0 - smoothstep(0.78, 0.84, i.uv.y)); // between the island and the HUD
+                    float cover = smoothstep(0.55 - _Clouds * 0.15, 0.8 - _Clouds * 0.15, n) * band;
+                    float shade = smoothstep(0.0, 0.25, n - (0.55 - _Clouds * 0.15)); // lighter cores
+                    float3 cloud = lerp(_CloudColor.rgb * 0.9, _CloudColor.rgb, shade);
+                    col = lerp(col, cloud, cover * 0.75);
+                }
+
+                // Haze: a pale veil rising from the horizon (morning mist, summer heat).
+                float haze = _Haze * (1.0 - smoothstep(0.0, 0.7, i.uv.y));
+                col = lerp(col, float3(1, 1, 1) * 0.97, haze * 0.7);
+
+                return half4(col, 1);
             }
             ENDHLSL
         }

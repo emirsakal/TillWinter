@@ -32,6 +32,19 @@ namespace TillWinter.Unity
 
         private static readonly int SkyTopId = Shader.PropertyToID("_Top");
         private static readonly int SkyBottomId = Shader.PropertyToID("_Bottom");
+        private static readonly int SunColorId = Shader.PropertyToID("_SunColor");
+        private static readonly int SunPosId = Shader.PropertyToID("_SunPos");
+        private static readonly int AspectId = Shader.PropertyToID("_Aspect");
+        private static readonly int CloudsId = Shader.PropertyToID("_Clouds");
+        private static readonly int CloudColorId = Shader.PropertyToID("_CloudColor");
+        private static readonly int HazeId = Shader.PropertyToID("_Haze");
+        private static readonly int SunSizeId = Shader.PropertyToID("_SunSize");
+
+        /// <summary>Morning mist at the start of each year, burnt off over a few seconds.</summary>
+        private const float MistSeconds = 7f;
+        private float _mist = 1f;
+        private float _snow;
+        private float _clouds;
 
         public Light Sun => _sun;
 
@@ -49,7 +62,7 @@ namespace TillWinter.Unity
             _sun = sunGo.AddComponent<Light>();
             _sun.type = LightType.Directional;
             _sun.shadows = LightShadows.Soft;
-            _sun.shadowStrength = 0.6f;
+            _sun.shadowStrength = 0.72f;
             _sun.shadowBias = 0.05f;
             _sun.shadowNormalBias = 0.6f;
             RenderSettings.sun = _sun;
@@ -106,6 +119,9 @@ namespace TillWinter.Unity
             _season = _game.State.Season;
             _fromSeason = _toSeason = _season;
             _from = _to = _current = _palette.For(_season, _game.State.GoldenYearActive);
+            _snow = _current.SnowAmount;
+            _clouds = CloudsFor(_season);
+            if (_game.State.YearTime > 5f) _mist = 0f;
             Apply(_current, 0f);
 
             _game.Sim.SeasonChanged += OnSeasonChanged;
@@ -128,7 +144,14 @@ namespace TillWinter.Unity
         private void OnGenerationStarted() => _fx.Clear(VfxId.Snow);
 
         /// <summary>A new year: the emission stops with Winter, but flakes already in the air lived on into Spring.</summary>
-        private void OnYearStarted() => _fx.Clear(VfxId.Snow);
+        private void OnYearStarted()
+        {
+            _fx.Clear(VfxId.Snow);
+            _mist = 1f;
+        }
+
+        /// <summary>Cloud cover per season: a clear summer, a heavy grey winter.</summary>
+        private static float CloudsFor(Season s) => s == Season.Summer ? 0.3f : s == Season.Autumn ? 0.6f : s == Season.Winter ? 0.8f : 0.45f;
 
         private void OnSeasonChanged(Season s)
         {
@@ -153,6 +176,12 @@ namespace TillWinter.Unity
             if (state.FrostWarning && !state.IsWinter)
                 frost = Mathf.Clamp01(1f - state.SecondsUntilWinter / Mathf.Max(0.01f, _game.State.Stats.FrostWarningSeconds));
 
+            float dtSky = Time.deltaTime;
+            _mist = Mathf.Max(0f, _mist - dtSky / MistSeconds);
+            // Snow settles slowly and melts quickly: the field whitens over several seconds instead of at once.
+            float snowTarget = _current.SnowAmount;
+            _snow = Prims.Damp(_snow, snowTarget, snowTarget > _snow ? 0.5f : 3f, dtSky);
+            _clouds = Prims.Damp(_clouds, CloudsFor(_toSeason), 0.8f, dtSky);
             Apply(_current, frost);
 
             // Ambience: one particle system per season, cross-faded by the same blend as the light.
@@ -186,8 +215,9 @@ namespace TillWinter.Unity
             RenderSettings.ambientSkyColor = Color.Lerp(look.AmbientSky, cold, frost * 0.4f);
             RenderSettings.ambientEquatorColor = look.AmbientEquator;
             RenderSettings.ambientGroundColor = look.AmbientGround;
-            RenderSettings.fogColor = look.FogColor;
-            RenderSettings.fogStartDistance = look.FogStart;
+            float mist = Mathf.SmoothStep(0f, 1f, _mist);
+            RenderSettings.fogColor = Color.Lerp(look.FogColor, look.SkyBottom, mist * 0.6f);
+            RenderSettings.fogStartDistance = Mathf.Lerp(look.FogStart, look.FogStart * 0.72f, mist);
             RenderSettings.fogEndDistance = look.FogEnd;
             _color.colorFilter.value = Color.Lerp(look.ColorFilter, cold, frost * 0.5f);
             _vignette.intensity.value = frost * 0.35f + (_game.State.IsWinter ? 0.25f : 0f);
@@ -195,9 +225,20 @@ namespace TillWinter.Unity
             {
                 _skyMaterial.SetColor(SkyTopId, Color.Lerp(look.SkyTop, cold, frost * 0.3f));
                 _skyMaterial.SetColor(SkyBottomId, look.SkyBottom);
+                // The sun rides higher the steeper the light (summer), sits low in autumn and winter.
+                float elevation = Mathf.InverseLerp(20f, 72f, look.Angle.x);
+                _skyMaterial.SetVector(SunPosId, new Vector4(0.84f - elevation * 0.04f, 0.69f + elevation * 0.06f, 0f, 0f));
+                _skyMaterial.SetFloat(SunSizeId, 0.034f);
+                var sunColor = Color.Lerp(look.Light, new Color(1f, 0.86f, 0.55f), 0.3f);
+                sunColor.a = Mathf.Lerp(0.95f, 0.5f, frost) * (_game.State.IsWinter ? 0.55f : 1f);
+                _skyMaterial.SetColor(SunColorId, sunColor);
+                if (_cam != null) _skyMaterial.SetFloat(AspectId, _cam.aspect);
+                _skyMaterial.SetFloat(CloudsId, _clouds);
+                _skyMaterial.SetColor(CloudColorId, Color.Lerp(Color.white, look.SkyBottom, 0.35f));
+                _skyMaterial.SetFloat(HazeId, Mathf.Max(mist, _toSeason == Season.Summer ? 0.35f : 0.12f));
             }
             else if (_cam != null) _cam.backgroundColor = look.SkyBottom;
-            float snow = Mathf.Max(look.SnowAmount, frost * 0.35f);
+            float snow = Mathf.Max(_snow, frost * 0.35f);
             PaletteBinder.SetSeason(snow, Color.Lerp(look.LeafTint, cold, frost * 0.3f), look.GrassTint);
         }
     }
