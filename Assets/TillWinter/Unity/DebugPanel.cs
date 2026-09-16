@@ -30,7 +30,10 @@ namespace TillWinter.Unity
             _save = save;
             _away = away;
 
-            // Opened from Settings -> Developer (S9); the corner belongs to the pause button.
+            // Its own toggle in the play scene while the game is in development: a panel that covers the field has to
+            // be one tap away from gone, not three taps deep in Settings.
+            var toggle = UiKit.Button(canvas, "DebugToggle", "DEV", UiType.Label, new Color(0.06f, 0.06f, 0.08f, 0.75f), UiKit.Paper, Toggle);
+            UiKit.Box(toggle.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -24f), new Vector2(104f, 72f));
 
             var panel = UiKit.Panel(canvas, "DebugPanel", new Color(0.06f, 0.06f, 0.08f, 0.92f), true, true);
             _panel = panel.gameObject;

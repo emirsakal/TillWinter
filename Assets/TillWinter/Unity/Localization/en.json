@@ -3,6 +3,7 @@
   "ui.heritage_title": "Heritage — Generation {gen}",
   "ui.almanac": "Almanac",
   "ui.heritage": "Heritage",
+  "ui.end_year": "End year",
   "ui.next_year": "Next Year",
   "ui.start_generation": "Start new generation",
   "ui.pass_on": "Pass on the farm",

@@ -31,7 +31,7 @@ namespace TillWinter.Unity
         private Button _pauseButton;
         private GameObject _pause, _settings, _credits, _stats;
         private TMP_Text _version;
-        private Button _devButton, _langEn, _langTr;
+        private Button _langEn, _langTr;
         private UiSwitch _hapticsSwitch, _motionSwitch, _largeTextSwitch;
         private Image _applying;
         private TMP_Text _sfxValue, _ambienceValue;
@@ -126,9 +126,8 @@ namespace TillWinter.Unity
             }
             y -= RowHeight + 20f;
 
+            // The developer panel is opened from its own button in the play scene now, not buried in Settings.
             Btn(p, "settings.credits", () => { _creditsFromSettings = true; Show(_credits); }, y);
-            y -= RowHeight;
-            _devButton = Btn(p, "settings.developer", () => { Resume(); DeveloperToggle?.Invoke(); }, y, ButtonWidth, 0f, _theme.SheetIdle);
             y -= RowHeight + 16f;
 
             // Reset save: hold for three seconds; the fill shows the progress.
@@ -366,7 +365,6 @@ namespace TillWinter.Unity
             Tint(_langEn, GameLanguage.Current == GameLanguage.English);
             Tint(_langTr, GameLanguage.Current == GameLanguage.Turkish);
             for (int i = 0; i < 3; i++) Tint(_quality[i], s.QualityTier == i - 1);
-            _devButton.gameObject.SetActive(DeveloperToggle != null);
             var info = BuildInfo.Current;
             _version.text = info != null && info.Build > 0
                 ? Strings.Format("settings.version", ("version", info.Version), ("build", info.Build))

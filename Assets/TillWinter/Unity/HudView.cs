@@ -140,6 +140,14 @@ namespace TillWinter.Unity
             UiKit.Box(_seasonName.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameYInBand), new Vector2(600f, 50f));
             UiKit.OutlineStrong(_seasonName);
 
+            // Ending the year early (GDD §3 v1.5): a field that is finished should not mean watching the clock. It
+            // costs the standing crop exactly as frost would, so it sits out at the edge of the band rather than
+            // anywhere a thumb rests during play.
+            var endYear = UiKit.Button(_bottomBand, "EndYear", Strings.Get("ui.end_year"), UiType.Caption,
+                _theme.PauseButton, _theme.Text, () => { _audio.Play(SfxId.UiClick); _game.Sim.EndYearNow(); });
+            UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-24f, _theme.SeasonNameYInBand + 8f), new Vector2(220f, 64f));
+
             _fxLayer = UiKit.Rect("CoinFx", canvas);
             UiKit.Stretch(_fxLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _comboRt = _combo.rectTransform;
@@ -355,6 +363,9 @@ namespace TillWinter.Unity
 
             _topGroup.alpha = Prims.Damp(_topGroup.alpha, state.Phase == Phase.Year ? 1f : 0f, 8f, dt);
             _bottomGroup.alpha = _topGroup.alpha; // the season band leaves with the rest of the year HUD
+            // A CanvasGroup at alpha 0 still takes taps: the End year button must be untouchable once the year is over.
+            bool inYear = state.Phase == Phase.Year;
+            if (_bottomGroup.blocksRaycasts != inYear) _bottomGroup.blocksRaycasts = _bottomGroup.interactable = inYear;
             MCoinText.Begin();
             double shown = System.Math.Max(0, state.Coins - _pending - HeldCoins);
             if (shown != _coinTextValue) { _coinTextValue = shown; _coinText.SetText(_coinChars, 0, NumberFormat.Short(shown, _coinChars)); }

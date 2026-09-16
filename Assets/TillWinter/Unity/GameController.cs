@@ -34,6 +34,8 @@ namespace TillWinter.Unity
         public Vector2? DebugTapScreen;
         /// <summary>Set by CloudView: is this screen point on the rain cloud?</summary>
         public System.Func<Vector2, bool> CloudHitTest;
+        /// <summary>Set by DogView: is this screen point on the dog? Returns true when it took the tap.</summary>
+        public System.Func<Vector2, bool> DogHitTest;
 
         /// <summary>Sim seconds elapsed (respects TimeScale). Use for animation that should follow the sim.</summary>
         public float SimTime { get; private set; }
@@ -99,6 +101,11 @@ namespace TillWinter.Unity
                 if (s.IsDown && TryScreenToPlot(s.Position, out var p))
                     ring = new RingInput(p.x, p.y + RingOffsetPlots);
                 if (s.Tapped && CloudHitTest != null && CloudHitTest(s.TapPosition) && Sim.TapCloud())
+                {
+                    s.Tapped = false;
+                }
+                // The dog is pure decoration: it swallows its own tap so petting it never waters the plot behind it.
+                if (s.Tapped && DogHitTest != null && DogHitTest(s.TapPosition))
                 {
                     s.Tapped = false;
                 }
