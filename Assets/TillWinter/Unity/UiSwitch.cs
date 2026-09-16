@@ -48,6 +48,15 @@ namespace TillWinter.Unity
             Changed?.Invoke(_value);
         }
 
+        // The knob used to be sized and placed once, in Init, before the caller had given the switch its size, and
+        // never again unless the value changed: it sat as a 10 px dot in the wrong spot. It now follows the track.
+        private void OnEnable() => Apply();
+
+        private void OnRectTransformDimensionsChange()
+        {
+            if (_knob != null) Apply();
+        }
+
         private void Update()
         {
             float target = _value ? 1f : 0f;
@@ -58,8 +67,11 @@ namespace TillWinter.Unity
 
         private void Apply()
         {
+            if (_knob == null || _track == null) return;
             float e = UiMotion.EaseInOut(_t);
             var size = ((RectTransform)transform).rect;
+            float knob = Mathf.Max(0f, size.height - 12f); // fills the track, with a 6 px rim of track colour around it
+            _knob.sizeDelta = new Vector2(knob, knob);
             float travel = Mathf.Max(0f, size.width - size.height);
             _knob.anchoredPosition = new Vector2(size.height * 0.5f + travel * e, 0f);
             _track.color = Color.Lerp(_off, _on, e);

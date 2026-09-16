@@ -154,6 +154,47 @@ All five sections are done; new items go at the bottom as they come up.
 
 ---
 
+## 8. Follow-up: developer playtest feedback, round three
+
+- **Done.** **Settings switch knob missing.** The knob was created 10 px wide and positioned once,
+  before the switch had its size, and never again. It now sizes to the track and re-places itself
+  whenever the switch is resized or shown.
+- **Done.** **Settings switch row spacing.** Switch rows sat 34 px below their labels and ran into
+  the next row; they are centred on their labels like the sliders.
+- **Done.** **Button label wrapping.** Button labels wrapped mid-word ("Otoma / tik"); every button
+  label now stays on its lines and shrinks to fit instead. Callers that want a smaller label lower
+  the maximum size, not the size.
+- **Done.** **Slider knob stretch.** Slider knobs were stretched into tall ellipses by the Slider
+  component; the knob now lives inside an invisible holder and keeps its size.
+- **Done.** **Reset-save and quality buttons.** The reset-save button matches the other buttons;
+  quality buttons are aligned with the rest of the column.
+- **Done.** **Main menu Generation/Year line.** It was hidden behind the Continue button; it is now
+  placed above the primary button whatever the button count.
+- **Done.** **Credits font name.** Credits named the old font (Nunito); it now says Figtree, the
+  lines are grouped, and the sheet is shorter.
+- **Done.** **EFS Games splash never showed.** The first frames after a scene load are long enough
+  to finish the fade in one step. Splash and loading-screen fades now advance at most a thirtieth of
+  a second per frame; the logo also loads if it was imported as a plain texture.
+- **Done.** **Loading screen leaves.** They now grow from the tip of the stem.
+- **Done.** **HUD.** The season name stays legible (light text, no longer fading to 35%), the End
+  year button sits below the season bar, and the onboarding hint moved below the season band where
+  it had covered it.
+- **Done.** **Winter screen.** The pause button moved to the top right while Winter is open (it sat
+  on top of Next Year); the developer toggle moved clear of the title and hint; the hint caption is
+  light text at the top of the tree (it was dark on dark and under the node sheet).
+- **Done.** **Node sheet.** The current value grew out of the sheet's left edge (its right edge was
+  pinned at x = 24); the coin sits against the price; the description stays above the effect row.
+- **Done.** **Retire confirm and stats.** The retire confirm body text no longer starts inside the
+  title. Stats: the Continue button no longer touches the last row.
+- **Done.** **Skill trees open fully framed.** The view fits and centres the tree's bounds including
+  the branch name plates (whose far edge, not centre, sets the padding); the Field branch now starts
+  down-left so its curve carries it down the portrait screen instead of flat to the right edge; name
+  plates are placed clear of their nodes; the onboarding focus no longer pans branches off screen;
+  the zoom floor was lowered to 0.3 so the whole Almanac fits.
+- **Done.** **Developer panel.** Slider knobs and the status block no longer overlap.
+
+---
+
 ## Order
 
 1. **Foundations** — type scale, sheet shell, button feedback, motion constants.

@@ -11,7 +11,7 @@ namespace TillWinter.Unity
     public sealed class TreeTheme : ScriptableObject
     {
         /// <summary>Bumped when the page look changes; UiSetup restyles an older asset in place (S9: dark page, opaque overlay).</summary>
-        public const int CurrentStyle = 3;
+        public const int CurrentStyle = 5;
         public int StyleVersion;
 
         [Header("Almanac page")]
@@ -41,7 +41,7 @@ namespace TillWinter.Unity
         public float EdgeWidth = 6f;
         public Color EdgeDim = new Color(0.74f, 0.68f, 0.58f, 0.55f);
         public float PulseAmplitude = 0.05f;
-        public float ZoomMin = 0.5f;
+        public float ZoomMin = 0.3f; // low enough that the opening view holds the whole Almanac canopy
         public float ZoomMax = 1.6f;
         public float InitialZoom = 0.52f; // the curved canopy reaches further out than the old lanes or the first star
 
@@ -89,6 +89,7 @@ namespace TillWinter.Unity
             t.InkMuted = d.InkMuted;
             t.Overlay = d.Overlay;
             t.EdgeDim = d.EdgeDim;
+            t.ZoomMin = d.ZoomMin;
             t.InitialZoom = d.InitialZoom; // the layout's reach changed, so the opening framing has to follow it
             DestroyImmediate(d);
         }

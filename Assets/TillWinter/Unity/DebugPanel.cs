@@ -33,7 +33,7 @@ namespace TillWinter.Unity
             // Its own toggle in the play scene while the game is in development: a panel that covers the field has to
             // be one tap away from gone, not three taps deep in Settings.
             var toggle = UiKit.Button(canvas, "DebugToggle", "DEV", UiType.Label, new Color(0.06f, 0.06f, 0.08f, 0.75f), UiKit.Paper, Toggle);
-            UiKit.Box(toggle.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -24f), new Vector2(104f, 72f));
+            UiKit.Box(toggle.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -345f), new Vector2(104f, 72f)); // clear of the Winter title and its hint caption
 
             var panel = UiKit.Panel(canvas, "DebugPanel", new Color(0.06f, 0.06f, 0.08f, 0.92f), true, true);
             _panel = panel.gameObject;
@@ -69,8 +69,8 @@ namespace TillWinter.Unity
             y -= 100f;
 
             _info = UiKit.Label(rt, "Info", "", 24, new Color(0.75f, 0.75f, 0.8f), TextAnchor.UpperLeft);
-            UiKit.Stretch(_info.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 110f), new Vector2(-30f, y));
-            y -= 116f;
+            UiKit.Stretch(_info.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 190f), new Vector2(-30f, y));
+            y -= 204f; // six lines of status
 
             // Node level editor: dropdown + - / +, then the resolved stats.
             var ids = new List<string>();
@@ -113,7 +113,7 @@ namespace TillWinter.Unity
         {
             var text = UiKit.Label(parent, label, label, 28, UiKit.Paper, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Stretch(text.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 40f), new Vector2(-30f, y));
-            y -= 44f;
+            y -= 52f;
             var slider = UiKit.Slider(parent, label + " Slider", min, max, value, onChanged);
             UiKit.Stretch(slider.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, y - 50f), new Vector2(-30f, y));
             y -= 60f;

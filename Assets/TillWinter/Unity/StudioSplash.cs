@@ -21,11 +21,23 @@ namespace TillWinter.Unity
 
         private static bool _played;
 
+        /// <summary>
+        /// The first frames after a scene loads can each take a second or more, which would run the whole fade in one
+        /// step and the mark would never be seen. Each frame advances the splash by at most a thirtieth of a second.
+        /// </summary>
+        private static float Step => Mathf.Min(Time.unscaledDeltaTime, 1f / 30f);
+
         /// <summary>Plays the mark over <paramref name="canvas"/> if it has not run yet this launch.</summary>
         public static void PlayOnce(RectTransform canvas)
         {
             if (_played || canvas == null) return;
+            // The PNG may be imported as a plain texture rather than a sprite; either way a sprite is made from it.
             var sprite = Resources.Load<Sprite>("efs-logo");
+            if (sprite == null)
+            {
+                var tex = Resources.Load<Texture2D>("efs-logo");
+                if (tex != null) sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+            }
             if (sprite == null) return; // no mark, no splash: never block the game on a missing asset
             _played = true;
             canvas.gameObject.AddComponent<StudioSplash>().Begin(canvas, sprite);
@@ -51,19 +63,19 @@ namespace TillWinter.Unity
         private IEnumerator Play()
         {
             bool skipped = false;
-            for (float t = 0f; t < FadeIn && !skipped; t += Time.unscaledDeltaTime)
+            for (float t = 0f; t < FadeIn && !skipped; t += Step)
             {
                 SetAlpha(_logo, Mathf.SmoothStep(0f, 1f, t / FadeIn));
                 skipped = Tapped();
                 yield return null;
             }
             SetAlpha(_logo, 1f);
-            for (float t = 0f; t < Hold && !skipped; t += Time.unscaledDeltaTime)
+            for (float t = 0f; t < Hold && !skipped; t += Step)
             {
                 skipped = Tapped();
                 yield return null;
             }
-            for (float t = 0f; t < Lift; t += Time.unscaledDeltaTime)
+            for (float t = 0f; t < Lift; t += Step)
             {
                 float k = Mathf.SmoothStep(1f, 0f, t / Lift);
                 SetAlpha(_cover, k);

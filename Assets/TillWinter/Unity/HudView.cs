@@ -137,7 +137,7 @@ namespace TillWinter.Unity
 
             // No plate behind the name: a strong outline and a soft shadow carry it over any sky, in any season.
             _seasonName = UiKit.Label(_bottomBand, "SeasonName", "", UiType.Heading, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Box(_seasonName.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameYInBand), new Vector2(600f, 50f));
+            UiKit.Box(_seasonName.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameYInBand), new Vector2(520f, 50f));
             UiKit.OutlineStrong(_seasonName);
 
             // Ending the year early (GDD §3 v1.5): a field that is finished should not mean watching the clock. It
@@ -146,7 +146,7 @@ namespace TillWinter.Unity
             var endYear = UiKit.Button(_bottomBand, "EndYear", Strings.Get("ui.end_year"), UiType.Caption,
                 _theme.PauseButton, _theme.Text, () => { _audio.Play(SfxId.UiClick); _game.Sim.EndYearNow(); });
             UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-24f, _theme.SeasonNameYInBand + 8f), new Vector2(220f, 64f));
+                new Vector2(-24f, _theme.SeasonNameYInBand - 20f), new Vector2(220f, 64f)); // below the bar, not touching its end
 
             _fxLayer = UiKit.Rect("CoinFx", canvas);
             UiKit.Stretch(_fxLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -449,10 +449,10 @@ namespace TillWinter.Unity
                 _shownSeason = state.Season;
                 _seasonFade = 0f;
                 _seasonName.text = _seasonNames[(int)state.Season];
-                _seasonName.color = _theme.SeasonColor(state.Season);
+                _seasonName.color = _theme.Text; // the bar already carries the season colour; a pastel name on a pastel sky vanished
             }
             _seasonFade += dt;
-            float fade = _seasonFade < 0.4f ? _seasonFade / 0.4f : _seasonFade < 2.5f ? 1f : Mathf.Max(0.35f, 1f - (_seasonFade - 2.5f));
+            float fade = _seasonFade < 0.4f ? _seasonFade / 0.4f : _seasonFade < 2.5f ? 1f : Mathf.Max(0.85f, 1f - (_seasonFade - 2.5f)); // it settles, it does not disappear
             var sc = _seasonName.color;
             sc.a = fade;
             _seasonName.color = sc;

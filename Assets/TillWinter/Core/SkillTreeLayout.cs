@@ -47,7 +47,11 @@ namespace TillWinter.Core
         /// <summary>The first branch points straight up; the rest follow clockwise.</summary>
         public const float FirstAngleDegrees = 90f;
 
-        public static readonly Branch[] BranchOrder = { Branch.Hand, Branch.Soil, Branch.Field, Branch.Helpers, Branch.Calendar };
+        /// <summary>
+        /// Clockwise from the top. Field, the deepest branch, starts down-left so its curve carries it towards straight
+        /// down, where a portrait screen has room; started at -54 degrees it curved out flat to the right edge.
+        /// </summary>
+        public static readonly Branch[] BranchOrder = { Branch.Hand, Branch.Soil, Branch.Helpers, Branch.Field, Branch.Calendar };
 
         /// <summary>The direction a branch leaves the centre in, in degrees (90 = up), before any curve.</summary>
         public static float AngleOf(Branch branch)

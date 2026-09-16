@@ -45,7 +45,7 @@ namespace TillWinter.Tests
             var raw = MiniJson.To<SaveData>(V4Fixture);
             Assert.AreEqual(4, raw.SchemaVersion);
             var d = SaveMigrations.Migrate(MiniJson.To<SaveData>(V4Fixture), new FarmConfig());
-            Assert.AreEqual(5, d.SchemaVersion);
+            Assert.AreEqual(SaveData.CurrentSchemaVersion, d.SchemaVersion); // later steps run on top of v5
             Assert.AreEqual(0, d.CoinsThisYear, "v4 never counted the year separately");
             Assert.AreEqual(0, d.HarvestsThisYear);
             // v4 fields survive untouched.

@@ -227,6 +227,7 @@ namespace TillWinter.EditorTools
                 TreeTheme.ApplyHeritageDefaults(d);
                 theme.InkMuted = d.InkMuted; // S9: readable on the dark page
                 theme.EdgeDim = d.EdgeDim;
+                theme.ZoomMin = d.ZoomMin; // S9: the radial tree opens fully framed
                 theme.InitialZoom = d.InitialZoom; // S9: the star needs more room than the old lanes
                 UnityEngine.Object.DestroyImmediate(d);
             }

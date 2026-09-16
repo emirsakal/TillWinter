@@ -45,7 +45,8 @@ namespace TillWinter.Unity
 
             var cap = UiKit.Panel(canvas, "Caption", _theme.HintBackground, true, false);
             _captionRt = cap.rectTransform;
-            UiKit.Box(_captionRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -560f), new Vector2(920f, 84f));
+            // Between the season band under the island and the corner buttons: at -560 from centre it sat on the band.
+            UiKit.Box(_captionRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), new Vector2(0f, 410f), new Vector2(920f, 84f));
             _captionGroup = cap.gameObject.AddComponent<CanvasGroup>();
             _captionGroup.alpha = 0f;
             _caption = UiKit.Label(cap.transform, "Text", "", UiType.Body, _theme.HintText, TextAnchor.MiddleCenter, FontStyle.Bold);

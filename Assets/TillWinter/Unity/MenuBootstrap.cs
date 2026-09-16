@@ -226,6 +226,7 @@ namespace TillWinter.Unity
             UiKit.Box(subtitle.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -410f), new Vector2(1000f, 70f));
             UiKit.Outline(subtitle, 0.16f);
 
+            RectTransform progressRt = null;
             bool hasSave = File.Exists(SaveController.FilePath);
             if (hasSave)
             {
@@ -235,8 +236,8 @@ namespace TillWinter.Unity
                 {
                     var progress = UiKit.Label(safe, "Progress", Strings.Format("menu.progress", ("gen", save.Generation), ("year", save.Year)),
                         UiType.Label, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
-                    UiKit.Box(progress.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, BottomMargin + 5f * (ButtonHeight + ButtonGap)), new Vector2(900f, 44f));
-                    UiKit.Outline(progress, 0.14f);
+                    progressRt = UiKit.Box(progress.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(900f, 44f));
+                    UiKit.OutlineStrong(progress, 0.22f);
                 }
             }
             var entries = new List<(string key, UnityAction action, bool primary)> { (hasSave ? "menu.continue" : "menu.play", StartGame, true) };
@@ -252,6 +253,8 @@ namespace TillWinter.Unity
                 var rt = b.GetComponent<RectTransform>();
                 float y = BottomMargin + (entries.Count - 1 - i) * (ButtonHeight + ButtonGap) + (primary ? ButtonGap : 0f);
                 UiKit.Box(rt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, y), new Vector2(primary ? ButtonWidth + 60f : ButtonWidth, primary ? ButtonHeight + 20f : ButtonHeight));
+                // The progress line sits just above the primary button. It was placed for a fixed button count and hid behind it.
+                if (primary && progressRt != null) progressRt.anchoredPosition = new Vector2(0f, y + ButtonHeight + 20f + 14f);
                 _buttons.Add(rt);
                 _buttonGroups.Add(b.gameObject.AddComponent<CanvasGroup>());
                 _buttonBase.Add(rt.anchoredPosition);

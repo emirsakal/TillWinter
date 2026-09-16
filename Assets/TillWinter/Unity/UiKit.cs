@@ -150,13 +150,13 @@ namespace TillWinter.Unity
         /// Darkens a colour without touching its hue, for the lip under a button face. Derived from the caller's own
         /// theme colour rather than a constant, so a restyle carries through on its own.
         /// </summary>
-        private static Color Lip(Color c) => new Color(c.r * 0.62f, c.g * 0.62f, c.b * 0.62f, c.a);
+        public static Color LipColor(Color c) => new Color(c.r * 0.62f, c.g * 0.62f, c.b * 0.62f, c.a);
 
         public static Button Button(Transform parent, string name, string text, int fontSize, Color bg, Color fg, UnityAction onClick)
         {
             // A flat rounded rectangle read as a placeholder. The button is now a face sitting on a darker lip, so it
             // has a near edge and catches the eye as something pressable; ButtonFeedback's squeeze does the rest.
-            var lip = Panel(parent, name, Lip(bg));
+            var lip = Panel(parent, name, LipColor(bg));
             var img = Panel(lip.transform, "Face", bg, true, false);
             Stretch(img.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 7f), Vector2.zero);
             var btn = lip.gameObject.AddComponent<Button>();
@@ -169,6 +169,12 @@ namespace TillWinter.Unity
             btn.colors = colors;
             var label = Label(img.transform, "Label", text, fontSize, fg, TextAnchor.MiddleCenter, FontStyle.Bold);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 4f), new Vector2(-12f, -4f));
+            // A button label never wraps mid-word ("Otoma / tik"): it keeps its lines and shrinks to fit instead.
+            // Explicit line breaks still work. Callers that want a smaller label lower fontSizeMax, not fontSize.
+            label.enableWordWrapping = false;
+            label.enableAutoSizing = true;
+            label.fontSizeMax = label.fontSize;
+            label.fontSizeMin = Mathf.Max(12f, label.fontSize * 0.5f);
             img.gameObject.AddComponent<ButtonFeedback>(); // squeeze + click + haptic, one place for every button
             if (onClick != null) btn.onClick.AddListener(onClick);
             return btn;
@@ -246,13 +252,15 @@ namespace TillWinter.Unity
             Stretch(fill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var handleArea = Rect("Handle Slide Area", rt);
             Stretch(handleArea, Vector2.zero, Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, 0f));
-            var handle = Panel(handleArea, "Handle", Paper);
-            handle.sprite = Circle;
-            handle.type = Image.Type.Simple;
-            Stretch(handle.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(-24f, -24f), new Vector2(24f, 24f));
+            // The Slider stretches its handle to the full height of the control, which turned a round knob into a
+            // tall ellipse that ran over the label above it. The handle is an invisible holder; the knob inside it
+            // keeps its own size.
+            var handle = Rect("Handle", handleArea);
+            Stretch(handle, Vector2.zero, new Vector2(0f, 1f), new Vector2(-24f, 0f), new Vector2(24f, 0f));
+            var knob = CircleImage(handle, "Knob", Paper, Vector2.zero, 44f, true);
             slider.fillRect = fill.rectTransform;
-            slider.handleRect = handle.rectTransform;
-            slider.targetGraphic = handle;
+            slider.handleRect = handle;
+            slider.targetGraphic = knob;
             slider.direction = UnityEngine.UI.Slider.Direction.LeftToRight;
             slider.minValue = min;
             slider.maxValue = max;

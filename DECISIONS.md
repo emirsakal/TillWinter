@@ -787,3 +787,26 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   restyle carries through on its own.
 - **New HudTheme and TreeTheme metrics were added as new fields** rather than by changing existing
   defaults, because a serialized asset ignores a changed default.
+
+## Follow-up: developer playtest feedback, round three (2026-09-16)
+
+- **Save schema v6: remembered skill tree views are dropped on migration.** They were pans and
+  zooms into the lane layout that the radial one replaced, so they opened the tree off-centre with
+  branches cut off. Per the save contract a field whose meaning changed gets a schema bump and a
+  migration step; a v5 fixture test covers it. Only views saved before v6 are dropped; a view
+  remembered afterwards still round-trips.
+- **Skill tree framing fits and centres the tree's bounds rather than its hub**, because the canopy
+  is lopsided (branches differ in depth).
+- **Branch order became Hand, Soil, Helpers, Field, Calendar.** Field is the deepest branch and each
+  layer curves 9 degrees counter-clockwise, so starting it at -126 degrees carries it towards
+  straight down, where a portrait screen has room.
+- **Onboarding focus (CenterOn) keeps the whole canopy on screen while it fits** instead of centring
+  the highlighted nodes; the highlight pulse already points at them.
+- **The pause button moves to the top right while the Winter screen is open** instead of being
+  hidden, so Settings and Main menu stay reachable in Winter.
+- **A new play-mode screenshot tour (ui-tour.bat) was added** because layout problems were only ever
+  found by eye. It opens every panel through its own button, backs up and restores the save and
+  settings around the run, refuses to start if an earlier tour's backup is still on disk, and turns
+  on Application.runInBackground for its own play session because the project's Run In Background is
+  off and the player loop stops whenever the editor loses focus (the same cause as the flaky smoke
+  test while someone is at the machine). The project setting itself was not changed.

@@ -54,7 +54,7 @@ namespace TillWinter.Unity
             _group = _cover.gameObject.AddComponent<CanvasGroup>();
             _group.alpha = 0f;
             _label = UiKit.Label(_cover.transform, "Label", Strings.Get("ui.loading"), UiType.Title, theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Box(_label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -150f), new Vector2(900f, 90f));
+            UiKit.Box(_label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -190f), new Vector2(900f, 90f));
 
             // A seed growing while you wait, rather than a word on its own: soil line, a stem that rises and two
             // leaves that open off it. Built from the same primitives every other screen uses.
@@ -64,15 +64,23 @@ namespace TillWinter.Unity
             UiKit.Box(soil.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(190f, 14f));
             _stem = UiKit.Panel(_sprout, "Stem", theme.SheetButton, true, false);
             UiKit.Box(_stem.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(16f, 150f));
-            _leafL = UiKit.CircleImage(_sprout, "LeafL", theme.SheetButton, new Vector2(-46f, 112f), 84f);
-            _leafR = UiKit.CircleImage(_sprout, "LeafR", theme.SheetButton, new Vector2(46f, 138f), 84f);
+            _leafL = UiKit.CircleImage(_sprout, "LeafL", theme.SheetButton, Vector2.zero, 10f);
+            _leafR = UiKit.CircleImage(_sprout, "LeafR", theme.SheetButton, Vector2.zero, 10f);
+            foreach (var leaf in new[] { _leafL, _leafR })
+            {
+                var leafRt = leaf.rectTransform;
+                leafRt.anchorMin = leafRt.anchorMax = new Vector2(0.5f, 0f);
+                leafRt.sizeDelta = new Vector2(96f, 44f); // a stretched circle reads as a leaf
+            }
+            _leafL.rectTransform.pivot = new Vector2(1f, 0.5f);
+            _leafR.rectTransform.pivot = new Vector2(0f, 0.5f);
             StartCoroutine(Run(sceneName));
         }
 
         private IEnumerator Run(string sceneName)
         {
             Time.timeScale = 1f;
-            for (float t = 0f; t < FadeIn; t += Time.unscaledDeltaTime)
+            for (float t = 0f; t < FadeIn; t += Mathf.Min(Time.unscaledDeltaTime, 1f / 30f))
             {
                 _group.alpha = UiMotion.EaseOut(t / FadeIn);
                 yield return null;
@@ -93,7 +101,7 @@ namespace TillWinter.Unity
             Grow(1f);
             yield return new WaitForSecondsRealtime(HoldAfterLoad);
 
-            for (float t = 0f; t < FadeOut; t += Time.unscaledDeltaTime)
+            for (float t = 0f; t < FadeOut; t += Mathf.Min(Time.unscaledDeltaTime, 1f / 30f)) // the first frame after a load is long
             {
                 _group.alpha = 1f - UiMotion.EaseOut(t / FadeOut);
                 yield return null;
@@ -110,6 +118,12 @@ namespace TillWinter.Unity
             _stem.rectTransform.sizeDelta = new Vector2(16f, 20f + 130f * UiMotion.EaseOut(stem));
             float left = Mathf.Clamp01((t - 0.4f) / 0.3f);
             float right = Mathf.Clamp01((t - 0.6f) / 0.3f);
+            // The leaves ride the tip of the stem and open outwards from it, tilted up like a seedling's.
+            float tip = _stem.rectTransform.sizeDelta.y;
+            _leafL.rectTransform.anchoredPosition = new Vector2(-4f, tip - 18f);
+            _leafR.rectTransform.anchoredPosition = new Vector2(4f, tip - 30f);
+            _leafL.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -24f);
+            _leafR.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 24f);
             _leafL.rectTransform.localScale = new Vector3(UiMotion.EaseOut(left), UiMotion.EaseOut(left), 1f);
             _leafR.rectTransform.localScale = new Vector3(UiMotion.EaseOut(right), UiMotion.EaseOut(right), 1f);
         }
