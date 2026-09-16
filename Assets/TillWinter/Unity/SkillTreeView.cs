@@ -115,33 +115,34 @@ namespace TillWinter.Unity
 
         private Vector2 ToPixels(LayoutPos p) => new Vector2(p.X, p.Y) * _theme.UnitPixels;
 
-        /// <summary>A tinted region and a name behind each branch: the five branches used to differ only by node colour.</summary>
+        /// <summary>
+        /// The five branches leave one centre like a star, so each is marked by a name plate past its outermost node
+        /// rather than a box behind it: boxes drawn around rays overlap in the middle, where every branch begins.
+        /// </summary>
         private void BuildBranchRegions()
         {
-            var min = new Dictionary<TillWinter.Core.Branch, Vector2>();
-            var max = new Dictionary<TillWinter.Core.Branch, Vector2>();
+            var farthest = new Dictionary<TillWinter.Core.Branch, Vector2>();
             foreach (var node in _tree.Nodes)
             {
                 if (!_layout.TryGetValue(node.Id, out var p)) continue;
                 var v = ToPixels(p);
-                if (!min.ContainsKey(node.Branch)) { min[node.Branch] = v; max[node.Branch] = v; }
-                else { min[node.Branch] = Vector2.Min(min[node.Branch], v); max[node.Branch] = Vector2.Max(max[node.Branch], v); }
+                if (!farthest.TryGetValue(node.Branch, out var best) || v.sqrMagnitude > best.sqrMagnitude) farthest[node.Branch] = v;
             }
-            float pad = _theme.NodeSize * 0.85f;
-            foreach (var kv in min)
+            var hub = UiKit.CircleImage(_content, "Hub", new Color(_theme.Ink.r, _theme.Ink.g, _theme.Ink.b, 0.12f), Vector2.zero, _theme.NodeSize * 1.4f);
+            hub.raycastTarget = false;
+            foreach (var kv in farthest)
             {
                 var branch = kv.Key;
-                Vector2 lo = kv.Value - Vector2.one * pad, hi = max[branch] + Vector2.one * pad;
                 var colour = _theme.BranchColor(branch);
-                var region = UiKit.Panel(_content, "Branch " + branch, new Color(colour.r, colour.g, colour.b, 0.1f), true, false);
-                var rt = region.rectTransform;
-                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.sizeDelta = hi - lo;
-                rt.anchoredPosition = (lo + hi) * 0.5f;
-                var name = UiKit.Label(_content, "BranchName " + branch, Strings.Branch(branch), UiType.Label,
-                    new Color(colour.r, colour.g, colour.b, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold);
-                UiKit.Box(name.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f), new Vector2((lo.x + hi.x) * 0.5f, hi.y + 8f), new Vector2(hi.x - lo.x, 44f));
+                var dir = kv.Value.sqrMagnitude > 0.01f ? kv.Value.normalized : Vector2.up;
+                var plate = UiKit.Panel(_content, "Branch " + branch, new Color(colour.r, colour.g, colour.b, 0.85f), true, false);
+                var plateRt = plate.rectTransform;
+                plateRt.anchorMin = plateRt.anchorMax = new Vector2(0.5f, 0.5f);
+                plateRt.pivot = new Vector2(0.5f, 0.5f);
+                plateRt.sizeDelta = new Vector2(240f, 52f);
+                plateRt.anchoredPosition = kv.Value + dir * (_theme.NodeSize * 0.95f);
+                var name = UiKit.Label(plate.transform, "Name", Strings.Branch(branch), UiType.Label, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Stretch(name.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             }
         }
 
@@ -343,6 +344,21 @@ namespace TillWinter.Unity
             }
             else CenterOnRoots();
             _velocity = Vector2.zero;
+            StartCoroutine(OpenFadeRoutine());
+        }
+
+        /// <summary>A short fade as the tree appears: an instant cut from the farm to a full canvas of nodes jarred.</summary>
+        private System.Collections.IEnumerator OpenFadeRoutine()
+        {
+            var group = GetComponent<CanvasGroup>();
+            if (group == null) group = gameObject.AddComponent<CanvasGroup>();
+            if (SettingsStore.Current.ReduceMotion) { group.alpha = 1f; yield break; }
+            for (float t = 0f; t < UiMotion.Normal; t += Time.unscaledDeltaTime)
+            {
+                group.alpha = UiMotion.EaseOut(t / UiMotion.Normal);
+                yield return null;
+            }
+            group.alpha = 1f;
         }
 
         public void OnClosed()

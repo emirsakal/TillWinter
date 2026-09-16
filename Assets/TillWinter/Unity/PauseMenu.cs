@@ -58,7 +58,7 @@ namespace TillWinter.Unity
             var safe = UiKit.Rect("PauseSafe", canvas);
             SafeArea.Apply(safe);
             _pauseButton = UiKit.Button(safe, "PauseButton", "II", UiType.Heading, _theme.PauseButton, _theme.Text, Open);
-            UiKit.Box(_pauseButton.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -30f), new Vector2(120f, 100f));
+            UiKit.Box(_pauseButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), new Vector2(130f, 110f)); // bottom right, opposite the retire chip
 
             BuildPause(canvas);
             BuildSettings(canvas);
@@ -196,7 +196,7 @@ namespace TillWinter.Unity
             Resume();
             _save.SaveNow();
             Time.timeScale = 1f;
-            SceneManager.LoadScene(SceneNames.Menu);
+            SceneLoader.Load(SceneNames.Menu);
         }
 
         private void BuildStats(RectTransform canvas)
