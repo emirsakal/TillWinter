@@ -44,6 +44,8 @@ namespace TillWinter.Unity
         private bool _resetDone;
         private Action _afterStats;
         private bool _fromMenu;
+        /// <summary>Credits reached through Settings, so Back owes the player a trip back to Settings; straight from the menu it owes them nothing.</summary>
+        private bool _creditsFromSettings;
 
         public bool IsOpen => _pause.activeSelf || _settings.activeSelf || _credits.activeSelf || _stats.activeSelf;
 
@@ -124,7 +126,7 @@ namespace TillWinter.Unity
             }
             y -= RowHeight + 20f;
 
-            Btn(p, "settings.credits", () => Show(_credits), y);
+            Btn(p, "settings.credits", () => { _creditsFromSettings = true; Show(_credits); }, y);
             y -= RowHeight;
             _devButton = Btn(p, "settings.developer", () => { Resume(); DeveloperToggle?.Invoke(); }, y, ButtonWidth, 0f, _theme.SheetIdle);
             y -= RowHeight + 16f;
@@ -165,7 +167,13 @@ namespace TillWinter.Unity
             Text(p, "KitsAudio", Strings.Get("credits.kits_audio"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 110f);
             y -= 150f;
             Text(p, "Font", Strings.Get("credits.font"), y, UiType.Label, _theme.SheetInk, TextAnchor.MiddleCenter);
-            Btn(page, "settings.back", () => Show(_settings), -1000f);
+            // Back retraces the way in: Settings if Credits was opened from there, otherwise straight out.
+            Btn(page, "settings.back", () =>
+            {
+                if (_creditsFromSettings) { _creditsFromSettings = false; Show(_settings); }
+                else if (_fromMenu) CloseSheets();
+                else Show(_pause);
+            }, -1000f);
         }
 
         /// <summary>Main menu entry: Settings (and Credits from it); Back closes the sheets instead of showing Pause.</summary>
@@ -175,10 +183,11 @@ namespace TillWinter.Unity
             Show(_settings);
         }
 
-        /// <summary>Main menu entry: Credits; Back goes to Settings, whose Back then closes.</summary>
+        /// <summary>Main menu entry: Credits; Back closes it, because the player never passed through Settings to get here.</summary>
         public void OpenCreditsFrom(Action unused)
         {
             _fromMenu = true;
+            _creditsFromSettings = false;
             Show(_credits);
         }
 
@@ -188,6 +197,7 @@ namespace TillWinter.Unity
             HideAll();
             SettingsStore.Save();
             _fromMenu = false;
+            _creditsFromSettings = false;
         }
 
         /// <summary>Saves and loads the title scene (Menu.unity).</summary>

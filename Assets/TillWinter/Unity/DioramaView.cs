@@ -66,7 +66,13 @@ namespace TillWinter.Unity
             _builtGen = gen;
             _blockFilter.sharedMesh = BlockMesh(n);
 
-            for (int i = _scenery.childCount - 1; i >= 0; i--) Destroy(_scenery.GetChild(i).gameObject);
+            // A fresh root every rebuild. StaticBatchingUtility.Combine bakes a root's children into one batched
+            // mesh, and Destroy only takes effect at end of frame — so re-combining this root would batch an
+            // already-batched hierarchy that still holds the previous build's dying children, which scrambled the
+            // scenery when the field grew.
+            if (_scenery != null) Destroy(_scenery.gameObject);
+            _scenery = new GameObject("Scenery").transform;
+            _scenery.SetParent(transform, false);
             float half = n * 0.5f;
             float edge = HalfExtent;
 

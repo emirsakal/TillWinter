@@ -220,6 +220,7 @@ namespace TillWinter.Unity
         private int _builtTier = -1;
         private int _stage = -1;
         private bool _golden;
+        private bool _ripeTinted;
 
         private float _visualScale;
         private float _pop = -1f;
@@ -364,6 +365,23 @@ namespace TillWinter.Unity
             _cropRoot.localRotation = Quaternion.Euler(wobble2, 0f, wobble);
             bool golden = plot.IsGolden && !winter;
             if (golden || _golden) SetGolden(golden, simTime);
+
+            // A ready plant has to read "ready" from across the board. Kenney's carrot is mostly leafy top with the
+            // root at soil level, so at this camera angle a ripe one looked as green as a growing one whatever the
+            // stage rule said; the ripe model's foliage warms toward the crop's own colour instead. Golden keeps its
+            // own override, and the tint is dropped the moment the plot stops being ripe.
+            bool warmRipe = ripe && !golden;
+            if (warmRipe != _ripeTinted)
+            {
+                _ripeTinted = warmRipe;
+                var ripeBinder = _stageBinders[2];
+                if (ripeBinder != null)
+                {
+                    if (warmRipe) ripeBinder.Override(PaletteSlot.Sprout, Color.Lerp(Palette.Load().Sprout, Palette.Load().Crop(plot.Tier), 0.7f));
+                    else ripeBinder.ClearOverride(PaletteSlot.Sprout);
+                }
+            }
+
             var stageBinder = _stageBinders[stage];
             float breathe = ripe ? 0.75f + 0.25f * Mathf.Sin(simTime * 3f + _phase) : 0f;
             float pulse = Mathf.Clamp01(_ripePunch) * 0.8f;
