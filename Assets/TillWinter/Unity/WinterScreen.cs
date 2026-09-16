@@ -92,6 +92,10 @@ namespace TillWinter.Unity
             _coinsRt = _coins.rectTransform;
             UiKit.Stretch(_coinsRt, new Vector2(0.58f, 0.5f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-200f, 0f));
             _coins.fontSize = 42;
+            var strip = UiKit.Gradient(top, "YearStrip", new Color(_theme.Accent.r, _theme.Accent.g, _theme.Accent.b, 0.16f), true);
+            UiKit.Box(strip.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, -8f), new Vector2(1080f, 84f));
+            _yearSummary = UiKit.Label(top, "YearSummary", "", UiType.Label, _theme.Ink, TextAnchor.LowerLeft);
+            UiKit.Box(_yearSummary.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(4f, 44f), new Vector2(720f, 40f));
             _greenhouse = UiKit.Label(top, "Greenhouse", "", UiType.Label, _theme.InkMuted, TextAnchor.LowerLeft);
             UiKit.Stretch(_greenhouse.rectTransform, new Vector2(0f, 0f), new Vector2(0.6f, 0.5f), Vector2.zero, Vector2.zero);
             _retireHint = UiKit.Label(top, "RetireHint", "", UiType.Label, _theme.Seed, TextAnchor.LowerRight, FontStyle.Bold);
@@ -169,6 +173,16 @@ namespace TillWinter.Unity
             _sheetLevel = UiKit.Label(_sheet, "Level", "", UiType.Label, _theme.InkMuted, TextAnchor.UpperRight);
             UiKit.Stretch(_sheetLevel.rectTransform, new Vector2(0.6f, 1f), new Vector2(1f, 1f), new Vector2(0f, -60f), new Vector2(-24f, -18f));
             _sheetDesc = UiKit.Label(_sheet, "Desc", "", UiType.Label, _theme.Ink, TextAnchor.UpperLeft);
+            _effectNow = UiKit.Label(_sheet, "EffectNow", "", UiType.Body, _theme.InkMuted, TextAnchor.MiddleRight, FontStyle.Bold);
+            UiKit.Box(_effectNow.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(24f, 96f), new Vector2(230f, 44f));
+            _effectArrow = UiKit.Label(_sheet, "EffectArrow", "»", UiType.Body, _theme.InkMuted, TextAnchor.MiddleCenter);
+            UiKit.Box(_effectArrow.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(260f, 96f), new Vector2(50f, 44f));
+            _effectNext = UiKit.Label(_sheet, "EffectNext", "", UiType.Body, _theme.Accent, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Box(_effectNext.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(310f, 96f), new Vector2(240f, 44f));
+            var gainTrack = UiKit.Panel(_sheet, "GainTrack", _theme.EdgeDim, true, false);
+            UiKit.Box(gainTrack.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(24f, 74f), new Vector2(520f, 8f));
+            _gainFill = UiKit.Panel(gainTrack.transform, "Fill", _theme.Accent, true, false);
+            UiKit.Stretch(_gainFill.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
             UiKit.Stretch(_sheetDesc.rectTransform, new Vector2(0f, 0f), new Vector2(0.62f, 1f), new Vector2(24f, 24f), new Vector2(0f, -84f));
 
             _buy = UiKit.Button(_sheet, "Buy", Strings.Get("ui.buy"), UiType.Body, _theme.Accent, _theme.Ink, OnBuy);
@@ -434,6 +448,7 @@ namespace TillWinter.Unity
             _sheetBranch.text = Strings.Branch(node.Branch);
             _sheetName.text = Strings.Name(node);
             _sheetDesc.text = Strings.Description(sim, node);
+            ShowEffect(sim, node);
             int level = _game.State.GetLevel(_selectedId);
             int max = sim.GetMaxLevel(_selectedId);
             _sheetLevel.text = Strings.Format("ui.level", ("level", level), ("max", max));
@@ -450,6 +465,44 @@ namespace TillWinter.Unity
             else if (!can) reason = Strings.Format("ui.not_enough", ("currency", Strings.Get(heritage ? "ui.seeds" : "ui.coins")));
             _sheetReason.text = reason;
             UiKit.ButtonLabel(_buy).text = maxed ? Strings.Get("ui.maxed") : !available ? Strings.Get("ui.locked") : Strings.Get("ui.buy");
+        }
+
+        private TMP_Text _effectNow, _effectNext, _effectArrow, _yearSummary;
+        private long _yearSummaryKey = -1;
+        private Image _gainFill;
+
+        /// <summary>The effect as "now » next" with a bar for the step, so what a level buys is visible at a glance.</summary>
+        private void ShowEffect(FarmSim sim, SkillNode node)
+        {
+            var values = NodeText.Values(sim, node.Id);
+            string now = values.TryGetValue("cur", out var c) ? c : "";
+            string next = values.TryGetValue("next", out var n) ? n : "";
+            bool show = now.Length > 0 && next.Length > 0 && now != next && !sim.IsMaxed(node.Id);
+            _effectNow.gameObject.SetActive(show);
+            _effectNext.gameObject.SetActive(show);
+            _effectArrow.gameObject.SetActive(show);
+            _gainFill.transform.parent.gameObject.SetActive(show);
+            if (!show) return;
+            _effectNow.text = now;
+            _effectNext.text = next;
+            float ratio = 0.35f;
+            if (TryNumber(now, out float a) && TryNumber(next, out float b) && b > 0f) ratio = Mathf.Clamp(a / b, 0.05f, 0.95f);
+            _gainFill.rectTransform.anchorMax = new Vector2(ratio, 1f);
+        }
+
+        /// <summary>Reads the leading number out of a formatted effect value ("1.2 plots", "%15"), in either language.</summary>
+        private static bool TryNumber(string text, out float value)
+        {
+            value = 0f;
+            if (string.IsNullOrEmpty(text)) return false;
+            var digits = new System.Text.StringBuilder();
+            foreach (char ch in text)
+            {
+                if (char.IsDigit(ch)) digits.Append(ch);
+                else if ((ch == '.' || ch == ',') && digits.Length > 0) digits.Append('.');
+                else if (digits.Length > 0) break;
+            }
+            return digits.Length > 0 && float.TryParse(digits.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value);
         }
 
         private List<SkillNode> Prereqs(SkillNode node)
@@ -504,6 +557,15 @@ namespace TillWinter.Unity
                 _ghCoinsKey = ghCoins;
                 _ghSecondsKey = ghSeconds;
                 _greenhouse.text = gh ? Strings.Format("ui.greenhouse", ("coins", NumberFormat.Short(s.Greenhouse.CoinsThisWinter)), ("seconds", ghSeconds)) : "";
+            }
+            // What the year that just ended brought in (Core counts it from Spring; v5 save).
+            long summaryKey = (long)s.CoinsThisYear * 1000 + s.HarvestsThisYear;
+            if (summaryKey != _yearSummaryKey)
+            {
+                _yearSummaryKey = summaryKey;
+                _yearSummary.text = s.Phase == Phase.Winter
+                    ? Strings.Format("ui.year_summary", ("harvests", s.HarvestsThisYear), ("coins", NumberFormat.Short(s.CoinsThisYear)))
+                    : "";
             }
             int retireSeeds = s.Phase == Phase.Winter && _game.Sim.CanRetire ? _game.Sim.SeedsIfRetiredNow : -1;
             if (retireSeeds != _retireSeedsKey)

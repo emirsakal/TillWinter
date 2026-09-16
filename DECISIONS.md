@@ -707,3 +707,29 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   while dragging (rate-limited to one every 0.12 s).
 - **Motion constants.** `UiMotion` defines Fast 0.12 s, Normal 0.22 s and Slow 0.4 s plus
   EaseOut/EaseInOut and a damping helper; sheets, switches and button presses all read from it.
+
+## Follow-up: visual pass 4, screen by screen (2026-09-16)
+
+- **HUD season bar.** Partly done: the frost span is hatched (Prims.HatchSprite) and the progress
+  marker has a round knob; season glyphs move to section 5 since the Kenney icon set has none.
+- **HUD coin counter.** A "+N/s" earning rate under the counter, recomputed once a second and
+  hidden outside the year.
+- **Retire chip.** Arrives with a scale punch, a solid background and a Light haptic.
+- **Winter screen.** A warm gradient strip and a year summary line ("This year: N harvests · M
+  coins").
+- **Skill tree nodes.** Level is a ring filling clockwise (pips gone), locked nodes carry the atlas
+  padlock, a bought node sends a wave outward.
+- **Node card.** Effect reads "now » next" with a step bar; hidden at max level or when the value
+  does not change.
+- **Generation card.** A stamped seal with the generation's number behind the title, easing in
+  with a slight rotation.
+- **Away card.** Earned coins fly into the counter from the card; source lines arrive one after
+  another.
+- **Ending credits.** Three groups fade in, hold and fade out, closing on the game's name inside a
+  seal (linear scroll gone).
+- **Stats screen.** Row icons and dividers shipped with section 3; coins and best combo are now
+  larger and in the accent colour.
+- **Title scene.** A soft glow behind the name, a slowly swaying island, and a "Generation N ·
+  Year M" line above Continue read straight from the save file.
+- Save schema v5 adds this year's coins and harvests for the Winter screen's summary; SaveV5Tests
+  carries a v4 fixture and the counters reset every Spring.

@@ -295,6 +295,8 @@ namespace TillWinter.Core
             State.YearTime = 0f;
             State.FrostWarning = false;
             State.Season = Season.Spring;
+            State.CoinsThisYear = 0;
+            State.HarvestsThisYear = 0;
             State.Combo = 0;
             _crowSpawnTimer = 0f;
             ClearCrows();
@@ -367,6 +369,8 @@ namespace TillWinter.Core
                 BestCombo = s.Generation.BestCombo,
                 TimePlayedSeconds = s.Generation.TimePlayedSeconds,
                 YearsTotal = s.Generation.YearsTotal,
+                CoinsThisYear = s.CoinsThisYear,
+                HarvestsThisYear = s.HarvestsThisYear,
             };
             for (int i = 0; i < s.PlotArray.Length; i++)
             {
@@ -414,6 +418,8 @@ namespace TillWinter.Core
             g.BestCombo = data.BestCombo;
             g.TimePlayedSeconds = data.TimePlayedSeconds;
             g.YearsTotal = data.YearsTotal;
+            s.CoinsThisYear = data.CoinsThisYear;
+            s.HarvestsThisYear = data.HarvestsThisYear;
             s.EndingSeen = data.EndingSeen;
             s.GoldenYearActive = data.GoldenYearActive;
 
@@ -820,6 +826,7 @@ namespace TillWinter.Core
                 case HarvestSource.LateFrost: gen.HarvestsLateFrost++; break;
             }
             if (golden) gen.GoldenHarvests++;
+            State.HarvestsThisYear++;
             int tier = plot.Tier;
             Replant(plot, source == HarvestSource.Apprentice && st.HelperWater);
             if (plot.HasCrow)
@@ -867,6 +874,7 @@ namespace TillWinter.Core
         private void AddCoins(double coins)
         {
             State.Coins += coins;
+            State.CoinsThisYear += coins;
             State.Generation.LifetimeCoinsThisGeneration += coins;
             State.Generation.LifetimeCoinsTotal += coins;
         }

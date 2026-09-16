@@ -15,7 +15,11 @@ namespace TillWinter.Unity
         private AudioManager _audio;
         private HudView _hud;
         private GameObject _panel;
-        private TMP_Text _duration, _coins, _sources, _capped;
+        private TMP_Text _duration, _coins, _capped;
+        private readonly TMP_Text[] _sourceLines = new TMP_Text[3];
+        private readonly CanvasGroup[] _sourceGroups = new CanvasGroup[3];
+        private int _sourceCount;
+        private float _reveal;
         private bool _open;
 
         public bool IsOpen => _open;
@@ -37,8 +41,13 @@ namespace TillWinter.Unity
             UiKit.CircleImage(box.transform, "CoinIcon", theme.Coin, new Vector2(-150f, 40f), 56f);
             _coins = UiKit.Label(box.transform, "Coins", "", UiType.Big, theme.Coin, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_coins.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40f, 40f), new Vector2(400f, 80f));
-            _sources = UiKit.Label(box.transform, "Sources", "", UiType.Label, theme.TextMuted, TextAnchor.UpperCenter);
-            UiKit.Box(_sources.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(800f, 110f));
+            for (int i = 0; i < _sourceLines.Length; i++)
+            {
+                _sourceLines[i] = UiKit.Label(box.transform, "Source" + i, "", UiType.Label, theme.TextMuted, TextAnchor.MiddleCenter);
+                UiKit.Box(_sourceLines[i].rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f), new Vector2(0f, -20f - i * 44f), new Vector2(800f, 42f));
+                _sourceGroups[i] = _sourceLines[i].gameObject.AddComponent<CanvasGroup>();
+                _sourceGroups[i].alpha = 0f;
+            }
             _capped = UiKit.Label(box.transform, "Capped", "", UiType.Caption, theme.HintAccent, TextAnchor.MiddleCenter);
             UiKit.Box(_capped.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 170f), new Vector2(800f, 34f));
             var ok = UiKit.Button(box.transform, "Ok", Strings.Get("ui.ok"), UiType.Heading, theme.HintAccent, new Color(0.12f, 0.1f, 0.08f), Apply);
@@ -52,11 +61,12 @@ namespace TillWinter.Unity
             int minutes = Mathf.RoundToInt((float)report.SecondsSimulated / 60f);
             _duration.text = Strings.Format("away.duration", ("hours", minutes / 60), ("minutes", minutes % 60));
             _coins.text = "+" + NumberFormat.Short(report.CoinsEarned);
-            string lines = "";
-            if (report.HarvestsApprentice > 0) lines += Strings.Format("away.apprentices", ("count", report.HarvestsApprentice)) + "\n";
-            if (report.HarvestsTractor > 0) lines += Strings.Format("away.tractor", ("count", report.HarvestsTractor)) + "\n";
-            if (lines.Length == 0) lines = Strings.Get("away.nothing");
-            _sources.text = lines.TrimEnd();
+            _sourceCount = 0;
+            if (report.HarvestsApprentice > 0) SetSource(Strings.Format("away.apprentices", ("count", report.HarvestsApprentice)));
+            if (report.HarvestsTractor > 0) SetSource(Strings.Format("away.tractor", ("count", report.HarvestsTractor)));
+            if (_sourceCount == 0) SetSource(Strings.Get("away.nothing"));
+            for (int i = _sourceCount; i < _sourceLines.Length; i++) _sourceLines[i].text = "";
+            _reveal = 0f;
             _capped.text = report.Capped ? Strings.Get("away.capped") : "";
             _hud.HeldCoins = report.CoinsEarned;
             _panel.SetActive(true);
@@ -64,12 +74,21 @@ namespace TillWinter.Unity
             _game.InputBlocked = true;
         }
 
-        /// <summary>OK: release the held coins into the counter with a punch.</summary>
+        private void SetSource(string text)
+        {
+            if (_sourceCount >= _sourceLines.Length) return;
+            _sourceLines[_sourceCount].text = text;
+            _sourceCount++;
+        }
+
+        /// <summary>OK: the held coins fly into the counter instead of appearing there.</summary>
         public void Apply()
         {
             if (!_open) return;
+            double earned = _hud.HeldCoins;
             _hud.HeldCoins = 0;
-            _hud.Punch();
+            if (earned > 0) _hud.FlyCoins(new Vector2(-150f, 40f), earned, 12);
+            else _hud.Punch();
             _audio.Play(SfxId.Purchase);
             _panel.SetActive(false);
             _open = false;
@@ -78,6 +97,16 @@ namespace TillWinter.Unity
 
         private void Update()
         {
+            if (_open)
+            {
+                // The source lines arrive one after another instead of all at once.
+                _reveal += Time.unscaledDeltaTime;
+                for (int i = 0; i < _sourceLines.Length; i++)
+                {
+                    float k = Mathf.Clamp01((_reveal - 0.35f - i * 0.22f) / UiMotion.Normal);
+                    _sourceGroups[i].alpha = i < _sourceCount ? UiMotion.EaseOut(k) : 0f;
+                }
+            }
             // Tapping anywhere (the field) applies OK.
             if (_open && _game.Pointer != null && _game.Pointer.Current.Tapped) Apply();
         }

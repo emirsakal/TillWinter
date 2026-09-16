@@ -13,7 +13,8 @@ namespace TillWinter.Unity
         private AudioManager _audio;
         private GameObject _panel;
         private CanvasGroup _group;
-        private TMP_Text _title, _flavour, _seeds, _tap;
+        private TMP_Text _title, _flavour, _seeds, _tap, _sealNumber;
+        private RectTransform _seal;
         private float _t;
         private int _seedsTarget;
         private bool _open;
@@ -34,6 +35,12 @@ namespace TillWinter.Unity
             var btn = _panel.AddComponent<Button>();
             btn.transition = Selectable.Transition.None;
             btn.onClick.AddListener(() => { if (_t > 0.5f) Finish(); });
+            // A seal behind the title: the generation's number, stamped.
+            var sealRing = UiKit.CircleImage(bg.transform, "Seal", new Color(theme.Gold.r, theme.Gold.g, theme.Gold.b, 0.18f), new Vector2(0f, 250f), 300f);
+            _seal = sealRing.rectTransform;
+            UiKit.CircleImage(_seal, "SealInner", theme.Overlay, Vector2.zero, 250f);
+            _sealNumber = UiKit.Label(_seal, "Number", "", UiType.Display, new Color(theme.Gold.r, theme.Gold.g, theme.Gold.b, 0.55f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Stretch(_sealNumber.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _title = UiKit.Label(bg.transform, "Title", "", UiType.Hero, theme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 160f), new Vector2(1000f, 110f));
             _flavour = UiKit.Label(bg.transform, "Flavour", "", UiType.Body, theme.Ink, TextAnchor.MiddleCenter, FontStyle.Italic);
@@ -54,6 +61,7 @@ namespace TillWinter.Unity
             _t = 0f;
             _lastTick = 0f;
             _title.text = Strings.Format("gen.title", ("gen", e.Generation));
+            _sealNumber.text = e.Generation.ToString();
             string key = "gen.flavour." + e.Generation;
             string flavour = Strings.Get(key);
             _flavour.text = flavour == key ? Strings.Get("gen.flavour.default") : flavour;
@@ -88,6 +96,8 @@ namespace TillWinter.Unity
             if (shown != _shownSeeds) { _shownSeeds = shown; _seeds.text = Strings.Format("gen.seeds", ("seeds", shown)); }
             if (count < 1f && _t - _lastTick > 0.08f) { _lastTick = _t; _audio.Play(SfxId.CoinArrive, 0.6f); }
             _tap.alpha = _t > 0.5f ? 0.5f + 0.5f * Mathf.Abs(Mathf.Sin(_t * 2f)) : 0f;
+            _seal.localScale = Vector3.one * Mathf.Lerp(0.85f, 1f, Prims.EaseOutQuad(Mathf.Clamp01(_t / 0.6f)));
+            _seal.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-6f, 0f, Prims.EaseOutQuad(Mathf.Clamp01(_t / 0.8f))));
             if (_t > 6f) Finish();
         }
     }

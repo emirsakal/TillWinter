@@ -66,6 +66,12 @@ namespace TillWinter.Unity
         private float _savedZoom = 1f;
         private bool _hasSavedView;
         private readonly HashSet<string> _highlight = new HashSet<string>();
+        /// <summary>Level ring and purchase wave per node (NodeView stays as it was).</summary>
+        private readonly Dictionary<string, Image> _fills = new Dictionary<string, Image>();
+        private readonly Dictionary<string, Image> _waves = new Dictionary<string, Image>();
+        private readonly Dictionary<string, float> _waveT = new Dictionary<string, float>();
+        private readonly Dictionary<string, float> _fillShown = new Dictionary<string, float>();
+        private readonly Dictionary<string, float> _fillTarget = new Dictionary<string, float>();
 
         public SkillTree Tree => _tree;
         public string SelectedId => _selectedId;
@@ -162,19 +168,26 @@ namespace TillWinter.Unity
                 nv.LevelText = UiKit.Label(nv.Rt, "Level", "", Mathf.RoundToInt(size * 0.16f), _theme.InkMuted, TextAnchor.LowerCenter);
                 UiKit.Stretch(nv.LevelText.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 18f), new Vector2(0f, 0f));
 
-                int max = node.MaxLevel < 0 ? 0 : Mathf.Min(node.MaxLevel, 8);
-                nv.Pips = new Image[max];
-                for (int i = 0; i < max; i++)
-                {
-                    float a = Mathf.PI * (0.5f + 0.5f) + (i + 0.5f) / max * Mathf.PI * 2f; // start at the bottom, clockwise
-                    a = -Mathf.PI * 0.5f + (i + 0.5f) / max * Mathf.PI * 2f;
-                    var pos = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (size * 0.5f + 9f);
-                    nv.Pips[i] = UiKit.CircleImage(nv.Rt, "Pip" + i, _theme.EdgeDim, pos, 12f);
-                }
+                // Level reads as a ring filling clockwise around the node instead of a circle of pips.
+                nv.Pips = new Image[0];
+                var track = UiKit.CircleImage(nv.Rt, "LevelTrack", _theme.EdgeDim, Vector2.zero, size * 1.18f);
+                track.transform.SetAsFirstSibling();
+                var fill = UiKit.CircleImage(nv.Rt, "LevelFill", nv.BranchColor, Vector2.zero, size * 1.18f);
+                fill.type = Image.Type.Filled;
+                fill.fillMethod = Image.FillMethod.Radial360;
+                fill.fillOrigin = (int)Image.Origin360.Top;
+                fill.fillClockwise = true;
+                fill.fillAmount = 0f;
+                fill.transform.SetSiblingIndex(1);
+                _fills[node.Id] = fill;
+                _fillShown[node.Id] = 0f;
+                var wave = UiKit.CircleImage(nv.Rt, "Wave", nv.BranchColor, Vector2.zero, size * 1.3f);
+                wave.raycastTarget = false;
+                wave.gameObject.SetActive(false);
+                _waves[node.Id] = wave;
                 nv.Lock = UiKit.CircleImage(nv.Rt, "Lock", _theme.InkMuted, new Vector2(size * 0.32f, -size * 0.32f), size * 0.3f);
-                var lockGlyph = UiKit.Label(nv.Lock.transform, "L", "×", Mathf.RoundToInt(size * 0.2f), _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
-                lockGlyph.rectTransform.offsetMin = Vector2.zero;
-                lockGlyph.rectTransform.offsetMax = Vector2.zero;
+                var padlock = NodeIcons.Image(nv.Lock.transform, "locked", _theme.Paper); // a padlock, not a cross
+                UiKit.Box(padlock.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (size * 0.19f));
 
                 _nodes[node.Id] = nv;
                 _nodeList.Add(nv);
@@ -241,6 +254,14 @@ namespace TillWinter.Unity
                 nv.Icon.color = available ? _theme.Ink : _theme.InkMuted;
                 nv.Lock.gameObject.SetActive(!available);
                 int max = _game.Sim.GetMaxLevel(nv.Node.Id);
+                if (_fills.TryGetValue(nv.Node.Id, out var fillImg))
+                {
+                    float ratio = max > 0 ? Mathf.Clamp01((float)level / max) : level > 0 ? 1f : 0f;
+                    if (state == NodeState.Maxed) ratio = 1f;
+                    fillImg.color = state == NodeState.Maxed ? _theme.Gold : available ? nv.BranchColor : TreeTheme.Desaturate(nv.BranchColor, _theme.LockedSaturation);
+                    if (silent) { _fillShown[nv.Node.Id] = ratio; fillImg.fillAmount = ratio; }
+                    _fillTarget[nv.Node.Id] = ratio;
+                }
                 nv.LevelText.text = nv.Pips.Length == 0 || state == NodeState.Maxed ? (max > 0 ? level + "/" + max : "") : "";
                 if (silent) nv.ShownPips = level;
                 if (nv.Pips.Length > 0)
@@ -282,6 +303,7 @@ namespace TillWinter.Unity
         public void OnPurchased(string id)
         {
             if (_nodes.TryGetValue(id, out var nv)) nv.Punch = 1f;
+            if (_waves.TryGetValue(id, out var wave)) { wave.gameObject.SetActive(true); _waveT[id] = 0f; }
             Refresh(false);
         }
 
@@ -469,6 +491,28 @@ namespace TillWinter.Unity
                     nv.Ring.color = Color.Lerp(nv.State == NodeState.Maxed ? _theme.Gold : nv.BranchColor, Color.white, nv.Punch * 0.6f);
                 }
                 nv.Rt.localScale = Vector3.one * s;
+                // The level ring eases toward its target; a bought node sends a wave outward.
+                if (_fills.TryGetValue(nv.Node.Id, out var fillImg) && _fillTarget.TryGetValue(nv.Node.Id, out float target))
+                {
+                    float shown = _fillShown[nv.Node.Id];
+                    if (!Mathf.Approximately(shown, target))
+                    {
+                        shown = Mathf.MoveTowards(shown, target, dt / UiMotion.Normal);
+                        _fillShown[nv.Node.Id] = shown;
+                        fillImg.fillAmount = shown;
+                    }
+                }
+                if (_waveT.TryGetValue(nv.Node.Id, out float wt) && wt < 1f && _waves.TryGetValue(nv.Node.Id, out var waveImg))
+                {
+                    wt = Mathf.Min(1f, wt + dt / UiMotion.Slow);
+                    _waveT[nv.Node.Id] = wt;
+                    float e = UiMotion.EaseOut(wt);
+                    waveImg.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.8f, 2.1f, e);
+                    var wc = nv.BranchColor;
+                    wc.a = 0.5f * (1f - e);
+                    waveImg.color = wc;
+                    if (wt >= 1f) waveImg.gameObject.SetActive(false);
+                }
                 int level = _tree.GetLevel(nv.Node.Id);
                 if (nv.Pips.Length > 0 && nv.ShownPips != level)
                 {

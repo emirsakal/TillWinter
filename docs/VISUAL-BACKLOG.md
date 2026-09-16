@@ -49,17 +49,19 @@ Next: section 4 (screen by screen).
 
 ## 4. Screen by screen
 
-- **HUD season bar** is four flat blocks. Add season glyphs, an icon on the progress marker, a hatched frost span; during the frost warning lean on the screen-edge ice rather than the bar.
-- **HUD coin counter** works; add a small earning-rate readout or a brief rising "+N".
-- **The retire chip appears abruptly.** Give it a flash and a haptic when it unlocks.
-- **Winter screen is plain text.** Add a small winter vista strip, a year summary (harvests, coins this year) and a hint of the next goal.
-- **Skill tree nodes are flat circles.** A filling ring instead of pips, a stronger pulse on affordable nodes, a padlock glyph when locked, an outward wave on purchase.
-- **Node card is text-heavy.** Show the effect as "now -> next" in two columns with a small increase bar.
-- **Generation card.** Put the farm silhouette or a per-generation seal behind the counting seeds.
-- **Away card is fully static.** Fly the coins into the counter and reveal the source lines in sequence.
-- **Ending credits are a plain scroll.** Fade lines in groups, end on the game name and a seal.
-- **Stats screen is two text columns.** Row icons, thin dividers, a highlight on a couple of values.
-- **Title scene.** A soft sun glow behind the name, a very slow island sway, snow gathering in Winter, and a "Generation 3, Year 12" line above Continue.
+- **Partly done.** **HUD season bar** is four flat blocks. Add season glyphs, an icon on the progress marker, a hatched frost span; during the frost warning lean on the screen-edge ice rather than the bar. The frost span is now hatched (Prims.HatchSprite) and the progress marker carries a round knob; the season glyphs move to section 5, because the Kenney icon set has no season icons and they will be drawn there with the other generated glyphs.
+- **Done.** **HUD coin counter** works; add a small earning-rate readout or a brief rising "+N". A "+N/s" earning rate under the counter, recomputed once a second and hidden outside the year.
+- **Done.** **The retire chip appears abruptly.** Give it a flash and a haptic when it unlocks. It now arrives with a scale punch, a solid background and a Light haptic.
+- **Done.** **Winter screen is plain text.** Add a small winter vista strip, a year summary (harvests, coins this year) and a hint of the next goal. A warm gradient strip and a year summary line ("This year: N harvests · M coins"). Core counts the year separately (save schema v5: CoinsThisYear, HarvestsThisYear, reset every Spring, v4 fixture migrates with both at zero).
+- **Done.** **Skill tree nodes are flat circles.** A filling ring instead of pips, a stronger pulse on affordable nodes, a padlock glyph when locked, an outward wave on purchase. The level is a ring filling clockwise (pips are gone), locked nodes carry the atlas padlock instead of a cross, and a bought node sends a wave outward.
+- **Done.** **Node card is text-heavy.** Show the effect as "now -> next" in two columns with a small increase bar. The effect reads "now » next" with a bar showing the step; hidden at max level or when the value does not change.
+- **Done.** **Generation card.** Put the farm silhouette or a per-generation seal behind the counting seeds. A stamped seal with the generation's number behind the title, easing in with a slight rotation.
+- **Done.** **Away card is fully static.** Fly the coins into the counter and reveal the source lines in sequence. The earned coins now fly into the counter from the card, and the source lines arrive one after another.
+- **Done.** **Ending credits are a plain scroll.** Fade lines in groups, end on the game name and a seal. Three groups that fade in, hold and fade out, closing on the game's name inside a seal (the linear scroll is gone).
+- **Done.** **Stats screen is two text columns.** Row icons, thin dividers, a highlight on a couple of values. Row icons and dividers shipped with section 3; coins and best combo are now larger and in the accent colour.
+- **Done.** **Title scene.** A soft sun glow behind the name, a very slow island sway, snow gathering in Winter, and a "Generation 3, Year 12" line above Continue. A soft glow behind the name, a slowly swaying island, and a "Generation N · Year M" line above Continue read straight from the save file.
+
+Next: section 5 (accessibility and polish).
 
 ---
 

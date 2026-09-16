@@ -103,6 +103,20 @@ namespace TillWinter.Unity
             return Sprite.Create(tex, new Rect(0f, 0f, 1f, height), new Vector2(0.5f, 0.5f));
         }
 
+        /// <summary>Diagonal hatching (the frost span on the season bar), tiled by the Image.</summary>
+        public static Sprite HatchSprite(int size = 32, int stripe = 6)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Repeat };
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                bool on = ((x + y) % stripe) < stripe / 2;
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, on ? 1f : 0.25f));
+            }
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+        }
+
         public static Sprite CircleSprite(int size = 64)
         {
             var tex = RadialGradient(size, 0.9f, 1f);

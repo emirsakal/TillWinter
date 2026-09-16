@@ -152,6 +152,10 @@ namespace TillWinter.Core
         public float YearLength => Stats.YearLength;
         public bool IsWinter => Phase != Phase.Year;
         public bool FrostWarning { get; internal set; }
+        /// <summary>Coins earned since Spring; the Winter screen shows the year's take. Reset every year.</summary>
+        public double CoinsThisYear { get; internal set; }
+        /// <summary>Harvests since Spring (all sources). Reset every year.</summary>
+        public int HarvestsThisYear { get; internal set; }
         public float SecondsUntilWinter => System.Math.Max(0f, YearLength - YearTime);
 
         public int GridSize { get; internal set; }
