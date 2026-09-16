@@ -160,13 +160,14 @@ namespace TillWinter.Unity
             float wFrom = 1f - blend, wTo = blend;
             float petals = (_fromSeason == Season.Spring ? wFrom : 0f) + (_toSeason == Season.Spring ? wTo : 0f);
             float leaves = (_fromSeason == Season.Autumn ? wFrom : 0f) + (_toSeason == Season.Autumn ? wTo : 0f);
-            float snow = (_fromSeason == Season.Winter ? wFrom : 0f) + (_toSeason == Season.Winter ? wTo : 0f);
             bool year = state.Phase == Phase.Year;
             bool golden = state.GoldenYearActive;
             _fx.SetRate(VfxId.Petals, year && !golden ? 5f * petals : 0f);
             _fx.SetRate(VfxId.GoldMotes, year && golden ? 14f : 0f);
             _fx.SetRate(VfxId.Leaves, year ? 9f * leaves : 0f);
-            _fx.SetRate(VfxId.Snow, state.IsWinter ? 70f : Mathf.Max(70f * snow, frost * 12f));
+            // Winter snows at once; the season blend only ever mattered on the way out of Winter, where it kept snowing
+            // into Spring for the whole blend. Outside Winter only the frost warning brings a few flakes.
+            _fx.SetRate(VfxId.Snow, state.IsWinter ? 70f : frost * 12f);
 
             if (_sky != null)
             {

@@ -12,13 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e152de1fc27b6d4f8d103a5bb4612c2, type: 3}
   m_Name: HudTheme
   m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.HudTheme
+  StyleVersion: 1
+  CardDark: {r: 0.16, g: 0.135, b: 0.12, a: 0.97}
   Text: {r: 1, g: 0.97, b: 0.9, a: 1}
   TextMuted: {r: 1, g: 0.97, b: 0.9, a: 0.8}
   Coin: {r: 1, g: 0.82, b: 0.2, a: 1}
+  Gold: {r: 1, g: 0.92, b: 0.5, a: 1}
   CoinInner: {r: 0.85, g: 0.6, b: 0.1, a: 1}
   Combo: {r: 1, g: 0.9, b: 0.5, a: 1}
   Seed: {r: 0.78, g: 0.6, b: 0.95, a: 1}
-  SeedChip: {r: 0.35, g: 0.2, b: 0.5, a: 0.85}
+  SeedChip: {r: 0.55, g: 0.42, b: 0.74, a: 0.92}
   Spring: {r: 0.55, g: 0.8, b: 0.4, a: 1}
   Summer: {r: 0.95, g: 0.85, b: 0.35, a: 1}
   Autumn: {r: 0.92, g: 0.55, b: 0.25, a: 1}
@@ -27,13 +30,32 @@ MonoBehaviour:
   BarBackground: {r: 0, g: 0, b: 0, a: 0.35}
   BarElapsed: {r: 0.1, g: 0.08, b: 0.06, a: 0.5}
   BarMarker: {r: 1, g: 0.97, b: 0.9, a: 1}
-  HintBackground: {r: 0.1, g: 0.08, b: 0.06, a: 0.8}
+  HintBackground: {r: 0.16, g: 0.135, b: 0.12, a: 0.88}
   HintText: {r: 1, g: 0.97, b: 0.9, a: 1}
-  HintAccent: {r: 0.95, g: 0.62, b: 0.2, a: 1}
+  HintAccent: {r: 0.91, g: 0.66, b: 0.24, a: 1}
   TopPadding: 40
+  PauseButton: {r: 0, g: 0, b: 0, a: 0.35}
+  SheetOverlay: {r: 0.1, g: 0.08, b: 0.06, a: 0.72}
+  SheetPaper: {r: 0.965, g: 0.92, b: 0.84, a: 1}
+  SheetInk: {r: 0.18, g: 0.14, b: 0.105, a: 1}
+  SheetMuted: {r: 0.18, g: 0.14, b: 0.105, a: 0.65}
+  SheetButton: {r: 0.42, g: 0.6, b: 0.35, a: 1}
+  SheetIdle: {r: 0.6, g: 0.48, b: 0.36, a: 1}
+  SheetButtonText: {r: 1, g: 0.97, b: 0.9, a: 1}
+  SheetDanger: {r: 0.74, g: 0.32, b: 0.24, a: 1}
+  CreditsOverlay: {r: 0.14, g: 0.09, b: 0.02, a: 0.6}
+  BootFade: {r: 0.965, g: 0.92, b: 0.84, a: 1}
+  MenuShade: {r: 0.07, g: 0.06, b: 0.05, a: 0.82}
+  MenuTitle: {r: 1, g: 0.95, b: 0.82, a: 1}
+  MenuSubtitle: {r: 1, g: 0.93, b: 0.78, a: 0.85}
+  MenuPrimary: {r: 0.42, g: 0.6, b: 0.35, a: 1}
+  MenuSecondary: {r: 0.6, g: 0.48, b: 0.36, a: 1}
+  MenuButtonText: {r: 1, g: 0.97, b: 0.9, a: 1}
   CoinFontSize: 96
   SubFontSize: 38
   BarWidth: 960
   BarHeight: 18
-  BarY: -330
-  SeasonNameY: -380
+  SeasonBandY: 560
+  SeasonBandHeight: 132
+  BarYInBand: -26
+  SeasonNameYInBand: -58

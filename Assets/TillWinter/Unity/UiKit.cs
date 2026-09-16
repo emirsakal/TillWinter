@@ -152,6 +152,45 @@ namespace TillWinter.Unity
         /// </summary>
         public static Color LipColor(Color c) => new Color(c.r * 0.62f, c.g * 0.62f, c.b * 0.62f, c.a);
 
+        // ---------------------------------------------------------------- the card standard (round three)
+        /// <summary>Border around every card, in reference pixels.</summary>
+        public const float CardBorder = 5f;
+        /// <summary>How far a card's shadow falls below it.</summary>
+        public const float CardShadow = 10f;
+
+        private static Sprite _grain;
+        /// <summary>A faint paper grain, tiled over card faces.</summary>
+        public static Sprite Grain => _grain != null ? _grain : (_grain = Prims.GrainSprite());
+
+        /// <summary>A card's border: a shade darker than a light face, a shade lighter than a dark one.</summary>
+        public static Color CardBorderColor(Color face)
+        {
+            float lum = 0.299f * face.r + 0.587f * face.g + 0.114f * face.b;
+            var edge = lum > 0.45f ? Color.Lerp(face, UiPalette.Ink, 0.22f) : Color.Lerp(face, UiPalette.Cream, 0.14f);
+            return new Color(edge.r, edge.g, edge.b, face.a);
+        }
+
+        /// <summary>
+        /// A sheet or dialog surface: a thin border, a face with a faint paper grain, and a soft shadow underneath.
+        /// Returns the outer image; size and parent children to its rectTransform as with a panel. Every card in the
+        /// game uses this, so corner radius, border and shadow are the same everywhere.
+        /// </summary>
+        public static Image Card(Transform parent, string name, Color face, bool raycast = true)
+        {
+            var border = Panel(parent, name, CardBorderColor(face), true, raycast);
+            var shadow = border.gameObject.AddComponent<UnityEngine.UI.Shadow>(); // UiKit has its own Shadow method
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.28f);
+            shadow.effectDistance = new Vector2(0f, -CardShadow);
+            var inner = Panel(border.transform, "Face", face, true, false);
+            Stretch(inner.rectTransform, Vector2.zero, Vector2.one, Vector2.one * CardBorder, -Vector2.one * CardBorder);
+            bool dark = 0.299f * face.r + 0.587f * face.g + 0.114f * face.b <= 0.45f;
+            var grain = Panel(inner.transform, "Grain", dark ? new Color(1f, 1f, 1f, 0.012f) : new Color(0.3f, 0.2f, 0.1f, 0.05f) /* light grain on a dark face reads as static well before it reads as paper */, false, false);
+            grain.sprite = Grain;
+            grain.type = Image.Type.Tiled;
+            Stretch(grain.rectTransform, Vector2.zero, Vector2.one, Vector2.one * 14f, -Vector2.one * 14f); // clear of the rounded corners
+            return border;
+        }
+
         public static Button Button(Transform parent, string name, string text, int fontSize, Color bg, Color fg, UnityAction onClick)
         {
             // A flat rounded rectangle read as a placeholder. The button is now a face sitting on a darker lip, so it

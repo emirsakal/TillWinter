@@ -32,7 +32,7 @@ namespace TillWinter.Unity
             var theme = HudTheme.Load();
             var dim = UiKit.Panel(canvas, "AwayCard", new Color(0f, 0f, 0f, 0.55f), false, true);
             _panel = dim.gameObject;
-            var box = UiKit.Panel(dim.transform, "Box", new Color(0.12f, 0.14f, 0.2f, 0.98f), true, true);
+            var box = UiKit.Card(dim.transform, "Box", theme.CardDark); // was a navy outside the palette
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 640f));
             var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.away_title"), UiType.Title, theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(860f, 70f));

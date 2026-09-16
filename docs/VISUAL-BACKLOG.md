@@ -205,9 +205,10 @@ A full-game review from the play-mode screenshot tour, worked through group by g
   when the number grows (e.g. "4,1K"). The line started 30 units inside the coin row; it now sits
   below it, and the earning-rate label moved under the Year line since a long number ran into it
   beside the counter.
-- **Done.** [H] **Snow keeps falling after Next Year.** It carries on into Spring. Emission already
-  stopped with Winter, but flakes in the air lived on; a new year now clears them, as a new
-  generation already did.
+- **Done.** [H] **Snow keeps falling after Next Year.** It carries on into Spring. The first fix
+  only cleared flakes when a new year began, but the season blend kept emitting snow for the whole
+  Winter-to-Spring blend; snow now follows the Winter phase directly (plus a few flakes during the
+  frost warning).
 - **Done.** [M] **Kennel reads as a second house.** Red roof, too big; the dog disappears into its
   doorway. It is smaller, dark wood with a green roof and a dark doorway; the dog has a light coat
   and stands in front of it.
@@ -219,13 +220,18 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 
 ### 9.1 Visual language
 
-- **Open.** [H] **One documented colour palette.** Menu grey, cream sheets, brown winter and green
-  heritage should read as one family (warm earth, cream, sage green, honey).
-- **Open.** [H] **Surface language for UI.** Light texture (paper, wood, cloth) or a thin border and
-  inner shadow, a "farm notebook" feel.
-- **Open.** [M] **One standard for corner radius, shadow and border** across cards, chips and
-  buttons.
-- **Open.** [M] **Bridge the low-poly 3D and flat 2D UI** (subtle facets or soft shadows in UI).
+- **Done.** [H] **One documented colour palette.** Menu grey, cream sheets, brown winter and green
+  heritage should read as one family (warm earth, cream, sage green, honey). Palette documented in
+  `docs/STYLE.md` and applied through a `HudTheme` style bump and a `TreeTheme` style bump: menu
+  secondary buttons became earth-coloured instead of translucent near-black, and the away card lost
+  its off-palette navy.
+- **Done.** [H] **Surface language for UI.** Light texture (paper, wood, cloth) or a thin border and
+  inner shadow, a "farm notebook" feel. `UiKit.Card` gives every sheet and dialog a border, shadow
+  and paper grain.
+- **Done.** [M] **One standard for corner radius, shadow and border** across cards, chips and
+  buttons. Card border, shadow and radius are shared constants in `UiKit`.
+- **Done.** [M] **Bridge the low-poly 3D and flat 2D UI** (subtle facets or soft shadows in UI). The
+  soft card shadow and the lipped buttons are the bridge between the flat UI and the low-poly world.
 
 ### 9.2 Play screen (HUD)
 

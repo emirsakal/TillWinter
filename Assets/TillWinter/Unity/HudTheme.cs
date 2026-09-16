@@ -7,6 +7,13 @@ namespace TillWinter.Unity
     [CreateAssetMenu(menuName = "Till Winter/HUD Theme", fileName = "HudTheme")]
     public sealed class HudTheme : ScriptableObject
     {
+        /// <summary>Bumped when the look changes; UiSetup restyles an older asset in place (round three: one palette).</summary>
+        public const int CurrentStyle = 1;
+        public int StyleVersion;
+
+        /// <summary>Cards that sit over the field (the away card).</summary>
+        public Color CardDark = new Color(0.16f, 0.135f, 0.12f, 0.97f);
+
         [Header("Text")]
         public Color Text = new Color(1f, 0.97f, 0.9f);
         public Color TextMuted = new Color(1f, 0.97f, 0.9f, 0.8f);
@@ -79,6 +86,29 @@ namespace TillWinter.Unity
         }
 
         private static HudTheme _loaded;
+
+        /// <summary>Round three: sheets, menu, hints and chips drawn from <see cref="UiPalette"/>, one family instead of four.</summary>
+        public static void ApplyPalette(HudTheme t)
+        {
+            t.SheetPaper = UiPalette.Paper;
+            t.SheetInk = UiPalette.Ink;
+            t.SheetMuted = UiPalette.InkMuted;
+            t.SheetButton = UiPalette.Sage;
+            t.SheetIdle = UiPalette.Earth;
+            t.SheetButtonText = UiPalette.Cream;
+            t.SheetDanger = UiPalette.Brick;
+            t.SheetOverlay = UiPalette.Dim;
+            t.MenuPrimary = UiPalette.Sage;
+            t.MenuSecondary = UiPalette.Earth; // was near-black and translucent: heavy against the sky
+            t.MenuButtonText = UiPalette.Cream;
+            t.BootFade = UiPalette.Paper;
+            t.HintBackground = UiPalette.WithAlpha(UiPalette.Night, 0.88f);
+            t.HintText = UiPalette.Cream;
+            t.HintAccent = UiPalette.Honey;
+            t.SeedChip = UiPalette.WithAlpha(UiPalette.Plum, 0.92f);
+            t.CardDark = UiPalette.WithAlpha(UiPalette.Night, 0.97f);
+            t.StyleVersion = CurrentStyle;
+        }
 
         public static HudTheme Load()
         {

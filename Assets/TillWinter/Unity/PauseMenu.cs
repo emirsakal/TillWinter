@@ -428,7 +428,7 @@ namespace TillWinter.Unity
             UiKit.Stretch(overlay.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var safe = UiKit.Rect("Safe", overlay.transform);
             SafeArea.Apply(safe); // a notch must never cut a sheet's buttons
-            var paper = UiKit.Panel(safe, "Page", _theme.SheetPaper, true, true);
+            var paper = UiKit.Card(safe, "Page", _theme.SheetPaper);
             page = paper.rectTransform;
             UiKit.Box(page, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(PageWidth, height));
             Text(page, "Title", Strings.Get(titleKey), -30f, UiType.Title, _theme.SheetInk, TextAnchor.MiddleCenter, 90f).fontStyle = FontStyles.Bold;
