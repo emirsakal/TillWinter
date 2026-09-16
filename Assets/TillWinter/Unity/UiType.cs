@@ -18,6 +18,9 @@ namespace TillWinter.Unity
         public const int Label = 28;    // row labels, chips, small buttons
         public const int Caption = 24;  // hints, costs, footnotes
 
+        /// <summary>The large-text setting's multiplier.</summary>
+        public const float LargeScale = 1.18f;
+
         /// <summary>Global text multiplier (accessibility). 1 = the scale above.</summary>
         public static float Scale { get; set; } = 1f;
 

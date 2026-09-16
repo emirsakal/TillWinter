@@ -117,6 +117,51 @@ namespace TillWinter.Unity
             return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
         }
 
+        /// <summary>
+        /// One small silhouette per season (0 sprout, 1 sun, 2 leaf, 3 snowflake), drawn into an alpha texture.
+        /// The icon kit has no season icons, and seasons must read without relying on their colour.
+        /// </summary>
+        public static Sprite SeasonGlyphSprite(int season, int size = 64)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[size * size];
+            float half = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x + 0.5f - half) / half, dy = (y + 0.5f - half) / half;
+                float d = Mathf.Sqrt(dx * dx + dy * dy);
+                float a = Mathf.Atan2(dy, dx);
+                bool on;
+                switch (season)
+                {
+                    case 1: // sun: a disc with eight short rays
+                        on = d < 0.45f || (d < 0.92f && Mathf.Cos(a * 8f) > 0.72f);
+                        break;
+                    case 2: // leaf: a lens (two overlapping circles) so both ends come to a point, plus a midrib
+                        float lx = dx * 0.7071f + dy * 0.7071f, ly = -dx * 0.7071f + dy * 0.7071f;
+                        const float leafR = 0.78f, leafC = 0.42f;
+                        bool lens = lx * lx + (ly - leafC) * (ly - leafC) < leafR * leafR
+                                 && lx * lx + (ly + leafC) * (ly + leafC) < leafR * leafR;
+                        on = lens && !(Mathf.Abs(ly) < 0.03f && lx > -0.45f);
+                        break;
+                    case 3: // snowflake: six spokes
+                        on = d < 0.9f && (Mathf.Abs(Mathf.Cos(a * 3f)) > 0.985f || d < 0.12f);
+                        break;
+                    default: // sprout: a stem with two leaves
+                        bool stem = Mathf.Abs(dx) < 0.09f && dy > -0.85f && dy < 0.35f;
+                        bool left = (dx + 0.34f) * (dx + 0.34f) / 0.16f + (dy - 0.22f) * (dy - 0.22f) / 0.05f < 1f;
+                        bool right = (dx - 0.34f) * (dx - 0.34f) / 0.16f + (dy - 0.22f) * (dy - 0.22f) / 0.05f < 1f;
+                        on = stem || left || right;
+                        break;
+                }
+                px[y * size + x] = new Color32(255, 255, 255, on ? (byte)255 : (byte)0);
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f));
+        }
+
         public static Sprite CircleSprite(int size = 64)
         {
             var tex = RadialGradient(size, 0.9f, 1f);

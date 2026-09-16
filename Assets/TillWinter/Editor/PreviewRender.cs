@@ -39,6 +39,52 @@ namespace TillWinter.EditorTools
             EditorApplication.Exit(code);
         }
 
+        /// <summary>
+        /// Writes the generated UI glyphs (the four season silhouettes) side by side to a PNG, so a code-drawn
+        /// shape can be looked at without playing. Batch: -executeMethod TillWinter.EditorTools.PreviewRender.GlyphsBatch -out &lt;png&gt;
+        /// </summary>
+        public static void GlyphsBatch()
+        {
+            int code = 0;
+            try
+            {
+                string outPath = "season-glyphs.png";
+                var args = Environment.GetCommandLineArgs();
+                for (int i = 0; i < args.Length - 1; i++) if (args[i] == "-out") outPath = args[i + 1];
+                RenderGlyphs(outPath);
+            }
+            catch (Exception e) { Debug.LogError("[Preview] glyphs failed: " + e); code = 1; }
+            EditorApplication.Exit(code);
+        }
+
+        public static void RenderGlyphs(string outPath)
+        {
+            const int cell = 96, pad = 8;
+            var sheet = new Texture2D(cell * 4, cell, TextureFormat.RGBA32, false);
+            var background = new Color(0.14f, 0.12f, 0.1f, 1f);
+            var ink = new Color(1f, 0.95f, 0.82f, 1f);
+            for (int x = 0; x < sheet.width; x++)
+            for (int y = 0; y < sheet.height; y++)
+                sheet.SetPixel(x, y, background);
+            for (int season = 0; season < 4; season++)
+            {
+                var sprite = Prims.SeasonGlyphSprite(season, cell - pad * 2);
+                var src = sprite.texture;
+                for (int x = 0; x < src.width; x++)
+                for (int y = 0; y < src.height; y++)
+                {
+                    var p = src.GetPixel(x, y);
+                    if (p.a <= 0.01f) continue;
+                    sheet.SetPixel(season * cell + pad + x, pad + y, Color.Lerp(background, ink, p.a));
+                }
+                Object.DestroyImmediate(src);
+            }
+            sheet.Apply();
+            File.WriteAllBytes(outPath, sheet.EncodeToPNG());
+            Object.DestroyImmediate(sheet);
+            Debug.Log("[Preview] season glyphs written: " + outPath);
+        }
+
         [MenuItem("Till Winter/Preview crop stages")]
         public static void CropsMenu() => RenderCrops("crop-stages.png", false);
 

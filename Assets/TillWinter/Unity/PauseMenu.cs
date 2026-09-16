@@ -17,6 +17,7 @@ namespace TillWinter.Unity
     {
         public const float ResetHoldSeconds = 3f;
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
+        private const float SettingsHeight = 1584f;
         private const float LabelX = -230f, LabelWidth = 380f, ControlX = 225f, ControlWidth = 410f;
 
         public static PauseMenu Instance { get; private set; }
@@ -31,7 +32,8 @@ namespace TillWinter.Unity
         private GameObject _pause, _settings, _credits, _stats;
         private TMP_Text _version;
         private Button _devButton, _langEn, _langTr;
-        private UiSwitch _hapticsSwitch, _motionSwitch;
+        private UiSwitch _hapticsSwitch, _motionSwitch, _largeTextSwitch;
+        private Image _applying;
         private TMP_Text _sfxValue, _ambienceValue;
         private TMP_Text[] _statValues;
         private float _sampleAt;
@@ -77,7 +79,7 @@ namespace TillWinter.Unity
 
         private void BuildSettings(RectTransform canvas)
         {
-            _settings = Sheet(canvas, "SettingsSheet", "settings.title", 1480f, out var p);
+            _settings = Sheet(canvas, "SettingsSheet", "settings.title", SettingsHeight, out var p);
             var s = SettingsStore.Current;
             float y = -150f;
 
@@ -102,6 +104,15 @@ namespace TillWinter.Unity
             y -= RowHeight - 10f;
             Text(p, "MotionHint", Strings.Get("settings.reduce_motion_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleLeft, 44f);
             y -= 60f;
+
+            RowLabel(p, "settings.large_text", y);
+            _largeTextSwitch = SwitchRow(p, "LargeText", s.LargeText, on =>
+            {
+                SettingsStore.Current.LargeText = on;
+                UiType.Scale = on ? UiType.LargeScale : 1f;
+                Reload(); // every label was sized when it was built
+            }, y);
+            y -= RowHeight;
 
             RowLabel(p, "settings.quality", y);
             string[] q = { "settings.quality.auto", "settings.quality.low", "settings.quality.default" };
@@ -310,8 +321,25 @@ namespace TillWinter.Unity
             Reload();
         }
 
+        /// <summary>A language or text-size change rebuilds every label, so the scene reloads behind a short cover.</summary>
         private void Reload()
         {
+            if (_applying == null)
+            {
+                _applying = UiKit.Panel((RectTransform)transform, "Applying", _theme.SheetOverlay, false, true);
+                UiKit.Stretch(_applying.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                var label = UiKit.Label(_applying.transform, "Text", Strings.Get("settings.applying"), UiType.Title, _theme.SheetButtonText, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Stretch(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            }
+            _applying.transform.SetAsLastSibling();
+            _applying.gameObject.SetActive(true);
+            SettingsStore.Save();
+            StartCoroutine(ReloadAfterCover());
+        }
+
+        private System.Collections.IEnumerator ReloadAfterCover()
+        {
+            yield return new WaitForSecondsRealtime(UiMotion.Slow);
             if (_game != null) _game.SetPaused(false);
             else Time.timeScale = 1f;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
@@ -322,6 +350,7 @@ namespace TillWinter.Unity
             var s = SettingsStore.Current;
             _hapticsSwitch.Set(s.HapticsEnabled);
             _motionSwitch.Set(s.ReduceMotion);
+            _largeTextSwitch.Set(s.LargeText);
             _sfxValue.text = Mathf.RoundToInt(s.SfxVolume * 100f) + "%";
             _ambienceValue.text = Mathf.RoundToInt(s.AmbienceVolume * 100f) + "%";
             Tint(_langEn, GameLanguage.Current == GameLanguage.English);
@@ -373,7 +402,9 @@ namespace TillWinter.Unity
         {
             var overlay = UiKit.Panel(canvas, name, _theme.SheetOverlay, false, true);
             UiKit.Stretch(overlay.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            var paper = UiKit.Panel(overlay.transform, "Page", _theme.SheetPaper, true, true);
+            var safe = UiKit.Rect("Safe", overlay.transform);
+            SafeArea.Apply(safe); // a notch must never cut a sheet's buttons
+            var paper = UiKit.Panel(safe, "Page", _theme.SheetPaper, true, true);
             page = paper.rectTransform;
             UiKit.Box(page, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(PageWidth, height));
             Text(page, "Title", Strings.Get(titleKey), -30f, UiType.Title, _theme.SheetInk, TextAnchor.MiddleCenter, 90f).fontStyle = FontStyles.Bold;

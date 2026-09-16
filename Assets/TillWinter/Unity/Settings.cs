@@ -19,6 +19,8 @@ namespace TillWinter.Unity
         public string Language = "";
         /// <summary>Disables camera shake and the screen flash only (S9).</summary>
         public bool ReduceMotion;
+        /// <summary>Larger text everywhere (the UiType scale multiplier).</summary>
+        public bool LargeText;
     }
 
     /// <summary>The two shipped languages. Strings and the number style switch together.</summary>
@@ -91,6 +93,7 @@ namespace TillWinter.Unity
                 data.SfxVolume = Mathf.Clamp01(data.SfxVolume);
                 data.AmbienceVolume = Mathf.Clamp01(data.AmbienceVolume);
                 if (data.Language != GameLanguage.English && data.Language != GameLanguage.Turkish) data.Language = "";
+                UiType.Scale = data.LargeText ? UiType.LargeScale : 1f;
                 return data;
             }
             catch (Exception e)

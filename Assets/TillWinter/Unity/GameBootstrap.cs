@@ -32,6 +32,7 @@ namespace TillWinter.Unity
             Debug.unityLogger.logEnabled = false; // release builds log nothing
 #endif
             Time.timeScale = 1f; // a reload from the pause menu (language, reset) starts unpaused
+            UiType.Scale = SettingsStore.Current.LargeText ? UiType.LargeScale : 1f; // before any label is built
             GameLanguage.Apply(GameLanguage.Resolve(SettingsStore.Current.Language, Application.systemLanguage), StringTable, StringTableTr);
             var config = ConfigAsset != null ? ConfigAsset.Config : new FarmConfig();
 
