@@ -31,7 +31,8 @@ namespace TillWinter.Unity
         private RectTransform _coinGroup;
         private TMP_Text _coinText, _subText, _seasonName, _combo, _seedChip;
         private RectTransform _seedChipRt;
-        private Image _seasonChip;
+        private RectTransform _bottomBand;
+        private CanvasGroup _bottomGroup;
         private RectTransform _bar, _elapsed, _frostSpan;
         private Image _elapsedImage;
         private RectTransform _fxLayer;
@@ -124,15 +125,20 @@ namespace TillWinter.Unity
             UiKit.Stretch(_seedChip.rectTransform, Vector2.zero, Vector2.one, new Vector2(56f, 0f), new Vector2(-10f, 0f));
             _seedChipRt.gameObject.SetActive(false);
 
-            BuildSeasonBar(top);
+            // The year's progress belongs next to the farm it measures, so the bar and the season's name sit in their
+            // own band under the island; the top keeps the coins. Its own CanvasGroup, because it no longer hangs off
+            // the top band that fades outside the Year phase.
+            _bottomBand = UiKit.Rect("SeasonBand", _safe);
+            UiKit.Stretch(_bottomBand, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(0f, _theme.SeasonBandY), new Vector2(0f, _theme.SeasonBandY + _theme.SeasonBandHeight));
+            _bottomGroup = _bottomBand.gameObject.AddComponent<CanvasGroup>();
 
-            // A dark chip carries the season name: its colour is close to the sky it sits on, so outline alone lost it.
-            var seasonChip = UiKit.Panel(top, "SeasonChip", _theme.HintBackground, true, false);
-            UiKit.Box(seasonChip.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameY), new Vector2(340f, 56f));
-            _seasonChip = seasonChip;
-            _seasonName = UiKit.Label(seasonChip.transform, "SeasonName", "", UiType.Heading, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Stretch(_seasonName.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            UiKit.Outline(_seasonName, 0.26f);
+            BuildSeasonBar(_bottomBand);
+
+            // No plate behind the name: a strong outline and a soft shadow carry it over any sky, in any season.
+            _seasonName = UiKit.Label(_bottomBand, "SeasonName", "", UiType.Heading, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(_seasonName.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameYInBand), new Vector2(600f, 50f));
+            UiKit.OutlineStrong(_seasonName);
 
             _fxLayer = UiKit.Rect("CoinFx", canvas);
             UiKit.Stretch(_fxLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -177,7 +183,7 @@ namespace TillWinter.Unity
         private void BuildSeasonBar(RectTransform top)
         {
             _bar = UiKit.Rect("SeasonBar", top);
-            UiKit.Box(_bar, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.BarY), new Vector2(_theme.BarWidth, _theme.BarHeight));
+            UiKit.Box(_bar, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.BarYInBand), new Vector2(_theme.BarWidth, _theme.BarHeight));
             var bg = UiKit.Panel(_bar, "Bg", _theme.BarBackground, true, false);
             UiKit.Stretch(bg.rectTransform, Vector2.zero, Vector2.one, new Vector2(-4f, -4f), new Vector2(4f, 4f));
             float w = 0.3f;
@@ -348,6 +354,7 @@ namespace TillWinter.Unity
             MCoinFlight.End();
 
             _topGroup.alpha = Prims.Damp(_topGroup.alpha, state.Phase == Phase.Year ? 1f : 0f, 8f, dt);
+            _bottomGroup.alpha = _topGroup.alpha; // the season band leaves with the rest of the year HUD
             MCoinText.Begin();
             double shown = System.Math.Max(0, state.Coins - _pending - HeldCoins);
             if (shown != _coinTextValue) { _coinTextValue = shown; _coinText.SetText(_coinChars, 0, NumberFormat.Short(shown, _coinChars)); }
@@ -438,9 +445,6 @@ namespace TillWinter.Unity
             var sc = _seasonName.color;
             sc.a = fade;
             _seasonName.color = sc;
-            var cc = _theme.HintBackground;
-            cc.a = _theme.HintBackground.a * fade;
-            _seasonChip.color = cc;
 
             MSeedsBar.End();
             if (state.FrostWarning && state.Phase == Phase.Year)

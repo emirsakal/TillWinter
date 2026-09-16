@@ -16,7 +16,7 @@ namespace TillWinter.Unity
         public float Distance = 30f;
         public float SideMargin = 0.45f;
         /// <summary>World units added to the framed width so the diorama block edges stay on screen.</summary>
-        public float ExtraWidth = 1.7f;
+        public float ExtraWidth = 2.7f; // the island grew (DioramaView.Margin); without this its edges crop
         /// <summary>Where the field centre sits vertically (0 = bottom, 1 = top). Play band is 18%..80%.</summary>
         public float FieldScreenY = 0.49f;
 

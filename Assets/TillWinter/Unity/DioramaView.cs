@@ -12,7 +12,7 @@ namespace TillWinter.Unity
     /// </summary>
     public sealed class DioramaView : MonoBehaviour
     {
-        public float Margin = 1.1f;
+        public float Margin = 1.6f; // more grass around the field: props crowded the plots at 1.1
         public float Thickness = 1.6f;
         /// <summary>Extra grass behind the field so the house and trees stand behind the fence, not on it.</summary>
         public float BackDepth = 1.7f;
@@ -105,8 +105,8 @@ namespace TillWinter.Unity
             Place(_catalog.Bush, "Bush", bush, 20f);
             Shadow(bush, 0.8f);
             Place(_catalog.Rock, "Rock", new Vector3(-edge + 0.45f, 0f, half - 0.4f), 0f);
-            // The island ends at -half - Margin; the pond used to hang over that lip.
-            Place(_catalog.Pond, "Pond", new Vector3(-edge + 1.6f, 0f, -half - 0.4f), 15f);
+            // Up on the back strip beside the house, where there is room for it: down in front it crowded the field.
+            Place(_catalog.Pond, "Pond", new Vector3(edge - 2.9f, 0f, back - 0.15f), 15f);
             OnSeasonChanged(_game.State.Season);
             StaticBatchingUtility.Combine(_scenery.gameObject);
         }

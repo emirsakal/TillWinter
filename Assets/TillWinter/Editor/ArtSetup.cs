@@ -501,7 +501,7 @@ namespace TillWinter.EditorTools
             var (root, b) = Root("Plot");
             // The camera looks down, so a gap in z is foreshortened to nothing: the tile is shorter in z than in x
             // to leave a visible gap on all four sides of a plot.
-            var soil = Prim(PrimitiveType.Cube, root.transform, "Soil", new Vector3(0f, 0.08f, 0f), new Vector3(0.94f, 0.16f, 0.86f), b, PaletteSlot.SoilDry);
+            var soil = Prim(PrimitiveType.Cube, root.transform, "Soil", new Vector3(0f, 0.08f, 0f), new Vector3(0.94f, 0.16f, 0.8f), b, PaletteSlot.SoilDry);
             soil.GetComponent<Renderer>().receiveShadows = true;
             soil.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
             var cracks = new GameObject("Cracks").transform;

@@ -112,6 +112,24 @@ namespace TillWinter.Unity
             t.outlineColor = new Color32(0, 0, 0, 150);
         }
 
+        /// <summary>
+        /// Outline plus a soft drop shadow, for HUD text that must stay legible over any sky without a plate behind
+        /// it. Touching fontMaterial instances the material for this one label, so use it on the few labels that
+        /// sit directly on the world, never per item in a list.
+        /// </summary>
+        public static void OutlineStrong(TMP_Text t, float width = 0.3f)
+        {
+            t.outlineWidth = width;
+            t.outlineColor = new Color32(0, 0, 0, 225);
+            var m = t.fontMaterial;
+            m.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+            m.SetColor(ShaderUtilities.ID_UnderlayColor, new Color(0f, 0f, 0f, 0.7f));
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -0.25f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0.1f);
+            m.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0.35f);
+        }
+
         private static TextAlignmentOptions Map(TextAnchor a)
         {
             switch (a)

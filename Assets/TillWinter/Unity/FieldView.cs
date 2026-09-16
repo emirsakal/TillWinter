@@ -238,6 +238,17 @@ namespace TillWinter.Unity
             _phase = (plot.Pos.X * 7 + plot.Pos.Y * 13) * 0.37f;
             _soilBinder = GetComponent<PaletteBinder>();
             _cracks = transform.Find("Cracks")?.gameObject;
+            // Every plot instantiates the same prefab, whose crack layout was baked once with a fixed seed, so a
+            // field read as one stamped tile repeated. A deterministic quarter-turn, a small skew and a mirror per
+            // grid position give each plot its own dirt without touching the shared mesh.
+            if (_cracks != null)
+            {
+                int h = (plot.Pos.X * 73856093) ^ (plot.Pos.Y * 19349663);
+                if (h < 0) h = -h;
+                _cracks.transform.localRotation = Quaternion.Euler(0f, (h % 4) * 90f + (h / 4 % 5) * 6f, 0f);
+                var cs = _cracks.transform.localScale;
+                _cracks.transform.localScale = new Vector3(cs.x * ((h / 32 % 2) == 0 ? 1f : -1f), cs.y, cs.z);
+            }
             _droplets = transform.Find("Droplets")?.gameObject;
             _cropRoot = transform.Find("CropAnchor");
             if (_cropRoot == null)
