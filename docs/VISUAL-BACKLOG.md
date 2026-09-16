@@ -296,10 +296,24 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 
 ### 9.5 Characters and creatures
 
-- **Open.** [M] **Apprentices.** Smaller, with dig/water/pick animations and small status icons.
-- **Open.** [M] **Dog.** Leaves the kennel, wanders, follows apprentices, chases crows.
-- **Open.** [M] **Crows.** Landing, pecking and flight animations; feathers when scared.
-- **Open.** [L] **Ambient creatures.** Bees, chickens, a cat, flocks of birds, a frog at the pond.
+- **Done in part.** [M] **Apprentices.** Smaller, with dig/water/pick animations and small status
+  icons. Already smaller (0.52, from 9.3); `ApprenticeView` now bends down to the bed while
+  harvesting (28° pitch over the harvest, a small hop as it finishes) and, when standing still,
+  breathes and looks about. Status icons still open.
+- **Done.** [M] **Dog.** Leaves the kennel, wanders, follows apprentices, chases crows. `DogView`
+  rewritten: `DioramaView` gives it a home and a grass strip just behind the fence (`SetArea`); it
+  naps, trots between random spots and home (legs swing, body bobs), goes home in Winter, and when
+  any crow is on the field it runs to the fence opposite the crow, faces the field and bounces, tail
+  wagging fast. Stops while being patted. It barks silently (no bark clip; no generated audio). It
+  cannot cross the fence, so it does not physically chase crows.
+- **Done in part.** [M] **Crows.** Landing, pecking and flight animations; feathers when scared.
+  Landing, pecking, flight and scare feathers already existed; `CrowView` now glances about in
+  quick jerks before it settles to eat.
+- **Done in part.** [L] **Ambient creatures.** Bees, chickens, a cat, flocks of birds, a frog at the
+  pond. A new Bee prefab (two bees in `CrittersView` hop from bed to bed, preferring ripe beds,
+  wings buzzing; Spring/Summer only) and a pond Frog (`FrogView`, placed by `DioramaView` beside
+  the pond: throat puffs, short hops away and back, hidden in Autumn/Winter). Chickens, cat and
+  bird flocks still open (flocks skipped so they are not confused with gameplay crows).
 
 ### 9.6 Sky, light, weather and seasons
 

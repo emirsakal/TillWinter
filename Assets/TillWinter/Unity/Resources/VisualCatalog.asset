@@ -124,4 +124,6 @@ MonoBehaviour:
   HangingRock: {fileID: 7222943466240579798, guid: 04039fd0b177c0a428f6228ee9a8151b, type: 3}
   RingDots: {fileID: 4712331349580599240, guid: 81612152236c56645be6c65f4c9ed231, type: 3}
   Butterfly: {fileID: 6964125060097207644, guid: c31080a3f248b6c4b9b6af53309322be, type: 3}
+  Bee: {fileID: 4666675971844644916, guid: eb7c4db562ee2534cbbdf9719d4c1ce5, type: 3}
+  Frog: {fileID: 895513762185150082, guid: b1231de7348fdbb4197de06ec4b4bb2c, type: 3}
   BlobShadow: {fileID: 5479554026680035742, guid: 22c24bf89efddc940b841c82f1c4dbae, type: 3}

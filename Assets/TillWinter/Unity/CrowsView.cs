@@ -160,7 +160,9 @@ namespace TillWinter.Unity
             var jitter = new Vector3(Mathf.Sin(_t * 41f) * shake, 0f, Mathf.Cos(_t * 37f) * shake);
             transform.position = _home + Vector3.up * (drop * 2.5f + hop) + jitter;
             float peck = eatProgress > 0.3f ? Mathf.Max(0f, Mathf.Sin(_t * 9f)) * 25f * eatProgress : 0f;
-            _body.localRotation = Quaternion.Euler(peck, 0f, Mathf.Sin(_t * 47f) * shake * 120f);
+            // Before it settles to eat it glances about, in quick jerks like a real crow.
+            float glance = eatProgress < 0.3f ? Mathf.Round(Mathf.Sin(_t * 1.7f + _phase) * 2f) * 25f : 0f;
+            _body.localRotation = Quaternion.Euler(peck, glance, Mathf.Sin(_t * 47f) * shake * 120f);
             float wing = drop > 0.05f ? Mathf.Sin(_t * 30f) * 40f : 0f;
             _wingL.localRotation = Quaternion.Euler(0f, 0f, wing);
             _wingR.localRotation = Quaternion.Euler(0f, 0f, -wing);
