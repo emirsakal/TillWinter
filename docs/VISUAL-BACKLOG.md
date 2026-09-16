@@ -35,13 +35,15 @@ Next: section 3 (UI infrastructure).
 
 ## 3. UI infrastructure
 
-- **No icon system beyond node icons.** Small icons for coins, seeds, years, harvests, crows and time, used by the stats, winter and away screens.
-- **No shadow or gradient primitives in `UiKit`.** A soft drop shadow under cards, a thin gradient on top bands.
-- **Weak button feedback (only a 0.06 s colour tint).** One shared press animation (0.96 scale, click sound, Selection haptic).
-- **No toggle component.** Settings show on/off as button text. Build a real switch.
-- **No scroll view helper.** Stats and credits are fixed height and will overflow.
-- **Volume sliders show no value and play no sample sound while dragging.**
-- **Motion is ad hoc per view.** Define shared durations and curves (fast 0.12 s, normal 0.22 s, slow 0.4 s).
+- **Done.** **No icon system beyond node icons.** Small icons for coins, seeds, years, harvests, crows and time, used by the stats, winter and away screens. Shipped as `UiIcons`, mapping generation, year, coin, harvest, ring, apprentice, tractor, crow, golden, combo and time to keys in the Kenney icon atlas the skill tree already uses; the statistics sheet now shows them per row.
+- **Done.** **No shadow or gradient primitives in `UiKit`.** A soft drop shadow under cards, a thin gradient on top bands. Shipped as `UiKit.Shadow` (draws the same rounded shape behind a card, offset and darkened) and `UiKit.Gradient` plus `Prims.VerticalFadeSprite` for vertical shades; the title scene's own copy was deleted in favour of it.
+- **Done.** **Weak button feedback (only a 0.06 s colour tint).** One shared press animation (0.96 scale, click sound, Selection haptic). Shipped as `ButtonFeedback`, added by `UiKit.Button` to every button; the hand-written `Play(SfxId.UiClick)` calls in the Winter screen and the away card were removed so a press clicks once.
+- **Done.** **No toggle component.** Settings show on/off as button text. Build a real switch. Shipped as `UiSwitch`, a real switch (rounded track, sliding knob, animated at `UiMotion.Fast`); Vibration and Reduce motion in Settings use it instead of a button whose label said On or Off.
+- **Done.** **No scroll view helper.** Stats and credits are fixed height and will overflow. Shipped as `UiKit.ScrollView`, a masked vertical scroller; the statistics and credits sheets are inside one, so longer content no longer overflows.
+- **Done.** **Volume sliders show no value and play no sample sound while dragging.** Each row now shows the level as a percentage and plays a short sample sound while dragging (rate-limited to one every 0.12 s).
+- **Done.** **Motion is ad hoc per view.** Define shared durations and curves (fast 0.12 s, normal 0.22 s, slow 0.4 s). Shipped as `UiMotion`: Fast 0.12 s, Normal 0.22 s and Slow 0.4 s plus EaseOut/EaseInOut and a damping helper; sheets, switches and button presses all read from it.
+
+Next: section 4 (screen by screen).
 
 ---
 
