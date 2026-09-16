@@ -317,12 +317,28 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 
 ### 9.6 Sky, light, weather and seasons
 
-- **Open.** [H] **Sky still plain.** Sun/moon disc, layered clouds, colour through the day.
-- **Open.** [H] **Season transitions.** Spring blossom, summer haze, autumn leaf wind, snow cover
-  arriving gradually.
-- **Open.** [M] **Weather.** Light rain, rainbow, autumn wind, morning mist.
-- **Open.** [M] **Light.** Stronger shadow direction, warm rim light, lit house windows on winter
-  evenings.
+- **Done in part.** [H] **Sky still plain.** Sun/moon disc, layered clouds, colour through the
+  day. `TW_Sky.shader` now draws, besides the gradient: a sun disc with a soft glow
+  (`_SunColor`/`_SunPos`/`_SunSize`/`_Aspect`), soft procedural clouds (rotated value-noise fbm,
+  drifting, confined to the strip of sky between the island and the HUD so the coin counter stays
+  readable; `_Clouds`/`_CloudColor`) and a horizon haze (`_Haze`). All extras default off, so the
+  menu's sky is unchanged. `SeasonPresenter` sets them per season: sun tinted from the season
+  light, lower in autumn/winter (from the light's elevation), dimmer in frost/winter; cloud cover
+  per season (summer 0.3, spring 0.45, autumn 0.6, winter 0.8). Note: the material asset keeps its
+  own serialized shader values, so `SeasonPresenter` sets `_SunSize` from code. Moon and colour
+  through the day still open.
+- **Done in part.** [H] **Season transitions.** Spring blossom, summer haze, autumn leaf wind,
+  snow cover arriving gradually. Snow now settles slowly (damped, ~several seconds) and melts
+  quickly instead of switching with the 1.5 s light blend; summer gets a light heat haze. Spring
+  petals and autumn leaves already existed. Autumn leaf wind still open.
+- **Done in part.** [M] **Weather.** Light rain, rainbow, autumn wind, morning mist. Morning mist
+  now plays at the start of every year (sky haze plus fog pulled closer and paler, burning off
+  over 7 s). Rain cloud event already existed. Rainbow and autumn wind still open.
+- **Done in part.** [M] **Light.** Stronger shadow direction, warm rim light, lit house windows on
+  winter evenings. Sun shadow strength 0.6 -> 0.72. Farmhouse windows now have their own
+  PaletteBinder (child "Windows" in `ArtSetup.BuildHouse`) and `DioramaView` lights them warm
+  (Golden colour + GoldenGlow emission): a little in Autumn, fully during the frost warning and
+  Winter. Warm rim light still open.
 - **Open.** [L] **Starry winter night** behind the Winter screen.
 
 ### 9.7 Animation and game feel
