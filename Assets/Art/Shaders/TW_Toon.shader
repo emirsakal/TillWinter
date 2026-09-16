@@ -18,6 +18,7 @@ Shader "TillWinter/TW_Toon"
         _RimColor ("Rim light", Color) = (1, 0.97, 0.88, 1)
         _RimPower ("Rim power", Range(0.5, 8)) = 3
         _RimStrength ("Rim strength", Range(0, 1)) = 0.25
+        _Wind ("Sways in the breeze (world units at 1.7 m)", Range(0, 0.2)) = 0
     }
 
     SubShader
@@ -40,6 +41,7 @@ Shader "TillWinter/TW_Toon"
             float4 _RimColor;
             float _RimPower;
             float _RimStrength;
+            float _Wind;
         CBUFFER_END
 
         UNITY_INSTANCING_BUFFER_START(TWProps)
@@ -50,6 +52,23 @@ Shader "TillWinter/TW_Toon"
         // Season globals set by SeasonPresenter through PaletteBinder.SetSeason.
         float _TW_Snow;
         float4 _TW_SeasonTint;
+
+        // Foliage and crops lean with a slow breeze. Works in world space, so statically batched scenery sways too;
+        // the island top is y = 0 and the lean grows with height, so roots stay put.
+        float3 TWSway(float3 ws)
+        {
+            float h = saturate(ws.y * 0.6);
+            float ph = _Time.y * 1.6 + ws.x * 0.7 + ws.z * 0.5;
+            float k = _Wind * h * h;
+            ws.x += sin(ph) * k;
+            ws.z += cos(ph * 0.8) * k * 0.5;
+            return ws;
+        }
+
+        float4 TWObjectToHClip(float3 positionOS)
+        {
+            return TransformWorldToHClip(TWSway(TransformObjectToWorld(positionOS)));
+        }
         ENDHLSL
 
         Pass
@@ -93,13 +112,13 @@ Shader "TillWinter/TW_Toon"
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(v);
                 UNITY_TRANSFER_INSTANCE_ID(v, o);
-                VertexPositionInputs p = GetVertexPositionInputs(v.positionOS.xyz);
-                o.positionCS = p.positionCS;
-                o.positionWS = p.positionWS;
+                float3 positionWS = TWSway(TransformObjectToWorld(v.positionOS.xyz));
+                o.positionCS = TransformWorldToHClip(positionWS);
+                o.positionWS = positionWS;
                 o.normalWS = TransformObjectToWorldNormal(v.normalOS);
                 o.uv = TRANSFORM_TEX(v.uv, _BaseMap);
                 o.color = lerp(float4(1, 1, 1, 1), v.color, _VertexColor);
-                o.fog = ComputeFogFactor(p.positionCS.z);
+                o.fog = ComputeFogFactor(o.positionCS.z);
                 return o;
             }
 
@@ -162,7 +181,7 @@ Shader "TillWinter/TW_Toon"
             {
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(v);
-                float3 positionWS = TransformObjectToWorld(v.positionOS.xyz);
+                float3 positionWS = TWSway(TransformObjectToWorld(v.positionOS.xyz));
                 float3 normalWS = TransformObjectToWorldNormal(v.normalOS);
             #if _CASTING_PUNCTUAL_LIGHT_SHADOW
                 float3 lightDirectionWS = normalize(_LightPosition - positionWS);
@@ -203,7 +222,7 @@ Shader "TillWinter/TW_Toon"
             {
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(v);
-                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.positionCS = TWObjectToHClip(v.positionOS.xyz);
                 return o;
             }
 
@@ -230,7 +249,7 @@ Shader "TillWinter/TW_Toon"
             {
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(v);
-                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.positionCS = TWObjectToHClip(v.positionOS.xyz);
                 o.normalWS = TransformObjectToWorldNormal(v.normalOS);
                 return o;
             }

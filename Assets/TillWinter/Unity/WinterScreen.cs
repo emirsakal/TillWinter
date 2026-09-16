@@ -39,6 +39,7 @@ namespace TillWinter.Unity
         private bool _showingHeritage;
         private float _open;
         private float _sheetShown;
+        private bool _closing;
         private double _coinsTextValue = -1;
         private readonly char[] _coinChars = new char[64];
         private bool _coinsTextHeritage;
@@ -249,6 +250,8 @@ namespace TillWinter.Unity
         public void Open()
         {
             _visible = true;
+            _closing = false;
+            _group.blocksRaycasts = true;
             _open = 0f;
             _root.SetActive(true);
             _game.InputBlocked = true;
@@ -283,7 +286,10 @@ namespace TillWinter.Unity
             _almanac.ClearHighlight();
             ActiveView.OnClosed();
             _visible = false;
-            _root.SetActive(false);
+            // Thaw: the page fades off the field instead of vanishing (LateUpdate finishes it).
+            _closing = _root.activeSelf && !_card.IsOpen;
+            if (_closing) _group.blocksRaycasts = false; // the fading page must not swallow the first taps of the year
+            else _root.SetActive(false);
             _confirm.SetActive(false);
             _game.InputBlocked = false;
             PauseMenu.Instance?.PlaceButton(false);
@@ -520,10 +526,21 @@ namespace TillWinter.Unity
 
         private void LateUpdate()
         {
+            if (_closing)
+            {
+                _open = Mathf.Max(0f, _open - Time.unscaledDeltaTime / UiMotion.Slow);
+                _group.alpha = Prims.EaseOutQuad(_open);
+                if (_open <= 0f)
+                {
+                    _closing = false;
+                    _root.SetActive(false);
+                }
+                return;
+            }
             if (!_visible) return;
             if (_card.IsOpen) { _group.alpha = 0f; return; }
             float dt = Time.unscaledDeltaTime;
-            _open = Mathf.Min(1f, _open + dt / 0.3f);
+            _open = Mathf.Min(1f, _open + dt / UiMotion.Slow);
             _group.alpha = Prims.EaseOutQuad(_open);
 
             var s = _game.State;

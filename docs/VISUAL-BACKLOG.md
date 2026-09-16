@@ -343,14 +343,30 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 
 ### 9.7 Animation and game feel
 
-- **Open.** [H] **Purchases lack a visible change on the farm** (a new plot landing, an irrigation
-  pipe appearing).
-- **Open.** [H] **Screen transitions.** Freezing into Winter, thawing out of it.
-- **Open.** [M] **UI micro-interactions.** Selected/hover states, a light bounce when sheets open.
-- **Open.** [M] **Coin flight.** A pop and colour flash on the counter when coins land.
+- **Done in part.** [H] **Purchases lack a visible change on the farm** (a new plot landing, an
+  irrigation pipe appearing). Plots bought in Winter (field expansion) used to pop in behind the
+  Winter overlay; `FieldView` now holds the staggered reveal until the Year phase, so they land in
+  view when the year starts. New apprentices pop in (EaseOutBack over 0.4 s with a PlotPop puff)
+  once the field is in view. Irrigation/sun/other upgrades still have no farm-side visual.
+- **Done in part.** [H] **Screen transitions.** Freezing into Winter, thawing out of it.
+  `WinterScreen` fades in over `UiMotion.Slow` (0.4 s, was 0.3) and now fades out ("thaw") over the
+  same time instead of vanishing; raycasts are released during the fade so the first taps of the
+  year are not swallowed. The hard hide stays when the generation card takes over. A real freeze
+  effect is still open.
+- **Done in part.** [M] **UI micro-interactions.** Selected/hover states, a light bounce when
+  sheets open. `SheetTransition` (every sheet) now lands with a small overshoot
+  (`Prims.EaseOutBack`) and skips the movement when Reduce motion is on. Selected/hover states
+  still open.
+- **Done.** [M] **Coin flight.** A pop and colour flash on the counter when coins land. Landing
+  coins flash the counter number toward the coin colour along with the existing punch.
 - **Open.** [M] **Passing on the farm is the biggest moment.** Island darkens and is reborn; a more
   cinematic generation card.
-- **Open.** [L] **Idle motion.** Trees swaying, a flag, ripples on the pond.
+- **Done in part.** [L] **Idle motion.** Trees swaying, a flag, ripples on the pond.
+  `TW_Toon.shader` has a `_Wind` property and a world-space sway (TWSway, grows with height above
+  the island top, applied in all four passes so shadows/depth match, works on statically batched
+  scenery). `ArtSetup` sets `_Wind` 0.06 on Leaf, LeafDark, Sprout, Flower, Crop0–5 and Golden
+  materials, so trees, bushes, grass tufts and crops lean in a slow breeze. Pond ripples and a flag
+  still open.
 
 ### 9.8 Winter screen and skill tree
 

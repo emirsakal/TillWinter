@@ -468,6 +468,8 @@ namespace TillWinter.Unity
             var glow = _theme.Coin;
             glow.a = 0.22f + 0.1f * Mathf.Sin(Time.unscaledTime * 1.6f) + 0.4f * _counterPunch;
             _coinGlow.color = glow;
+            // Landing coins flash the number warm for a moment.
+            _coinText.color = Color.Lerp(_theme.Text, _theme.Coin, _counterPunch * 0.85f);
 
             // Year card: follows the HUD in and out, and rewrites its text only when a number on it changes.
             _yearGroup.alpha = _topGroup.alpha;
