@@ -28,9 +28,9 @@ namespace TillWinter.Unity
         public float SeasonSeconds = 5f;
 
         private const int Grid = 3;
-        private const float IslandWidth = 6.4f;
+        private const float IslandWidth = 5.5f; // larger island, so it meets the buttons instead of floating over a gap
         /// <summary>Where the island centre sits vertically on screen (title above, buttons below).</summary>
-        private const float IslandScreenY = 0.6f;
+        private const float IslandScreenY = 0.575f;
         private const float ButtonWidth = 620f, ButtonHeight = 112f, ButtonGap = 22f, BottomMargin = 170f;
         private static readonly int[] Tiers = { 0, 1, 3, 2, 0, 5, 1, 5, 2 };
 
@@ -205,6 +205,40 @@ namespace TillWinter.Unity
 
         // ------------------------------------------------------------------ ui
 
+        /// <summary>"Till Winter": the last word in a frosty tint. A one-word title stays one colour.</summary>
+        private string TwoToneTitle(string title)
+        {
+            int cut = title.LastIndexOf(' ');
+            if (cut <= 0) return title;
+            return title.Substring(0, cut + 1) + "<color=#" + ColorUtility.ToHtmlStringRGB(_theme.MenuTitleFrost) + ">" + title.Substring(cut + 1) + "</color>";
+        }
+
+        /// <summary>A thin rule with a sprout at its centre: the logotype's underline.</summary>
+        private void BuildOrnament(RectTransform parent, Vector2 pos)
+        {
+            var root = UiKit.Rect("Ornament", parent);
+            UiKit.Box(root, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), pos, new Vector2(520f, 60f));
+            var faded = new Color(_theme.MenuTitle.r, _theme.MenuTitle.g, _theme.MenuTitle.b, 0.55f);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var rule = UiKit.Panel(root, "Rule", faded, true, false);
+                UiKit.Box(rule.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(side < 0 ? 1f : 0f, 0.5f), new Vector2(side * 44f, -6f), new Vector2(190f, 5f));
+            }
+            var stem = UiKit.Panel(root, "Stem", _theme.MenuOrnament, true, false);
+            UiKit.Box(stem.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f), new Vector2(0f, -14f), new Vector2(7f, 34f));
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var leaf = UiKit.CircleImage(root, "Leaf", _theme.MenuOrnament, Vector2.zero, 10f);
+                var rt = leaf.rectTransform;
+                rt.pivot = new Vector2(side < 0 ? 1f : 0f, 0.5f);
+                rt.sizeDelta = new Vector2(30f, 15f);
+                rt.anchoredPosition = new Vector2(side * 2f, side < 0 ? 12f : 4f);
+                rt.localRotation = Quaternion.Euler(0f, 0f, side * 24f);
+            }
+            var soil = UiKit.CircleImage(root, "Seed", faded, new Vector2(0f, -8f), 16f);
+            soil.raycastTarget = false;
+        }
+
         private void BuildUi(RectTransform canvas)
         {
             var root = UiKit.Rect("Title", canvas);
@@ -217,13 +251,15 @@ namespace TillWinter.Unity
             SafeArea.Apply(safe);
             var glow = UiKit.CircleImage(safe, "TitleGlow", new Color(_theme.MenuTitle.r, _theme.MenuTitle.g, _theme.MenuTitle.b, 0.12f), Vector2.zero, 900f);
             UiKit.Box(glow.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -330f), new Vector2(900f, 900f));
-            var title = UiKit.Label(safe, "Name", Strings.Get("menu.title"), UiType.Display, _theme.MenuTitle, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var title = UiKit.Label(safe, "Name", TwoToneTitle(Strings.Get("menu.title")), UiType.Display, _theme.MenuTitle, TextAnchor.MiddleCenter, FontStyle.Bold);
+            title.richText = true; // the two-tone title is a colour tag
             _title = title.rectTransform;
             UiKit.Box(_title, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -230f), new Vector2(1040f, 200f));
             UiKit.Outline(title, 0.24f);
             _titleBase = _title.anchoredPosition;
+            BuildOrnament(safe, new Vector2(0f, -432f));
             var subtitle = UiKit.Label(safe, "Subtitle", Strings.Get("menu.subtitle"), UiType.Heading, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
-            UiKit.Box(subtitle.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -410f), new Vector2(1000f, 70f));
+            UiKit.Box(subtitle.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -466f), new Vector2(1000f, 70f));
             UiKit.Outline(subtitle, 0.16f);
 
             RectTransform progressRt = null;

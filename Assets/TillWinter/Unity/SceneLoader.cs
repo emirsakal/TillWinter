@@ -18,6 +18,7 @@ namespace TillWinter.Unity
         private const float FadeOut = 0.35f;
 
         private static SceneLoader _active;
+        private const int TipCount = 6;
 
         private Image _cover;
         private TMP_Text _label;
@@ -55,6 +56,10 @@ namespace TillWinter.Unity
             _group.alpha = 0f;
             _label = UiKit.Label(_cover.transform, "Label", Strings.Get("ui.loading"), UiType.Title, theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -190f), new Vector2(900f, 90f));
+            // A tip under the word, a different one each load.
+            var tip = UiKit.Label(_cover.transform, "Tip", Strings.Get("tip." + Random.Range(0, TipCount)), UiType.Body, theme.SheetMuted, TextAnchor.UpperCenter);
+            tip.enableWordWrapping = true;
+            UiKit.Box(tip.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f), new Vector2(0f, -270f), new Vector2(820f, 140f));
 
             // A seed growing while you wait, rather than a word on its own: soil line, a stem that rises and two
             // leaves that open off it. Built from the same primitives every other screen uses.
