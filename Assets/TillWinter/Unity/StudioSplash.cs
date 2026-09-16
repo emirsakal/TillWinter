@@ -43,7 +43,10 @@ namespace TillWinter.Unity
             canvas.gameObject.AddComponent<StudioSplash>().Begin(canvas, sprite);
         }
 
-        private Image _cover, _logo;
+        private Image _cover, _logo, _glow;
+
+        /// <summary>A warm light behind the mark (UiPalette.Honey, faint).</summary>
+        private static readonly Color Glow = new Color(0.91f, 0.66f, 0.24f, 0.22f);
 
         private void Begin(RectTransform canvas, Sprite sprite)
         {
@@ -51,6 +54,11 @@ namespace TillWinter.Unity
             UiKit.Stretch(_cover.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _cover.rectTransform.SetAsLastSibling();
 
+            _glow = UiKit.Panel(_cover.transform, "Glow", Glow, false, false);
+            _glow.sprite = Sprite.Create(Prims.RadialGradient(128, 0f, 1f), new Rect(0, 0, 128, 128), new Vector2(0.5f, 0.5f), 100f);
+            _glow.type = Image.Type.Simple;
+            UiKit.Box(_glow.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1300f, 1300f));
+            SetAlpha(_glow, 0f);
             _logo = UiKit.Panel(_cover.transform, "Logo", Color.white, false, false);
             _logo.sprite = sprite;
             _logo.type = Image.Type.Simple;
@@ -65,13 +73,19 @@ namespace TillWinter.Unity
             bool skipped = false;
             for (float t = 0f; t < FadeIn && !skipped; t += Step)
             {
-                SetAlpha(_logo, Mathf.SmoothStep(0f, 1f, t / FadeIn));
+                float k = Mathf.SmoothStep(0f, 1f, t / FadeIn);
+                SetAlpha(_logo, k);
+                SetAlpha(_glow, k * Glow.a);
+                // The mark settles into place from slightly larger.
+                _logo.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.06f, 1f, UiMotion.EaseOut(t / FadeIn));
                 skipped = Tapped();
                 yield return null;
             }
             SetAlpha(_logo, 1f);
+            _logo.rectTransform.localScale = Vector3.one;
             for (float t = 0f; t < Hold && !skipped; t += Step)
             {
+                SetAlpha(_glow, Glow.a * (0.85f + 0.15f * Mathf.Sin(t * 4f)));
                 skipped = Tapped();
                 yield return null;
             }
@@ -80,6 +94,7 @@ namespace TillWinter.Unity
                 float k = Mathf.SmoothStep(1f, 0f, t / Lift);
                 SetAlpha(_cover, k);
                 SetAlpha(_logo, k);
+                SetAlpha(_glow, k * Glow.a);
                 yield return null;
             }
             Destroy(_cover.gameObject);

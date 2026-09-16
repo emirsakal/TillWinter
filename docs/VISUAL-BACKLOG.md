@@ -404,12 +404,26 @@ Verified with `ui-tour` (tours 28-30), 204 tests passing.
 
 ### 9.9 Menu, splash and loading
 
-- **Open.** [M] **Main menu gap between island and buttons.** Enlarge the island or join logo and
-  island.
-- **Open.** [M] **"Till Winter" title.** A custom logotype (crop letters, snowflake i).
-- **Open.** [M] **Menu buttons dark and heavy.** Tie them to the palette with cream/wood tones.
-- **Open.** [L] **Splash.** A light scale/glow animation on the logo.
-- **Open.** [L] **Loading screen.** Seedling tinted by season, tip text below.
+- **Done.** [M] **Main menu gap between island and buttons.** Enlarge the island or join logo and
+  island. `IslandWidth` 6.4 -> 5.5 (larger island) and `IslandScreenY` 0.6 -> 0.575 in
+  `MenuBootstrap`, so the island reaches the buttons.
+- **Done in part.** [M] **"Till Winter" title.** A custom logotype (crop letters, snowflake i). A
+  two-tone logotype (the last word of `menu.title` in `HudTheme.MenuTitleFrost` via a TMP colour
+  tag; rich text enabled on that label only) and an ornament under it: two thin rules with a sprout
+  (stem, two leaves, seed) in `HudTheme.MenuOrnament` (Sage). Subtitle moved down to make room.
+  Custom letterforms (crop letters, snowflake i) not done.
+- **Done.** [M] **Menu buttons dark and heavy.** Tie them to the palette with cream/wood tones.
+  Buttons were already Sage/Earth from 9.1; the heavy grey bottom shade is now a light warm veil
+  (`MenuShade` = Night at 38%), `HudTheme` style 3 (`UiSetup` restyles the asset).
+- **Done.** [L] **Splash.** A light scale/glow animation on the logo. A faint warm radial glow
+  behind the EFS Games mark, which settles from 106% scale during the fade-in; the glow breathes
+  during the hold.
+- **Done in part.** [L] **Loading screen.** Seedling tinted by season, tip text below. A random tip
+  under "Loading" from six new strings `tip.0`-`tip.5` (en/tr): ring harvest, scaring crows, combo,
+  offline irrigation/helpers, passing the farm on, rain cloud. Season-tinted seedling not done (the
+  loader does not know the season).
+
+Verified with `ui-tour` (tours 31-32), tests passing.
 
 ### 9.10 Sheets and buttons
 

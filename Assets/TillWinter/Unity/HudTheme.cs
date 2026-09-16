@@ -8,7 +8,7 @@ namespace TillWinter.Unity
     public sealed class HudTheme : ScriptableObject
     {
         /// <summary>Bumped when the look changes; UiSetup restyles an older asset in place (round three: one palette).</summary>
-        public const int CurrentStyle = 2;
+        public const int CurrentStyle = 3;
         public int StyleVersion;
 
         /// <summary>Cards that sit over the field (the away card).</summary>
@@ -67,6 +67,10 @@ namespace TillWinter.Unity
         // Main menu
         public Color MenuShade = new Color(0.07f, 0.06f, 0.05f, 0.82f);
         public Color MenuTitle = new Color(1f, 0.95f, 0.82f);
+        /// <summary>The second word of the title: a frosty tint, the winter the farm works towards.</summary>
+        public Color MenuTitleFrost = new Color(0.84f, 0.93f, 1f);
+        /// <summary>The sprout ornament between title and subtitle.</summary>
+        public Color MenuOrnament = new Color(0.42f, 0.6f, 0.35f);
         public Color MenuSubtitle = new Color(1f, 0.93f, 0.78f, 0.85f);
         public Color MenuPrimary = new Color(0.38f, 0.6f, 0.3f);
         public Color MenuSecondary = new Color(0.1f, 0.08f, 0.06f, 0.72f);
@@ -109,6 +113,9 @@ namespace TillWinter.Unity
             t.MenuPrimary = UiPalette.Sage;
             t.MenuSecondary = UiPalette.Earth; // was near-black and translucent: heavy against the sky
             t.MenuButtonText = UiPalette.Cream;
+            // Style 3: the bottom shade was a heavy grey band under the buttons; a light warm veil is enough.
+            t.MenuShade = UiPalette.WithAlpha(UiPalette.Night, 0.38f);
+            t.MenuOrnament = UiPalette.Sage;
             t.BootFade = UiPalette.Paper;
             t.HintBackground = UiPalette.WithAlpha(UiPalette.Night, 0.88f);
             t.HintText = UiPalette.Cream;
