@@ -108,6 +108,52 @@ All five sections are done; new items go at the bottom as they come up.
 
 ---
 
+## 7. Follow-up: developer playtest feedback, round two
+
+- **Done.** **Credits entry path.** Opening credits straight from the main menu and closing it used
+  to show Settings, because both entry points set the same flag. Credits now records whether it was
+  reached via Settings and retraces that path.
+- **Done.** **Ripe plots reading green.** The stage-to-model mapping was already correct; Kenney's
+  carrot is a green leafy top with the orange root at soil level, so at the game's camera angle a
+  ripe plant looked like a growing one. The ripe model's foliage now warms toward the crop's own
+  colour through PaletteBinder.
+- **Done.** **Field expansion scenery.** Expanding the field to 4x4/5x5/6x6 scrambled the scenery:
+  Rebuild() destroyed the old scenery with Destroy (which only takes effect at end of frame), placed
+  the new scenery under the same root, then ran static batching over a root that was already batched
+  and still held dying children. Each rebuild now builds into a fresh root.
+- **Done.** **Season bar placement.** The season bar and season name moved from the top band into
+  their own band below the island, next to the farm they measure; coins and the earning rate stay at
+  the top.
+- **Done.** **Season name legibility.** The dark chip behind the season name is gone; a new
+  UiKit.OutlineStrong (outline plus a soft TMP underlay shadow) keeps it legible over any sky.
+- **Done.** **Pond and island size.** The pond moved onto the back strip beside the house instead of
+  sitting in front of the field, the island grew (Margin 1.1 -> 1.6), and the camera's ExtraWidth
+  grew with it so the wider island is not cropped.
+- **Done.** **Plot soil depth.** Plot soil depth reduced further in z so the gap above and below a
+  plot matches the gap left and right under the camera's tilt.
+- **Done.** **Plot crack variation.** Each plot now rotates and mirrors its baked crack detail
+  deterministically from its grid position, so a field no longer reads as one stamped tile repeated.
+- **Done.** **End year early.** Players can end a year early from the HUD instead of waiting the
+  clock out; it costs the standing crop exactly as frost would.
+- **Done.** **Developer panel entry point.** The developer panel's toggle moved out of Settings into
+  its own button in the play scene.
+- **Done.** **Farm dog and kennel.** A farm dog and kennel beside the house, built from primitives
+  because no kit has an animal; tapping the dog pops a heart for two seconds and swallows the tap so
+  petting it never waters the plot behind it.
+- **Done.** **Skill tree distribution.** The skill tree became an organic distribution rather than a
+  rigid five-spoke star: branches curve further round with each layer, siblings fan along an arc, and
+  each node carries a small deterministic offset.
+- **Done.** **UI font.** UI font swapped from Nunito to Figtree.
+- **Done.** **Button styling.** Buttons restyled: a face sitting on a darker lip, so they have a near
+  edge and read as pressable.
+- **Done.** **Title scene sky.** The title scene now uses the same sky gradient the farm already had;
+  it had been clearing to a single flat colour.
+- **Done.** **Winter snow amount.** Winter no longer washes everything white (snow amount 1.0 -> 0.55).
+- **Done.** **Loading screen.** The loading screen grows a seed while it waits, and an EFS Games
+  studio mark plays once per app run.
+
+---
+
 ## Order
 
 1. **Foundations** — type scale, sheet shell, button feedback, motion constants.
