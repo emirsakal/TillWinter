@@ -235,14 +235,14 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 
 ### 9.2 Play screen (HUD)
 
-- **Open.** [H] **Empty bottom third of the screen.** Today's goal, next crop, or a small "this
-  year" panel; or move the island down and enlarge it.
-- **Open.** [H] **Coin area.** Tighten icon-to-number spacing, glow on the coin, counting animation
-  when the number changes.
-- **Open.** [M] **Season bar thin, glyphs small.** A thicker, illustrated timeline.
-- **Open.** [M] **Frost warning.** Pulse on the bar, a slight blue tint, frost on the field.
-- **Open.** [M] **Retire chip.** A clearer badge with a seed icon that glows when ready.
-- **Open.** [L] **Combo counter.** Fiery/sparkling number that grows with the streak.
+- **Done.** [H] **Empty bottom third of the screen.** Today's goal, next crop, or a small "this
+  year" panel; or move the island down and enlarge it. A "this year" card at the bottom shows harvests and coins this year plus a progress bar and percentage toward the next generation, written into char buffers so nothing allocates per frame.
+- **Done.** [H] **Coin area.** Tighten icon-to-number spacing, glow on the coin, counting animation
+  when the number changes. The icon and number are now centred as one unit with the icon riding the number's left edge, a soft glow behind the coin, and the counter counts up instead of jumping; coins in flight land on the icon wherever it is.
+- **Done.** [M] **Season bar thin, glyphs small.** A thicker, illustrated timeline. The bar is thicker (HudTheme style 2) with larger season glyphs.
+- **Done.** [M] **Frost warning.** Pulse on the bar, a slight blue tint, frost on the field. Already shipped before this round (frost creeping in from the screen edges, the elapsed bar breathing toward frost blue, colder light, and frost spreading over the field through the season snow amount); no change was needed.
+- **Done.** [M] **Retire chip.** A clearer badge with a seed icon that glows when ready. It is now a lipped badge with a larger seed and a glow that breathes while the farm can be passed on.
+- **Done.** [L] **Combo counter.** Fiery/sparkling number that grows with the streak. It grows and warms from yellow toward a hot red as the streak lengthens (new HudTheme.ComboHot).
 
 ### 9.3 Island and 3D world
 
