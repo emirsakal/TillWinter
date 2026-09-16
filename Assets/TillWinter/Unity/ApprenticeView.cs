@@ -67,7 +67,7 @@ namespace TillWinter.Unity
 
         public void Tick(GameController game, TillWinter.Core.ApprenticeState a, float dt)
         {
-            var target = game.PlotToWorld(a.X, a.Y, 0.16f);
+            var target = game.PlotToWorld(a.X, a.Y, 0.2f);
             if (!_placed)
             {
                 _lastPos = target;

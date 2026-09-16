@@ -55,7 +55,7 @@ namespace TillWinter.Unity
             if (_crows.ContainsKey(e.Pos)) return;
             var view = _pool.Count > 0 ? _pool.Pop() : CreateView();
             view.gameObject.SetActive(true);
-            view.Land(_game.PlotToWorld(e.Pos, 0.16f));
+            view.Land(_game.PlotToWorld(e.Pos, 0.2f));
             _crows.Add(e.Pos, view);
             _audio.Play(SfxId.CrowCaw);
             _fx.Play(VfxId.Feathers, _game.PlotToWorld(e.Pos, 0.5f), 0.6f);

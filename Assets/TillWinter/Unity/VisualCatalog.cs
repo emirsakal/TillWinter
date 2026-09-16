@@ -68,6 +68,8 @@ namespace TillWinter.Unity
         public GameObject Pebbles;
         public GameObject[] Flowers = new GameObject[0];
         public GameObject HangingRock;
+        /// <summary>Beads around the player's ring, unit radius.</summary>
+        public GameObject RingDots;
         public GameObject Butterfly;
         /// <summary>Soft dark disc parented under characters and props so they sit on the ground when shadows are off.</summary>
         public GameObject BlobShadow;
