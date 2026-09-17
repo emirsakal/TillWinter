@@ -40,12 +40,31 @@ namespace TillWinter.Unity
         private float _open;
         private float _sheetShown;
         private const int FlakeCount = 36;
+        private const int StarCount = 28;
+        private RectTransform[] _stars;
+        private Image[] _starImages;
+        private Image _frost, _aged;
+        private float _frostT;
         private RectTransform _snowLayer;
         private RectTransform[] _flakes;
         private float[] _flakeSpeed;
         private bool _closing;
         private RichNumber _coinRich, _seedRich;
         private Image _sheetBadge, _sheetIcon;
+        private TMP_Text _sheetUnlocks;
+
+        /// <summary>"Unlocks: …" — the nodes in the open tree that need this one (empty when none do).</summary>
+        private string UnlocksText(string id)
+        {
+            var names = new System.Text.StringBuilder();
+            foreach (var n in ActiveView.Tree.Nodes)
+            {
+                if (System.Array.IndexOf(n.Prerequisites, id) < 0) continue;
+                if (names.Length > 0) names.Append(", ");
+                names.Append(Strings.Name(n));
+            }
+            return names.Length == 0 ? "" : Strings.Format("ui.unlocks", ("names", names.ToString()));
+        }
         private double _coinsTextValue = -1;
         private readonly char[] _coinChars = new char[64];
         private bool _coinsTextHeritage;
@@ -93,6 +112,25 @@ namespace TillWinter.Unity
             lamp.sprite = Sprite.Create(Prims.RadialGradient(128, 0f, 1f), new Rect(0, 0, 128, 128), new Vector2(0.5f, 0.5f), 100f);
             lamp.type = Image.Type.Simple;
             UiKit.Box(lamp.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(1500f, 1100f));
+            _aged = UiKit.Panel(page.transform, "Aged", _heritageTheme.Aged, false, false);
+            _aged.sprite = UiKit.Grain;
+            _aged.type = Image.Type.Tiled;
+            _aged.gameObject.SetActive(false);
+            _stars = new RectTransform[StarCount];
+            _starImages = new Image[StarCount];
+            var starRnd = new System.Random(23);
+            for (int i = 0; i < StarCount; i++)
+            {
+                float size = 3f + (float)starRnd.NextDouble() * 4f;
+                var star = UiKit.CircleImage(page.transform, "Star", _theme.Stars, Vector2.zero, size);
+                star.raycastTarget = false;
+                _starImages[i] = star;
+                _stars[i] = star.rectTransform;
+                _stars[i].anchorMin = _stars[i].anchorMax = new Vector2((float)starRnd.NextDouble(), 0.62f + (float)starRnd.NextDouble() * 0.36f);
+            }
+            _frost = UiKit.Panel(page.transform, "Frost", _theme.Frost, false, false);
+            _frost.sprite = Prims.EdgeFadeSprite(256, 0.84f); // a thin rim of frost, not a fog over the page
+            _frost.type = Image.Type.Simple;
             _snowLayer = UiKit.Rect("Snowfall", page.transform);
             UiKit.Stretch(_snowLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _flakes = new RectTransform[FlakeCount];
@@ -174,6 +212,24 @@ namespace TillWinter.Unity
             _game.Sim.Retired += _ => { _showingHeritage = true; RefreshAll(); };
         }
 
+        /// <summary>Stars twinkle over the page; the frost frame eases from a freeze to a thin rim.</summary>
+        private void TickSky(float dt)
+        {
+            _frostT = Mathf.Min(1f, _frostT + dt / 1.1f);
+            var fc = _theme.Frost;
+            fc.a = Mathf.Lerp(0.7f, _theme.Frost.a * 0.18f, UiMotion.EaseInOut(_frostT));
+            _frost.color = fc;
+            if (_starImages == null) return;
+            float t = Time.unscaledTime;
+            bool moving = SettingsStore.MotionAllowed;
+            for (int i = 0; i < _starImages.Length; i++)
+            {
+                var c = _theme.Stars;
+                c.a *= moving ? 0.55f + 0.45f * Mathf.Sin(t * (1.1f + i * 0.13f) + i) : 0.8f;
+                _starImages[i].color = c;
+            }
+        }
+
         /// <summary>Flakes drift down the page and sway; each wraps to the top when it leaves the bottom.</summary>
         private void TickSnow(float dt)
         {
@@ -234,7 +290,11 @@ namespace TillWinter.Unity
             UiKit.Box(gainTrack.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(24f, 74f), new Vector2(520f, 8f));
             _gainFill = UiKit.Panel(gainTrack.transform, "Fill", _theme.Accent, true, false);
             UiKit.Stretch(_gainFill.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
-            UiKit.Stretch(_sheetDesc.rectTransform, new Vector2(0f, 0f), new Vector2(0.62f, 1f), new Vector2(24f, 150f), new Vector2(0f, -84f)); // stays above the effect row
+            UiKit.Stretch(_sheetDesc.rectTransform, new Vector2(0f, 0f), new Vector2(0.62f, 1f), new Vector2(24f, 172f), new Vector2(0f, -84f)); // stays above the effect row
+            _sheetUnlocks = UiKit.Label(_sheet, "Unlocks", "", UiType.Caption, _theme.InkMuted, TextAnchor.MiddleLeft);
+            UiKit.Box(_sheetUnlocks.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(24f, 128f), new Vector2(560f, 38f));
+            _sheetUnlocks.enableWordWrapping = false;
+            _sheetUnlocks.overflowMode = TextOverflowModes.Ellipsis;
 
             _buy = UiKit.Button(_sheet, "Buy", Strings.Get("ui.buy"), UiType.Body, _theme.Accent, _theme.Ink, OnBuy);
             UiKit.Box(_buy.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-24f, 24f), new Vector2(330f, 96f));
@@ -263,6 +323,22 @@ namespace TillWinter.Unity
             _retireSheet.SetActive(false);
         }
 
+        private TMP_Text _confirmLose;
+
+        /// <summary>One column of the retire confirmation: an icon, a heading and a list; returns the list label.</summary>
+        private TMP_Text ConfirmColumn(RectTransform box, float side, string titleKey, string icon, Color accent)
+        {
+            float x = side * 205f;
+            var mark = NodeIcons.Image(box, icon, accent);
+            UiKit.Box(mark.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(x - 120f, -250f), Vector2.one * 40f);
+            var head = UiKit.Label(box, titleKey, Strings.Get(titleKey), UiType.Body, accent, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Box(head.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(x + 30f, -250f), new Vector2(260f, 48f));
+            var list = UiKit.Label(box, titleKey + "List", "", UiType.Label, _theme.InkMuted, TextAnchor.UpperLeft);
+            UiKit.Box(list.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(x, -285f), new Vector2(380f, 170f));
+            list.lineSpacing = 14f;
+            return list;
+        }
+
         private void ShowCaption(string key, bool show)
         {
             var go = _hintCaption.transform.parent.gameObject;
@@ -279,8 +355,11 @@ namespace TillWinter.Unity
             UiKit.SheetDecor(box, 118f);
             var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.confirm_title"), UiType.Title, _theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -24f), new Vector2(860f, 70f));
-            _confirmText = UiKit.Label(box.transform, "Text", "", UiType.Label, _theme.Ink, TextAnchor.UpperLeft);
-            UiKit.Stretch(_confirmText.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 170f), new Vector2(-50f, -136f)); // the body used to start inside the title
+            _confirmText = UiKit.Label(box.transform, "Text", "", UiType.Label, _theme.Ink, TextAnchor.UpperCenter);
+            UiKit.Box(_confirmText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(800f, 70f));
+            // What stays and what goes, side by side, each under its own mark.
+            _confirmLose = ConfirmColumn(box.rectTransform, -1f, "ui.confirm_lose_title", "warning", _theme.Danger);
+            ConfirmColumn(box.rectTransform, 1f, "ui.confirm_keep_title", "checkmark", _theme.Field).text = Strings.Get("ui.confirm_keep");
             var yes = UiKit.Button(box.transform, "Yes", Strings.Get("ui.retire"), UiType.Body, _theme.Seed, _theme.Paper, OnRetireConfirmed);
             UiKit.Box(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(20f, 40f), new Vector2(380f, 110f));
             var no = UiKit.Button(box.transform, "No", Strings.Get("ui.cancel"), UiType.Body, _theme.InkMuted, _theme.Paper, () => { _confirm.SetActive(false); });
@@ -304,6 +383,7 @@ namespace TillWinter.Unity
             _closing = false;
             _group.blocksRaycasts = true;
             _open = 0f;
+            _frostT = 0f; // the window freezes over as Winter opens, then clears to a frame
             _root.SetActive(true);
             _game.InputBlocked = true;
             PauseMenu.Instance?.PlaceButton(true);
@@ -397,9 +477,8 @@ namespace TillWinter.Unity
         {
             if (!_game.Sim.CanRetire) return;
             var s = _game.State;
-            _confirmText.text = Strings.Format("ui.confirm_body",
-                ("seeds", _game.Sim.SeedsIfRetiredNow), ("gen", s.Generation.Generation + 1),
-                ("coins", NumberFormat.Short(s.Coins)), ("field", s.GridSize + "x" + s.GridSize));
+            _confirmText.text = Strings.Format("ui.confirm_head", ("seeds", _game.Sim.SeedsIfRetiredNow), ("gen", s.Generation.Generation + 1));
+            _confirmLose.text = Strings.Format("ui.confirm_lose", ("coins", NumberFormat.Short(s.Coins)), ("field", s.GridSize + "x" + s.GridSize));
             _confirm.SetActive(true);
         }
 
@@ -465,6 +544,7 @@ namespace TillWinter.Unity
             if (heritagePhase) _showingHeritage = true;
             _overlay.color = heritagePhase ? _heritageTheme.Overlay : _theme.Overlay;
             _page.color = _showingHeritage ? _heritageTheme.Paper : _theme.Paper;
+            if (_aged != null) _aged.gameObject.SetActive(_showingHeritage);
             _title.color = _showingHeritage ? _heritageTheme.Ink : _theme.Ink;
             _coins.color = _showingHeritage ? _heritageTheme.Seed : _theme.Ink;
             _title.text = heritagePhase
@@ -510,6 +590,7 @@ namespace TillWinter.Unity
             _sheetBranch.text = Strings.Branch(node.Branch);
             _sheetName.text = Strings.Name(node);
             _sheetDesc.text = Strings.Description(sim, node);
+            _sheetUnlocks.text = UnlocksText(node.Id);
             ShowEffect(sim, node);
             int level = _game.State.GetLevel(_selectedId);
             int max = sim.GetMaxLevel(_selectedId);
@@ -595,6 +676,7 @@ namespace TillWinter.Unity
             if (_card.IsOpen) { _group.alpha = 0f; return; }
             float dt = Time.unscaledDeltaTime;
             TickSnow(dt);
+            TickSky(dt);
             _open = Mathf.Min(1f, _open + dt / UiMotion.Slow);
             _group.alpha = Prims.EaseOutQuad(_open);
 

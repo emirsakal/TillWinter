@@ -20,6 +20,9 @@ namespace TillWinter.Unity
         private static SceneLoader _active;
         private const int TipCount = 6;
 
+        /// <summary>Set by the title scene from the save: the seedling takes the season the farm is in.</summary>
+        public static Color? LeafTint;
+
         private Image _cover;
         private TMP_Text _label;
         private CanvasGroup _group;
@@ -69,8 +72,9 @@ namespace TillWinter.Unity
             UiKit.Box(soil.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(190f, 14f));
             _stem = UiKit.Panel(_sprout, "Stem", theme.SheetButton, true, false);
             UiKit.Box(_stem.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(16f, 150f));
-            _leafL = UiKit.CircleImage(_sprout, "LeafL", theme.SheetButton, Vector2.zero, 10f);
-            _leafR = UiKit.CircleImage(_sprout, "LeafR", theme.SheetButton, Vector2.zero, 10f);
+            var leafColor = LeafTint ?? theme.SheetButton;
+            _leafL = UiKit.CircleImage(_sprout, "LeafL", leafColor, Vector2.zero, 10f);
+            _leafR = UiKit.CircleImage(_sprout, "LeafR", leafColor, Vector2.zero, 10f);
             foreach (var leaf in new[] { _leafL, _leafR })
             {
                 var leafRt = leaf.rectTransform;

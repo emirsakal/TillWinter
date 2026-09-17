@@ -32,6 +32,13 @@ A face sits on a darker lip (`UiKit.LipColor`). The label stays on one line and 
 
 `UiKit.Label` tightens letter spacing (-1.5) at Title size and above, opens it slightly (+1) at Caption size and below, and adds line spacing (+6) at Body size and below so wrapped paragraphs breathe; large numbers use `RichNumber` to shrink and colour the unit suffix (e.g. the "K" in "4,1K") without any per-frame string allocation.
 
+## Type
+
+Figtree is the body face everywhere. Titles and big numbers — anything `UiKit.Label` sets at
+Title size and above — use the display face, Rammetto One, through `UiKit.DisplayFont`. A
+candidate display font must pass the Turkish cmap check (Ğ ğ İ ı Ş ş Ö ö Ü ü Ç ç) before it is
+considered; several were rejected for missing glyphs before Rammetto One was picked.
+
 ## Checking layout
 
 Both canvas scalers (game/menu and loading) use CanvasScaler Expand, and `CameraRig.FitSize` /

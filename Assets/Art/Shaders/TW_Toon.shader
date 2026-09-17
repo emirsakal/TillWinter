@@ -54,6 +54,10 @@ Shader "TillWinter/TW_Toon"
         float4 _TW_SeasonTint;
         // 1 while Reduce motion is on: the breeze stops (set by SeasonPresenter / the title scene).
         float _TW_Calm;
+        // Autumn gusts: extra sway on top of the breeze (0 = none).
+        float _TW_Gust;
+        // Season rim light: rgb blends over the material's rim colour by a.
+        float4 _TW_RimTint;
 
         // Foliage and crops lean with a slow breeze. Works in world space, so statically batched scenery sways too;
         // the island top is y = 0 and the lean grows with height, so roots stay put.
@@ -61,7 +65,7 @@ Shader "TillWinter/TW_Toon"
         {
             float h = saturate(ws.y * 0.6);
             float ph = _Time.y * 1.6 + ws.x * 0.7 + ws.z * 0.5;
-            float k = _Wind * h * h * (1.0 - _TW_Calm);
+            float k = _Wind * h * h * (1.0 - _TW_Calm) * (1.0 + _TW_Gust);
             ws.x += sin(ph) * k;
             ws.z += cos(ph * 0.8) * k * 0.5;
             return ws;
@@ -150,7 +154,7 @@ Shader "TillWinter/TW_Toon"
                 // Rim light: a thin lit edge so flat shapes read against the field instead of merging into it.
                 float3 viewDir = normalize(GetWorldSpaceViewDir(i.positionWS));
                 float rim = pow(saturate(1.0 - saturate(dot(n, viewDir))), _RimPower) * _RimStrength;
-                color += _RimColor.rgb * rim * lerp(0.35, 1.0, lit);
+                color += lerp(_RimColor.rgb, _TW_RimTint.rgb, _TW_RimTint.a) * rim * lerp(0.35, 1.0, lit);
                 color = MixFog(color, i.fog);
                 return half4(color, 1);
             }

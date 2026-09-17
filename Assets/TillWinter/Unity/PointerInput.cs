@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -44,7 +45,7 @@ namespace TillWinter.Unity
                     _downTime = Time.unscaledTime;
                     _downPos = pos;
                     _maxMove = 0f;
-                    _pressOverUi = IsOverUi();
+                    _pressOverUi = IsOverUi(pos);
                 }
                 if (rawDown) _maxMove = Mathf.Max(_maxMove, (pos - _downPos).magnitude);
 
@@ -66,18 +67,29 @@ namespace TillWinter.Unity
             Current = s;
         }
 
-        private static bool IsOverUi()
+        private readonly List<RaycastResult> _hits = new List<RaycastResult>(8);
+        private PointerEventData _probe;
+        private EventSystem _probeSystem;
+
+        /// <summary>
+        /// Is there UI under <paramref name="position"/> right now? EventSystem.IsPointerOverGameObject() answers for
+        /// where the pointer was last frame: on a touch screen the first press after tapping a button (Next Year)
+        /// still counted as "over that button", so the whole press never became a ring. This raycasts the press
+        /// position itself (once per press, reused buffers).
+        /// </summary>
+        private bool IsOverUi(Vector2 position)
         {
             var es = EventSystem.current;
             if (es == null) return false;
-            try
+            if (_probe == null || _probeSystem != es)
             {
-                return es.IsPointerOverGameObject();
+                _probe = new PointerEventData(es);
+                _probeSystem = es;
             }
-            catch
-            {
-                return false;
-            }
+            _probe.position = position;
+            _hits.Clear();
+            es.RaycastAll(_probe, _hits);
+            return _hits.Count > 0;
         }
     }
 }

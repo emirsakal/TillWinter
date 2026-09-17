@@ -126,4 +126,11 @@ MonoBehaviour:
   Butterfly: {fileID: 6964125060097207644, guid: c31080a3f248b6c4b9b6af53309322be, type: 3}
   Bee: {fileID: 4666675971844644916, guid: eb7c4db562ee2534cbbdf9719d4c1ce5, type: 3}
   Frog: {fileID: 895513762185150082, guid: b1231de7348fdbb4197de06ec4b4bb2c, type: 3}
+  FencePost: {fileID: 4958611071431761554, guid: 6a32d065cb1d4854789a18528ca4f1d2, type: 3}
+  Flag: {fileID: 8852920479235949950, guid: d95ca497d67a2fe4885ed3fd7c4b74fe, type: 3}
+  Chicken: {fileID: 333530613313315121, guid: af03abe4ee8fad24099ba85f22c5d78a, type: 3}
+  Cat: {fileID: 3251820082568620044, guid: 8e7ff7ca1561b424fa7e939b034278a4, type: 3}
+  Channel: {fileID: 2718343414206706475, guid: fe604a818fd3f6e40a2871d3972842a2, type: 3}
+  Sunflower: {fileID: 294354487028210728, guid: a4b7e7dc278562c4f89ab6d14bd47084, type: 3}
+  SteppingStone: {fileID: 2025375361661140737, guid: 901d32a2e34313d44bbacc8acb3d1555, type: 3}
   BlobShadow: {fileID: 5479554026680035742, guid: 22c24bf89efddc940b841c82f1c4dbae, type: 3}

@@ -34,7 +34,7 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 
 ## UI rules
 
-- TextMeshPro only (`UiKit.Label` -> `TMP_Text`, font `UiKit.Font` = Nunito SDF from Resources). Never `UnityEngine.UI.Text` or `LegacyRuntime.ttf`.
+- TextMeshPro only (`UiKit.Label` -> `TMP_Text`, font `UiKit.Font` = Figtree SDF for body text, `UiKit.DisplayFont` = Rammetto One SDF for Title size and above, both from Resources). Never `UnityEngine.UI.Text` or `LegacyRuntime.ttf`.
 - Every user-facing string comes from `Strings` (`en.json`, `tr.json`); Core carries keys only. Node descriptions are templates filled by `NodeText`; a new node needs its `name`/`desc` keys in both files (`StringsTests` fails otherwise). Strings in `en.json` and `tr.json` change together (key parity is tested). Never attach a suffix to a placeholder in Turkish; numbers stand alone. Use `NumberFormat` for numbers — the language sets its style.
 - Colours and metrics of the tree screens live in `TreeTheme` (Resources asset, one per tree — e.g. `HeritageTheme` — including its `InitialZoom`); HUD colours/spacing live in `HudTheme` (Resources asset). No hard-coded colours in `HudView`, `SkillTreeView` or `WinterScreen`; `UiKit` palette constants are for debug/placeholder panels only.
 - Skill trees render through the generic `SkillTreeView` + `SkillTreeLayout`; no hand-placed nodes.

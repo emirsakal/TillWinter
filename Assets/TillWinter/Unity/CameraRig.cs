@@ -88,6 +88,9 @@ namespace TillWinter.Unity
         /// Fits <paramref name="width"/> world units across the screen, but never shows less height than the reference
         /// phone would: on a wider screen (16:9, tablet) the field otherwise grew tall enough to run under the HUD.
         /// </summary>
+        /// <summary>Starts from <paramref name="zoom"/> times the fit and eases back (a new generation's reveal).</summary>
+        public void Settle(float zoom) => _zoom = zoom;
+
         public float FitSize(float width)
         {
             float aspect = Mathf.Max(0.2f, Cam.aspect);

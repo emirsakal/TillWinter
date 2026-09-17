@@ -219,6 +219,7 @@ namespace TillWinter.Unity
         private Transform _ripeMark;
         private float _ripeTop = 0.9f;
         private float _markShow;
+        private float _goldSpark;
         private readonly GameObject[] _stages = new GameObject[3];
         private readonly PaletteBinder[] _stageBinders = new PaletteBinder[3];
         private int _builtTier = -1;
@@ -320,7 +321,7 @@ namespace TillWinter.Unity
                 if (golden)
                 {
                     for (int t = 0; t < 6; t++) b.Override((PaletteSlot)((int)PaletteSlot.Crop0 + t), palette.Golden);
-                    b.SetEmission(palette.GoldenGlow * pulse);
+                    b.SetEmission(palette.GoldenGlow * (pulse * 1.35f)); // a touch past white, so bloom catches it
                 }
                 else if (_golden)
                 {
@@ -396,6 +397,16 @@ namespace TillWinter.Unity
             _cropRoot.localRotation = Quaternion.Euler(wobble2, 0f, wobble);
             bool golden = plot.IsGolden && !winter;
             if (golden || _golden) SetGolden(golden, simTime);
+            // A golden crop keeps shedding sparkles (the VFX pool rate-limits them with every other burst).
+            if (golden && SettingsStore.MotionAllowed && _game != null && !_game.Sim.IsSimulatingOffline)
+            {
+                _goldSpark -= dt;
+                if (_goldSpark <= 0f)
+                {
+                    _goldSpark = 0.7f + (_phase % 1f) * 0.3f;
+                    VfxPlayer.Fire(VfxId.RipeSparkle, transform.position + Vector3.up * (0.4f + _visualScale * 0.5f), 0.8f);
+                }
+            }
 
             // A ready plant has to read "ready" from across the board. Kenney's carrot is mostly leafy top with the
             // root at soil level, so at this camera angle a ripe one looked as green as a growing one whatever the
@@ -425,7 +436,8 @@ namespace TillWinter.Unity
             var palette = Palette.Load();
             var soil = Color.Lerp(palette.SoilDry, palette.SoilWet, _wetBlend);
             _soilBinder.Override(PaletteSlot.SoilDry, soil);
-            _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(0.85f, 0.92f, 1.15f), sheen * 0.6f));
+            // Wet soil takes a faint cool sheen; the rain cloud's sweep adds more.
+            _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(0.85f, 0.92f, 1.15f), sheen * 0.6f + _wetBlend * (1f - _winterBlend) * 0.3f));
             bool showCracks = _wetBlend < 0.5f && _winterBlend < 0.5f;
             if (_cracks != null && _cracks.activeSelf != showCracks) _cracks.SetActive(showCracks);
             // Ready marker: pops in over a ripe bed, bobs and turns; hidden under the ring while it is being harvested.
@@ -443,7 +455,7 @@ namespace TillWinter.Unity
                     _ripeMark.localScale = Vector3.one * Prims.EaseOutBack(_markShow);
                 }
             }
-            bool showDrops = wet && !winter && plot.Progress < 0.5f;
+            bool showDrops = wet && !winter; // the whole wet phase, not just its first half
             if (_droplets != null && _droplets.activeSelf != showDrops) _droplets.SetActive(showDrops);
         }
     }

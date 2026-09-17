@@ -249,15 +249,20 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 - **Done.** [H] **Island is a flat green slab.** Grass tufts, flowers and stones on the edges; soil
   layers and roots on the side profile. Grass tufts, flowers and pebbles now line the rim from the
   first generation, placed from a seed so a farm looks the same every load and kept clear of the
-  field, fence, path and props. The side profile's soil layers are not done; the torn earth hanging
-  under the front edge covers the side view for now.
-- **Done in part.** [H] **Empty grass left and right of the field.** Set dressing (hay bale,
+  field, fence, path and props. The side profile is layered too: a soil band over rock
+  (`DioramaView.BuildBlock` carries a third submesh), coloured through
+  `DioramaView.BlockMaterials` for the farm, the two background islets, the title scene and the
+  icon.
+- **Done.** [H] **Empty grass left and right of the field.** Set dressing (hay bale,
   wheelbarrow, watering can, scarecrow, well, coop). Low clusters of tufts and flowers fill it;
-  larger set dressing stays with the generation decor so the two cannot collide.
+  larger set dressing stays with the generation decor so the two cannot collide. Set dressing now
+  extends past the generation decor too: two hens and a cat (see 9.5) and a waving flag by the
+  house (see 9.7).
 - **Done.** [M] **Underside of the floating island.** Rocks, hanging roots, light mist. Rock and
   roots hang under the tapered front edge, kept small so they stay clear of the season band.
-- **Open.** [M] **Fence.** Posts at the corners, a path to the gate, maybe a low fence around the
-  field.
+- **Done.** [M] **Fence.** Posts at the corners, a path to the gate, maybe a low fence around the
+  field. The fence now has stout end posts, and stepping stones lead from the gate to the
+  farmhouse door.
 - **Done.** [M] **Path tile under the field looks detached.** A path running to the house. The path
   now runs from the field to the rim; with the wider margin it had stopped after one tile.
 - **Done, already present.** [M] **Lasting visual rewards as generations pass** (barn, greenhouse,
@@ -274,11 +279,12 @@ A full-game review from the play-mode screenshot tour, worked through group by g
   ±10% size; all copies share the root PaletteBinder so ripe glow and golden tint still cover the
   whole bed. Ripe carrot is 0.56, corn 1.1, wheat 0.82. Flat Kenney bushes (plant_bush,
   plant_bushLarge) are fitted by width so they stay inside the plot.
-- **Done in part.** [H] **Soil is a flat box.** Furrows, a dark sheen when wet, crack texture when
+- **Done.** [H] **Soil is a flat box.** Furrows, a dark sheen when wet, crack texture when
   dry. The Plot prefab now has two raised ridges with lighter crests (same SoilDry slot, so
   Dry/Wet colours follow; tint 1.07/1.13). Cracks and droplets moved onto the ridge height, and the
   crop anchor and the stand height of apprentices, crows and event visitors were raised 0.16 -> 0.2
-  to sit on it. A separate wet sheen beyond the existing darker wet colour is still open.
+  to sit on it. Wet soil now also keeps its droplets for the whole wet phase and takes a faint
+  cool sheen.
 - **Done.** [M] **Each crop with its own identity** (tomato on a stake, tall corn, pumpkin on
   trailing leaves). Tomato is tied to a stake, corn grows as a tall bed, and pumpkin is one large
   fruit on a trailing vine with five leaves (`PumpkinPatch`); the grape vine spans the plot and
@@ -288,36 +294,43 @@ A full-game review from the play-mode screenshot tour, worked through group by g
   overridden to the tier colour by PlotView). PlotView measures the ripe bed's height when the crop
   is built and floats the gem just above it; it pops in with EaseOutBack (new
   `Prims.EaseOutBack`), bobs and turns, and hides while the ring is over the plot.
-- **Done in part.** [M] **Player's ring.** Rotating dots on the edge, water-drop and sun-ray effects
+- **Done.** [M] **Player's ring.** Rotating dots on the edge, water-drop and sun-ray effects
   under it. A new `RingDots` prefab (10 beads, `VisualCatalog.RingDots`) turns around the ring edge,
-  driven by RingView, faster with the combo and shrinking in as the ring fades. Water-drop and
-  sun-ray effects under the ring are still open.
-- **Open.** [L] **Golden crop.** A clearer light shaft and particle shower.
+  driven by RingView, faster with the combo and shrinking in as the ring fades. The ring's beads
+  now also change colour with what the ring is doing: water blue over dry plots, sunny over
+  growing ones, the crop's own colour over ripe ones.
+- **Done.** [L] **Golden crop.** A clearer light shaft and particle shower. Golden crops now shed
+  sparkles continuously (the VFX pool rate-limits them) and glow a little past white so bloom
+  catches them.
 
 ### 9.5 Characters and creatures
 
-- **Done in part.** [M] **Apprentices.** Smaller, with dig/water/pick animations and small status
+- **Done.** [M] **Apprentices.** Smaller, with dig/water/pick animations and small status
   icons. Already smaller (0.52, from 9.3); `ApprenticeView` now bends down to the bed while
   harvesting (28° pitch over the harvest, a small hop as it finishes) and, when standing still,
-  breathes and looks about. Status icons still open.
+  breathes and looks about. In place of status icons, helpers now show a thought bubble tinted
+  with the picked crop's colour while harvesting (its own binder on the Apprentice prefab,
+  billboarded).
 - **Done.** [M] **Dog.** Leaves the kennel, wanders, follows apprentices, chases crows. `DogView`
   rewritten: `DioramaView` gives it a home and a grass strip just behind the fence (`SetArea`); it
   naps, trots between random spots and home (legs swing, body bobs), goes home in Winter, and when
   any crow is on the field it runs to the fence opposite the crow, faces the field and bounces, tail
   wagging fast. Stops while being patted. It barks silently (no bark clip; no generated audio). It
   cannot cross the fence, so it does not physically chase crows.
-- **Done in part.** [M] **Crows.** Landing, pecking and flight animations; feathers when scared.
+- **Done.** [M] **Crows.** Landing, pecking and flight animations; feathers when scared.
   Landing, pecking, flight and scare feathers already existed; `CrowView` now glances about in
   quick jerks before it settles to eat.
-- **Done in part.** [L] **Ambient creatures.** Bees, chickens, a cat, flocks of birds, a frog at the
+- **Done.** [L] **Ambient creatures.** Bees, chickens, a cat, flocks of birds, a frog at the
   pond. A new Bee prefab (two bees in `CrittersView` hop from bed to bed, preferring ripe beds,
   wings buzzing; Spring/Summer only) and a pond Frog (`FrogView`, placed by `DioramaView` beside
-  the pond: throat puffs, short hops away and back, hidden in Autumn/Winter). Chickens, cat and
-  bird flocks still open (flocks skipped so they are not confused with gameplay crows).
+  the pond: throat puffs, short hops away and back, hidden in Autumn/Winter). Two hens now wander
+  and peck behind the fence (`ChickenView`) and a cat sleeps in the front grass with a swishing
+  tail (`CatView`). Bird flocks are deliberately skipped, so they are not confused with gameplay
+  crows.
 
 ### 9.6 Sky, light, weather and seasons
 
-- **Done in part.** [H] **Sky still plain.** Sun/moon disc, layered clouds, colour through the
+- **Done.** [H] **Sky still plain.** Sun/moon disc, layered clouds, colour through the
   day. `TW_Sky.shader` now draws, besides the gradient: a sun disc with a soft glow
   (`_SunColor`/`_SunPos`/`_SunSize`/`_Aspect`), soft procedural clouds (rotated value-noise fbm,
   drifting, confined to the strip of sky between the island and the HUD so the coin counter stays
@@ -325,48 +338,59 @@ A full-game review from the play-mode screenshot tour, worked through group by g
   menu's sky is unchanged. `SeasonPresenter` sets them per season: sun tinted from the season
   light, lower in autumn/winter (from the light's elevation), dimmer in frost/winter; cloud cover
   per season (summer 0.3, spring 0.45, autumn 0.6, winter 0.8). Note: the material asset keeps its
-  own serialized shader values, so `SeasonPresenter` sets `_SunSize` from code. Moon and colour
-  through the day still open.
-- **Done in part.** [H] **Season transitions.** Spring blossom, summer haze, autumn leaf wind,
+  own serialized shader values, so `SeasonPresenter` sets `_SunSize` from code. `TW_Sky` now also
+  draws a moon (a crescent) and a rainbow arc; as the frost warning nears, the sun sinks, the
+  sky's top colour deepens and the moon rises, giving colour through the day.
+- **Done.** [H] **Season transitions.** Spring blossom, summer haze, autumn leaf wind,
   snow cover arriving gradually. Snow now settles slowly (damped, ~several seconds) and melts
   quickly instead of switching with the 1.5 s light blend; summer gets a light heat haze. Spring
-  petals and autumn leaves already existed. Autumn leaf wind still open.
-- **Done in part.** [M] **Weather.** Light rain, rainbow, autumn wind, morning mist. Morning mist
+  petals and autumn leaves already existed; autumn now also gets gusts through a `TW_Toon` global
+  `_TW_Gust`.
+- **Done.** [M] **Weather.** Light rain, rainbow, autumn wind, morning mist. Morning mist
   now plays at the start of every year (sky haze plus fog pulled closer and paler, burning off
-  over 7 s). Rain cloud event already existed. Rainbow and autumn wind still open.
-- **Done in part.** [M] **Light.** Stronger shadow direction, warm rim light, lit house windows on
+  over 7 s). Rain cloud event already existed; tapping it now also shows a rainbow for about 9
+  seconds, and autumn gets wind gusts (see Season transitions above).
+- **Done.** [M] **Light.** Stronger shadow direction, warm rim light, lit house windows on
   winter evenings. Sun shadow strength 0.6 -> 0.72. Farmhouse windows now have their own
   PaletteBinder (child "Windows" in `ArtSetup.BuildHouse`) and `DioramaView` lights them warm
   (Golden colour + GoldenGlow emission): a little in Autumn, fully during the frost warning and
-  Winter. Warm rim light still open.
-- **Open.** [L] **Starry winter night** behind the Winter screen.
+  Winter. A season rim-light tint now ships too, through a `TW_Toon` global `_TW_RimTint`: warm
+  for autumn and the Golden Year, cool for winter, a soft gold for summer.
+- **Done.** [L] **Starry winter night** behind the Winter screen. The Winter page now has
+  twinkling stars (`TreeTheme.Stars`).
 
 ### 9.7 Animation and game feel
 
-- **Done in part.** [H] **Purchases lack a visible change on the farm** (a new plot landing, an
+- **Done.** [H] **Purchases lack a visible change on the farm** (a new plot landing, an
   irrigation pipe appearing). Plots bought in Winter (field expansion) used to pop in behind the
   Winter overlay; `FieldView` now holds the staggered reveal until the Year phase, so they land in
   view when the year starts. New apprentices pop in (EaseOutBack over 0.4 s with a PlotPop puff)
-  once the field is in view. Irrigation/sun/other upgrades still have no farm-side visual.
-- **Done in part.** [H] **Screen transitions.** Freezing into Winter, thawing out of it.
+  once the field is in view. Upgrades now show on the land too: an irrigation channel appears
+  beside the field once Irrigation is bought, and a row of sunflowers once Sun is bought.
+- **Done.** [H] **Screen transitions.** Freezing into Winter, thawing out of it.
   `WinterScreen` fades in over `UiMotion.Slow` (0.4 s, was 0.3) and now fades out ("thaw") over the
   same time instead of vanishing; raycasts are released during the fade so the first taps of the
-  year are not swallowed. The hard hide stays when the generation card takes over. A real freeze
-  effect is still open.
-- **Done in part.** [M] **UI micro-interactions.** Selected/hover states, a light bounce when
+  year are not swallowed. The hard hide stays when the generation card takes over. Winter now also
+  opens with a real frost freeze that clears to a thin frosted frame (`TreeTheme.Frost`, an
+  EdgeFade sprite).
+- **Done.** [M] **UI micro-interactions.** Selected/hover states, a light bounce when
   sheets open. `SheetTransition` (every sheet) now lands with a small overshoot
-  (`Prims.EaseOutBack`) and skips the movement when Reduce motion is on. Selected/hover states
-  still open.
+  (`Prims.EaseOutBack`) and skips the movement when Reduce motion is on. Selected/hover states are
+  not meaningful on a touch-only interface; the shared button press feedback (`ButtonFeedback`,
+  section 3) already covers the equivalent interaction.
 - **Done.** [M] **Coin flight.** A pop and colour flash on the counter when coins land. Landing
   coins flash the counter number toward the coin colour along with the existing punch.
-- **Open.** [M] **Passing on the farm is the biggest moment.** Island darkens and is reborn; a more
-  cinematic generation card.
-- **Done in part.** [L] **Idle motion.** Trees swaying, a flag, ripples on the pond.
+- **Done.** [M] **Passing on the farm is the biggest moment.** Island darkens and is reborn; a more
+  cinematic generation card. Cinematic bars now slide in on the generation card, and the new farm
+  fades up from dark while the camera settles in from 125% (`CameraRig.Settle`, skipped with
+  Reduce motion).
+- **Done.** [L] **Idle motion.** Trees swaying, a flag, ripples on the pond.
   `TW_Toon.shader` has a `_Wind` property and a world-space sway (TWSway, grows with height above
   the island top, applied in all four passes so shadows/depth match, works on statically batched
   scenery). `ArtSetup` sets `_Wind` 0.06 on Leaf, LeafDark, Sprout, Flower, Crop0–5 and Golden
-  materials, so trees, bushes, grass tufts and crops lean in a slow breeze. Pond ripples and a flag
-  still open.
+  materials, so trees, bushes, grass tufts and crops lean in a slow breeze. A flag now waves by
+  the house (`FlagView`), and ripples spread across the pond now and then (`SoilRipple` VFX tinted
+  with water).
 
 ### 9.8 Winter screen and skill tree
 
@@ -390,15 +414,18 @@ A full-game review from the play-mode screenshot tour, worked through group by g
 - **Done.** [M] **No winter atmosphere.** Light snowfall, window condensation, warm lamp light
   instead of a flat dark page. A warm lamp glow (`TreeTheme.Lamp`, radial gradient) over the top of
   the page and 36 small, faint snowflakes (`TreeTheme.Snowfall`) drifting down behind the tree, off
-  with Reduce motion. Window condensation not done.
+  with Reduce motion. Window condensation is covered by the frost frame that now clears when
+  Winter opens (`TreeTheme.Frost`, see 9.7).
 - **Done.** [M] **Empty space above and below.** A light zoom-in on first open. On the first open
   (no remembered view) the tree settles in from 86% to its fitted zoom over 0.7 s; any touch
   cancels it; skipped with Reduce motion. Remembered tree views saved before this change keep their
   old pan/zoom; the pan clamp keeps the canopy on screen.
-- **Done in part.** [M] **Node sheet.** A large node icon and a small preview of what it unlocks. A
-  large node badge (branch-coloured ring, node icon) sits top-right under the level. A preview of
-  what it unlocks is still open.
-- **Open.** [L] **Heritage tree.** A distinct golden/aged texture.
+- **Done.** [M] **Node sheet.** A large node icon and a small preview of what it unlocks. A
+  large node badge (branch-coloured ring, node icon) sits top-right under the level. The node
+  sheet now also shows an "Unlocks: …" line listing the nodes in the open tree that need this one
+  (string `ui.unlocks`).
+- **Done.** [L] **Heritage tree.** A distinct golden/aged texture. The Heritage page now has an
+  aged gold grain (`TreeTheme.Aged`).
 
 Verified with `ui-tour` (tours 28-30), 204 tests passing.
 
@@ -407,21 +434,23 @@ Verified with `ui-tour` (tours 28-30), 204 tests passing.
 - **Done.** [M] **Main menu gap between island and buttons.** Enlarge the island or join logo and
   island. `IslandWidth` 6.4 -> 5.5 (larger island) and `IslandScreenY` 0.6 -> 0.575 in
   `MenuBootstrap`, so the island reaches the buttons.
-- **Done in part.** [M] **"Till Winter" title.** A custom logotype (crop letters, snowflake i). A
+- **Done.** [M] **"Till Winter" title.** A custom logotype (crop letters, snowflake i). A
   two-tone logotype (the last word of `menu.title` in `HudTheme.MenuTitleFrost` via a TMP colour
   tag; rich text enabled on that label only) and an ornament under it: two thin rules with a sprout
   (stem, two leaves, seed) in `HudTheme.MenuOrnament` (Sage). Subtitle moved down to make room.
-  Custom letterforms (crop letters, snowflake i) not done.
+  Custom letterforms (crop letters, snowflake i) were not pursued: the new display font (Rammetto
+  One, see 9.11) now covers the title instead.
 - **Done.** [M] **Menu buttons dark and heavy.** Tie them to the palette with cream/wood tones.
   Buttons were already Sage/Earth from 9.1; the heavy grey bottom shade is now a light warm veil
   (`MenuShade` = Night at 38%), `HudTheme` style 3 (`UiSetup` restyles the asset).
 - **Done.** [L] **Splash.** A light scale/glow animation on the logo. A faint warm radial glow
   behind the EFS Games mark, which settles from 106% scale during the fade-in; the glow breathes
   during the hold.
-- **Done in part.** [L] **Loading screen.** Seedling tinted by season, tip text below. A random tip
+- **Done.** [L] **Loading screen.** Seedling tinted by season, tip text below. A random tip
   under "Loading" from six new strings `tip.0`-`tip.5` (en/tr): ring harvest, scaring crows, combo,
-  offline irrigation/helpers, passing the farm on, rain cloud. Season-tinted seedling not done (the
-  loader does not know the season).
+  offline irrigation/helpers, passing the farm on, rain cloud. The loading seedling now also takes
+  the season the save was left in (`SceneLoader.LeafTint`, set by the title scene from
+  `SeasonPalette` leaf tint × `Palette` leaf).
 
 Verified with `ui-tour` (tours 31-32), tests passing.
 
@@ -439,7 +468,10 @@ Verified with `ui-tour` (tours 31-32), tests passing.
 - **Done.** [M] **Pause sheet has empty space.** A summary of year, coins and generation. A
   summary line under the title, "Year {year} · Generation {gen} · {coins} coins" (new string
   `pause.summary`, en/tr), filled when the sheet opens; sheet height 620 -> 700.
-- **Open.** [M] **Confirmation dialogs.** Two iconed columns for what is lost and what is gained.
+- **Done.** [M] **Confirmation dialogs.** Two iconed columns for what is lost and what is gained.
+  The retire confirmation is now two iconed columns under a head line: a warning "You lose" column
+  in the danger colour and a checkmark "You keep" column in the Field colour; the single
+  `ui.confirm_body` string was replaced by `ui.confirm_head`/`keep_title`/`keep`/`lose_title`/`lose`.
 - **Done.** [L] **Settings sections** (Sound, Display, Account) with headings. Headings General
   (language, vibration), Sound (effects, ambience), Display (reduce motion, large text,
   graphics), Farm data (credits, reset) with a rule under each; small bold caps with letter
@@ -463,8 +495,12 @@ Verified with `ui-tour` (tours 33-34), tests passing.
   copied per write (no per-frame allocation). HUD coin counter: suffix at 64% in the coin colour
   (label rich text on). Winter screen top counter: suffix at 72% in the accent colour (seed
   colour on the Heritage page).
-- **Open.** [L] **A characterful display face for titles**; Figtree stays for body text. Needs a
-  new font with full Turkish coverage; would be a download.
+- **Done.** [L] **A characterful display face for titles**; Figtree stays for body text. Shipped:
+  Rammetto One (SIL OFL 1.1, Google Fonts; `OFL-RammettoOne.txt` kept beside it, `LICENSES.md`
+  updated). `UiSetup` builds `RammettoSDF` with `FigtreeSDF` as its serialized fallback;
+  `UiKit.DisplayFont` names it and `UiKit.Label` uses it for Title size and above (never faux
+  bold). It covers the Turkish alphabet, lacking only ≤ ≥, which no title uses. Lilita One, Titan
+  One and Bagel Fat One were rejected for missing Ğ/İ/Ş; Sigmar One draws a dotless lowercase i.
 
 Verified with `ui-tour` (tour 35), tests passing.
 
@@ -502,7 +538,8 @@ Verified with tours 36–38 (16:9, tablet, phone), 204 tests passing.
   a light snow dusting (`_TW_Snow` 0.12, breeze off) over the existing spring sky with a frosted
   top edge and snowflakes. Framing `IconOrtho` 2.2, `AdaptiveOrtho` 2.9, `LookAtY` -0.35.
   `Icon.png`, `IconForeground.png`, `SplashLogo.png` and the store sizes (`Builds/Icons`) were
-  regenerated and applied to Player Settings.
+  regenerated and applied to Player Settings. The icon was re-rendered again in the leftovers pass
+  so its island picks up the new layered soil-over-rock sides (9.3).
 - **Done.** [L] **Store screenshots**, using the UI tour infrastructure. `ui-tour.bat <folder>
   "<preset>" clean` hides the developer button in every shot (it stays clickable for the tour);
   e.g. `ui-tour.bat Builds\Store\phone "1080x2340 (Portrait)" clean` (`Builds` is git-ignored),
@@ -511,12 +548,29 @@ Verified with tours 36–38 (16:9, tablet, phone), 204 tests passing.
 
 Verified with a clean phone run (`Builds/Store/phone`), 204 tests passing.
 
-Round three (groups 9.0-9.13) is complete. Still open across 9.x: the fence and gate path (9.3);
-a clearer golden-crop light shaft (9.3); a starry winter night behind the Winter screen (9.6);
-making passing on the farm the biggest moment, with an island darken/reborn beat (9.7); a
-distinct golden/aged Heritage tree texture (9.8); iconed two-column confirmation dialogs (9.10);
-and a characterful display face for titles (9.11), plus several "Done in part" items across 9.3,
-9.5-9.8 that could go further with more art/animation passes.
+### 9.14 Leftovers
+
+- **Done.** [H] **Ring missing on the first press after Next Year.** `PointerInput` used
+  `EventSystem.IsPointerOverGameObject()`, which answers for where the pointer was last frame; on
+  touch, the first press after tapping a button still counted as over it, so the ring failed to
+  appear. `PointerInput` now raycasts the press position itself (a reused `PointerEventData` and
+  result list). The UI tour gained a `ProbeField` step that fails the run if any UI covers the
+  field, run at the HUD and right after Next Year.
+- **Done.** [H] **End year asks first.** Ending the year now opens a `HudView` confirmation sheet
+  (title, a body warning that unripe crops are lost as to frost, Cancel / End year); the sim
+  pauses while it is open. New strings `ui.end_year_title`/`body`/`yes` (en/tr); tour shot
+  `14b-end-year-confirm`.
+- **Done.** [M] **Nunito cleanup.** Nunito (the ttf, the SDF asset and its `OFL.txt`) is removed
+  now that Figtree and Rammetto One cover body and display text; the font tests check
+  `UiKit.Font` (`FigtreeSDF`) instead.
+
+Verified: tours 39-43, release compile check (Android/iOS) passes, 204 tests passing.
+
+Round three (groups 9.0-9.13) and its leftovers (9.14) are complete. What is left is deliberate,
+not unfinished: bird flocks were skipped so they are not confused with gameplay crows (9.5);
+custom letterforms for the title were skipped because the new display font already covers the
+title (9.9/9.11); and picking and captioning the final store screenshot set stays a manual step
+(9.13).
 
 ---
 

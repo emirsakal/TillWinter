@@ -262,6 +262,104 @@ namespace TillWinter.EditorTools
         }
 
         /// <summary>A small pond with a stone rim: the island had a well but no water.</summary>
+        /// <summary>A stout post with a cap, for the fence ends.</summary>
+        private static GameObject BuildFencePost()
+        {
+            var (root, b) = Root("FencePost");
+            Prim(PrimitiveType.Cube, root.transform, "Post", new Vector3(0f, 0.3f, 0f), new Vector3(0.12f, 0.6f, 0.12f), b, PaletteSlot.Wood);
+            Prim(PrimitiveType.Cube, root.transform, "Cap", new Vector3(0f, 0.62f, 0f), new Vector3(0.17f, 0.05f, 0.17f), b, PaletteSlot.WoodLight);
+            return root;
+        }
+
+        /// <summary>A pole and a cloth on a pivot ("Cloth") the flag view waves.</summary>
+        private static GameObject BuildFlag()
+        {
+            var (root, b) = Root("Flag");
+            Prim(PrimitiveType.Cylinder, root.transform, "Pole", new Vector3(0f, 0.8f, 0f), new Vector3(0.04f, 0.8f, 0.04f), b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Sphere, root.transform, "Knob", new Vector3(0f, 1.62f, 0f), Vector3.one * 0.07f, b, PaletteSlot.Golden);
+            var pivot = new GameObject("Cloth").transform;
+            pivot.SetParent(root.transform, false);
+            pivot.localPosition = new Vector3(0f, 1.42f, 0f);
+            var cloth = Prim(PrimitiveType.Cube, pivot, "Face", new Vector3(0.24f, 0f, 0f), new Vector3(0.46f, 0.28f, 0.02f), b, PaletteSlot.Roof, null, null, false);
+            cloth.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.On;
+            Prim(PrimitiveType.Cube, pivot, "Stripe", new Vector3(0.24f, 0f, 0f), new Vector3(0.47f, 0.06f, 0.025f), b, PaletteSlot.Wall, null, null, false);
+            return root;
+        }
+
+        /// <summary>A hen: round body, tail, head with comb and beak; "Head" and "Body" move in the view.</summary>
+        private static GameObject BuildChicken()
+        {
+            var (root, b) = Root("Chicken");
+            var body = new GameObject("Body").transform;
+            body.SetParent(root.transform, false);
+            Prim(PrimitiveType.Sphere, body, "Belly", new Vector3(0f, 0.12f, 0f), new Vector3(0.16f, 0.14f, 0.2f), b, PaletteSlot.Wall);
+            var tail = Prim(PrimitiveType.Cube, body, "Tail", new Vector3(0f, 0.19f, -0.09f), new Vector3(0.06f, 0.1f, 0.05f), b, PaletteSlot.Wall);
+            tail.transform.localRotation = Quaternion.Euler(-30f, 0f, 0f);
+            var head = new GameObject("Head").transform;
+            head.SetParent(body, false);
+            head.localPosition = new Vector3(0f, 0.2f, 0.08f);
+            Prim(PrimitiveType.Sphere, head, "Skull", Vector3.zero, Vector3.one * 0.09f, b, PaletteSlot.Wall);
+            Prim(PrimitiveType.Cube, head, "Comb", new Vector3(0f, 0.05f, 0f), new Vector3(0.015f, 0.04f, 0.05f), b, PaletteSlot.Roof);
+            Prim(PrimitiveType.Cube, head, "Beak", new Vector3(0f, -0.005f, 0.05f), new Vector3(0.025f, 0.02f, 0.035f), b, PaletteSlot.Beak);
+            Prim(PrimitiveType.Sphere, head, "EyeL", new Vector3(-0.03f, 0.012f, 0.03f), Vector3.one * 0.016f, b, PaletteSlot.Eye);
+            Prim(PrimitiveType.Sphere, head, "EyeR", new Vector3(0.03f, 0.012f, 0.03f), Vector3.one * 0.016f, b, PaletteSlot.Eye);
+            for (int i = 0; i < 2; i++)
+                Prim(PrimitiveType.Cube, root.transform, "Leg" + i, new Vector3(i == 0 ? -0.035f : 0.035f, 0.03f, 0f), new Vector3(0.015f, 0.06f, 0.015f), b, PaletteSlot.Beak);
+            return root;
+        }
+
+        /// <summary>A curled, sleeping cat with a tail the view swishes ("Tail").</summary>
+        private static GameObject BuildCat()
+        {
+            var (root, b) = Root("Cat");
+            Prim(PrimitiveType.Sphere, root.transform, "Body", new Vector3(0f, 0.07f, 0f), new Vector3(0.24f, 0.13f, 0.2f), b, PaletteSlot.WoodLight);
+            Prim(PrimitiveType.Sphere, root.transform, "Head", new Vector3(0.1f, 0.1f, 0.05f), Vector3.one * 0.11f, b, PaletteSlot.WoodLight);
+            var earL = ConeObj(root.transform, "EarL", new Vector3(0.08f, 0.14f, 0.03f), new Vector3(0.025f, 0.045f, 0.025f), b, PaletteSlot.WoodLight);
+            earL.transform.localRotation = Quaternion.Euler(0f, 0f, 15f);
+            var earR = ConeObj(root.transform, "EarR", new Vector3(0.13f, 0.14f, 0.08f), new Vector3(0.025f, 0.045f, 0.025f), b, PaletteSlot.WoodLight);
+            earR.transform.localRotation = Quaternion.Euler(0f, 0f, -15f);
+            var tail = new GameObject("Tail").transform;
+            tail.SetParent(root.transform, false);
+            tail.localPosition = new Vector3(-0.1f, 0.04f, 0f);
+            var t = Prim(PrimitiveType.Capsule, tail, "Swish", new Vector3(-0.02f, 0f, 0.07f), new Vector3(0.04f, 0.08f, 0.04f), b, PaletteSlot.WoodLight);
+            t.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            return root;
+        }
+
+        /// <summary>One unit of irrigation channel along z: wooden sides and water between (stretched by the diorama).</summary>
+        private static GameObject BuildChannel()
+        {
+            var (root, b) = Root("Channel");
+            Prim(PrimitiveType.Cube, root.transform, "Bed", new Vector3(0f, 0.02f, 0f), new Vector3(0.26f, 0.04f, 1f), b, PaletteSlot.Wood);
+            var water = Prim(PrimitiveType.Cube, root.transform, "Water", new Vector3(0f, 0.045f, 0f), new Vector3(0.16f, 0.02f, 1f), b, PaletteSlot.Water, null, null, false);
+            water.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            return root;
+        }
+
+        /// <summary>A sunflower: stem, two leaves and a big head facing the camera.</summary>
+        private static GameObject BuildSunflower()
+        {
+            var (root, b) = Root("Sunflower");
+            Prim(PrimitiveType.Cylinder, root.transform, "Stem", new Vector3(0f, 0.3f, 0f), new Vector3(0.03f, 0.3f, 0.03f), b, PaletteSlot.Leaf);
+            var leaf = Prim(PrimitiveType.Cube, root.transform, "Leaf", new Vector3(0.06f, 0.25f, 0f), new Vector3(0.12f, 0.015f, 0.06f), b, PaletteSlot.Leaf);
+            leaf.transform.localRotation = Quaternion.Euler(0f, 0f, 25f);
+            var head = new GameObject("Head").transform;
+            head.SetParent(root.transform, false);
+            head.localPosition = new Vector3(0f, 0.62f, 0f);
+            head.localRotation = Quaternion.Euler(-60f, 0f, 0f);
+            Prim(PrimitiveType.Cylinder, head, "Petals", Vector3.zero, new Vector3(0.22f, 0.012f, 0.22f), b, PaletteSlot.Crop5);
+            Prim(PrimitiveType.Cylinder, head, "Seeds", new Vector3(0f, 0.012f, 0f), new Vector3(0.11f, 0.012f, 0.11f), b, PaletteSlot.Wood);
+            return root;
+        }
+
+        private static GameObject BuildSteppingStone()
+        {
+            var (root, b) = Root("SteppingStone");
+            var s = Prim(PrimitiveType.Cylinder, root.transform, "Stone", new Vector3(0f, 0.01f, 0f), new Vector3(0.24f, 0.012f, 0.19f), b, PaletteSlot.Stone);
+            s.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            return root;
+        }
+
         private static GameObject BuildPond()
         {
             var (root, b) = Root("Pond");
@@ -396,6 +494,13 @@ namespace TillWinter.EditorTools
             c.TreeAutumn = Save("TreeAutumn", Kit("nature-kit", "tree_default_fall", 1.35f));
             c.Pond = Save("Pond", BuildPond());
             c.Kennel = Save("Kennel", BuildKennel());
+            c.FencePost = Save("FencePost", BuildFencePost());
+            c.Flag = Save("Flag", BuildFlag());
+            c.Chicken = Save("Chicken", BuildChicken());
+            c.Cat = Save("Cat", BuildCat());
+            c.Channel = Save("Channel", BuildChannel());
+            c.Sunflower = Save("Sunflower", BuildSunflower());
+            c.SteppingStone = Save("SteppingStone", BuildSteppingStone());
             c.Dog = Save("Dog", BuildDog());
             c.GrassTuft = Save("GrassTuft", BuildGrassTuft());
             c.Pebbles = Save("Pebbles", BuildPebbles());
@@ -836,6 +941,16 @@ namespace TillWinter.EditorTools
             hat.localPosition = new Vector3(0f, 0.505f, 0f);
             Prim(PrimitiveType.Cylinder, hat, "Brim", Vector3.zero, new Vector3(0.26f, 0.011f, 0.26f), b, slot);
             Prim(PrimitiveType.Cylinder, hat, "Crown", new Vector3(0f, 0.036f, 0f), new Vector3(0.123f, 0.036f, 0.123f), b, slot);
+            // "Picking this": a thought puff with the crop's colour in it, shown while harvesting. Its own binder, so the
+            // view can tint the crop dot without touching the character.
+            var (bubble, bb) = Root("Bubble");
+            bubble.transform.SetParent(root.transform, false);
+            bubble.transform.localPosition = new Vector3(0.12f, 0.8f, 0f);
+            Prim(PrimitiveType.Sphere, bubble.transform, "Puff", Vector3.zero, new Vector3(0.2f, 0.16f, 0.12f), bb, PaletteSlot.Cloud, null, null, false);
+            Prim(PrimitiveType.Sphere, bubble.transform, "Tail", new Vector3(-0.07f, -0.1f, 0f), Vector3.one * 0.04f, bb, PaletteSlot.Cloud, null, null, false);
+            Prim(PrimitiveType.Sphere, bubble.transform, "Dot", new Vector3(0f, 0f, -0.05f), Vector3.one * 0.08f, bb, PaletteSlot.Golden, null, null, false);
+            foreach (var r in bubble.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
+            bubble.SetActive(false);
             return root;
         }
 
