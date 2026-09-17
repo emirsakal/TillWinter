@@ -4,6 +4,8 @@ rem stats, winter, node sheet, retire confirm, heritage, away card. Opens the re
 rem view), so close the editor first. The save and settings are backed up and restored around the run.
 rem Usage: ui-tour.bat [output folder] [game view preset]   (defaults TestResults\ui-tour and "1080x2340 (Portrait)")
 rem Presets: "1080x2340 (Portrait)", "1080x1920 (Portrait)" (16:9), "1080x2400 (Portrait)", "1536x2048 (Tablet)"
+rem A third argument "clean" hides the developer button, for store screenshots:
+rem   ui-tour.bat Builds\Store\phone "1080x2340 (Portrait)" clean
 setlocal
 set "UNITY=C:\Program Files\Unity\Hub\Editor\6000.3.22f1\Editor\Unity.exe"
 if not "%UNITY_PATH%"=="" set "UNITY=%UNITY_PATH%"
@@ -11,9 +13,11 @@ set "PROJECT=%~dp0"
 set "OUT=%~1"
 set "SIZE=%~2"
 if "%SIZE%"=="" set "SIZE=1080x2340 (Portrait)"
+set "CLEAN="
+if /I "%~3"=="clean" set "CLEAN=-uiTourClean"
 if "%OUT%"=="" set "OUT=%PROJECT%TestResults\ui-tour"
 if not exist "%PROJECT%TestResults" mkdir "%PROJECT%TestResults"
-start "" /wait "%UNITY%" -projectPath "%PROJECT%." -executeMethod TillWinter.EditorTools.UiTour.Run -uiTourOut "%OUT%" -uiTourSize "%SIZE%" -logFile "%PROJECT%TestResults\ui-tour.log"
+start "" /wait "%UNITY%" -projectPath "%PROJECT%." -executeMethod TillWinter.EditorTools.UiTour.Run -uiTourOut "%OUT%" -uiTourSize "%SIZE%" %CLEAN% -logFile "%PROJECT%TestResults\ui-tour.log"
 set EXIT=%ERRORLEVEL%
 if exist "%OUT%\report.txt" type "%OUT%\report.txt"
 echo Exit code %EXIT%
