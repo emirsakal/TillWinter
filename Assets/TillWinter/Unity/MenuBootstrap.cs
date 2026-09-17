@@ -194,7 +194,8 @@ namespace TillWinter.Unity
 
         private void FrameCamera()
         {
-            float size = IslandWidth / (2f * Mathf.Max(0.2f, _cam.aspect));
+            // Same fit as the farm camera: never less height than the reference phone, so wide screens keep the gap to the buttons.
+            float size = IslandWidth / (2f * Mathf.Min(Mathf.Max(0.2f, _cam.aspect), CameraRig.ReferenceAspect));
             _cam.orthographicSize = size;
             // A unit quad covers nothing: the sky is stretched to the orthographic view, and re-stretched with it.
             if (_sky != null) _sky.localScale = new Vector3(size * 2f * Mathf.Max(0.2f, _cam.aspect) + 1f, size * 2f + 1f, 1f);
@@ -378,7 +379,11 @@ namespace TillWinter.Unity
             }
         }
 
-        private void LateUpdate() => FrameCamera(); // keeps the fit when the aspect changes
+        private void LateUpdate()
+        {
+            FrameCamera(); // keeps the fit when the aspect changes
+            Shader.SetGlobalFloat(SeasonPresenter.CalmId, SettingsStore.MotionAllowed ? 0f : 1f);
+        }
 
         /// <summary>Season light and sky, snow and petals, and the crop wave across the nine plots.</summary>
         private void ApplySeason(float dt)

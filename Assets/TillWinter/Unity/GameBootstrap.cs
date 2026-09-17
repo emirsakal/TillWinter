@@ -160,8 +160,9 @@ namespace TillWinter.Unity
             var scaler = go.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080f, 2340f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0f; // match width so 1080x1920 / 1080x2400 keep the same horizontal layout
+            // Expand: the canvas is never smaller than 1080x2340 in either direction. Tall phones keep the 1080 width;
+            // short (16:9) phones and tablets keep the full 2340 height and gain width, so nothing stacks up vertically.
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
             return go.GetComponent<RectTransform>();
         }
     }

@@ -38,6 +38,8 @@ namespace TillWinter.Unity
         private static readonly int CloudsId = Shader.PropertyToID("_Clouds");
         private static readonly int CloudColorId = Shader.PropertyToID("_CloudColor");
         private static readonly int HazeId = Shader.PropertyToID("_Haze");
+        /// <summary>Reduce motion stops the foliage sway (TW_Toon).</summary>
+        public static readonly int CalmId = Shader.PropertyToID("_TW_Calm");
         private static readonly int SunSizeId = Shader.PropertyToID("_SunSize");
 
         /// <summary>Morning mist at the start of each year, burnt off over a few seconds.</summary>
@@ -176,6 +178,7 @@ namespace TillWinter.Unity
             if (state.FrostWarning && !state.IsWinter)
                 frost = Mathf.Clamp01(1f - state.SecondsUntilWinter / Mathf.Max(0.01f, _game.State.Stats.FrostWarningSeconds));
 
+            Shader.SetGlobalFloat(CalmId, SettingsStore.MotionAllowed ? 0f : 1f);
             float dtSky = Time.deltaTime;
             _mist = Mathf.Max(0f, _mist - dtSky / MistSeconds);
             // Snow settles slowly and melts quickly: the field whitens over several seconds instead of at once.

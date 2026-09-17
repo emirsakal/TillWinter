@@ -67,7 +67,7 @@ Design source of truth: `docs/GDD.md` (read by section number, never whole). Nam
 ## Token rules
 
 - Run tests only through the `test-runner` subagent, which uses `run-tests-summary.bat` / `smoke-test-summary.bat`. A hook rewrites the raw scripts; never look at `TestResults/`.
-- UI layout is checked by eye, not by guess: `ui-tour.bat <folder>` opens every screen and sheet in play mode through its own buttons and writes `NN-name.png` plus `report.txt` to that folder (use the scratchpad; `TestResults/` is off limits). It backs up and restores the save and settings. Close the editor first.
+- UI layout is checked by eye, not by guess: `ui-tour.bat <folder>` opens every screen and sheet in play mode through its own buttons and writes `NN-name.png` plus `report.txt` to that folder (use the scratchpad; `TestResults/` is off limits). It backs up and restores the save and settings. Close the editor first. An optional second argument picks a screen preset (e.g. `"1080x1920 (Portrait)"` for 16:9, `"1536x2048 (Tablet)"`); the default is `"1080x2340 (Portrait)"`.
 - Delegate: tests → `test-runner`; documentation, PR bodies, commit messages → `docs-writer`; "where is / how does" questions → `repo-scout`. The main session keeps its context for design decisions and code edits.
 - Prefer grep and targeted reads (offset/limit) over whole-file reads. Read `docs/GDD.md` by section number only. Read `DECISIONS.md` only its last section.
 - Never read the deny-listed paths (`Library/`, `Temp/`, `Logs/`, `obj/`, `TestResults/`, `UserSettings/`, `Assets/Audio/`, `*.meta`, `*.unity`, `*.asset`, `*.prefab`, `*.mat`, `*.csproj`, `*.sln`, `*.slnx`).

@@ -436,9 +436,10 @@ namespace TillWinter.Unity
                 if (_ripeMark.gameObject.activeSelf != showMark) _ripeMark.gameObject.SetActive(showMark);
                 if (showMark)
                 {
-                    float bob = 0.05f * Mathf.Sin(simTime * 3.2f + _phase);
+                    bool moving = SettingsStore.MotionAllowed; // Reduce motion: the gem simply stands there
+                    float bob = moving ? 0.05f * Mathf.Sin(simTime * 3.2f + _phase) : 0f;
                     _ripeMark.localPosition = new Vector3(0f, _ripeTop + bob, 0f);
-                    _ripeMark.localRotation = Quaternion.Euler(0f, simTime * 90f + _phase * 40f, 0f);
+                    _ripeMark.localRotation = Quaternion.Euler(0f, moving ? simTime * 90f + _phase * 40f : 45f, 0f);
                     _ripeMark.localScale = Vector3.one * Prims.EaseOutBack(_markShow);
                 }
             }

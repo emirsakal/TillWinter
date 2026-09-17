@@ -34,4 +34,10 @@ A face sits on a darker lip (`UiKit.LipColor`). The label stays on one line and 
 
 ## Checking layout
 
-`ui-tour.bat <folder>` captures every screen and sheet.
+Both canvas scalers (game/menu and loading) use CanvasScaler Expand, and `CameraRig.FitSize` /
+the title scene camera never show less height than `CameraRig.ReferenceAspect` (1080/2340), so
+every screen keeps the reference layout on wider or taller aspects instead of cropping or
+stretching.
+
+`ui-tour.bat <folder>` captures every screen and sheet; pass a preset as a second argument to
+shoot other screen shapes (16:9, tablet).

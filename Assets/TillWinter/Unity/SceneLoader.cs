@@ -47,7 +47,7 @@ namespace TillWinter.Unity
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080f, 2340f);
-            scaler.matchWidthOrHeight = 0f;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand; // same fit as the game canvas
 
             var rt = (RectTransform)canvasGo.transform;
             _cover = UiKit.Panel(rt, "Cover", theme.BootFade, false, true);

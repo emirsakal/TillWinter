@@ -30,6 +30,9 @@ namespace TillWinter.EditorTools
         private const string ShotAtKey = "TillWinter.UiTour.ShotAt";
         private const string StartedKey = "TillWinter.UiTour.Started";
         private const string OutKey = "TillWinter.UiTour.Out";
+        private const string SizeKey = "TillWinter.UiTour.Size";
+        /// <summary>The Simulator device the editor had before a sized tour, restored at the end.</summary>
+        private const string SimulatorDeviceKey = "TillWinter.UiTour.SimulatorDevice";
         private const string ExitKey = "TillWinter.UiTour.Exit";
         private const string ErrorsKey = "TillWinter.UiTour.Errors";
         private const string BackupSuffix = ".uitour-bak";
@@ -111,12 +114,16 @@ namespace TillWinter.EditorTools
             string output = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "TestResults", "ui-tour");
             var args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
+            {
                 if (args[i] == "-uiTourOut") output = args[i + 1];
+                if (args[i] == "-uiTourSize") SessionState.SetString(SizeKey, args[i + 1]);
+            }
             Directory.CreateDirectory(output);
             foreach (var f in Directory.GetFiles(output))
                 if (f.EndsWith(".png") || f.EndsWith("report.txt")) File.Delete(f);
 
             SessionState.SetString(OutKey, output);
+            SessionState.SetInt(SimulatorDeviceKey, -1);
             SessionState.SetInt(ErrorsKey, 0);
             SessionState.SetInt(ExitKey, -1);
             SessionState.SetInt(StepKey, -1);
@@ -157,6 +164,12 @@ namespace TillWinter.EditorTools
                 // Finishing: leave play mode, then put the real save back, then quit.
                 if (EditorApplication.isPlayingOrWillChangePlaymode) return;
                 Restore();
+                int device = SessionState.GetInt(SimulatorDeviceKey, -1);
+                if (device >= 0)
+                {
+                    SimulatorDevices.SetIndex(device); // leave the Simulator on the device it had
+                    Log("Simulator device restored to " + SimulatorDevices.CurrentName());
+                }
                 SessionState.SetBool(ActiveKey, false);
                 EditorApplication.update -= Tick;
                 Log("Done, exit " + exit);
@@ -172,7 +185,22 @@ namespace TillWinter.EditorTools
                 EditorSceneManager.OpenScene("Assets/TillWinter/Scenes/Menu.unity");
                 var gameViewType = typeof(Editor).Assembly.GetType("UnityEditor.GameView");
                 if (gameViewType != null) EditorWindow.GetWindow(gameViewType);
-                GameViewPresets.Select("1080x2340 (Portrait)");
+                // -uiTourSize picks another screen shape (short 16:9 phones, tablets). Play mode runs in the Device
+                // Simulator here, which ignores Game view sizes, so the closest simulator device is chosen instead.
+                string size = SessionState.GetString(SizeKey, "");
+                if (size.Length == 0)
+                {
+                    GameViewPresets.Select("1080x2340 (Portrait)");
+                    Log("Screen: simulator device " + SimulatorDevices.CurrentName());
+                }
+                else if (GameViewPresets.TryGetSize(size, out int w, out int h))
+                {
+                    if (SessionState.GetInt(SimulatorDeviceKey, -1) < 0) SessionState.SetInt(SimulatorDeviceKey, SimulatorDevices.CurrentIndex());
+                    string err = SimulatorDevices.SelectClosest(w, h, out string device);
+                    GameViewPresets.Select(size); // for a Game view, if that is what plays
+                    Log(err.Length == 0 ? "Screen " + size + ": simulator device " + device : "Screen " + size + ": simulator not switched (" + err + "), Game view preset selected");
+                }
+                else Log("FAIL unknown size preset " + size);
                 SessionState.SetInt(StepKey, 0);
                 SessionState.SetFloat(ActedAtKey, -1f);
                 SessionState.SetFloat(ShotAtKey, -1f);
