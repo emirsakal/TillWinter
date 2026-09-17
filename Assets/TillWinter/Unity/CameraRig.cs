@@ -63,8 +63,7 @@ namespace TillWinter.Unity
         {
             _gridSize = gridSize;
             float width = gridSize + 2f * SideMargin + ExtraWidth;
-            float aspect = Mathf.Max(0.2f, Cam.aspect);
-            _targetSize = width / (2f * aspect);
+            _targetSize = FitSize(width);
             if (instant) Cam.orthographicSize = _targetSize;
             Place();
         }
@@ -73,14 +72,26 @@ namespace TillWinter.Unity
         {
             // Aspect can change when the Game view preset changes; keep the fit live.
             float width = _gridSize + 2f * SideMargin + ExtraWidth;
-            float aspect = Mathf.Max(0.2f, Cam.aspect);
-            _targetSize = width / (2f * aspect);
+            _targetSize = FitSize(width);
             // A slow breath, a push-in while a streak runs, a step back in Winter.
             float zoomTarget = 1f - 0.03f * Mathf.Clamp01(Excitement) + (PulledBack ? 0.05f : 0f);
             _zoom = Prims.Damp(_zoom, zoomTarget, 2.5f, Time.unscaledDeltaTime);
             float breath = 1f + Mathf.Sin(Time.unscaledTime * 0.35f) * 0.006f;
             Cam.orthographicSize = Prims.Damp(Cam.orthographicSize, _targetSize * _zoom * breath, 4f, Time.unscaledDeltaTime);
             Place();
+        }
+
+        /// <summary>The reference phone's width / height; the UI is laid out for it.</summary>
+        public const float ReferenceAspect = 1080f / 2340f;
+
+        /// <summary>
+        /// Fits <paramref name="width"/> world units across the screen, but never shows less height than the reference
+        /// phone would: on a wider screen (16:9, tablet) the field otherwise grew tall enough to run under the HUD.
+        /// </summary>
+        public float FitSize(float width)
+        {
+            float aspect = Mathf.Max(0.2f, Cam.aspect);
+            return width / (2f * Mathf.Min(aspect, ReferenceAspect));
         }
 
         private void Place()

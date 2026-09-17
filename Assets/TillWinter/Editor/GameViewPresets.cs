@@ -14,6 +14,18 @@ namespace TillWinter.EditorTools
     [InitializeOnLoad]
     internal static class GameViewPresets
     {
+        /// <summary>Why the last <see cref="Select"/> failed, for tools that report it.</summary>
+        public static string LastError { get; private set; } = "";
+
+        /// <summary>The pixel size of a named preset.</summary>
+        public static bool TryGetSize(string name, out int width, out int height)
+        {
+            foreach (var (n, w, h) in Sizes)
+                if (n == name) { width = w; height = h; return true; }
+            width = height = 0;
+            return false;
+        }
+
         private const string FirstRunKey = "TillWinter.GameViewPresets.SelectedDefault";
         private const string PreferredName = "1080x2340 (Portrait)";
 
@@ -22,6 +34,7 @@ namespace TillWinter.EditorTools
             ("1080x2340 (Portrait)", 1080, 2340),
             ("1080x1920 (Portrait)", 1080, 1920),
             ("1080x2400 (Portrait)", 1080, 2400),
+            ("1536x2048 (Tablet)", 1536, 2048),
         };
 
         static GameViewPresets()
@@ -41,10 +54,14 @@ namespace TillWinter.EditorTools
                 var sizeType = editorAsm.GetType("UnityEditor.GameViewSize");
                 var singleton = typeof(ScriptableSingleton<>).MakeGenericType(sizesType);
                 var instance = singleton.GetProperty("instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null, null);
-                var group = sizesType.GetMethod("GetGroup").Invoke(instance, new[] { Enum.Parse(groupType, "Standalone") });
+                var group = sizesType.GetMethod("GetGroup").Invoke(instance, new[] { CurrentGroup(sizesType, instance, groupType) });
                 var gt = group.GetType();
                 int idx = IndexOf(group, gt.GetMethod("GetTotalCount"), gt.GetMethod("GetGameViewSize"), sizeType.GetProperty("baseText"), name);
-                return idx >= 0 && TrySelect(editorAsm, idx);
+                LastError = idx < 0 ? "no preset named " + name + " in group " + CurrentGroup(sizesType, instance, groupType) : "";
+                if (idx < 0) return false;
+                bool ok = TrySelect(editorAsm, idx);
+                if (!ok) LastError = "TrySelect failed at index " + idx;
+                return ok;
             }
             catch (Exception e)
             {
@@ -77,8 +94,8 @@ namespace TillWinter.EditorTools
                     return;
                 }
 
-                // Standalone is the group used by the editor Game view for Windows/macOS targets.
-                var groupValue = Enum.Parse(groupType, "Standalone");
+                // The Game view lists the sizes of the active build target's group (Android/iOS here), not Standalone.
+                var groupValue = CurrentGroup(sizesType, instance, groupType);
                 var group = getGroup.Invoke(instance, new[] { groupValue });
                 var gt = group.GetType();
                 var getTotalCount = gt.GetMethod("GetTotalCount");
@@ -115,6 +132,13 @@ namespace TillWinter.EditorTools
             {
                 Debug.LogWarning("[TillWinter] Could not install Game view presets (internal API changed?): " + e.Message);
             }
+        }
+
+        private static object CurrentGroup(Type sizesType, object instance, Type groupType)
+        {
+            var prop = sizesType.GetProperty("currentGroupType", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            var value = prop?.GetValue(prop.GetGetMethod(true).IsStatic ? null : instance, null);
+            return value ?? Enum.Parse(groupType, "Standalone");
         }
 
         private static int IndexOf(object group, MethodInfo getTotalCount, MethodInfo getGameViewSize, PropertyInfo baseText, string name)

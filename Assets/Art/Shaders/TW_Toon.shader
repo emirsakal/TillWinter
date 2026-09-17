@@ -52,6 +52,8 @@ Shader "TillWinter/TW_Toon"
         // Season globals set by SeasonPresenter through PaletteBinder.SetSeason.
         float _TW_Snow;
         float4 _TW_SeasonTint;
+        // 1 while Reduce motion is on: the breeze stops (set by SeasonPresenter / the title scene).
+        float _TW_Calm;
 
         // Foliage and crops lean with a slow breeze. Works in world space, so statically batched scenery sways too;
         // the island top is y = 0 and the lean grows with height, so roots stay put.
@@ -59,7 +61,7 @@ Shader "TillWinter/TW_Toon"
         {
             float h = saturate(ws.y * 0.6);
             float ph = _Time.y * 1.6 + ws.x * 0.7 + ws.z * 0.5;
-            float k = _Wind * h * h;
+            float k = _Wind * h * h * (1.0 - _TW_Calm);
             ws.x += sin(ph) * k;
             ws.z += cos(ph * 0.8) * k * 0.5;
             return ws;

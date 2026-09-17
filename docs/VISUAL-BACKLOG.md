@@ -470,10 +470,28 @@ Verified with `ui-tour` (tour 35), tests passing.
 
 ### 9.12 Accessibility and screen sizes
 
-- **Open.** [M] **Colour blindness.** Seasons and ripeness must not rely on colour alone.
-- **Open.** [M] **Tablets and short (16:9) screens.** Check the new layouts; extend the UI tour with
-  device settings.
-- **Open.** [L] **Reduce motion must cover every new animation.**
+- **Done.** [M] **Colour blindness.** Nothing relies on colour alone any more: season bar has
+  glyphs per season and a hatched frost span; ripeness shows the RipeMark gem shape (9.4) plus
+  wobble and a stage model change; locked nodes show a padlock when zoomed in and are
+  desaturated; the pass-on chip has text.
+- **Done.** [M] **Tablets and short screens.** The UI tour can now shoot other screen shapes:
+  `ui-tour.bat <folder> "<preset>"` with presets "1080x2340 (Portrait)" (default), "1080x1920
+  (Portrait)" (16:9), "1080x2400 (Portrait)", "1536x2048 (Tablet)". Play mode here runs in the
+  Device Simulator, which ignores Game view sizes, so the tour picks the simulator device
+  closest in shape (new editor helper SimulatorDevices, reflection over the Simulator window,
+  fails soft) and restores the editor's own device at the end; the report names the device. The
+  16:9 and tablet runs showed the menu island under the buttons, the HUD season bar over the
+  field and Settings running off a tablet screen. Fixes: both canvas scalers (game/menu and
+  loading) use CanvasScaler Expand (never smaller than 1080x2340 in either direction), and
+  CameraRig.FitSize / the title scene camera never show less height than the reference aspect
+  (CameraRig.ReferenceAspect = 1080/2340). After the fix every screen keeps the reference layout
+  on 16:9 and 3:4. Also: the default tour now shoots at 1080x2340 (a matching simulator device)
+  instead of the editor's 1170x2532 iPhone.
+- **Done.** [L] **Reduce motion covers new animations.** The foliage/crop breeze stops (TW_Toon
+  global _TW_Calm set by SeasonPresenter and the title scene), the ripe gem stands still; sheet
+  overshoot, Winter snowfall and the tree's opening zoom already respected it (9.7/9.8).
+
+Verified with tours 36–38 (16:9, tablet, phone), 204 tests passing.
 
 ### 9.13 Storefront
 
