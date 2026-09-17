@@ -1,3 +1,4 @@
+using TillWinter.Core;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -17,6 +18,8 @@ namespace TillWinter.Unity
         private float _alpha;
         private Vector3 _pos;
         private Transform _dots;
+        private Transform _arm;
+        private DecalProjector _armDecal;
         private Transform[] _dotItems;
         private Vector3[] _dotUnit;
         private float _dotRadius = -1f;
@@ -53,6 +56,20 @@ namespace TillWinter.Unity
                 r.shadowCastingMode = ShadowCastingMode.Off;
                 r.receiveShadows = false;
             }
+            // The cross is the same decal turned a quarter: one extra projector, hidden unless the shape needs it.
+            if (_decal != null && catalog.UseDecalRing && catalog.RingDecal != null)
+            {
+                var armGo = new GameObject("RingDecalArm");
+                armGo.transform.SetParent(transform, false);
+                _arm = armGo.transform;
+                _armDecal = armGo.AddComponent<DecalProjector>();
+                _armDecal.material = catalog.RingDecal;
+                _armDecal.pivot = Vector3.zero;
+                _armDecal.size = new Vector3(2f, 2f, 3f);
+                _armDecal.drawDistance = 200f;
+                armGo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                armGo.SetActive(false);
+            }
             go.SetActive(false);
 
             // Beads that walk around the ring's edge (faster with the combo).
@@ -80,6 +97,7 @@ namespace TillWinter.Unity
             if (_alpha < 0.01f)
             {
                 if (_ring.gameObject.activeSelf) _ring.gameObject.SetActive(false);
+                if (_arm != null && _arm.gameObject.activeSelf) _arm.gameObject.SetActive(false);
                 if (_dots != null && _dots.gameObject.activeSelf) _dots.gameObject.SetActive(false);
                 return;
             }
@@ -92,6 +110,27 @@ namespace TillWinter.Unity
             float combo = Mathf.Clamp01((_game.State.Combo - 1) / 8f);
             float pulse = 1f + (0.03f + 0.03f * combo) * Mathf.Sin(Time.time * (5f + 3f * combo));
             float d = _game.State.RingRadius * 2f * 1.08f * pulse;
+            // The footprint follows the chosen shape: a wide rake, or a cross drawn as two crossed rakes.
+            var shape = _game.State.RingShape;
+            var cfg = _game.Sim.Config;
+            float longSide = shape == RingShape.Rake ? d * cfg.RakeLength : shape == RingShape.Cross ? d * cfg.CrossLength : d;
+            float shortSide = shape == RingShape.Rake ? d * cfg.RakeWidth : shape == RingShape.Cross ? d * cfg.CrossWidth : d;
+            if (_arm != null)
+            {
+                bool cross = shape == RingShape.Cross;
+                if (_arm.gameObject.activeSelf != cross) _arm.gameObject.SetActive(cross);
+                if (cross)
+                {
+                    _arm.position = _pos + Vector3.up * 1.5f;
+                    if (_armDecal != null)
+                    {
+                        _armDecal.size = new Vector3(shortSide, longSide, 3f);
+                        _armDecal.fadeFactor = _alpha;
+                    }
+                }
+            }
+            // Flow: a ring that keeps moving glows a little and its beads race.
+            float flow = _game.State.Flow;
             if (_dots != null)
             {
                 if (!_dots.gameObject.activeSelf) _dots.gameObject.SetActive(true);
@@ -112,10 +151,10 @@ namespace TillWinter.Unity
                     _dotColor = Prims.Damp(_dotColor, want, 10f, dt);
                     _dotsBinder.Override(PaletteSlot.Cloud, _dotColor);
                 }
-                _spin += dt * (40f + 60f * combo);
+                _spin += dt * (40f + 60f * combo + 90f * flow);
                 _dots.SetPositionAndRotation(_pos + Vector3.up * 0.3f, Quaternion.Euler(0f, _spin, 0f));
                 // The beads sit just inside the soft edge; they shrink in with the ring as it fades.
-                float radius = d * 0.47f * Mathf.Lerp(0.6f, 1f, _alpha);
+                float radius = Mathf.Max(longSide, shortSide) * 0.47f * Mathf.Lerp(0.6f, 1f, _alpha);
                 if (Mathf.Abs(radius - _dotRadius) > 0.001f)
                 {
                     _dotRadius = radius;
@@ -125,14 +164,14 @@ namespace TillWinter.Unity
             if (_decal != null)
             {
                 _ring.position = _pos + Vector3.up * 1.5f;
-                _decal.size = new Vector3(d, d, 3f);
+                _decal.size = new Vector3(longSide, shortSide, 3f);
                 _decal.fadeFactor = _alpha;
             }
             else
             {
                 _ring.position = _pos + Vector3.up * 0.24f; // just above the soil ridges (0.21)
-                _ring.localScale = Vector3.one * d;
-                var c = Color.Lerp(Color.white, new Color(1f, 0.92f, 0.55f), combo);
+                _ring.localScale = new Vector3(longSide, shortSide, 1f);
+                var c = Color.Lerp(Color.white, new Color(1f, 0.92f, 0.55f), Mathf.Max(combo, flow * 0.5f));
                 c.a = Mathf.Min(1f, (0.85f + 0.15f * combo) * _alpha);
                 _discMaterial.SetColor("_BaseColor", c);
             }

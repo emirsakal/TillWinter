@@ -72,6 +72,8 @@ namespace TillWinter.Tests
                 Assert.AreEqual(sa.Plots[i].State, sb.Plots[i].State, "state " + i);
                 Assert.AreEqual(sa.Plots[i].Progress, sb.Plots[i].Progress, "progress " + i);
                 Assert.AreEqual(sa.Plots[i].HasCrow, sb.Plots[i].HasCrow, "crow " + i);
+                Assert.AreEqual(sa.Plots[i].IsGolden, sb.Plots[i].IsGolden, "golden " + i);
+                Assert.AreEqual(sa.Plots[i].RipeAge, sb.Plots[i].RipeAge, "ripe age " + i);
             }
             Assert.AreEqual(sa.Crows.Count, sb.Crows.Count);
             for (int i = 0; i < sa.Crows.Count; i++)
@@ -89,6 +91,8 @@ namespace TillWinter.Tests
             CollectionAssert.AreEquivalent(sa.HeritageLevels, sb.HeritageLevels);
             Assert.AreEqual(sa.Stats.ApprenticeCount, sb.Stats.ApprenticeCount);
             Assert.AreEqual(sa.Stats.TargetGridSize, sb.Stats.TargetGridSize);
+            Assert.AreEqual(sa.RingShape, sb.RingShape);
+            Assert.AreEqual(sa.Combo, sb.Combo);
         }
 
         [Test]

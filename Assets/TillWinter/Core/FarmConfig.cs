@@ -88,6 +88,27 @@ namespace TillWinter.Core
         public float TractorSecondsPerPlot = 0.15f;
         public double GreenhouseRatePerLevel = 0.02;
         public float GreenhouseWinterCapSeconds = 60f;
+        // --- M.1 (GDD §2.5 v1.6): ripe crops do not wait forever, the combo pays out, a moving ring works faster.
+        /// <summary>A Ripe plot keeps full value for this long; after it the value falls off.</summary>
+        public float RipeGraceSeconds = 12f;
+        /// <summary>Seconds from the end of the grace to the lowest value.</summary>
+        public float OverripeDecaySeconds = 24f;
+        /// <summary>A crop never falls below this share of its value: waiting costs, it never wastes the crop.</summary>
+        public double OverripeMinValue = 0.5;
+        /// <summary>Combo lengths that pay a bonus.</summary>
+        public int[] ComboMilestones = { 10, 25, 50 };
+        /// <summary>Bonus at each milestone, in crop values of the harvest that reached it.</summary>
+        public double[] ComboMilestoneBonus = { 3, 8, 20 };
+        /// <summary>A ring that keeps moving works this much faster (GDD §2.1 v1.6).</summary>
+        public float FlowBonus = 0.15f;
+        /// <summary>Plots per second the ring must move to count as flowing.</summary>
+        public float FlowSpeedThreshold = 1.2f;
+        /// <summary>Tap-harvest cooldown per `tap_harvest` level (index 0 = not owned).</summary>
+        public float[] TapHarvestCooldownByLevel = { 0f, 6f, 3f };
+        /// <summary>Rake shape: half-length and half-width, in ring radii.</summary>
+        public float RakeLength = 1.7f, RakeWidth = 0.5f;
+        /// <summary>Cross shape: arm half-length and half-width, in ring radii.</summary>
+        public float CrossLength = 1.5f, CrossWidth = 0.42f;
         public float ComboWindowSeconds = 1.0f;
         public int ComboMaxStacks = 10;
         public float LateFrostThreshold = 0.8f;

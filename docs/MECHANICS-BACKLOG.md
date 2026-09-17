@@ -1,0 +1,109 @@
+# Till Winter — Mechanics Backlog
+
+A mechanics review from 2026-09-17, worked through group by group like `docs/VISUAL-BACKLOG.md`.
+Every item here must respect the pillars in `docs/GDD.md` §1 (one finger always busy, three
+chains one loop, frost is the drum, finite and finishable), add no monetization, keep offline
+simulation to passive systems only, keep `TillWinter.Core` pure C# and deterministic, and be
+measured with `balance-sim.bat`/`BalanceTests` before it ships. A GDD rule changed by
+implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
+
+## Findings
+
+1. Coin spending has no decisions late: 86–96% of a generation's coins go into `upgrade_plot`
+   (GDD §15).
+2. The ring fades: ring share of harvests is 55% at first retire, 28% by generation 4.
+3. Seasons are cosmetic (§3): no rule changes per season.
+4. Few events: crows, rain cloud, golden crop; years feel alike after generation 2.
+5. Rebirth adds no new content: Heritage is 16 head-start nodes.
+6. Winter is only a shop.
+7. The player never chooses what is planted (`upgrade_plot` raises the lowest plot).
+
+## Groups
+
+### M.1 Ring and core loop
+
+- **Done.** [H] **Over-ripening.** A Ripe plot left waiting slowly loses value after a grace
+  time; the ring must prioritise. Unity-side: an over-ripe crop dulls and droops.
+- **Done.** [H] **Visible combo.** Milestone payouts at combo 10/25/50 (3x/8x/20x the harvested
+  crop's value); breaks only when a crow eats a crop, not on over-ripening. Unity-side: a HUD
+  milestone banner with a haptic.
+- **Done.** [M] **Ring shapes as Hand unlocks** (rake strip, cross). Unity-side: the ring decal
+  takes the shape (a second projector for the cross), a shape button on the HUD cycles unlocked
+  shapes. Tour has shots `25-ring-rake` and `26-ring-cross`.
+- **Done.** [M] **Flow bonus.** A moving ring works slightly faster than a still one. Unity-side:
+  beads race with flow.
+- **Done.** [L] **Tap to finish.** A tap completes one Ripe plot instantly, with a cooldown.
+
+### M.2 Crops and field
+
+- **Open.** [H] **Choose the crop per plot** (seed bag); `upgrade_plot` becomes seed
+  unlocks/quality instead of an endless sink.
+- **Open.** [H] **Seasonal preferences** (pumpkin +50% in autumn, tomato faster in summer).
+- **Open.** [M] **Neighbour bonuses** (companion planting, full rows).
+- **Open.** [M] **Crop rotation** (same crop repeatedly tires the soil).
+- **Open.** [M] **Special plots** (fertile, stony to clear, compost).
+
+### M.3 Seasons, year and weather
+
+- **Open.** [H] **Season rules.** Spring waters faster, summer drought (Wet can dry out), autumn
+  harvest festival.
+- **Open.** [H] **Yearly goals** ("harvest 20 pumpkins this year") paying coins or seeds.
+- **Open.** [M] **New weather.** Storm (Sun stops), heat wave, morning fog.
+- **Open.** [M] **End-of-year grade**, 1–3 stars with a small bonus.
+- **Open.** [L] **Frost-warning boost.** Harvests worth double in the last 10 s.
+
+### M.4 Helpers and animals
+
+- **Open.** [H] **Placeable scarecrows** protecting an area instead of a global chance.
+- **Open.** [M] **Helper roles** (waterer/harvester) or dragging a helper to an area.
+- **Open.** [M] **Animals with jobs.** The dog chases crows, bees speed neighbouring plots, hens
+  eat pests.
+- **Open.** [L] **Tractor control.** Trigger by hand or pick the row.
+
+### M.5 Events and threats
+
+- **Open.** [H] **More pests.** Moles dig a plot, rabbits eat carrots, a locust swarm driven off
+  with the ring.
+- **Open.** [M] **Travelling trader** once a year (harvest for seeds, rare seed).
+- **Open.** [L] **Rare lucky moments** (four-leaf clover, golden egg, shooting star multiplier).
+
+### M.6 Winter
+
+- **Open.** [H] **Storage and market.** Keep part of the harvest, sell in another season at a
+  better price.
+- **Open.** [M] **Winter activity.** Turn stored crops into preserves sold in spring, or a
+  one-finger ice-fishing mini-game.
+- **Open.** [M] **Almanac help.** Effect preview, a suggested marker, one free respec per
+  generation.
+
+### M.7 Progression and rebirth
+
+- **Open.** [H] **Heirs / generation traits.** Pick one of two or three heirs at each rebirth.
+- **Open.** [H] **Heirlooms** carried across generations.
+- **Open.** [M] **Bigger Heritage**, with mutually exclusive choices.
+- **Open.** [M] **Challenge generations** (no helpers, short years) for extra seeds.
+- **Open.** [M] **In-game achievements** with small permanent rewards (offline, no platform
+  services).
+
+### M.8 Ending and after
+
+- **Open.** [M] **Family album.** House, stats and a short story per generation.
+- **Open.** [M] **New Game+.** Harder years after the ending with cosmetic rewards.
+- **Open.** [L] **Daily farm seeded by the date** (offline only; at the edge of the no-live-ops
+  pillar).
+
+### M.9 Feel and accessibility
+
+- **Open.** [M] **Early-year goal checklist** instead of one-off hints.
+- **Open.** [M] **Hands-free mode.** Tap to place the ring, it follows plots on its own.
+- **Open.** [L] **Before you leave.** Set the helpers' focus for offline passive income.
+
+## Recommended first five
+
+For reference, not sequence: crop choice + seasonal preferences (M.2), over-ripening + visible
+combo (M.1), yearly goals (M.3), heirs (M.7), storage and market (M.6). Items 1, 3, 4 and 5 move
+balance and each need their own `balance-sim.bat` pass.
+
+## Deliberately out
+
+Monetization, ads, live-ops, online services.

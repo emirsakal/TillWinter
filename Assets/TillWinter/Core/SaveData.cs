@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 6;
+        public const int CurrentSchemaVersion = 7;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -53,6 +53,8 @@ namespace TillWinter.Core
         public float TractorTimeToNextSweep;
         public int TractorPassed;
         public int Combo;
+        /// <summary>v7: the ring footprint the player chose.</summary>
+        public int RingShape;
         public float ComboTimer;
         public float GreenhouseSecondsLeft;
         public double GreenhouseCoinsThisWinter;
@@ -90,6 +92,8 @@ namespace TillWinter.Core
         public float CrowTimer;
         /// <summary>v2</summary>
         public bool Golden;
+        /// <summary>v7: seconds the plot has stood Ripe (over-ripening).</summary>
+        public float RipeAge;
     }
 
     [Serializable]
@@ -122,6 +126,7 @@ namespace TillWinter.Core
                     case 3: data = V3ToV4(data); break;
                     case 4: data = V4ToV5(data); break;
                     case 5: data = V5ToV6(data); break;
+                    case 6: data = V6ToV7(data); break;
                     default: return null;
                 }
             }
@@ -196,6 +201,15 @@ namespace TillWinter.Core
         /// v5 -> v6: the remembered tree views are forgotten. They were pan offsets and zooms into the old lane layout;
         /// against the radial one they open the tree off-centre with branches cut off, so each tree opens framed again.
         /// </summary>
+        /// <summary>v6 → v7: crops never aged and the ring was always round; both defaults are already right.</summary>
+        private static SaveData V6ToV7(SaveData d)
+        {
+            if (d.Plots != null) foreach (var p in d.Plots) p.RipeAge = 0f;
+            d.RingShape = 0;
+            d.SchemaVersion = 7;
+            return d;
+        }
+
         private static SaveData V5ToV6(SaveData d)
         {
             d.AlmanacViewHas = false;

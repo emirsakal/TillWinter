@@ -75,6 +75,9 @@ namespace TillWinter.Core
                 case EffectType.CrowBounty: return "x" + F(cfg.CrowScareValueMultiplier + level, "0");
                 case EffectType.AlmanacDiscount: return "-" + Pct(1 - s.AlmanacCostMult);
                 case EffectType.GoldenCropChance: return Pct(s.GoldenCropChance);
+                case EffectType.RingShape: return level >= 2 ? "rake+cross" : level == 1 ? "rake" : "round";
+                case EffectType.TapHarvest: return level > 0 && level < cfg.TapHarvestCooldownByLevel.Length
+                    ? F(cfg.TapHarvestCooldownByLevel[level], "0") + " s" : "-";
                 case EffectType.BulkUpgrade:
                 case EffectType.FertileStart:
                 case EffectType.SpringHeadStart:

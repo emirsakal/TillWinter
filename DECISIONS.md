@@ -810,3 +810,19 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   on Application.runInBackground for its own play session because the project's Run In Background is
   off and the player loop stops whenever the editor loses focus (the same cause as the flaky smoke
   test while someone is at the machine). The project setting itself was not changed.
+
+## Mechanics M.1: ring and core loop (2026-09-17)
+
+- **Over-ripening floors at 50% instead of destroying the crop.** A lost crop after an offline gap
+  (age is frozen offline, but a long play session could still run it out) would feel unfair; a
+  floor keeps the ring's priority pressure without a punishing loss.
+- **The combo breaks only on a crow eating a crop, not on over-ripening.** Over-ripening already
+  taxes a neglected plot through decayed value; stacking a combo break onto it would double-punish
+  the same neglect for a mechanic (combo) that is about ring rhythm, not plot age.
+- **`tap_harvest` and `ring_shape` are Almanac nodes, not free abilities.** Free abilities would move
+  balance outside `BalanceTests`/`balance-sim.bat`; as nodes they cost coins and are measured like
+  everything else in the Hand branch.
+- **The ring-share BalanceTests range was widened rather than re-tuned back down.** The M.1 pass
+  moved ring share at first retire from ~0.55 to ~0.58 by design (over-ripening and the flow bonus
+  are meant to keep the ring relevant longer); pulling other costs to force it back to the old
+  midpoint would fight the feature instead of measuring it.

@@ -51,7 +51,7 @@ namespace TillWinter.Tests
             Assert.IsTrue(raw.AlmanacViewHas, "the fixture remembers a view");
 
             var d = SaveMigrations.Migrate(MiniJson.To<SaveData>(V5Fixture), new FarmConfig());
-            Assert.AreEqual(6, d.SchemaVersion);
+            Assert.AreEqual(SaveData.CurrentSchemaVersion, d.SchemaVersion); // migrations chain past v6
             Assert.IsFalse(d.AlmanacViewHas, "a pan into the old layout would open the tree off-centre");
             Assert.IsFalse(d.HeritageViewHas);
             Assert.AreEqual(0f, d.AlmanacViewX);

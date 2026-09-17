@@ -107,6 +107,10 @@ namespace TillWinter.EditorTools
             // Weather and light the rest of the tour never meets: a rainbow after the rain cloud, then autumn at dusk.
             new Step("23-rainbow", 2.4f, () => { var g = Game; if (g != null && g.Sim.DebugSpawnCloud()) g.Sim.TapCloud(); }),
             new Step("24-autumn-dusk", 3.2f, () => Game?.Sim.DebugSetSeason(Season.Autumn)),
+
+            // The ring's shapes, cycled from the HUD button.
+            new Step("25-ring-rake", 0.6f, () => Click("RingShape")),
+            new Step("26-ring-cross", 0.6f, () => Click("RingShape")),
         };
 
         static UiTour()
@@ -314,6 +318,8 @@ namespace TillWinter.EditorTools
             game.Sim.DebugSetLevel("apprentice_count", 2);
             game.Sim.DebugSetLevel("irrigation", 3);
             game.Sim.DebugSetLevel("sun", 3);
+            game.Sim.DebugSetLevel("ring_shape", 2); // the shape button only shows with its node
+            game.Sim.DebugSetLevel("tap_harvest", 1);
         }
 
         /// <summary>
