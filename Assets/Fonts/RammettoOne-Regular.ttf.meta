@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 18dfd24b391df2440a1bd8e3cd8c2947
+guid: d30fcf00894124140b398995e722e2aa
 TrueTypeFontImporter:
   externalObjects: {}
   serializedVersion: 4
@@ -9,7 +9,7 @@ TrueTypeFontImporter:
   characterPadding: 1
   includeFontData: 1
   fontNames:
-  - Nunito
+  - Rammetto One
   fallbackFontReferences: []
   customCharacters: 
   fontRenderingMode: 0

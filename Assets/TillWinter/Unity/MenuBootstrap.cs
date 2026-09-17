@@ -150,7 +150,7 @@ namespace TillWinter.Unity
             block.transform.SetParent(root, false);
             block.AddComponent<MeshFilter>().sharedMesh = DioramaView.BuildBlock(Grid, 0.8f, 0.9f, 0f);
             var mr = block.AddComponent<MeshRenderer>();
-            mr.sharedMaterials = new[] { _catalog.SlotMaterial(PaletteSlot.Grass), _catalog.SlotMaterial(PaletteSlot.SoilBlock) };
+            mr.sharedMaterials = DioramaView.BlockMaterials(_catalog);
             mr.shadowCastingMode = ShadowCastingMode.Off;
 
             for (int i = 0; i < Grid * Grid; i++)
@@ -271,6 +271,10 @@ namespace TillWinter.Unity
                 var save = SaveController.Load(SaveController.FilePath);
                 if (save != null)
                 {
+                    // The loading seedling wears the season the farm was left in.
+                    var look = SeasonPalette.Load().For((TillWinter.Core.Season)save.Season, false);
+                    var leaf = Palette.Load().Get(PaletteSlot.Leaf);
+                    SceneLoader.LeafTint = new Color(leaf.r * look.LeafTint.r, leaf.g * look.LeafTint.g, leaf.b * look.LeafTint.b, 1f);
                     var progress = UiKit.Label(safe, "Progress", Strings.Format("menu.progress", ("gen", save.Generation), ("year", save.Year)),
                         UiType.Label, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
                     progressRt = UiKit.Box(progress.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(900f, 44f));

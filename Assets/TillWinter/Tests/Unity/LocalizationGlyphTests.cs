@@ -13,7 +13,7 @@ namespace TillWinter.Tests.Unity
         public void EveryCharacter_ExistsInTheFontAtlas(string lang)
         {
             var font = UiKit.Font;
-            Assert.IsNotNull(font, "NunitoSDF missing from Resources");
+            Assert.IsNotNull(font, "FigtreeSDF missing from Resources");
             var chars = new HashSet<char>();
             foreach (var kv in StringsTests.LoadTable(lang))
                 foreach (char c in kv.Value)
@@ -22,7 +22,7 @@ namespace TillWinter.Tests.Unity
             bool ok = font.HasCharacters(text, out uint[] missing, false, false);
             var names = new System.Text.StringBuilder();
             if (missing != null) foreach (uint u in missing) names.Append((char)u).Append(" U+").Append(u.ToString("X4")).Append(' ');
-            Assert.IsTrue(ok, lang + ": missing glyphs in NunitoSDF: " + names);
+            Assert.IsTrue(ok, lang + ": missing glyphs in FigtreeSDF: " + names);
         }
     }
 }

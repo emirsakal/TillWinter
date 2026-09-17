@@ -15,6 +15,9 @@ Shader "TillWinter/TW_Sky"
         _Clouds ("Cloud cover", Range(0, 1)) = 0
         _CloudColor ("Cloud colour", Color) = (1, 1, 1, 1)
         _Haze ("Horizon haze", Range(0, 1)) = 0
+        _MoonColor ("Moon (a = strength)", Color) = (0.95, 0.96, 1, 0)
+        _MoonPos ("Moon position (uv)", Vector) = (0.2, 0.78, 0, 0)
+        _Rainbow ("Rainbow strength", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -42,6 +45,9 @@ Shader "TillWinter/TW_Sky"
                 float _Clouds;
                 float4 _CloudColor;
                 float _Haze;
+                float4 _MoonColor;
+                float4 _MoonPos;
+                float _Rainbow;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
@@ -88,6 +94,29 @@ Shader "TillWinter/TW_Sky"
                 float glow = exp(-(r - _SunSize) / (_SunSize * 1.4)) * 0.4;
                 col = lerp(col, _SunColor.rgb, saturate(glow * _SunColor.a));
                 col = lerp(col, _SunColor.rgb * 1.08 + 0.05, disc * _SunColor.a);
+
+                // Moon: a pale disc with a bite taken out, for cold evenings.
+                if (_MoonColor.a > 0.001)
+                {
+                    float2 md = (i.uv - _MoonPos.xy) * float2(_Aspect, 1.0);
+                    float moon = 1.0 - smoothstep(_SunSize * 0.72, _SunSize * 0.8, length(md));
+                    float bite = 1.0 - smoothstep(_SunSize * 0.62, _SunSize * 0.7, length(md - float2(_SunSize * 0.32, _SunSize * 0.18)));
+                    float glowM = exp(-length(md) / (_SunSize * 1.5)) * 0.25;
+                    col = lerp(col, _MoonColor.rgb, saturate(glowM * _MoonColor.a));
+                    col = lerp(col, _MoonColor.rgb, saturate(moon - bite) * _MoonColor.a);
+                }
+
+                // Rainbow after rain: a faint arc low in the sky.
+                if (_Rainbow > 0.001)
+                {
+                    float2 rd = (i.uv - float2(0.5, 0.42)) * float2(_Aspect, 1.0);
+                    float rr = length(rd);
+                    float band = saturate(1.0 - abs(rr - 0.36) / 0.035);
+                    float hue = saturate((rr - 0.325) / 0.07);
+                    float3 rainbow = saturate(float3(abs(hue * 6.0 - 3.0) - 1.0, 2.0 - abs(hue * 6.0 - 2.0), 2.0 - abs(hue * 6.0 - 4.0)));
+                    float up = smoothstep(0.42, 0.5, i.uv.y);
+                    col = lerp(col, rainbow, band * up * _Rainbow * 0.45);
+                }
 
                 // Clouds: puffy bands that only live in the upper sky and drift to the right.
                 if (_Clouds > 0.001)

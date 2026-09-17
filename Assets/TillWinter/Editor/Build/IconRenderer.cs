@@ -123,7 +123,7 @@ namespace TillWinter.EditorTools.Build
             var island = new GameObject("Island");
             island.transform.SetParent(root, false);
             island.AddComponent<MeshFilter>().sharedMesh = DioramaView.BuildBlock(2, 0.42f, 1.0f, 0f);
-            island.AddComponent<MeshRenderer>().sharedMaterials = new[] { v.SlotMaterial(PaletteSlot.Grass), v.SlotMaterial(PaletteSlot.SoilBlock) };
+            island.AddComponent<MeshRenderer>().sharedMaterials = DioramaView.BlockMaterials(v);
             Place(v.HangingRock, root, new Vector3(0.05f, -0.75f, 0.05f), 0f, 1.6f);
             int[] tiers = { 3, 0, 4, 1 };
             for (int i = 0; i < 4; i++)

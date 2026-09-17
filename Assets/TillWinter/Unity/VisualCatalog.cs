@@ -73,6 +73,15 @@ namespace TillWinter.Unity
         public GameObject Butterfly;
         public GameObject Bee;
         public GameObject Frog;
+        public GameObject FencePost;
+        public GameObject Flag;
+        public GameObject Chicken;
+        public GameObject Cat;
+        /// <summary>One unit of irrigation channel (shown once Irrigation is bought).</summary>
+        public GameObject Channel;
+        /// <summary>Shown beside the field once Sun is bought.</summary>
+        public GameObject Sunflower;
+        public GameObject SteppingStone;
         /// <summary>Soft dark disc parented under characters and props so they sit on the ground when shadows are off.</summary>
         public GameObject BlobShadow;
 

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 namespace TillWinter.Unity
 {
-    /// <summary>Tiny uGUI builder (TextMeshPro text, Nunito SDF font) so the whole UI can be made in code.</summary>
+    /// <summary>Tiny uGUI builder (TextMeshPro text, Figtree SDF font) so the whole UI can be made in code.</summary>
     public static class UiKit
     {
         public static readonly Color Ink = new Color(0.12f, 0.1f, 0.08f);
@@ -29,6 +29,24 @@ namespace TillWinter.Unity
                 else if (TMP_Settings.defaultFontAsset != null && !_font.fallbackFontAssetTable.Contains(TMP_Settings.defaultFontAsset))
                     _font.fallbackFontAssetTable.Add(TMP_Settings.defaultFontAsset);
                 return _font;
+            }
+        }
+
+        private static TMP_FontAsset _display;
+        private static bool _displayTried;
+
+        /// <summary>
+        /// Rammetto One SDF (built by UiSetup, Figtree as its serialized fallback): the rounded display face for titles
+        /// and big numbers. Falls back to <see cref="Font"/> when the asset is missing.
+        /// </summary>
+        public static TMP_FontAsset DisplayFont
+        {
+            get
+            {
+                if (_display != null || _displayTried) return _display != null ? _display : Font;
+                _displayTried = true;
+                _display = Resources.Load<TMP_FontAsset>("RammettoSDF");
+                return _display != null ? _display : Font;
             }
         }
 
@@ -92,12 +110,14 @@ namespace TillWinter.Unity
             var rt = Rect(name, parent);
             Stretch(rt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
-            t.font = Font;
+            // Titles and big numbers use the display face; it is heavy already, so it never takes faux bold.
+            bool display = size >= UiType.Title;
+            t.font = display ? DisplayFont : Font;
             t.text = text;
             t.fontSize = UiType.Size(size); // one type scale, one accessibility multiplier
             t.color = color;
             t.alignment = Map(anchor);
-            t.fontStyle = style == FontStyle.Bold ? FontStyles.Bold : style == FontStyle.Italic ? FontStyles.Italic : FontStyles.Normal;
+            t.fontStyle = display ? FontStyles.Normal : style == FontStyle.Bold ? FontStyles.Bold : style == FontStyle.Italic ? FontStyles.Italic : FontStyles.Normal;
             t.enableWordWrapping = true;
             t.overflowMode = TextOverflowModes.Overflow;
             t.raycastTarget = false;

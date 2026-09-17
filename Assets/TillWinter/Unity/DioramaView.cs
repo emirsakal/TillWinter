@@ -41,7 +41,7 @@ namespace TillWinter.Unity
             block.transform.SetParent(transform, false);
             _blockFilter = block.AddComponent<MeshFilter>();
             var mr = block.AddComponent<MeshRenderer>();
-            mr.sharedMaterials = new[] { catalog.SlotMaterial(PaletteSlot.Grass), catalog.SlotMaterial(PaletteSlot.SoilBlock) };
+            mr.sharedMaterials = BlockMaterials(catalog);
             mr.shadowCastingMode = ShadowCastingMode.Off;
             mr.receiveShadows = true;
             _scenery = new GameObject("Scenery").transform;
@@ -98,6 +98,9 @@ namespace TillWinter.Unity
                 bool gate = Mathf.Abs(x) < 0.6f;
                 Place(gate ? _catalog.FenceGate : _catalog.Fence, gate ? "Gate" : "Fence", new Vector3(x, 0f, half + 0.55f), 0f);
             }
+            float fenceEnd = (panels - 1) * 0.5f + 0.5f;
+            Place(_catalog.FencePost, "FencePostL", new Vector3(-fenceEnd, 0f, half + 0.55f), 0f);
+            Place(_catalog.FencePost, "FencePostR", new Vector3(fenceEnd, 0f, half + 0.55f), 0f);
             // Behind the fence, on the extra back strip: farmhouse far right, trees far left.
             float back = half + 0.55f + (Margin - 0.55f + BackDepth) * 0.55f;
             var house = new Vector3(edge - 1.1f, 0f, back);
@@ -125,6 +128,16 @@ namespace TillWinter.Unity
             // It trots along the grass strip just behind the fence, clear of the pond and the house.
             _dogView?.SetArea(new Vector3(edge - 1.3f, 0f, back - 1.05f), -edge + 1.9f, edge - 0.5f, half + 0.55f + 0.3f, half + 0.55f + 0.42f);
             PlaceFrog(new Vector3(edge - 2.9f + 0.62f, 0f, back - 0.15f - 0.5f), 200f);
+            // Stepping stones from the gate up to the farmhouse door.
+            var gateStep = new Vector3(0f, 0f, half + 0.95f);
+            var door = new Vector3(edge - 1.25f, 0f, back - 0.75f);
+            for (int i = 0; i < 4; i++)
+            {
+                var p = Vector3.Lerp(gateStep, door, i / 3.5f);
+                Place(_catalog.SteppingStone, "Step", p + new Vector3(0f, 0.002f, (i % 2 == 0 ? 0.05f : -0.05f)), i * 23f);
+            }
+            _pondCentre = new Vector3(edge - 2.9f, 0.06f, back - 0.15f);
+            PlaceLife(n, half, edge, back);
             Dress(n, half, edge, back, panels);
             OnSeasonChanged(_game.State.Season);
             StaticBatchingUtility.Combine(_scenery.gameObject);
@@ -145,6 +158,10 @@ namespace TillWinter.Unity
             _avoid.Add((new Vector2(edge - 1.95f, back - 0.35f), 0.55f)); // kennel
             _avoid.Add((new Vector2(edge - 1.3f, back - 1.05f), 0.45f));  // dog
             _avoid.Add((new Vector2(edge - 2.9f, back - 0.15f), 0.85f));  // pond
+            _avoid.Add((new Vector2(-edge + 0.75f, 0.35f), 0.35f));        // cat
+            _avoid.Add((new Vector2(edge - 2.05f, back + 0.6f), 0.3f));    // flag
+            for (int i = 0; i < 4; i++)                                     // stepping stones
+                _avoid.Add((Vector2.Lerp(new Vector2(0f, half + 0.95f), new Vector2(edge - 1.25f, back - 0.75f), i / 3.5f), 0.25f));
             _avoid.Add((new Vector2(-edge + 0.7f, back - 0.2f), 0.5f));   // trees
             _avoid.Add((new Vector2(-edge + 1.5f, back + 0.4f), 0.5f));
             _avoid.Add((new Vector2(-edge + 0.5f, -half - 0.9f), 0.5f));
@@ -271,7 +288,10 @@ namespace TillWinter.Unity
         /// <summary>The farmhouse lights its windows as the year cools: a little in Autumn, fully once frost is near.</summary>
         private void LateUpdate()
         {
-            if (_windows == null || _game == null || _game.State == null) return;
+            if (_game == null || _game.State == null) return;
+            RefreshUpgrades(false);
+            TickPond();
+            if (_windows == null) return;
             var s = _game.State;
             _windowTarget = s.IsWinter || s.FrostWarning ? 1f : s.Season == TillWinter.Core.Season.Autumn ? 0.45f : 0f;
             float next = _windowGlow < 0f ? _windowTarget : Prims.Damp(_windowGlow, _windowTarget, 1.5f, Time.deltaTime);
@@ -280,6 +300,85 @@ namespace TillWinter.Unity
             var palette = Palette.Load();
             _windows.Override(PaletteSlot.Glass, Color.Lerp(palette.Get(PaletteSlot.Glass), palette.Golden, _windowGlow));
             _windows.SetEmission(palette.GoldenGlow * (_windowGlow * 0.8f));
+        }
+
+        private Transform _flag, _cat, _channel, _sunflowers;
+        private readonly List<Transform> _chickens = new List<Transform>();
+        private Vector3 _pondCentre;
+        private float _rippleAt;
+
+        /// <summary>
+        /// The animated extras, outside the batched scenery: a flag by the house, two hens behind the fence, a cat asleep
+        /// in the front grass, and the upgrades that show on the land (an irrigation channel, a row of sunflowers).
+        /// </summary>
+        private void PlaceLife(int n, float half, float edge, float back)
+        {
+            if (_flag == null && _catalog.Flag != null)
+            {
+                _flag = _catalog.Spawn(_catalog.Flag, transform, "Flag").transform;
+                _flag.gameObject.AddComponent<FlagView>();
+            }
+            if (_flag != null) _flag.localPosition = new Vector3(edge - 2.05f, 0f, back + 0.6f);
+            if (_chickens.Count == 0 && _catalog.Chicken != null)
+                for (int i = 0; i < 2; i++)
+                {
+                    var hen = _catalog.Spawn(_catalog.Chicken, transform, "Chicken").transform;
+                    hen.gameObject.AddComponent<ChickenView>();
+                    _chickens.Add(hen);
+                }
+            for (int i = 0; i < _chickens.Count; i++)
+                _chickens[i].GetComponent<ChickenView>().SetArea(new Vector3(-edge + 1.2f + i * 0.9f, 0f, half + 0.95f), -edge + 0.6f, -0.9f, half + 0.8f, half + 1.1f, i);
+            if (_cat == null && _catalog.Cat != null)
+            {
+                _cat = _catalog.Spawn(_catalog.Cat, transform, "Cat").transform;
+                _cat.gameObject.AddComponent<CatView>();
+            }
+            if (_cat != null)
+            {
+                _cat.localPosition = new Vector3(-edge + 0.75f, 0f, 0.35f);
+                _cat.localRotation = Quaternion.Euler(0f, 140f, 0f);
+            }
+            if (_channel == null && _catalog.Channel != null) _channel = _catalog.Spawn(_catalog.Channel, transform, "Channel").transform;
+            if (_channel != null)
+            {
+                _channel.localPosition = new Vector3(-half - 0.3f, 0f, 0f);
+                _channel.localScale = new Vector3(1f, 1f, n + 0.4f);
+            }
+            if (_sunflowers == null && _catalog.Sunflower != null)
+            {
+                _sunflowers = new GameObject("Sunflowers").transform;
+                _sunflowers.SetParent(transform, false);
+                for (int i = 0; i < 3; i++) _catalog.Spawn(_catalog.Sunflower, _sunflowers, "Sunflower");
+            }
+            if (_sunflowers != null)
+                for (int i = 0; i < _sunflowers.childCount; i++)
+                    _sunflowers.GetChild(i).localPosition = new Vector3(half + 0.32f, 0f, -half + 0.4f + i * (n - 0.8f) / 2f);
+            RefreshUpgrades(true);
+        }
+
+        private bool _showChannel, _showSunflowers;
+
+        /// <summary>Bought upgrades show on the land; checked each frame, rebuilt only when the answer changes.</summary>
+        private void RefreshUpgrades(bool force)
+        {
+            var stats = _game.State.Stats;
+            bool channel = stats.IrrigationFactor > 0f;
+            bool sun = stats.SunFactor > 0f;
+            if (_channel != null && (force || channel != _showChannel)) _channel.gameObject.SetActive(channel);
+            if (_sunflowers != null && (force || sun != _showSunflowers)) _sunflowers.gameObject.SetActive(sun);
+            _showChannel = channel;
+            _showSunflowers = sun;
+        }
+
+        /// <summary>Now and then a ring spreads on the pond (the VFX pool rate-limits it like every burst).</summary>
+        private void TickPond()
+        {
+            if (!SettingsStore.MotionAllowed || VfxPlayer.Instance == null || _game.State.Phase != Phase.Year) return;
+            if (Time.time < _rippleAt) return;
+            _rippleAt = Time.time + 1.6f + Random.value * 2.2f;
+            var p = Palette.Load();
+            var offset = new Vector3(Random.Range(-0.35f, 0.35f), 0f, Random.Range(-0.3f, 0.3f));
+            VfxPlayer.Instance.Play(VfxId.SoilRipple, transform.TransformPoint(_pondCentre + offset), 0.7f, Color.Lerp(p.Get(PaletteSlot.Water), p.Get(PaletteSlot.Snow), 0.6f));
         }
 
         private GameObject Place(GameObject prefab, string name, Vector3 pos, float yaw)
@@ -324,6 +423,12 @@ namespace TillWinter.Unity
         private Mesh BlockMesh(int gridSize) => BuildBlock(gridSize, Margin, Thickness, BackDepth);
 
         /// <summary>The island block for a field of <paramref name="gridSize"/> (cached per shape; the title scene uses it too).</summary>
+        /// <summary>The block's three submeshes: grass top, soil band, rock below.</summary>
+        public static Material[] BlockMaterials(VisualCatalog catalog) => new[]
+        {
+            catalog.SlotMaterial(PaletteSlot.Grass), catalog.SlotMaterial(PaletteSlot.SoilBlock), catalog.SlotMaterial(PaletteSlot.Stone),
+        };
+
         public static Mesh BuildBlock(int gridSize, float margin, float thickness, float backDepth)
         {
             var key = (gridSize, margin, thickness, backDepth);
@@ -336,6 +441,7 @@ namespace TillWinter.Unity
             var norms = new List<Vector3>();
             var top = new List<int>();
             var side = new List<int>();
+            var rock = new List<int>();
 
             void Quad(List<int> tris, Vector3 a, Vector3 b, Vector3 c, Vector3 dd)
             {
@@ -359,18 +465,28 @@ namespace TillWinter.Unity
             float bx = e * 0.55f;
             float cz = (b - e) * 0.5f, depth = (b + e) * 0.5f * 0.55f;
             float bzF = cz - depth, bzB = cz + depth;
-            Quad(side, new Vector3(-bx, -d, bzF), new Vector3(-e, -bevel, -e), new Vector3(e, -bevel, -e), new Vector3(bx, -d, bzF)); // front
-            Quad(side, new Vector3(bx, -d, bzB), new Vector3(e, -bevel, b), new Vector3(-e, -bevel, b), new Vector3(-bx, -d, bzB)); // back
-            Quad(side, new Vector3(-bx, -d, bzB), new Vector3(-e, -bevel, b), new Vector3(-e, -bevel, -e), new Vector3(-bx, -d, bzF)); // left
-            Quad(side, new Vector3(bx, -d, bzF), new Vector3(e, -bevel, -e), new Vector3(e, -bevel, b), new Vector3(bx, -d, bzB)); // right
-            Quad(side, new Vector3(-bx, -d, bzB), new Vector3(bx, -d, bzB), new Vector3(bx, -d, bzF), new Vector3(-bx, -d, bzF)); // bottom
+            // Each side is earth over rock: the top 45% soil, the rest stone, so the profile reads as layers.
+            void Layered(Vector3 lowL, Vector3 highL, Vector3 highR, Vector3 lowR)
+            {
+                const float soil = 0.45f;
+                var midL = Vector3.Lerp(highL, lowL, soil);
+                var midR = Vector3.Lerp(highR, lowR, soil);
+                Quad(side, midL, highL, highR, midR);
+                Quad(rock, lowL, midL, midR, lowR);
+            }
+            Layered(new Vector3(-bx, -d, bzF), new Vector3(-e, -bevel, -e), new Vector3(e, -bevel, -e), new Vector3(bx, -d, bzF)); // front
+            Layered(new Vector3(bx, -d, bzB), new Vector3(e, -bevel, b), new Vector3(-e, -bevel, b), new Vector3(-bx, -d, bzB)); // back
+            Layered(new Vector3(-bx, -d, bzB), new Vector3(-e, -bevel, b), new Vector3(-e, -bevel, -e), new Vector3(-bx, -d, bzF)); // left
+            Layered(new Vector3(bx, -d, bzF), new Vector3(e, -bevel, -e), new Vector3(e, -bevel, b), new Vector3(bx, -d, bzB)); // right
+            Quad(rock, new Vector3(-bx, -d, bzB), new Vector3(bx, -d, bzB), new Vector3(bx, -d, bzF), new Vector3(-bx, -d, bzF)); // bottom
 
             var mesh = new Mesh { name = "SoilBlock" + gridSize };
             mesh.SetVertices(verts);
             mesh.SetNormals(norms);
-            mesh.subMeshCount = 2;
+            mesh.subMeshCount = 3;
             mesh.SetTriangles(top, 0);
             mesh.SetTriangles(side, 1);
+            mesh.SetTriangles(rock, 2);
             mesh.RecalculateBounds();
             BlockCache[key] = mesh;
             return mesh;

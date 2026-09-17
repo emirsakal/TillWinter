@@ -189,9 +189,11 @@ namespace TillWinter.Unity
             // costs the standing crop exactly as frost would, so it sits out at the edge of the band rather than
             // anywhere a thumb rests during play.
             var endYear = UiKit.Button(_bottomBand, "EndYear", Strings.Get("ui.end_year"), UiType.Caption,
-                _theme.SheetIdle, _theme.SheetButtonText, () => { _audio.Play(SfxId.UiClick); _game.Sim.EndYearNow(); });
+                _theme.SheetIdle, _theme.SheetButtonText, OpenEndYearConfirm);
             UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f),
                 new Vector2(-24f, _theme.SeasonNameYInBand - 20f), new Vector2(220f, 64f)); // below the bar, not touching its end
+
+            BuildEndYearConfirm(canvas);
 
             _fxLayer = UiKit.Rect("CoinFx", canvas);
             UiKit.Stretch(_fxLayer, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -357,6 +359,44 @@ namespace TillWinter.Unity
 
         /// <summary>Counter punch without coin flight (away card OK).</summary>
         public void Punch() => _counterPunch = 1f;
+
+        private GameObject _endYearConfirm;
+
+        /// <summary>Ending the year early throws away the standing crop, so it asks first (the sim pauses meanwhile).</summary>
+        private void BuildEndYearConfirm(RectTransform canvas)
+        {
+            var overlay = UiKit.Panel(canvas, "EndYearConfirm", _theme.SheetOverlay, false, true);
+            UiKit.Stretch(overlay.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _endYearConfirm = overlay.gameObject;
+            var page = UiKit.Card(overlay.transform, "Page", _theme.SheetPaper);
+            UiKit.Box(page.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 560f));
+            UiKit.SheetDecor(page, 128f);
+            var title = UiKit.Label(page.transform, "Title", Strings.Get("ui.end_year_title"), UiType.Title, _theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(820f, 90f));
+            var body = UiKit.Label(page.transform, "Body", Strings.Get("ui.end_year_body"), UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter);
+            UiKit.Box(body.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -160f), new Vector2(780f, 180f));
+            var no = UiKit.Button(page.transform, "EndYearNo", Strings.Get("ui.cancel"), UiType.Body, _theme.SheetIdle, _theme.SheetButtonText, () => CloseEndYearConfirm(false));
+            UiKit.Box(no.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-200f, 50f), new Vector2(360f, 104f));
+            var yes = UiKit.Button(page.transform, "EndYearYes", Strings.Get("ui.end_year_yes"), UiType.Body, _theme.SheetDanger, _theme.SheetButtonText, () => CloseEndYearConfirm(true));
+            UiKit.Box(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(200f, 50f), new Vector2(360f, 104f));
+            overlay.gameObject.AddComponent<SheetTransition>().Page = page.rectTransform;
+            _endYearConfirm.SetActive(false);
+        }
+
+        private void OpenEndYearConfirm()
+        {
+            if (_game.State.Phase != Phase.Year || _game.Paused) return;
+            _game.SetPaused(true);
+            _endYearConfirm.transform.SetAsLastSibling();
+            _endYearConfirm.SetActive(true);
+        }
+
+        private void CloseEndYearConfirm(bool endYear)
+        {
+            _endYearConfirm.SetActive(false);
+            _game.SetPaused(false);
+            if (endYear) _game.Sim.EndYearNow();
+        }
 
         private void SpawnCoins(Vector3 world, double coins, int count, bool punch, bool rich, bool golden) =>
             SpawnCoinsFrom(WorldToCanvas(world), coins, count, punch, rich, golden);

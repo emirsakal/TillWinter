@@ -10,7 +10,7 @@ using UnityEngine.TextCore.LowLevel;
 namespace TillWinter.EditorTools
 {
     /// <summary>
-    /// One-off UI setup (ui-setup.bat / menu): imports TMP Essential Resources, builds the Nunito SDF
+    /// One-off UI setup (ui-setup.bat / menu): imports TMP Essential Resources, builds the Figtree SDF
     /// font asset (Latin + Turkish) into Assets/Fonts/Resources, and creates the TreeTheme asset.
     /// Safe to re-run: existing assets are kept.
     /// </summary>
@@ -23,6 +23,11 @@ namespace TillWinter.EditorTools
         private const string FontName = "FigtreeSDF";
         private const string FontSource = "Assets/Fonts/Figtree-SemiBold.ttf";
         private const string FontAssetPath = "Assets/Fonts/Resources/" + FontName + ".asset";
+        // Rammetto One: the rounded display face for titles and big numbers (SIL OFL 1.1). It has the Turkish letters
+        // but no ≤ ≥, which no title uses; Figtree is its fallback for anything else.
+        private const string DisplayName = "RammettoSDF";
+        private const string DisplaySource = "Assets/Fonts/RammettoOne-Regular.ttf";
+        private const string DisplayAssetPath = "Assets/Fonts/Resources/" + DisplayName + ".asset";
         private const string ThemePath = "Assets/TillWinter/Unity/Resources/TreeTheme.asset";
         private const string Characters =
             " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" +
@@ -49,6 +54,7 @@ namespace TillWinter.EditorTools
         {
             ImportTmpEssentials();
             CreateFontAsset();
+            CreateDisplayFontAsset();
             CreateTheme();
             CreateExtraAssets();
             WireBootstrap();
@@ -110,6 +116,45 @@ namespace TillWinter.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(FontAssetPath, ImportAssetOptions.ForceUpdate);
             Debug.Log("[UiSetup] font asset created: " + FontAssetPath + " (" + asset.characterTable.Count + " characters)");
+        }
+
+        private static string DisplayCharacters => Characters.Replace("≤", "").Replace("≥", "");
+
+        private static void CreateDisplayFontAsset()
+        {
+            var body = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontAssetPath);
+            var existing = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(DisplayAssetPath);
+            if (existing != null)
+            {
+                if (body != null && !existing.fallbackFontAssetTable.Contains(body))
+                {
+                    existing.fallbackFontAssetTable.Add(body);
+                    EditorUtility.SetDirty(existing);
+                }
+                Debug.Log("[UiSetup] display font asset already present");
+                return;
+            }
+            var font = AssetDatabase.LoadAssetAtPath<Font>(DisplaySource);
+            if (font == null) throw new FileNotFoundException("font not imported: " + DisplaySource);
+            var asset = TMP_FontAsset.CreateFontAsset(font, 72, 8, GlyphRenderMode.SDFAA, 1024, 1024, AtlasPopulationMode.Dynamic, true);
+            if (asset == null) throw new InvalidOperationException("TMP_FontAsset.CreateFontAsset returned null (display)");
+            asset.name = DisplayName;
+            bool ok = asset.TryAddCharacters(DisplayCharacters, out string missing);
+            Debug.Log("[UiSetup] display glyphs added: " + ok + (string.IsNullOrEmpty(missing) ? "" : " missing: " + missing));
+            asset.atlasPopulationMode = AtlasPopulationMode.Static;
+            if (body != null) asset.fallbackFontAssetTable = new System.Collections.Generic.List<TMP_FontAsset> { body };
+            AssetDatabase.CreateAsset(asset, DisplayAssetPath);
+            asset.material.name = DisplayName + " Material";
+            AssetDatabase.AddObjectToAsset(asset.material, asset);
+            for (int i = 0; i < asset.atlasTextures.Length; i++)
+            {
+                asset.atlasTextures[i].name = DisplayName + " Atlas " + i;
+                AssetDatabase.AddObjectToAsset(asset.atlasTextures[i], asset);
+            }
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(DisplayAssetPath, ImportAssetOptions.ForceUpdate);
+            Debug.Log("[UiSetup] display font asset created: " + DisplayAssetPath + " (" + asset.characterTable.Count + " characters)");
         }
 
         private const string MenuScenePath = "Assets/TillWinter/Scenes/Menu.unity";

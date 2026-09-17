@@ -78,8 +78,8 @@ namespace TillWinter.Tests.Unity
         [Test]
         public void FontAsset_HasTurkishGlyphs()
         {
-            var font = Resources.Load<TMPro.TMP_FontAsset>("NunitoSDF");
-            Assert.IsNotNull(font, "NunitoSDF in Assets/Fonts/Resources");
+            var font = UiKit.Font;
+            Assert.IsNotNull(font, "FigtreeSDF in Assets/Fonts/Resources");
             foreach (char c in "ÇçĞğİıÖöŞşÜü")
                 Assert.IsTrue(font.HasCharacter(c), "missing glyph " + c);
         }

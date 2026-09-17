@@ -48,6 +48,11 @@ namespace TillWinter.Unity
         [Header("Winter page")]
         public Color Snowfall = new Color(0.95f, 0.96f, 1f, 0.14f);
         public Color Lamp = new Color(0.91f, 0.66f, 0.24f, 0.14f);
+        public Color Stars = new Color(1f, 0.96f, 0.85f, 0.55f);
+        /// <summary>Frost on the window: strong as Winter opens, then a thin frame that stays.</summary>
+        public Color Frost = new Color(0.86f, 0.93f, 1f, 0.5f);
+        /// <summary>The Heritage page's aged-paper tint (over the grain).</summary>
+        public Color Aged = new Color(0.95f, 0.78f, 0.25f, 0.025f);
         public float PulseAmplitude = 0.05f;
         public float ZoomMin = 0.3f; // low enough that the opening view holds the whole Almanac canopy
         public float ZoomMax = 1.6f;

@@ -182,4 +182,117 @@ namespace TillWinter.Unity
             if (_hopT >= 1f) _hopT = -1f;
         }
     }
+
+    /// <summary>The farm flag: the cloth swings and ripples on its pole. Still under Reduce motion.</summary>
+    public sealed class FlagView : MonoBehaviour
+    {
+        private Transform _cloth;
+        private float _phase;
+
+        private void Awake()
+        {
+            _cloth = transform.Find("Cloth");
+            _phase = Random.value * 10f;
+        }
+
+        private void LateUpdate()
+        {
+            if (_cloth == null) return;
+            if (!SettingsStore.MotionAllowed) { _cloth.localRotation = Quaternion.Euler(0f, 20f, 0f); _cloth.localScale = Vector3.one; return; }
+            float t = Time.time + _phase;
+            float gust = 0.6f + 0.4f * Mathf.Sin(t * 0.35f);
+            _cloth.localRotation = Quaternion.Euler(0f, 20f + Mathf.Sin(t * 2.1f) * 18f * gust, Mathf.Sin(t * 3.3f) * 4f);
+            _cloth.localScale = new Vector3(1f, 1f + Mathf.Sin(t * 5f) * 0.05f, 1f);
+        }
+    }
+
+    /// <summary>A hen behind the fence: walks a few steps, stops, pecks; hidden outside the Year.</summary>
+    public sealed class ChickenView : MonoBehaviour
+    {
+        private Transform _head, _body;
+        private GameController _game;
+        private Vector3 _target;
+        private float _minX, _maxX, _minZ, _maxZ;
+        private float _wait, _peck, _facing, _step, _visible = 1f;
+        private int _seed;
+
+        private void Awake()
+        {
+            _body = transform.Find("Body");
+            _head = _body != null ? _body.Find("Head") : null;
+            _game = FindFirstObjectByType<GameController>();
+        }
+
+        public void SetArea(Vector3 start, float minX, float maxX, float minZ, float maxZ, int seed)
+        {
+            _minX = minX; _maxX = maxX; _minZ = minZ; _maxZ = maxZ;
+            _seed = seed;
+            transform.localPosition = start;
+            _target = start;
+            _wait = 1f + seed;
+        }
+
+        private void LateUpdate()
+        {
+            float dt = Time.deltaTime;
+            bool show = _game == null || _game.State == null || _game.State.Phase == TillWinter.Core.Phase.Year;
+            _visible = Prims.Damp(_visible, show ? 1f : 0f, 4f, dt);
+            transform.localScale = Vector3.one * Mathf.Max(0.0001f, _visible);
+            if (!SettingsStore.MotionAllowed) return;
+            var pos = transform.localPosition;
+            var to = _target - pos;
+            to.y = 0f;
+            if (to.magnitude > 0.03f)
+            {
+                pos += to.normalized * Mathf.Min(to.magnitude, 0.45f * dt);
+                transform.localPosition = pos;
+                _facing = Mathf.LerpAngle(_facing, Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg, 1f - Mathf.Exp(-dt * 8f));
+                _step += dt * 14f;
+                _peck = 0f;
+            }
+            else
+            {
+                _wait -= dt;
+                _peck += dt;
+                if (_wait <= 0f)
+                {
+                    _wait = 2f + Random.value * 3f;
+                    _target = new Vector3(Random.Range(_minX, _maxX), 0f, Random.Range(_minZ, _maxZ));
+                }
+            }
+            transform.localRotation = Quaternion.Euler(0f, _facing, 0f);
+            if (_body != null) _body.localPosition = new Vector3(0f, Mathf.Abs(Mathf.Sin(_step)) * 0.02f, 0f);
+            if (_head != null)
+            {
+                float dip = _peck > 0f ? Mathf.Max(0f, Mathf.Sin(_peck * 7f + _seed)) : 0f;
+                _head.localRotation = Quaternion.Euler(dip * 55f, 0f, 0f);
+            }
+        }
+    }
+
+    /// <summary>The cat sleeps in the grass: it breathes and its tail swishes now and then.</summary>
+    public sealed class CatView : MonoBehaviour
+    {
+        private Transform _tail;
+        private Vector3 _baseScale;
+
+        private void Awake()
+        {
+            _tail = transform.Find("Tail");
+            _baseScale = transform.localScale;
+        }
+
+        private void LateUpdate()
+        {
+            float t = Time.time;
+            bool moving = SettingsStore.MotionAllowed;
+            float breathe = moving ? 1f + Mathf.Sin(t * 1.6f) * 0.03f : 1f;
+            transform.localScale = new Vector3(_baseScale.x, _baseScale.y * breathe, _baseScale.z);
+            if (_tail != null)
+            {
+                float swish = moving ? Mathf.Sin(t * 3f) * Mathf.Max(0f, Mathf.Sin(t * 0.4f)) * 35f : 0f;
+                _tail.localRotation = Quaternion.Euler(0f, swish, 0f);
+            }
+        }
+    }
 }

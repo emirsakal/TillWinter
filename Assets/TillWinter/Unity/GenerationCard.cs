@@ -51,8 +51,18 @@ namespace TillWinter.Unity
             _seeds.enableWordWrapping = false;
             _tap = UiKit.Label(bg.transform, "Tap", Strings.Get("gen.tap_to_continue"), UiType.Label, theme.InkMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_tap.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(600f, 40f));
+            // Cinematic bars slide in: passing on the farm is the biggest moment in the game.
+            var barColor = new Color(theme.PaperVignette.r, theme.PaperVignette.g, theme.PaperVignette.b, 1f);
+            _barTop = UiKit.Panel(bg.transform, "BarTop", barColor, false, false).rectTransform;
+            UiKit.Stretch(_barTop, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -BarHeight), Vector2.zero);
+            _barBottom = UiKit.Panel(bg.transform, "BarBottom", barColor, false, false).rectTransform;
+            UiKit.Stretch(_barBottom, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, BarHeight));
+            _tap.transform.SetAsLastSibling();
             _panel.SetActive(false);
         }
+
+        private const float BarHeight = 150f;
+        private RectTransform _barTop, _barBottom;
 
         public void Show(RetireEvent e, Action onDone)
         {
@@ -96,6 +106,9 @@ namespace TillWinter.Unity
             if (shown != _shownSeeds) { _shownSeeds = shown; _seeds.text = Strings.Format("gen.seeds", ("seeds", shown)); }
             if (count < 1f && _t - _lastTick > 0.08f) { _lastTick = _t; _audio.Play(SfxId.CoinArrive, 0.6f); }
             _tap.alpha = _t > 0.5f ? 0.5f + 0.5f * Mathf.Abs(Mathf.Sin(_t * 2f)) : 0f;
+            float bars = UiMotion.EaseOut(Mathf.Clamp01(_t / 0.6f));
+            _barTop.anchoredPosition = new Vector2(0f, BarHeight * (1f - bars));
+            _barBottom.anchoredPosition = new Vector2(0f, -BarHeight * (1f - bars));
             _seal.localScale = Vector3.one * Mathf.Lerp(0.85f, 1f, Prims.EaseOutQuad(Mathf.Clamp01(_t / 0.6f)));
             _seal.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-6f, 0f, Prims.EaseOutQuad(Mathf.Clamp01(_t / 0.8f))));
             if (_t > 6f) Finish();

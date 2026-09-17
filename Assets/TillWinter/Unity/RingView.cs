@@ -21,6 +21,8 @@ namespace TillWinter.Unity
         private Vector3[] _dotUnit;
         private float _dotRadius = -1f;
         private float _spin;
+        private PaletteBinder _dotsBinder;
+        private Color _dotColor = Color.white;
 
         public void Init(GameController game, VisualCatalog catalog)
         {
@@ -57,6 +59,7 @@ namespace TillWinter.Unity
             if (catalog.RingDots != null)
             {
                 _dots = catalog.Spawn(catalog.RingDots, transform, "RingDots").transform;
+                _dotsBinder = _dots.GetComponent<PaletteBinder>();
                 _dotItems = new Transform[_dots.childCount];
                 _dotUnit = new Vector3[_dotItems.Length];
                 for (int i = 0; i < _dotItems.Length; i++)
@@ -92,6 +95,23 @@ namespace TillWinter.Unity
             if (_dots != null)
             {
                 if (!_dots.gameObject.activeSelf) _dots.gameObject.SetActive(true);
+                // Water blue while the ring waters, sunny while it grows, the crop's colour when it harvests.
+                if (_dotsBinder != null && ring.HasValue)
+                {
+                    var palette = Palette.Load();
+                    var state = _game.State;
+                    var gp = new TillWinter.Core.GridPos(Mathf.RoundToInt(ring.Value.X), Mathf.RoundToInt(ring.Value.Y));
+                    var want = palette.Get(PaletteSlot.Cloud);
+                    if (state.InBounds(gp))
+                    {
+                        var plot = state.GetPlot(gp);
+                        want = plot.State == TillWinter.Core.PlotState.Dry ? palette.Get(PaletteSlot.Water)
+                            : plot.State == TillWinter.Core.PlotState.Wet ? palette.Get(PaletteSlot.Crop5)
+                            : palette.Crop(plot.Tier);
+                    }
+                    _dotColor = Prims.Damp(_dotColor, want, 10f, dt);
+                    _dotsBinder.Override(PaletteSlot.Cloud, _dotColor);
+                }
                 _spin += dt * (40f + 60f * combo);
                 _dots.SetPositionAndRotation(_pos + Vector3.up * 0.3f, Quaternion.Euler(0f, _spin, 0f));
                 // The beads sit just inside the soft edge; they shrink in with the ring as it fades.

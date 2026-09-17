@@ -70,6 +70,7 @@ namespace TillWinter.EditorTools
             new Step(null, 1f, null, () => Game != null), // wait for the farm itself, not a fixed guess
             new Step(null, 1.6f, EnsureYear),
             new Step("07-hud", 1f, null),
+            new Step(null, 0.2f, ProbeField),
             new Step("08-debug-panel", 0.4f, () => Click("DebugToggle")),
             new Step(null, 0.3f, () => Click("DebugToggle")),
 
@@ -84,7 +85,8 @@ namespace TillWinter.EditorTools
             new Step(null, 0.5f, () => Click("pause.resume", "PauseSheet")),
 
             // Winter, reached through the new End year button.
-            new Step("15-winter", 1.8f, () => Click("EndYear")),
+            new Step("14b-end-year-confirm", 0.7f, () => Click("EndYear")),
+            new Step("15-winter", 1.8f, () => Click("EndYearYes", "EndYearConfirm")),
             new Step("16-node-sheet", 0.7f, () => Click("Ring", "Node ring_radius")),
             new Step("17-retire-ready", 0.8f, GrantRetire),
             new Step("18-retire-confirm", 0.6f, () => Click("Retire")),
@@ -94,12 +96,17 @@ namespace TillWinter.EditorTools
 
             // Back to a year, then the away card.
             new Step("20-next-year", 1.8f, () => Click("NextYear")),
+            new Step(null, 0.6f, ProbeField), // the ring must still reach the field after Next Year
             new Step(null, 0.2f, GrantHelpers),
             new Step(null, 0.4f, () => Click("DebugToggle")),
             new Step(null, 0.3f, () => Click("Offline 1 h")),
             new Step("21-away-card", 0.9f, () => Click("DebugToggle")),
             new Step(null, 0.5f, () => Click("Ok", "AwayCard", optional: true)),
             new Step("22-hud-end", 0.6f, null),
+
+            // Weather and light the rest of the tour never meets: a rainbow after the rain cloud, then autumn at dusk.
+            new Step("23-rainbow", 2.4f, () => { var g = Game; if (g != null && g.Sim.DebugSpawnCloud()) g.Sim.TapCloud(); }),
+            new Step("24-autumn-dusk", 3.2f, () => Game?.Sim.DebugSetSeason(Season.Autumn)),
         };
 
         static UiTour()
@@ -308,6 +315,35 @@ namespace TillWinter.EditorTools
             game.Sim.DebugSetLevel("irrigation", 3);
             game.Sim.DebugSetLevel("sun", 3);
         }
+
+        /// <summary>
+        /// Logs any UI under a few points on the field. PointerInput drops presses that start over UI, so a stray
+        /// raycast target there silently kills the ring; the report flags it as a failure.
+        /// </summary>
+        private static void ProbeField()
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            var game = Game;
+            if (es == null || game == null) { Log("Probe: no event system or game"); return; }
+            var hits = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+            int blocked = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                var screen = (Vector2)game.Cam.WorldToScreenPoint(game.PlotToWorld(i, i, 0.2f));
+                var data = new UnityEngine.EventSystems.PointerEventData(es) { position = screen };
+                hits.Clear();
+                es.RaycastAll(data, hits);
+                foreach (var h in hits)
+                {
+                    blocked++;
+                    Log("FAIL UI over the field at plot " + i + ": " + NodePath(h.gameObject.transform));
+                    SessionState.SetInt(ErrorsKey, SessionState.GetInt(ErrorsKey, 0) + 1);
+                }
+            }
+            if (blocked == 0) Log("Probe: field clear of UI (phase " + game.State.Phase + ", input " + (game.InputBlocked ? "blocked" : "open") + ", paused " + game.Paused + ")");
+        }
+
+        private static string NodePath(Transform t) => t.parent == null ? t.name : NodePath(t.parent) + "/" + t.name;
 
         private static void Shot(string name)
         {

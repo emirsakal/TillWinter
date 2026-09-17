@@ -47,6 +47,10 @@ namespace TillWinter.Unity
         private bool _placed;
         private float _idle;
         private float _spawn;
+        private Transform _bubble;
+        private PaletteBinder _bubbleBinder;
+        private float _bubbleShow;
+        private int _bubbleTier = -1;
 
         public ApprenticeView Setup(VisualCatalog catalog = null)
         {
@@ -54,7 +58,9 @@ namespace TillWinter.Unity
             _body = new GameObject("Body").transform;
             _body.SetParent(transform, false);
             var children = new List<Transform>();
-            foreach (Transform c in transform) if (c != _body) children.Add(c);
+            foreach (Transform c in transform) if (c != _body && c.name != "Bubble") children.Add(c);
+            _bubble = transform.Find("Bubble");
+            _bubbleBinder = _bubble != null ? _bubble.GetComponent<PaletteBinder>() : null;
             foreach (var c in children) c.SetParent(_body, false);
             // The contact shadow stays on the root, so it does not bob with the body.
             var shadow = catalog != null ? catalog.Spawn(catalog.BlobShadow, transform, "Shadow") : null;
@@ -108,6 +114,27 @@ namespace TillWinter.Unity
             float breathe = idle ? 1f + 0.02f * Mathf.Sin(_idle * 2.4f) : 1f;
             float look = idle ? Mathf.Sin(_idle * 0.6f) * Mathf.Clamp01(_idle - 0.5f) * 30f : 0f;
             _body.localPosition = new Vector3(0f, bobY + lift, 0f);
+            // Thought bubble: which crop is being picked, in its colour.
+            if (_bubble != null)
+            {
+                _bubbleShow = Prims.Damp(_bubbleShow, a.IsHarvesting ? 1f : 0f, 12f, dt);
+                bool show = _bubbleShow > 0.02f;
+                if (_bubble.gameObject.activeSelf != show) _bubble.gameObject.SetActive(show);
+                if (show)
+                {
+                    var gp = new TillWinter.Core.GridPos(Mathf.RoundToInt(a.X), Mathf.RoundToInt(a.Y));
+                    int tier = game.State.InBounds(gp) ? game.State.GetPlot(gp).Tier : 0;
+                    if (tier != _bubbleTier && _bubbleBinder != null)
+                    {
+                        _bubbleTier = tier;
+                        _bubbleBinder.Override(PaletteSlot.Golden, Palette.Load().Crop(tier));
+                    }
+                    float bob = SettingsStore.MotionAllowed ? Mathf.Sin(Time.time * 4f) * 0.02f : 0f;
+                    _bubble.localPosition = new Vector3(0.12f, 0.8f + bob, 0f);
+                    _bubble.localScale = Vector3.one * Prims.EaseOutBack(_bubbleShow);
+                    if (game.Cam != null) _bubble.rotation = Quaternion.LookRotation(game.Cam.transform.forward, Vector3.up);
+                }
+            }
             float grow = _spawn >= 1f ? 1f : Mathf.Max(0.001f, Prims.EaseOutBack(_spawn));
             _body.localScale = new Vector3(1f / Mathf.Sqrt(squash), squash * breathe, 1f / Mathf.Sqrt(squash)) * grow;
             _body.localRotation = Quaternion.Euler(walking ? Mathf.Sin(_bob) * 4f : pick * 28f, _facing + look, 0f);
