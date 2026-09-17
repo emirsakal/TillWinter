@@ -32,6 +32,8 @@ namespace TillWinter.Core
             { "ring_harvest_speed", "next" },
             { "ring_bonus_coins", "star" },
             { "ring_combo", "leaderboardsSimple" },
+            { "ring_shape", "zoom" },
+            { "tap_harvest", "export" },
             { "irrigation", "import" },
             { "sun", "contrast" },
             { "soil_quality", "barsVertical" },
@@ -71,6 +73,8 @@ namespace TillWinter.Core
             N("ring_harvest_speed", Branch.Hand, new[] { "ring_water_speed", "ring_grow_speed" }, 3, 200, EffectType.RingHarvestSpeed, 0.2),
             N("ring_bonus_coins", Branch.Hand, new[] { "ring_harvest_speed" }, 4, 400, EffectType.RingBonusCoins, 0.1),
             N("ring_combo", Branch.Hand, new[] { "ring_bonus_coins" }, 3, 800, EffectType.RingCombo, 0.05),
+            N("ring_shape", Branch.Hand, new[] { "ring_radius" }, 2, 350, EffectType.RingShape, 1),
+            N("tap_harvest", Branch.Hand, new[] { "ring_harvest_speed" }, 2, 450, EffectType.TapHarvest, 1),
 
             // Soil
             N("irrigation", Branch.Soil, None, 5, 40, EffectType.Irrigation, 0.15),

@@ -106,6 +106,8 @@ namespace TillWinter.Core
         Greenhouse,
         CrowBounty,
         SpringHeadStart,
+        RingShape,
+        TapHarvest,
 
         // Heritage (GDD §7): base modifiers applied before Almanac effects
         HeritageStartRadius,
@@ -124,6 +126,17 @@ namespace TillWinter.Core
         HeritageStartYearLength,
         GreenhouseX2,
         AlmanacDiscount,
+    }
+
+    /// <summary>
+    /// The ring's footprint (GDD §2.1 v1.6). Round is the classic ring; the others are unlocked by `ring_shape`
+    /// and chosen by the player: a wide rake for watering rows, a cross for reaching four ways at once.
+    /// </summary>
+    public enum RingShape
+    {
+        Round,
+        Rake,
+        Cross,
     }
 
     public enum HarvestSource

@@ -13,6 +13,8 @@ namespace TillWinter.Core
         public bool HasCrow { get; internal set; }
         /// <summary>Golden crop: same timings, 10x value (GDD §5.3).</summary>
         public bool IsGolden { get; internal set; }
+        /// <summary>Seconds this plot has stood Ripe; past the grace the crop is worth less (GDD §2.5 v1.6).</summary>
+        public float RipeAge { get; internal set; }
 
         internal Plot(GridPos pos, int tier)
         {
@@ -27,6 +29,7 @@ namespace TillWinter.Core
             State = PlotState.Dry;
             Progress = 0f;
             IsGolden = false;
+            RipeAge = 0f;
         }
     }
 
@@ -166,6 +169,12 @@ namespace TillWinter.Core
         public bool InBounds(GridPos pos) => pos.X >= 0 && pos.Y >= 0 && pos.X < GridSize && pos.Y < GridSize;
 
         public RingInput? Ring { get; internal set; }
+        /// <summary>The ring's footprint; Rake and Cross need `ring_shape` (GDD §2.1 v1.6).</summary>
+        public RingShape RingShape { get; internal set; } = RingShape.Round;
+        /// <summary>0..1: how much the ring is "flowing" (moving), which speeds it up.</summary>
+        public float Flow { get; internal set; }
+        /// <summary>Seconds until the next tap harvest is allowed (`tap_harvest`).</summary>
+        public float TapCooldown { get; internal set; }
         /// <summary>Effective radius (debug override or <see cref="Stats"/>).</summary>
         public float RingRadius { get; internal set; }
 
@@ -197,14 +206,33 @@ namespace TillWinter.Core
         /// <summary>Derived numbers; recomputed after every purchase.</summary>
         public Stats Stats { get; internal set; } = new Stats();
 
-        /// <summary>Is the centre of this plot inside the ring right now?</summary>
+        /// <summary>Shape metrics, set from <see cref="FarmConfig"/> when the sim is built.</summary>
+        internal float RakeLength = 1.7f, RakeWidth = 0.5f, CrossLength = 1.5f, CrossWidth = 0.42f;
+
+        /// <summary>Is the centre of this plot inside the ring right now (whatever shape it has)?</summary>
         public bool IsUnderRing(GridPos pos)
         {
             if (Ring == null) return false;
             var r = Ring.Value;
             float dx = pos.X - r.X;
             float dy = pos.Y - r.Y;
-            return dx * dx + dy * dy <= RingRadius * RingRadius;
+            float radius = RingRadius;
+            switch (RingShape)
+            {
+                case RingShape.Rake:
+                    return Inside(dx, dy, radius * RakeLength, radius * RakeWidth);
+                case RingShape.Cross:
+                    return Inside(dx, dy, radius * CrossLength, radius * CrossWidth)
+                        || Inside(dx, dy, radius * CrossWidth, radius * CrossLength);
+                default:
+                    return dx * dx + dy * dy <= radius * radius;
+            }
+        }
+
+        private static bool Inside(float dx, float dy, float halfX, float halfY)
+        {
+            float nx = dx / halfX, ny = dy / halfY;
+            return nx * nx + ny * ny <= 1f;
         }
     }
 }

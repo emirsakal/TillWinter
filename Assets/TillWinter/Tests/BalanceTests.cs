@@ -70,7 +70,8 @@ namespace TillWinter.Tests
         public void RingShare_FallsFromYear1_ToFirstRetire_ToGeneration4()
         {
             Assert.That(Avg(r => r.RingShareYear1), Is.GreaterThanOrEqualTo(0.70));
-            Assert.That(Avg(r => r.RingShareAtFirstRetire), Is.InRange(0.40, 0.57));
+            // M.1 (v1.6) deliberately keeps the ring in the loop: over-ripening and the flow bonus lift this a little.
+            Assert.That(Avg(r => r.RingShareAtFirstRetire), Is.InRange(0.40, 0.62));
             Assert.That(Avg(r => r.RingShareGen4), Is.LessThanOrEqualTo(0.32));
         }
 

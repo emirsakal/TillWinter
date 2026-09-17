@@ -37,6 +37,8 @@ namespace TillWinter.Core
         public event Action RainCloudLeft;
         public event Action<int> TractorSweepStarted;
         public event Action<Hint> HintShown;
+        /// <summary>A combo reached one of <see cref="FarmConfig.ComboMilestones"/>: the length and the bonus paid.</summary>
+        public event Action<int, double> ComboMilestone;
         /// <summary>The Golden Year began (every Heritage node maxed, first time).</summary>
         public event Action GoldenYearStarted;
         /// <summary>The Golden Year's last day passed: fired before WinterStarted so the ending (credits, stats) can go first.</summary>
@@ -61,6 +63,10 @@ namespace TillWinter.Core
             if (errors.Count > 0) throw new InvalidOperationException("Skill tree table invalid: " + string.Join("; ", errors));
 
             State = new FarmState();
+            State.RakeLength = Config.RakeLength;
+            State.RakeWidth = Config.RakeWidth;
+            State.CrossLength = Config.CrossLength;
+            State.CrossWidth = Config.CrossWidth;
             _rng = new Rng(seed);
             Almanac = new SkillTree(TreeKind.Almanac, almanacNodes)
             {
@@ -102,6 +108,8 @@ namespace TillWinter.Core
             AdvanceYear(dt);
             if (State.Phase != Phase.Year) return;
 
+            UpdateFlow(dt);
+            if (State.TapCooldown > 0f) State.TapCooldown = Math.Max(0f, State.TapCooldown - dt);
             UpdateCombo(dt);
             UpdatePlots(dt);
             UpdateApprentices(dt);
@@ -115,8 +123,30 @@ namespace TillWinter.Core
         {
             if (State.Phase != Phase.Year || !State.InBounds(pos)) return false;
             var plot = State.GetPlot(pos);
-            if (!plot.HasCrow) return false;
-            ScareWithBounty(plot);
+            if (plot.HasCrow)
+            {
+                ScareWithBounty(plot);
+                return true;
+            }
+            // GDD §2.1 (v1.6): with `tap_harvest`, a tap finishes one Ripe plot outright, on a cooldown.
+            int level = State.Stats.TapHarvestLevel;
+            if (level <= 0 || !plot.IsRipe || State.TapCooldown > 0f) return false;
+            State.TapCooldown = Index(Config.TapHarvestCooldownByLevel, level);
+            Harvest(plot, HarvestSource.Ring, -1);
+            return true;
+        }
+
+        private static float Index(float[] table, int level) =>
+            table == null || table.Length == 0 ? 0f : table[Math.Max(0, Math.Min(table.Length - 1, level))];
+
+        /// <summary>Picks the ring's footprint; Rake needs `ring_shape` 1 and Cross level 2. Returns true when it changed.</summary>
+        public bool SetRingShape(RingShape shape)
+        {
+            int level = State.Stats.RingShapeLevel;
+            if (shape == RingShape.Rake && level < 1) return false;
+            if (shape == RingShape.Cross && level < 2) return false;
+            if (State.RingShape == shape) return false;
+            State.RingShape = shape;
             return true;
         }
 
@@ -364,6 +394,7 @@ namespace TillWinter.Core
                 TractorTimeToNextSweep = s.Tractor.TimeToNextSweep,
                 TractorPassed = s.Tractor.Passed,
                 Combo = s.Combo,
+                RingShape = (int)s.RingShape,
                 ComboTimer = s.ComboTimer,
                 GreenhouseSecondsLeft = s.Greenhouse.SecondsLeftThisWinter,
                 GreenhouseCoinsThisWinter = s.Greenhouse.CoinsThisWinter,
@@ -388,7 +419,7 @@ namespace TillWinter.Core
                 var p = s.PlotArray[i];
                 float crowTimer = 0f;
                 foreach (var c in s.CrowList) if (c.Pos == p.Pos) crowTimer = c.Timer;
-                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.Tier, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden };
+                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.Tier, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge };
             }
             for (int i = 0; i < s.ApprenticeList.Count; i++)
                 d.Apprentices[i] = new ApprenticeSave { X = s.ApprenticeList[i].X, Y = s.ApprenticeList[i].Y };
@@ -449,6 +480,7 @@ namespace TillWinter.Core
                 plot.State = (PlotState)ps.State;
                 plot.Progress = ps.Progress;
                 plot.IsGolden = ps.Golden;
+                plot.RipeAge = ps.RipeAge;
                 if (ps.HasCrow)
                 {
                     plot.HasCrow = true;
@@ -473,6 +505,7 @@ namespace TillWinter.Core
             s.Tractor.TimeToNextSweep = data.TractorTimeToNextSweep;
             s.Tractor.Passed = data.TractorPassed;
             s.Combo = data.Combo;
+            s.RingShape = (RingShape)Math.Max(0, Math.Min(2, data.RingShape));
             s.ComboTimer = data.ComboTimer;
             s.Greenhouse.SecondsLeftThisWinter = data.GreenhouseSecondsLeft;
             s.Greenhouse.CoinsThisWinter = data.GreenhouseCoinsThisWinter;
@@ -615,6 +648,9 @@ namespace TillWinter.Core
         /// <summary>The next replanted crop is golden regardless of chance.</summary>
         public void DebugNextHarvestGolden() => _forceGoldenNext = true;
 
+        /// <summary>Clears the tap-harvest cooldown. Smoke/test hook.</summary>
+        public void DebugClearTapCooldown() => State.TapCooldown = 0f;
+
         /// <summary>Starts a tractor sweep now if the tractor is owned and a row has Ripe plots.</summary>
         public bool DebugForceTractorSweep()
         {
@@ -747,7 +783,7 @@ namespace TillWinter.Core
                 {
                     case PlotState.Dry:
                     {
-                        float speed = under ? st.RingWaterMult : st.IrrigationFactor;
+                        float speed = under ? st.RingWaterMult * FlowMult : st.IrrigationFactor;
                         if (speed <= 0f) break;
                         plot.Progress += speed / crop.Water * dt;
                         if (plot.Progress >= 1f)
@@ -760,7 +796,7 @@ namespace TillWinter.Core
                     }
                     case PlotState.Wet:
                     {
-                        float speed = (under ? st.RingGrowMult : st.SunFactor) * st.SoilMultiplier;
+                        float speed = (under ? st.RingGrowMult * FlowMult : st.SunFactor) * st.SoilMultiplier;
                         if (speed <= 0f) break;
                         plot.Progress += speed / crop.Grow * dt;
                         if (plot.Progress >= 1f)
@@ -773,8 +809,10 @@ namespace TillWinter.Core
                     }
                     case PlotState.Ripe:
                     {
+                        // GDD §2.5 (v1.6): a crop left standing slowly loses value, so the ring has to prioritise.
+                        if (!_offline) plot.RipeAge += dt;
                         if (plot != ringHarvest) break; // GDD §2.1 (v1.4): the ring harvests one plot at a time
-                        plot.Progress += st.RingHarvestMult / crop.Harvest * dt;
+                        plot.Progress += st.RingHarvestMult * FlowMult / crop.Harvest * dt;
                         if (plot.Progress >= 1f)
                             Harvest(plot, HarvestSource.Ring, -1);
                         break;
@@ -808,16 +846,27 @@ namespace TillWinter.Core
             return best;
         }
 
+        /// <summary>1 while the crop is fresh, falling to <see cref="FarmConfig.OverripeMinValue"/> once it has stood too long.</summary>
+        public double Freshness(Plot plot)
+        {
+            if (plot == null || !plot.IsRipe) return 1;
+            float over = plot.RipeAge - Config.RipeGraceSeconds;
+            if (over <= 0f || Config.OverripeDecaySeconds <= 0f) return 1;
+            double t = Math.Min(1.0, over / Config.OverripeDecaySeconds);
+            return 1 - t * (1 - Config.OverripeMinValue);
+        }
+
         private void Harvest(Plot plot, HarvestSource source, int apprenticeIndex)
         {
             var st = State.Stats;
             bool golden = plot.IsGolden;
-            double coins = Crop(plot).Value * st.CropValueMult * (golden ? Config.GoldenValueMultiplier : 1);
+            double coins = Crop(plot).Value * st.CropValueMult * (golden ? Config.GoldenValueMultiplier : 1) * Freshness(plot);
             switch (source)
             {
                 case HarvestSource.Ring:
                     RegisterComboHit();
                     coins *= st.RingBonusMult * (1 + st.RingComboLevel * 0.01 * Math.Min(State.Combo, Config.ComboMaxStacks));
+                    coins += ComboMilestoneBonus(plot);
                     break;
                 case HarvestSource.Apprentice:
                     coins *= st.ApprenticeYield;
@@ -868,6 +917,54 @@ namespace TillWinter.Core
                 plot.IsGolden = true;
             }
         }
+
+        /// <summary>A combo that reaches a milestone pays a lump sum in crop values (GDD §2.5 v1.6).</summary>
+        private double ComboMilestoneBonus(Plot plot)
+        {
+            var milestones = Config.ComboMilestones;
+            if (milestones == null) return 0;
+            for (int i = 0; i < milestones.Length; i++)
+            {
+                if (State.Combo != milestones[i]) continue;
+                double bonus = Crop(plot).Value * State.Stats.CropValueMult * Index(Config.ComboMilestoneBonus, i);
+                ComboMilestone?.Invoke(State.Combo, bonus);
+                return bonus;
+            }
+            return 0;
+        }
+
+        private static double Index(double[] table, int i) =>
+            table == null || table.Length == 0 ? 0 : table[Math.Max(0, Math.Min(table.Length - 1, i))];
+
+        /// <summary>A ring that keeps moving works a little faster; standing still it settles back (GDD §2.1 v1.6).</summary>
+        private void UpdateFlow(float dt)
+        {
+            var ring = State.Ring;
+            if (ring == null || dt <= 0f)
+            {
+                _hasLastRing = false;
+                State.Flow = Math.Max(0f, State.Flow - dt * 2f);
+                return;
+            }
+            float speed = 0f;
+            if (_hasLastRing)
+            {
+                float dx = ring.Value.X - _lastRingX, dy = ring.Value.Y - _lastRingY;
+                speed = (float)Math.Sqrt(dx * dx + dy * dy) / dt;
+            }
+            _lastRingX = ring.Value.X;
+            _lastRingY = ring.Value.Y;
+            _hasLastRing = true;
+            float target = Config.FlowSpeedThreshold <= 0f || speed >= Config.FlowSpeedThreshold ? 1f : 0f;
+            float rate = target > State.Flow ? 4f : 1.5f;
+            State.Flow += (target - State.Flow) * Math.Min(1f, rate * dt);
+        }
+
+        /// <summary>Ring rates including the flow bonus.</summary>
+        private float FlowMult => 1f + Config.FlowBonus * State.Flow;
+
+        private float _lastRingX, _lastRingY;
+        private bool _hasLastRing;
 
         private void RegisterComboHit()
         {
@@ -1189,6 +1286,7 @@ namespace TillWinter.Core
                     plot.Reset();
                     plot.HasCrow = false;
                     crows.RemoveAt(i);
+                    State.Combo = 0; // a crop lost to a crow breaks the streak
                     CrowAte?.Invoke(new CrowEvent(crow.Pos));
                 }
             }

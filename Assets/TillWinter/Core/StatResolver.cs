@@ -24,6 +24,10 @@ namespace TillWinter.Core
 
         /// <summary>Highest crop tier plots may be upgraded to.</summary>
         public int MaxTierUnlocked;
+        /// <summary>`ring_shape` level: 1 unlocks the rake, 2 the cross.</summary>
+        public int RingShapeLevel;
+        /// <summary>`tap_harvest` level: a tap finishes one Ripe plot, on a cooldown.</summary>
+        public int TapHarvestLevel;
         /// <summary>Field size the Heritage tree starts a generation at (before Almanac expansions).</summary>
         public int StartGridSize;
         public int TargetGridSize;
@@ -127,6 +131,8 @@ namespace TillWinter.Core
                     case EffectType.SpringHeadStart: s.SpringHeadStart = true; break;
                     case EffectType.LateFrost: s.LateFrost = true; break;
                     case EffectType.HelperWater: s.HelperWater = true; break;
+                    case EffectType.RingShape: s.RingShapeLevel = level; break;
+                    case EffectType.TapHarvest: s.TapHarvestLevel = level; break;
                     case EffectType.UpgradePlot: break; // applied at purchase time, not a stat
                 }
             }

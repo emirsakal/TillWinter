@@ -526,7 +526,8 @@ namespace TillWinter.Tests
         {
             // Almanac: "stat" = changes a Stats field at level 1; "purchase" = FarmSim.ApplyPurchase side effect
             ["ring_radius"] = "stat", ["ring_water_speed"] = "stat", ["ring_grow_speed"] = "stat", ["ring_harvest_speed"] = "stat",
-            ["ring_bonus_coins"] = "stat", ["ring_combo"] = "stat", ["irrigation"] = "stat", ["sun"] = "stat", ["soil_quality"] = "stat",
+            ["ring_bonus_coins"] = "stat", ["ring_combo"] = "stat", ["ring_shape"] = "stat", ["tap_harvest"] = "stat",
+            ["irrigation"] = "stat", ["sun"] = "stat", ["soil_quality"] = "stat",
             ["crop_value"] = "stat", ["fertile_start"] = "stat", ["expand_field"] = "stat", ["upgrade_plot"] = "purchase",
             ["unlock_tomato"] = "stat", ["unlock_corn"] = "stat", ["unlock_pumpkin"] = "stat", ["unlock_grapes"] = "stat",
             ["unlock_golden_wheat"] = "stat", ["bulk_upgrade"] = "stat", ["apprentice_count"] = "stat", ["apprentice_speed"] = "stat",

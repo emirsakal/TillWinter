@@ -220,6 +220,7 @@ namespace TillWinter.Unity
         private float _ripeTop = 0.9f;
         private float _markShow;
         private float _goldSpark;
+        private float _stale;
         private readonly GameObject[] _stages = new GameObject[3];
         private readonly PaletteBinder[] _stageBinders = new PaletteBinder[3];
         private int _builtTier = -1;
@@ -391,10 +392,14 @@ namespace TillWinter.Unity
             float xz = Mathf.Lerp(0.7f, 1f, scale) * punch / Mathf.Sqrt(squash);
             _cropRoot.localScale = new Vector3(xz, Mathf.Max(0.0001f, scale * punch * squash), xz);
 
+            // Over-ripening (GDD §2.5 v1.6): the longer a crop stands, the duller it looks and the lower it hangs.
+            float fresh = ripe && _game != null ? (float)_game.Sim.Freshness(plot) : 1f;
+            float stale = Mathf.Clamp01((1f - fresh) / Mathf.Max(0.01f, 1f - (float)_game.Sim.Config.OverripeMinValue));
+            _stale = Prims.Damp(_stale, ripe ? stale : 0f, 6f, dt);
             _ripeGlow = Prims.Damp(_ripeGlow, ripe ? 1f : 0f, 8f, dt);
             float wobble = ripe ? Mathf.Sin(simTime * 6f + _phase) * 7f : 0f;
             float wobble2 = ripe ? Mathf.Sin(simTime * 4.3f + _phase * 1.7f) * 4f : 0f;
-            _cropRoot.localRotation = Quaternion.Euler(wobble2, 0f, wobble);
+            _cropRoot.localRotation = Quaternion.Euler(wobble2 + _stale * 9f, 0f, wobble);
             bool golden = plot.IsGolden && !winter;
             if (golden || _golden) SetGolden(golden, simTime);
             // A golden crop keeps shedding sparkles (the VFX pool rate-limits them with every other burst).
@@ -427,7 +432,11 @@ namespace TillWinter.Unity
             var stageBinder = _stageBinders[stage];
             float breathe = ripe ? 0.75f + 0.25f * Mathf.Sin(simTime * 3f + _phase) : 0f;
             float pulse = Mathf.Clamp01(_ripePunch) * 0.8f;
-            if (stageBinder != null && !golden) stageBinder.SetEmission(Color.Lerp(Color.black, new Color(0.3f, 0.24f, 0.08f), _ripeGlow * breathe + pulse));
+            if (stageBinder != null && !golden)
+            {
+                stageBinder.SetEmission(Color.Lerp(Color.black, new Color(0.3f, 0.24f, 0.08f), (_ripeGlow * breathe + pulse) * (1f - _stale * 0.8f)));
+                stageBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(0.72f, 0.66f, 0.55f), _stale)); // a crop past its best goes dull
+            }
 
             // Soil: Dry -> Wet -> winter white, all through the binder. The ring shows only as its round decal:
             // no per-tile tint or lift, which drew square highlights under a round ring.
@@ -449,7 +458,7 @@ namespace TillWinter.Unity
                 if (showMark)
                 {
                     bool moving = SettingsStore.MotionAllowed; // Reduce motion: the gem simply stands there
-                    float bob = moving ? 0.05f * Mathf.Sin(simTime * 3.2f + _phase) : 0f;
+                    float bob = moving ? 0.05f * Mathf.Sin(simTime * 3.2f + _phase) * (1f - _stale * 0.7f) : 0f;
                     _ripeMark.localPosition = new Vector3(0f, _ripeTop + bob, 0f);
                     _ripeMark.localRotation = Quaternion.Euler(0f, moving ? simTime * 90f + _phase * 40f : 45f, 0f);
                     _ripeMark.localScale = Vector3.one * Prims.EaseOutBack(_markShow);

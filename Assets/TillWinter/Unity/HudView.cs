@@ -193,6 +193,18 @@ namespace TillWinter.Unity
             UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f),
                 new Vector2(-24f, _theme.SeasonNameYInBand - 20f), new Vector2(220f, 64f)); // below the bar, not touching its end
 
+            // A long streak pays out: the milestone says so over the ring.
+            _milestone = UiKit.Label(_safe, "ComboMilestone", "", UiType.Heading, _theme.Combo, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(_milestone.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 120f), new Vector2(900f, 80f));
+            UiKit.OutlineStrong(_milestone);
+            _milestone.alpha = 0f;
+
+            // The ring's shape, once `ring_shape` is bought: round, rake, cross.
+            _shapeButton = UiKit.Button(_safe, "RingShape", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, CycleRingShape);
+            UiKit.Box(_shapeButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 180f), new Vector2(130f, 110f));
+            _shapeIcon = UiKit.ButtonIcon(_shapeButton, ShapeIcon(RingShape.Round));
+            _shapeButton.gameObject.SetActive(false);
+
             BuildEndYearConfirm(canvas);
 
             _fxLayer = UiKit.Rect("CoinFx", canvas);
@@ -219,6 +231,7 @@ namespace TillWinter.Unity
                 _coinObjPool.Push(new Coin());
             }
             _game.Sim.Harvested += OnHarvested;
+            _game.Sim.ComboMilestone += OnComboMilestone;
             _game.Sim.CrowScared += OnCrowScared;
             _game.Sim.YearStarted += OnYearStarted;
             _game.Sim.WinterStarted += OnWinter;
@@ -318,6 +331,7 @@ namespace TillWinter.Unity
         {
             if (_game == null || _game.Sim == null) return;
             _game.Sim.Harvested -= OnHarvested;
+            _game.Sim.ComboMilestone -= OnComboMilestone;
             _game.Sim.CrowScared -= OnCrowScared;
             _game.Sim.YearStarted -= OnYearStarted;
             _game.Sim.WinterStarted -= OnWinter;
@@ -361,6 +375,34 @@ namespace TillWinter.Unity
         public void Punch() => _counterPunch = 1f;
 
         private GameObject _endYearConfirm;
+        private TMP_Text _milestone;
+        private float _milestoneLeft;
+        private Button _shapeButton;
+        private Image _shapeIcon;
+
+        private static string ShapeIcon(RingShape shape) =>
+            shape == RingShape.Rake ? "barsVertical" : shape == RingShape.Cross ? "plus" : "target";
+
+        /// <summary>Cycles through the shapes the player has unlocked (GDD §2.1 v1.6).</summary>
+        private void CycleRingShape()
+        {
+            int level = _game.State.Stats.RingShapeLevel;
+            if (level <= 0) return;
+            int count = level >= 2 ? 3 : 2;
+            var next = (RingShape)(((int)_game.State.RingShape + 1) % count);
+            if (!_game.Sim.SetRingShape(next)) return;
+            _shapeIcon.sprite = NodeIcons.Get(ShapeIcon(next)) ?? _shapeIcon.sprite;
+            Haptics.Play(HapticKind.Selection);
+        }
+
+        private void OnComboMilestone(int combo, double coins)
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            _milestone.text = Strings.Format("ui.combo_milestone", ("combo", combo), ("coins", NumberFormat.Short(coins)));
+            _milestoneLeft = 1.6f;
+            Haptics.Play(HapticKind.Medium);
+            _audio?.Play(SfxId.GoldenHarvest, 0.7f);
+        }
 
         /// <summary>Ending the year early throws away the standing crop, so it asks first (the sim pauses meanwhile).</summary>
         private void BuildEndYearConfirm(RectTransform canvas)
@@ -545,6 +587,18 @@ namespace TillWinter.Unity
             MCoinText.End();
 
             if (state.Year != _subYear || state.Generation.Generation != _subGen) { _subYear = state.Year; _subGen = state.Generation.Generation; _subText.SetText(_yearGenFormat, state.Year, state.Generation.Generation); }
+            // Milestone banner fades; the shape button appears with its node.
+            if (_milestoneLeft > 0f)
+            {
+                _milestoneLeft -= dt;
+                float k = Mathf.Clamp01(_milestoneLeft / 1.6f);
+                _milestone.alpha = Mathf.Min(1f, k * 3f);
+                _milestone.rectTransform.anchoredPosition = new Vector2(0f, 120f + (1f - k) * 60f);
+            }
+            else if (_milestone.alpha > 0f) _milestone.alpha = 0f;
+            bool shapes = state.Stats.RingShapeLevel > 0 && !state.IsWinter;
+            if (_shapeButton.gameObject.activeSelf != shapes) _shapeButton.gameObject.SetActive(shapes);
+
             MCombo.Begin();
             // Combo floats near the ring; on a break it keeps the last value and fades out.
             if (state.Combo >= 2)
