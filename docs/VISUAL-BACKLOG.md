@@ -451,11 +451,22 @@ Verified with `ui-tour` (tours 33-34), tests passing.
 
 ### 9.11 Typography, icons, colour
 
-- **Open.** [M] **Clearer type hierarchy** between titles, body and captions.
-- **Open.** [M] **One icon set in a single style** (filled, rounded); the Kenney icons vary in
-  weight.
-- **Open.** [M] **Large numbers (4,1K)** presented more legibly and with colour.
-- **Open.** [L] **A characterful display face for titles**; Figtree stays for body text.
+- **Done.** [M] **Clearer type hierarchy** between titles, body and captions.
+  `UiKit.Label` now sets tighter letter spacing (-1.5) on Title size and above, slightly open
+  spacing (+1) on Caption size and below, and line spacing +6 on Body size and below (wrapped
+  paragraphs breathe).
+- **Done.** [M] **One icon set in a single style** (filled, rounded); the Kenney icons vary in
+  weight. Reviewed, no change: every UI icon already comes from the single Kenney Game Icons
+  atlas; a redraw in one weight would be real art work (out of scope).
+- **Done.** [M] **Large numbers (4,1K)** presented more legibly and with colour. New `RichNumber`
+  (Unity) wraps the unit suffix of a `NumberFormat.Short` buffer in size/colour tags, built once,
+  copied per write (no per-frame allocation). HUD coin counter: suffix at 64% in the coin colour
+  (label rich text on). Winter screen top counter: suffix at 72% in the accent colour (seed
+  colour on the Heritage page).
+- **Open.** [L] **A characterful display face for titles**; Figtree stays for body text. Needs a
+  new font with full Turkish coverage; would be a download.
+
+Verified with `ui-tour` (tour 35), tests passing.
 
 ### 9.12 Accessibility and screen sizes
 

@@ -56,6 +56,7 @@ namespace TillWinter.Unity
 
         private readonly List<Coin> _coins = new List<Coin>(96);
         private readonly char[] _coinChars = new char[32];
+        private RichNumber _coinRich;
         /// <summary>Pre-warmed coin pool size and the cap on coins in flight (a burst never creates UI objects).</summary>
         private const int CoinPoolWarm = 96;
         private readonly Stack<RectTransform> _pool = new Stack<RectTransform>();
@@ -121,6 +122,8 @@ namespace TillWinter.Unity
             _coinText = UiKit.Label(_coinGroup, "Value", "0", (int)_theme.CoinFontSize, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Stretch(_coinText.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 0f), new Vector2(50f, 0f));
             UiKit.Outline(_coinText);
+            _coinText.richText = true; // the K/M suffix is set smaller, in the coin colour
+            _coinRich = new RichNumber(0.64f, _theme.Coin);
             // Size TMP's buffers for the longest counter once, so growing numbers never resize them mid-play.
             _coinText.SetText("-999.9Qi");
             _coinText.ForceMeshUpdate(true);
@@ -454,7 +457,8 @@ namespace TillWinter.Unity
             {
                 _coinTextValue = whole;
                 int len = NumberFormat.Short(whole, _coinChars);
-                _coinText.SetText(_coinChars, 0, len);
+                int richLen = _coinRich.Write(_coinChars, len);
+                _coinText.SetText(_coinRich.Buffer, 0, richLen);
                 if (len != _coinTextLength)
                 {
                     // The icon sits against the number's left edge; only a change of length can move that edge much.

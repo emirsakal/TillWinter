@@ -102,6 +102,10 @@ namespace TillWinter.Unity
             t.overflowMode = TextOverflowModes.Overflow;
             t.raycastTarget = false;
             t.richText = false;
+            // Hierarchy beyond size alone: display sizes set tight, captions open, wrapped text a little airier.
+            if (size >= UiType.Title) t.characterSpacing = -1.5f;
+            else if (size <= UiType.Caption) t.characterSpacing = 1f;
+            t.lineSpacing = size <= UiType.Body ? 6f : 0f;
             return t;
         }
 
