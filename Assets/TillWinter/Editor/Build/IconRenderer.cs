@@ -12,7 +12,8 @@ using Object = UnityEngine.Object;
 namespace TillWinter.EditorTools.Build
 {
     /// <summary>
-    /// App icon from the game's own assets: one ripe pumpkin on a soil block, under a frosted top edge, no text.
+    /// App icon from the game's own assets: the floating island with a bed of ripe crops, dusted with snow, under a
+    /// frosted top edge, no text.
     /// Built in the IconRenderer scene (Assets/Art/Icon/IconRenderer.unity), rendered at 2048 and downsampled to 1024.
     /// The crop is matted from a black and a white render (alpha = 1 - (white - black)), so the Android adaptive
     /// foreground is truly transparent without relying on the pipeline's alpha output.
@@ -31,11 +32,11 @@ namespace TillWinter.EditorTools.Build
         private const int Size = 1024;
         private const int Super = 2;
         /// <summary>Android adaptive icons show only the central ~66 % of the foreground: frame it looser.</summary>
-        private const float AdaptiveOrtho = 1.75f;
+        private const float AdaptiveOrtho = 2.9f;
         /// <summary>Opaque composite (iOS / legacy): the whole block stays inside iOS's rounded mask with a margin.</summary>
-        private const float IconOrtho = 1.4f;
+        private const float IconOrtho = 2.2f;
         /// <summary>Look-at height: centres the subject (block base to stem) in the frame, which the adaptive safe zone needs.</summary>
-        private const float LookAtY = -0.19f;
+        private const float LookAtY = -0.35f;
 
         private static readonly int[] AndroidLegacy = { 48, 72, 96, 144, 192 };
         private static readonly int[] AndroidAdaptive = { 108, 162, 216, 324, 432 };
@@ -106,7 +107,6 @@ namespace TillWinter.EditorTools.Build
             var sh = new SphericalHarmonicsL2();
             sh.AddAmbientLight(look.AmbientEquator);
             RenderSettings.ambientProbe = sh;
-            Shader.SetGlobalFloat("_TW_Snow", 0f);
             Shader.SetGlobalColor("_TW_SeasonTint", Color.white);
 
             var sun = new GameObject("Sun").AddComponent<Light>();
@@ -117,16 +117,31 @@ namespace TillWinter.EditorTools.Build
             sun.shadowStrength = 0.45f;
             sun.transform.rotation = Quaternion.Euler(50f, -40f, 0f);
 
+            // The farm itself, small: a floating island with a 2x2 bed of ripe crops, a pine and a rock hanging below,
+            // lightly dusted with the coming winter.
             var root = new GameObject("IconSubject").transform;
-            Slab(root, "Soil", v.SlotMaterial(PaletteSlot.SoilBlock), new Vector3(0f, -0.42f, 0f), new Vector3(1.5f, 0.8f, 1.5f));
-            Slab(root, "Grass", v.SlotMaterial(PaletteSlot.Grass), new Vector3(0f, 0f, 0f), new Vector3(1.56f, 0.08f, 1.56f));
-            Slab(root, "Plot", v.SlotMaterial(PaletteSlot.SoilWet), new Vector3(0f, 0.08f, 0f), new Vector3(1.0f, 0.1f, 1.0f));
-            var prefab = v.Crops != null && v.Crops.Length > 3 ? v.Crops[3].Ripe : null;
-            if (prefab == null) throw new Exception("pumpkin ripe prefab missing from the VisualCatalog");
-            var crop = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root);
-            crop.transform.localPosition = new Vector3(0f, 0.13f, 0f);
-            crop.transform.localRotation = Quaternion.Euler(0f, 20f, 0f);
-            crop.transform.localScale = Vector3.one * 2.1f;
+            var island = new GameObject("Island");
+            island.transform.SetParent(root, false);
+            island.AddComponent<MeshFilter>().sharedMesh = DioramaView.BuildBlock(2, 0.42f, 1.0f, 0f);
+            island.AddComponent<MeshRenderer>().sharedMaterials = new[] { v.SlotMaterial(PaletteSlot.Grass), v.SlotMaterial(PaletteSlot.SoilBlock) };
+            Place(v.HangingRock, root, new Vector3(0.05f, -0.75f, 0.05f), 0f, 1.6f);
+            int[] tiers = { 3, 0, 4, 1 };
+            for (int i = 0; i < 4; i++)
+            {
+                var pos = new Vector3(i % 2 == 0 ? -0.5f : 0.5f, 0f, i < 2 ? -0.45f : 0.45f);
+                var plot = Place(v.Plot, root, pos, 0f, 1f);
+                if (plot == null) continue;
+                foreach (var r in plot.GetComponentsInChildren<Renderer>(true))
+                    if (r.sharedMaterial == v.SlotMaterial(PaletteSlot.SoilDry)) r.sharedMaterial = v.SlotMaterial(PaletteSlot.SoilWet);
+                var cracks = plot.transform.Find("Cracks");
+                if (cracks != null) cracks.gameObject.SetActive(false);
+                var tier = v.Crops != null && tiers[i] < v.Crops.Length ? v.Crops[tiers[i]] : null;
+                var anchor = plot.transform.Find("CropAnchor");
+                Place(tier?.Ripe, anchor != null ? anchor : plot.transform, Vector3.zero, 15f * i, 1f);
+            }
+            if (v.Trees != null && v.Trees.Length > 2) Place(v.Trees[2], root, new Vector3(1.12f, 0f, 1.05f), 0f, 0.85f);
+            Shader.SetGlobalFloat("_TW_Snow", 0.12f);
+            Shader.SetGlobalFloat("_TW_Calm", 1f);
 
             var cam = new GameObject("IconCamera").AddComponent<Camera>();
             cam.orthographic = true;
@@ -144,15 +159,14 @@ namespace TillWinter.EditorTools.Build
             return cam;
         }
 
-        private static void Slab(Transform parent, string name, Material m, Vector3 pos, Vector3 scale)
+        private static GameObject Place(GameObject prefab, Transform parent, Vector3 pos, float yaw, float scale)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = name;
-            Object.DestroyImmediate(go.GetComponent<Collider>());
-            go.transform.SetParent(parent, false);
+            if (prefab == null) return null;
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
             go.transform.localPosition = pos;
-            go.transform.localScale = scale;
-            go.GetComponent<Renderer>().sharedMaterial = m;
+            go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            go.transform.localScale = Vector3.one * scale;
+            return go;
         }
 
         private static Color[] RenderRaw(Camera cam, Color clear, int size)

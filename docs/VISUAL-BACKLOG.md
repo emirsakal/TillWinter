@@ -495,8 +495,28 @@ Verified with tours 36–38 (16:9, tablet, phone), 204 tests passing.
 
 ### 9.13 Storefront
 
-- **Open.** [M] **App icon** that shows the island and winter at a glance.
-- **Open.** [L] **Store screenshots**, using the UI tour infrastructure.
+- **Done.** [M] **App icon** that shows the island and winter at a glance. `IconRenderer`
+  (`render-icon.bat`) now builds the floating island instead of a lone pumpkin:
+  `DioramaView.BuildBlock(2, 0.42, 1.0)` with grass/soil-block materials, a hanging rock below,
+  a 2x2 bed of wet plots with ripe pumpkin, carrot, grapes and tomato, a pine at the back corner,
+  a light snow dusting (`_TW_Snow` 0.12, breeze off) over the existing spring sky with a frosted
+  top edge and snowflakes. Framing `IconOrtho` 2.2, `AdaptiveOrtho` 2.9, `LookAtY` -0.35.
+  `Icon.png`, `IconForeground.png`, `SplashLogo.png` and the store sizes (`Builds/Icons`) were
+  regenerated and applied to Player Settings.
+- **Done.** [L] **Store screenshots**, using the UI tour infrastructure. `ui-tour.bat <folder>
+  "<preset>" clean` hides the developer button in every shot (it stays clickable for the tour);
+  e.g. `ui-tour.bat Builds\Store\phone "1080x2340 (Portrait)" clean` (`Builds` is git-ignored),
+  and the tablet preset for tablet shots. Choosing and captioning the final store set is still a
+  manual step.
+
+Verified with a clean phone run (`Builds/Store/phone`), 204 tests passing.
+
+Round three (groups 9.0-9.13) is complete. Still open across 9.x: the fence and gate path (9.3);
+a clearer golden-crop light shaft (9.3); a starry winter night behind the Winter screen (9.6);
+making passing on the farm the biggest moment, with an island darken/reborn beat (9.7); a
+distinct golden/aged Heritage tree texture (9.8); iconed two-column confirmation dialogs (9.10);
+and a characterful display face for titles (9.11), plus several "Done in part" items across 9.3,
+9.5-9.8 that could go further with more art/animation passes.
 
 ---
 

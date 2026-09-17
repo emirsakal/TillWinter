@@ -31,6 +31,7 @@ namespace TillWinter.EditorTools
         private const string StartedKey = "TillWinter.UiTour.Started";
         private const string OutKey = "TillWinter.UiTour.Out";
         private const string SizeKey = "TillWinter.UiTour.Size";
+        private const string CleanKey = "TillWinter.UiTour.Clean";
         /// <summary>The Simulator device the editor had before a sized tour, restored at the end.</summary>
         private const string SimulatorDeviceKey = "TillWinter.UiTour.SimulatorDevice";
         private const string ExitKey = "TillWinter.UiTour.Exit";
@@ -118,6 +119,8 @@ namespace TillWinter.EditorTools
                 if (args[i] == "-uiTourOut") output = args[i + 1];
                 if (args[i] == "-uiTourSize") SessionState.SetString(SizeKey, args[i + 1]);
             }
+            // -uiTourClean: store screenshots, so the developer button never shows (it stays clickable for the tour).
+            SessionState.SetBool(CleanKey, Array.IndexOf(args, "-uiTourClean") >= 0);
             Directory.CreateDirectory(output);
             foreach (var f in Directory.GetFiles(output))
                 if (f.EndsWith(".png") || f.EndsWith("report.txt")) File.Delete(f);
@@ -309,6 +312,16 @@ namespace TillWinter.EditorTools
         private static void Shot(string name)
         {
             var path = Path.Combine(SessionState.GetString(OutKey, "."), name + ".png");
+            if (SessionState.GetBool(CleanKey, false))
+            {
+                var dev = GameObject.Find("DebugToggle");
+                if (dev != null)
+                {
+                    var group = dev.GetComponent<CanvasGroup>();
+                    if (group == null) group = dev.AddComponent<CanvasGroup>(); // not ??: Unity's missing component is a fake null
+                    group.alpha = 0f;
+                }
+            }
             ScreenCapture.CaptureScreenshot(path);
             Log("Shot " + name + " (" + Screen.width + "x" + Screen.height + ")");
         }
