@@ -30,6 +30,8 @@ Every sheet and dialog is built with `UiKit.Card`: a rounded border (`UiKit.Card
 
 A face sits on a darker lip (`UiKit.LipColor`). The label stays on one line and shrinks to fit rather than wrapping; callers that want a smaller label lower `fontSizeMax`, not `fontSize`. Faces and lips are solid colours only — a translucent face over a translucent lip reads as a grey smudge.
 
+`UiKit.Label` tightens letter spacing (-1.5) at Title size and above, opens it slightly (+1) at Caption size and below, and adds line spacing (+6) at Body size and below so wrapped paragraphs breathe; large numbers use `RichNumber` to shrink and colour the unit suffix (e.g. the "K" in "4,1K") without any per-frame string allocation.
+
 ## Checking layout
 
 `ui-tour.bat <folder>` captures every screen and sheet.

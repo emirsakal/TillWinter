@@ -44,6 +44,7 @@ namespace TillWinter.Unity
         private RectTransform[] _flakes;
         private float[] _flakeSpeed;
         private bool _closing;
+        private RichNumber _coinRich, _seedRich;
         private Image _sheetBadge, _sheetIcon;
         private double _coinsTextValue = -1;
         private readonly char[] _coinChars = new char[64];
@@ -117,6 +118,9 @@ namespace TillWinter.Unity
             _coinsRt = _coins.rectTransform;
             UiKit.Stretch(_coinsRt, new Vector2(0.58f, 0.5f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-200f, 0f));
             _coins.fontSize = 42;
+            _coins.richText = true;
+            _coinRich = new RichNumber(0.72f, _theme.Accent);
+            _seedRich = new RichNumber(0.72f, _theme.Seed);
             var strip = UiKit.Gradient(top, "YearStrip", new Color(_theme.Accent.r, _theme.Accent.g, _theme.Accent.b, 0.16f), true);
             UiKit.Box(strip.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, -8f), new Vector2(1080f, 84f));
             _yearSummary = UiKit.Label(top, "YearSummary", "", UiType.Label, _theme.Ink, TextAnchor.LowerLeft);
@@ -611,10 +615,13 @@ namespace TillWinter.Unity
                 _coinsTextValue = _coinsShown;
                 _coinsTextHeritage = _showingHeritage;
                 int n = NumberFormat.Short(_coinsShown, _coinChars);
+                var rich = _showingHeritage ? _seedRich : _coinRich;
+                n = rich.Write(_coinChars, n);
+                var buffer = rich.Buffer;
                 string unit = Strings.Get(_showingHeritage ? "ui.seeds" : "ui.coins");
-                _coinChars[n++] = ' ';
-                for (int i = 0; i < unit.Length && n < _coinChars.Length; i++) _coinChars[n++] = unit[i];
-                _coins.SetText(_coinChars, 0, n);
+                buffer[n++] = ' ';
+                for (int i = 0; i < unit.Length && n < buffer.Length; i++) buffer[n++] = unit[i];
+                _coins.SetText(buffer, 0, n);
             }
             _coinPunch = Mathf.Max(0f, _coinPunch - dt * 5f);
             _coinsRt.localScale = Vector3.one * (1f + 0.15f * Prims.EaseOutQuad(_coinPunch));
