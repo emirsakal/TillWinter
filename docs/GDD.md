@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 1.6 - September 2026 (through mechanics group M.1, ring and core loop, marked *(v1.6)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 1.7 - September 2026 (through mechanics group M.2 first half, crop choice and seasonal preferences, marked *(v1.7)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -49,22 +49,41 @@ Rules:
 - Ring harvest completing on a plot with a crow scares the crow first, then harvests.
 
 ### 2.3 Crops
-Times are seconds under the ring at level 0. Value is coins per harvest. *(tune)*
+Times are seconds under the ring at level 0. Value is coins per harvest. Timings never change with
+season or anything else — only value does. *(tune)*
 
-| Tier | Crop | Water | Grow | Harvest | Value |
-|---|---|---|---|---|---|
-| 0 | Carrot | 1.0 | 1.5 | 0.5 | 2.3 *(v1.4, was 1)* |
-| 1 | Tomato | 1.5 | 3.5 | 0.5 | 4 |
-| 2 | Corn | 2.0 | 6.0 | 0.7 | 12 |
-| 3 | Pumpkin | 3.0 | 10 | 1.0 | 35 |
-| 4 | Grapes | 4.0 | 15 | 1.0 | 100 |
-| 5 | Golden Wheat | 5.0 | 22 | 1.2 | 300 |
+| Tier | Crop | Water | Grow | Harvest | Value | Likes |
+|---|---|---|---|---|---|---|
+| 0 | Carrot | 1.0 | 1.5 | 0.5 | 2.2 *(v1.7, was 2.3)* | Spring *(v1.7)* |
+| 1 | Tomato | 1.5 | 3.5 | 0.5 | 4 | Summer *(v1.7)* |
+| 2 | Corn | 2.0 | 6.0 | 0.7 | 12 | Summer *(v1.7)* |
+| 3 | Pumpkin | 3.0 | 10 | 1.0 | 35 | Autumn *(v1.7)* |
+| 4 | Grapes | 4.0 | 15 | 1.0 | 100 | Autumn *(v1.7)* |
+| 5 | Golden Wheat | 5.0 | 22 | 1.2 | 300 | Spring *(v1.7)* |
 
-Crop tiers are per plot. `UpgradePlot` raises the lowest-tier plot by one (row-major tiebreak). New tiers are gated by Almanac nodes (see 5.3).
+Crop tiers are per plot. New tiers are gated by Almanac nodes (see 5.3).
+
+*(v1.7)* **In-season value.** A crop harvested during its liked season, only during the Year phase
+(not Golden Year), sells for `FarmConfig.InSeasonValue` (**×1.25**). Season preference is
+value-only — crop timings stay fixed per the tuning rule (§15); a growth-speed bonus was tried and
+rejected (see `DECISIONS.md`). Carrot's base value moved 2.3 → 2.2 to keep year-1 coins inside
+`BalanceTests`' 40–70 range once the in-season bonus is in play (measured: year 1 = 69 coins, seed
+1; ring share at first retire 58%; 5.59 h to the ending; 6 generations to max Heritage).
 
 ### 2.4 Field
 - Starts **3×3**. Expands to 4×4, 5×5, 6×6. Expansion is anchored bottom-left (existing plots keep coordinates); the camera re-centres.
 - New plots start at tier 0, Dry.
+- *(v1.7)* **Seed bag.** Each plot has a bed quality (`BedTier`), raised by `UpgradePlot` exactly as
+  before (lowest bed first, bounded by the highest unlocked crop — a bounded purchase, not an
+  endless sink), and a `Choice` (**-1** = follow the bed, i.e. "Best"). The crop actually growing
+  (`Tier`) is the choice capped at the bed's quality. `FarmSim.SetPlotCrop(pos, tier)` plants during
+  the Year phase only (not Golden Year): planting a different crop replants the plot from Dry at
+  progress 0; picking the crop already growing keeps progress. A pick survives later bed upgrades.
+  HUD: a basket button bottom-left (shown once a second crop is unlocked, Year phase, not Golden
+  Year) opens a chip row — "Best" plus each unlocked crop with the season it likes, the season
+  currently in play highlighted. With a chip picked, tapping a plot plants it (a crow on the plot
+  still takes the tap first); a bed too low shows "Upgrade this bed first". Tapping the picked chip
+  again puts the seed back.
 
 ### 2.5 Over-ripening *(v1.6)*
 - A Ripe plot keeps full value for `RipeGraceSeconds` (**12 s**), then its value falls linearly over `OverripeDecaySeconds` (**24 s**) to `OverripeMinValue` (**50%**) and stays there. The crop is never lost to age — the ring, apprentices and tractor still harvest it, just for less.
@@ -187,6 +206,7 @@ after, but nothing new unlocks.
 - JSON file in `Application.persistentDataPath`, versioned (`schemaVersion`), written on every winter, rebirth, purchase, and on app pause. Corrupt/unknown file → start fresh, never crash. *(v1.2)* Also written on Next Year, on starting a new generation, and every 30 s during a year. Atomic write with one `.bak`; a corrupt file is renamed `.corrupt-<timestamp>`.
 - Offline progress: on resume, simulate passive systems only (irrigation → sun → apprentices/tractor) for `min(elapsed, 8 h)` at a fixed dt in the pure core; the year timer does **not** advance offline (you never come back to a lost year). Show a "while you were away" card with coins earned. *(v1.2)* Simulated at a 1 s step; the ring, crows and seasons are frozen. A clock that went backwards counts as 0 elapsed. *(v1.3)* The tractor also runs offline; the greenhouse does not (phase is not Year).
 - *(v1.6)* Schema is now **7**: adds each plot's `RipeAge` and the player's chosen ring shape. Migration `V6ToV7` is a no-op with safe defaults (age 0, circle shape).
+- *(v1.7)* Schema is now **8**: adds each plot's `Choice` (default **-1**); `Tier` now means the bed's quality, not the crop growing. Migration `V7ToV8` sets `Choice = -1` on every plot. Fixture-tested in `SaveV8Tests` against a hand-written v7 JSON.
 
 ---
 

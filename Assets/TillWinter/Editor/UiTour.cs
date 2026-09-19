@@ -111,6 +111,10 @@ namespace TillWinter.EditorTools
             // The ring's shapes, cycled from the HUD button.
             new Step("25-ring-rake", 0.6f, () => Click("RingShape")),
             new Step("26-ring-cross", 0.6f, () => Click("RingShape")),
+
+            // The seed bag, opened from the HUD, then a crop in hand.
+            new Step("27-seed-bag", 0.6f, () => Click("SeedBag")),
+            new Step("28-seed-picked", 0.6f, () => Click("Seed2")),
         };
 
         static UiTour()
@@ -320,6 +324,9 @@ namespace TillWinter.EditorTools
             game.Sim.DebugSetLevel("sun", 3);
             game.Sim.DebugSetLevel("ring_shape", 2); // the shape button only shows with its node
             game.Sim.DebugSetLevel("tap_harvest", 1);
+            game.Sim.DebugSetLevel("unlock_tomato", 1); // the seed bag shows once a second crop is unlocked
+            game.Sim.DebugSetLevel("unlock_corn", 1);
+            game.Sim.DebugSetLevel("unlock_pumpkin", 1);
         }
 
         /// <summary>

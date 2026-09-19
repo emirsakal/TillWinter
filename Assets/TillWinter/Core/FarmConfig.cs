@@ -10,14 +10,17 @@ namespace TillWinter.Core
         public float Grow;
         public float Harvest;
         public double Value;
+        /// <summary>The season this crop likes: it sells for more then (GDD §2.3 v1.7).</summary>
+        public Season Likes;
 
-        public CropDef(string key, float water, float grow, float harvest, double value)
+        public CropDef(string key, float water, float grow, float harvest, double value, Season likes = Season.Spring)
         {
             Key = key;
             Water = water;
             Grow = grow;
             Harvest = harvest;
             Value = value;
+            Likes = likes;
         }
     }
 
@@ -36,14 +39,16 @@ namespace TillWinter.Core
         // Crops (GDD §2.3), indexed by tier
         public CropDef[] Crops =
         {
-            new CropDef("crop.carrot", 1.0f, 1.5f, 0.5f, 2.3), // S9 balance: year 1 ≈ 67 coins
-            new CropDef("crop.tomato", 1.5f, 3.5f, 0.5f, 4),
-            new CropDef("crop.corn", 2.0f, 6.0f, 0.7f, 12),
-            new CropDef("crop.pumpkin", 3.0f, 10f, 1.0f, 35),
-            new CropDef("crop.grapes", 4.0f, 15f, 1.0f, 100),
-            new CropDef("crop.golden_wheat", 5.0f, 22f, 1.2f, 300),
+            new CropDef("crop.carrot", 1.0f, 1.5f, 0.5f, 2.2, Season.Spring), // S9 balance: year 1 ≈ 67 coins (M.2: 2.3 → 2.2 for the spring bonus)
+            new CropDef("crop.tomato", 1.5f, 3.5f, 0.5f, 4, Season.Summer),
+            new CropDef("crop.corn", 2.0f, 6.0f, 0.7f, 12, Season.Summer),
+            new CropDef("crop.pumpkin", 3.0f, 10f, 1.0f, 35, Season.Autumn),
+            new CropDef("crop.grapes", 4.0f, 15f, 1.0f, 100, Season.Autumn),
+            new CropDef("crop.golden_wheat", 5.0f, 22f, 1.2f, 300, Season.Spring),
         };
         public int MaxTier => Crops.Length - 1;
+        /// <summary>A crop in its liked season sells for this much more (GDD §2.3 v1.7). Timings never change with the season.</summary>
+        public double InSeasonValue = 1.25;
 
         // Ring (GDD §2.1)
         public float BaseRingRadius = 0.7f;

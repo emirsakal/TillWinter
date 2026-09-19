@@ -36,6 +36,8 @@ namespace TillWinter.Unity
         public System.Func<Vector2, bool> CloudHitTest;
         /// <summary>Set by DogView: is this screen point on the dog? Returns true when it took the tap.</summary>
         public System.Func<Vector2, bool> DogHitTest;
+        /// <summary>Set by the HUD while a seed is picked from the bag: plants on the tapped plot. A crow still takes the tap first.</summary>
+        public System.Func<GridPos, bool> PlotTapOverride;
 
         /// <summary>Sim seconds elapsed (respects TimeScale). Use for animation that should follow the sim.</summary>
         public float SimTime { get; private set; }
@@ -112,7 +114,11 @@ namespace TillWinter.Unity
                 if (s.Tapped && TryScreenToPlot(s.TapPosition, out var tp))
                 {
                     var gp = new GridPos(Mathf.RoundToInt(tp.x), Mathf.RoundToInt(tp.y));
-                    if (State.InBounds(gp)) Sim.TapAt(gp);
+                    if (State.InBounds(gp))
+                    {
+                        if (PlotTapOverride != null && !State.GetPlot(gp).HasCrow) PlotTapOverride(gp);
+                        else Sim.TapAt(gp);
+                    }
                 }
             }
 
