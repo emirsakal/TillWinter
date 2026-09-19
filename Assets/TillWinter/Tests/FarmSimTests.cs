@@ -741,7 +741,7 @@ namespace TillWinter.Tests
             Assert.AreEqual(5, c.MaxTier);
             var expected = new[]
             {
-                ("crop.carrot", 1.0f, 1.5f, 0.5f, 2.2, Season.Spring), // S9 balance (GDD §2.3 v1.4), M.2 spring bonus (v1.7)
+                ("crop.carrot", 1.0f, 1.5f, 0.5f, 2.0, Season.Spring), // S9 balance (GDD §2.3 v1.4), M.2 spring bonus (v1.7), M.3 (v1.9)
                 ("crop.tomato", 1.5f, 3.5f, 0.5f, 4.0, Season.Summer),
                 ("crop.corn", 2.0f, 6.0f, 0.7f, 12.0, Season.Summer),
                 ("crop.pumpkin", 3.0f, 10f, 1.0f, 35.0, Season.Autumn),

@@ -868,3 +868,38 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   compost plot; it would need an input/resource system (something to feed it) that doesn't exist
   anywhere else in the game yet. Fertile and stony ship; compost stays open in
   `docs/MECHANICS-BACKLOG.md` rather than landing half-built.
+
+## Mechanics M.3: season rules, yearly goals, weather and the year's grade (2026-09-19)
+
+- **Season rules touch passive systems and the combo only, never crop timings.** Open: how to make
+  seasons matter beyond colour (backlog finding 3) without breaking the tuning rule. Chosen: spring
+  boosts Irrigation, summer drought only affects an idle Wet plot's passive state, autumn widens the
+  combo window — none of them touch `FarmConfig`'s crop table, so `BalanceTests`' crop-timing
+  assumptions hold untouched.
+- **Grade is measured by freshness, not by coins or field value.** Open: what "playing well" should
+  mean for a 1–3 star rating. Chosen: freshness (how promptly crops were harvested and how few were
+  lost to crows) so a late generation with a bigger farm doesn't get free stars just for having more
+  value sitting around — the grade rewards attention, not accumulation.
+- **Grade bonus is paid but excluded from `CoinsThisYear`.** Open: whether the bonus should count
+  toward a Coins goal (§3.3) the same year it's earned. Chosen: excluded, shown as a separate line
+  on the Winter screen — a Coins goal's target is set from last year's `CoinsThisYear`, and letting
+  this year's bonus count toward this year's goal would let the grade partly pay for itself.
+- **Goals and weather both start in year 2, not year 1.** Open: whether either system should be live
+  immediately. Chosen: year 1 stays untouched so it keeps being a clean tutorial year and the RNG
+  draws these systems use don't perturb `BalanceTests`' year-1 coin range, which is measured on
+  seed-deterministic play from the very first tick.
+- **Weather is one spell a year, not a frequent background system.** Open: how often weather should
+  appear (backlog finding 4: "years feel alike"). Chosen: a single planned spell per year, at a 60%
+  chance, so each storm/heat wave/fog reads as a distinct event on the calendar rather than
+  background noise the player stops noticing.
+- **Storm and fog each hide crows.** Open: whether the crow system should keep running under every
+  spell. Chosen: no — both weather kinds that already give the player a rules-bending upside during
+  their duration (rain-waters-everything for storm, no over-ripening for fog) also remove crow
+  pressure, so each spell reads as a clear trade rather than a clear upside with strings attached.
+- **Frost rush settled at ×1.25, not the backlog's ×2.** Open: the backlog's own wording ("harvests
+  worth double in the last 10 s"). Chosen: ×1.25, because ×2 pushed year 1 outside
+  `BalanceTests`' 40–70 range in testing; the M.3 balance pass tuned carrot value and the Heritage
+  thresholds around ×1.25 instead of cutting the frost rush's own appeal.
+- **In-season growth speed stays out of scope again.** Same call as the M.2 session (season
+  preference is value-only): the tuning rule still forbids changing crop timings with season, so
+  M.3's spring/summer/autumn rules touch rates and windows on passive systems, never the crop table.

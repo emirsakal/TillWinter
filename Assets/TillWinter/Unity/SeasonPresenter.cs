@@ -54,6 +54,8 @@ namespace TillWinter.Unity
         /// <summary>Morning mist at the start of each year, burnt off over a few seconds.</summary>
         private const float MistSeconds = 7f;
         private float _mist = 1f;
+        // Weather (GDD §5.4 v1.9): each spell fades in and out over a second or two.
+        private float _storm, _heat, _fog;
         private float _snow;
         private float _clouds;
 
@@ -218,6 +220,11 @@ namespace TillWinter.Unity
             _snow = Prims.Damp(_snow, snowTarget, snowTarget > _snow ? 0.5f : 3f, dtSky);
             _clouds = Prims.Damp(_clouds, CloudsFor(_toSeason), 0.8f, dtSky);
             _rainbow = Mathf.Max(0f, _rainbow - dtSky);
+            var weather = state.Phase == Phase.Year ? state.Weather : Weather.Clear;
+            _storm = Prims.Damp(_storm, weather == Weather.Storm ? 1f : 0f, 1.2f, dtSky);
+            _heat = Prims.Damp(_heat, weather == Weather.HeatWave ? 1f : 0f, 1.2f, dtSky);
+            _fog = Prims.Damp(_fog, weather == Weather.Fog ? 1f : 0f, 1.4f, dtSky);
+            _clouds = Mathf.Max(_clouds, _storm * 0.9f);
             _rebirth = Mathf.Max(0f, _rebirth - dtSky / 2.2f);
             // Evening falls as the frost nears: the sun sinks and a moon rises.
             _dusk = Prims.Damp(_dusk, frost, 2f, dtSky);
@@ -240,6 +247,7 @@ namespace TillWinter.Unity
             // Winter snows at once; the season blend only ever mattered on the way out of Winter, where it kept snowing
             // into Spring for the whole blend. Outside Winter only the frost warning brings a few flakes.
             _fx.SetRate(VfxId.Snow, state.IsWinter ? 70f : frost * 12f);
+            _fx.SetRate(VfxId.StormRain, year ? 160f * _storm : 0f);
 
             if (_sky != null)
             {
@@ -253,16 +261,20 @@ namespace TillWinter.Unity
         {
             var cold = new Color(0.75f, 0.85f, 1f);
             _sun.color = Color.Lerp(look.Light, cold, frost * 0.8f);
-            _sun.intensity = look.Intensity * (1f - frost * 0.25f);
+            _sun.intensity = look.Intensity * (1f - frost * 0.25f) * (1f - 0.55f * _storm) * (1f - 0.3f * _fog) * (1f + 0.12f * _heat);
             _sun.transform.rotation = Quaternion.Euler(look.Angle);
             RenderSettings.ambientSkyColor = Color.Lerp(look.AmbientSky, cold, frost * 0.4f);
             RenderSettings.ambientEquatorColor = look.AmbientEquator;
             RenderSettings.ambientGroundColor = look.AmbientGround;
-            float mist = Mathf.SmoothStep(0f, 1f, _mist);
+            float mist = Mathf.Max(Mathf.SmoothStep(0f, 1f, _mist), _fog * 0.95f);
             RenderSettings.fogColor = Color.Lerp(look.FogColor, look.SkyBottom, mist * 0.6f);
             RenderSettings.fogStartDistance = Mathf.Lerp(look.FogStart, look.FogStart * 0.72f, mist);
             RenderSettings.fogEndDistance = look.FogEnd;
-            _color.colorFilter.value = Color.Lerp(Color.Lerp(look.ColorFilter, cold, frost * 0.5f), Color.black, Mathf.SmoothStep(0f, 1f, _rebirth) * 0.75f);
+            var filter = Color.Lerp(look.ColorFilter, cold, frost * 0.5f);
+            filter = Color.Lerp(filter, new Color(0.55f, 0.6f, 0.7f), _storm * 0.7f); // a storm greys the light
+            filter = Color.Lerp(filter, new Color(1.05f, 1.06f, 1.08f), _fog * 0.3f); // fog washes it pale
+            filter = Color.Lerp(filter, new Color(1f, 0.86f, 0.68f), _heat * 0.3f); // a heat wave bakes it
+            _color.colorFilter.value = Color.Lerp(filter, Color.black, Mathf.SmoothStep(0f, 1f, _rebirth) * 0.75f);
             _vignette.intensity.value = frost * 0.35f + (_game.State.IsWinter ? 0.25f : 0f);
             if (_skyMaterial != null)
             {

@@ -51,12 +51,16 @@ implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
 
 ### M.3 Seasons, year and weather
 
-- **Open.** [H] **Season rules.** Spring waters faster, summer drought (Wet can dry out), autumn
-  harvest festival.
-- **Open.** [H] **Yearly goals** ("harvest 20 pumpkins this year") paying coins or seeds.
-- **Open.** [M] **New weather.** Storm (Sun stops), heat wave, morning fog.
-- **Open.** [M] **End-of-year grade**, 1–3 stars with a small bonus.
-- **Open.** [L] **Frost-warning boost.** Harvests worth double in the last 10 s.
+- **Done.** [H] **Season rules.** Spring rain boosts passive watering ×1.5; summer drought dries an
+  idle Wet plot back to Dry after 8 s unless Sun is owned; autumn harvest festival widens the combo
+  window ×1.5. Crop timings never change.
+- **Done.** [H] **Yearly goals** ("harvest 20 pumpkins this year") paying coins, from year 2.
+- **Done.** [M] **New weather.** Storm (Sun stops, rain waters Dry plots, no crows), heat wave (Sun
+  ×1.5, faster drought), fog (no over-ripening, no crows) — one spell a year, 60% chance, from
+  year 2.
+- **Done.** [M] **End-of-year grade**, 1–3 stars by harvest freshness with a small coin bonus.
+- **Done.** [L] **Frost-warning boost.** Harvests pay ×1.25 during the frost warning (not double —
+  ×2 pushed year-1 coins outside `BalanceTests`' range; settled at ×1.25 in the M.3 balance pass).
 
 ### M.4 Helpers and animals
 

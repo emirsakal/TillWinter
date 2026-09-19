@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 1.8 - September 2026 (through mechanics group M.2, field variety — neighbour variety, crop rotation and special ground, marked *(v1.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 1.9 - September 2026 (through mechanics group M.3, seasons/year/weather — season rules, yearly goals, weather and the year's grade, marked *(v1.9)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -54,7 +54,7 @@ season or anything else — only value does. *(tune)*
 
 | Tier | Crop | Water | Grow | Harvest | Value | Likes |
 |---|---|---|---|---|---|---|
-| 0 | Carrot | 1.0 | 1.5 | 0.5 | 2.2 *(v1.7, was 2.3)* | Spring *(v1.7)* |
+| 0 | Carrot | 1.0 | 1.5 | 0.5 | 2.0 *(v1.9, was 2.2)* | Spring *(v1.7)* |
 | 1 | Tomato | 1.5 | 3.5 | 0.5 | 4 | Summer *(v1.7)* |
 | 2 | Corn | 2.0 | 6.0 | 0.7 | 12 | Summer *(v1.7)* |
 | 3 | Pumpkin | 3.0 | 10 | 1.0 | 35 | Autumn *(v1.7)* |
@@ -119,12 +119,54 @@ apprentice, tractor, late frost); crop timings are untouched by any of them.
 
 ## 3. Year, seasons, winter
 
-- One year = one timer through Spring → Summer → Autumn (boundaries at 1/3, 2/3; cosmetic) then Winter.
+- One year = one timer through Spring → Summer → Autumn (boundaries at 1/3, 2/3) then Winter.
+  *(v1.9)* Season identity now carries rules, not just colour — see §3.2.
 - Year length starts **90 s**, +15 s per Calendar level, cap **180 s** *(tune)*.
-- **Frost warning**: last **10 s** of Autumn (extendable by Almanac). Cold vignette, blue light, timer heartbeat, tick SFX.
-- **Winter**: all plots reset to Dry with progress 0 (unharvested crops lost). Coins are kept. Field freezes; ring does nothing; the Almanac opens. Greenhouse (if owned) still produces a trickle.
-- **Next Year**: year counter +1, Spring starts, plots keep tiers.
-- *(v1.5)* **End the year early**: the player may bring Winter forward at any point during a year from the HUD. It runs the same Winter transition the timer does, so the standing crop is lost (or half-harvested with `late_frost`) exactly as it would have been — the choice trades the rest of the year's income for reaching the Almanac sooner, and never skips a cost.
+- **Frost warning**: last **10 s** of Autumn (extendable by Almanac). Cold vignette, blue light, timer heartbeat, tick SFX. *(v1.9)* See §3.1 for the frost rush value bonus.
+- **Winter**: all plots reset to Dry with progress 0 (unharvested crops lost). Coins are kept. Field freezes; ring does nothing; the Almanac opens. Greenhouse (if owned) still produces a trickle. *(v1.9)* The year's grade (§3.4) is computed and `YearGraded` fires before `WinterStarted`.
+- **Next Year**: year counter +1, Spring starts, plots keep tiers. *(v1.9)* A new goal (§3.3) may be drawn and a weather spell (§5.4) may be planned.
+- *(v1.5)* **End the year early**: the player may bring Winter forward at any point during a year from the HUD. It runs the same Winter transition the timer does, so the standing crop is lost (or half-harvested with `late_frost`) exactly as it would have been — the choice trades the rest of the year's income for reaching the Almanac sooner, and never skips a cost. *(v1.9)* This also clears the current goal (§3.3) and any in-progress weather (§5.4) on retire.
+
+### 3.1 Frost rush *(v1.9)*
+
+Harvests made during the frost warning pay `FarmConfig.FrostRushValue` (**×1.25**) on top of other
+multipliers; a late-frost rescue (the half-harvest above) keeps its own **×0.5** independently. HUD
+banner: "Frost rush: harvests pay +25%".
+
+### 3.2 Season rules *(v1.9)*
+
+Crop timings (§2.3) never change with season — only these systems do:
+
+- **Spring rain**: passive watering from Irrigation runs at ×1.5 (`FarmConfig.SpringWaterBoost`).
+- **Summer drought**: a Wet plot that nothing is growing (not under the ring, no Sun) dries back to
+  Dry after `FarmConfig.SummerDryOutSeconds` (**8 s**) of neglect (`Plot.DryTimer`, event
+  `PlotDriedOut`, a small dust puff). Owning Sun protects every Wet plot from drying out. Drought
+  never runs while offline or during a storm (§5.4).
+- **Autumn harvest festival**: the combo window runs at ×1.5 (`FarmConfig.AutumnComboWindow`).
+
+### 3.3 Yearly goals *(v1.9)*
+
+From `FarmConfig.GoalFirstYear` (year 2) of a generation, skipping the Golden Year, each Spring
+draws one goal with the sim RNG:
+
+- **Harvest a crop**: a random crop up to the best bed; target = `ceil(2 × non-stony plots)`.
+- **Combo**: target = `8 + 2 × (year − 1)`, capped at 30.
+- **Coins**: only offered if last year earned anything; target = `ceil(lastYearCoins × 1.2)`.
+
+Reward = `max(GoalMinReward, GoalRewardShare × lastYearCoins)` (**10**, **5%**), paid once on
+completion (event `GoalCompleted`, HUD banner "Goal met! +X"). The HUD shows a goal line under the
+ring rate, e.g. "Goal: harvest 18 Tomato · 0/18". Retiring clears the current goal and its history.
+
+### 3.4 Grade *(v1.9)*
+
+Every harvest adds its freshness to `YearFreshSum`; a crop lost to a crow counts as 0
+(`CropsLostThisYear`). At Winter, `quality = YearFreshSum / (harvests + lost)` (a year with no
+harvests grades 1 star); stars are 3 at `quality ≥ 0.97`, 2 at `≥ 0.85`, else 1. The bonus is a
+share of the year's coins by stars — `{0%, 0%, 2%, 4%}` (`FarmConfig.GradeBonusByStars`) — paid
+into coins and lifetime coins but **not** counted in `CoinsThisYear` (shown separately, so it never
+helps a Coins goal, §3.3). `LastGrade`, `LastGradeBonus` and `LastYearCoins` are saved. Event
+`YearGraded` fires before `WinterStarted`. The Winter screen shows three star icons, "Grade bonus
++X" and "Goal met"/"Goal missed".
 
 ---
 
@@ -162,6 +204,21 @@ Apprentices: each has its own position and target; they never target the same pl
 - On harvest, `chance%` that the replanted crop is golden: 10× value, glows. Same timings.
 - *(v1.3)* Rolled at every replant, 1 % per Heritage level (max 5). Pays 10x before other multipliers.
 
+### 5.4 Weather *(v1.9)*
+- From `FarmConfig.WeatherFirstYear` (year 2), each year has a `FarmConfig.WeatherChance` (**60%**)
+  chance of one weather spell, planned at Spring with the sim RNG:
+  - **Storm** (12 s, rolled to start anywhere from 15–85% through the year): Sun stops; rain waters
+    every Dry plot at 0.5× the passive rate; no crows spawn; summer drought (§3.2) does not run.
+  - **Heat wave** (`FarmConfig.HeatWaveSeconds`, 15 s, planned within Summer): Sun runs ×1.5, and
+    drought (§3.2) dries Wet plots at double speed for the whole spell, even past Summer's boundary.
+  - **Fog** (12 s, planned within Spring): ripe crops stop over-ripening (§2.5) for the duration; no
+    crows spawn.
+  - Weather always stops at Winter. Event `WeatherChanged` fires on start and end; the HUD shows a
+    banner per kind.
+- Visuals: a storm greys and dims the field light and brings rain (`VfxId.StormRain`, a new
+  continuous effect built by `feel-setup.bat`); fog raises mist and washes the light pale; a heat
+  wave warms the colour filter.
+
 ---
 
 ## 6. Almanac (winter skill tree, bought with coins, reset on rebirth)
@@ -197,7 +254,7 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
 
 ## 7. Heritage (rebirth)
 
-- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). *(v1.4)* Balance pass: `HeritageThreshold` = 3 000, `SeedDivisor` = 30 (3 000 coins = 10 seeds), so the first retire lands in year 6–8. Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation.
+- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). *(v1.4)* Balance pass: `HeritageThreshold` = 3 000, `SeedDivisor` = 30 (3 000 coins = 10 seeds), so the first retire lands in year 6–8. Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation. *(v1.9)* Balance pass for M.3's new income: `HeritageThreshold` = 3 500, `SeedDivisor` = 33 (3 500 coins = 10 seeds).
 - **Reset:** coins, plots (3×3, tier 0), Almanac levels, helpers, year counter → 1.
 - **Kept:** Heritage tree, generation counter, statistics, cosmetics.
 - **Heritage Seeds** = `floor( sqrt(lifetimeCoinsThisGeneration / K) )` with K *(tune)* so the first rebirth yields ~10 seeds. Shown on the Almanac screen as "seeds if you retire now", so the decision is visible every winter.
@@ -232,6 +289,7 @@ after, but nothing new unlocks.
 - *(v1.6)* Schema is now **7**: adds each plot's `RipeAge` and the player's chosen ring shape. Migration `V6ToV7` is a no-op with safe defaults (age 0, circle shape).
 - *(v1.7)* Schema is now **8**: adds each plot's `Choice` (default **-1**); `Tier` now means the bed's quality, not the crop growing. Migration `V7ToV8` sets `Choice = -1` on every plot. Fixture-tested in `SaveV8Tests` against a hand-written v7 JSON.
 - *(v1.8)* Schema is now **9**: adds each plot's `Kind` (int) and `LastYearTier` (default **-1**). Migration `V8ToV9` sets every plot to plain ground with no rotation memory. Fixture-tested in `SaveV9Tests` against a hand-written v8 JSON.
+- *(v1.9)* Schema is now **10**: adds `YearFreshSum`, `CropsLostThisYear`, `LastGrade`, `LastGradeBonus`, `LastYearCoins`, `GoalType`/`GoalTier`/`GoalTarget`/`GoalProgress`/`GoalDone`/`GoalReward`, `Weather`, `WeatherLeft`, `PlannedWeather`, `PlannedWeatherTime` to `SaveData`, and each plot's `DryTimer` to `PlotSave`. Migration `V9ToV10` starts with no active goal, no grade recorded, and clears any in-progress weather. Fixture-tested in `SaveV10Tests` against a hand-written v9 JSON.
 
 ---
 
@@ -410,3 +468,15 @@ plots (§2.3, §2.4).
 Measured effect: year-1 coins 69 (unchanged), first apprentice year 3, first `CanRetire` year 7,
 seeds at first retire 11, 6 generations to max Heritage, 5.36 h to the ending (was 5.59 h), ring
 share at first retire 52% (was 58%), generation 4 29%. No tuning needed; 233 tests green.
+
+**2026-09-19 — M.3 seasons, year and weather pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer`, seed 1).
+
+What changed: season rules (§3.2), frost rush (§3.1), yearly goals (§3.3), weather (§5.4) and the
+end-of-year grade (§3.4). The new income sources pushed year 1 to 83 coins and the ending to
+3.9 h. Tuned: carrot value 2.2 → 2.0 (§2.3), `HeritageThreshold` 3 000 → 3 500 and `SeedDivisor`
+30 → 33 (§7); frost rush settled at ×1.25, grade bonus 2%/4%, goal reward share 5%.
+
+Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 10 seeds at
+first retire, 6 generations to max Heritage, 5.21 h to the ending, ring share 100% / 56% / 30%
+(year 1 / first retire / generation 4). 249 tests green.

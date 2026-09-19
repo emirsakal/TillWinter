@@ -33,6 +33,7 @@ namespace TillWinter.Unity
             _game.Sim.PlotWatered += OnWatered;
             _game.Sim.PlotRipened += OnRipened;
             _game.Sim.PlotCleared += OnCleared;
+            _game.Sim.PlotDriedOut += OnDriedOut;
             _game.Sim.CrowAte += OnCrowAte;
             _game.Sim.FieldExpanded += OnFieldExpanded;
             _game.Sim.RainCloudTapped += OnRainSweep;
@@ -49,6 +50,7 @@ namespace TillWinter.Unity
             _game.Sim.Harvested -= OnHarvested;
             _game.Sim.PlotWatered -= OnWatered;
             _game.Sim.PlotCleared -= OnCleared;
+            _game.Sim.PlotDriedOut -= OnDriedOut;
             _game.Sim.PlotRipened -= OnRipened;
             _game.Sim.CrowAte -= OnCrowAte;
             _game.Sim.FieldExpanded -= OnFieldExpanded;
@@ -152,6 +154,13 @@ namespace TillWinter.Unity
             _fx.Play(VfxId.SoilPuff, at, 1.8f);
             _fx.Play(VfxId.PlotPop, at);
             _audio.Play(SfxId.Expansion, 0.8f);
+        }
+
+        /// <summary>Summer drought (GDD §3.2 v1.9): a neglected Wet plot cracks dry in a small dust puff.</summary>
+        private void OnDriedOut(GridPos pos)
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            _fx.Play(VfxId.SoilPuff, _game.PlotToWorld(pos, 0.2f), 0.8f);
         }
 
         private void OnWatered(GridPos pos)

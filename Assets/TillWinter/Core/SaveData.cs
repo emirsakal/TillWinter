@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 9;
+        public const int CurrentSchemaVersion = 10;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -81,6 +81,23 @@ namespace TillWinter.Core
         // v5: the Winter screen's year summary
         public double CoinsThisYear;
         public int HarvestsThisYear;
+
+        // v10: grade, yearly goal, weather (GDD §3/§5.4 v1.9)
+        public double YearFreshSum;
+        public int CropsLostThisYear;
+        public int LastGrade;
+        public double LastGradeBonus;
+        public double LastYearCoins;
+        public int GoalType;
+        public int GoalTier;
+        public double GoalTarget;
+        public double GoalProgress;
+        public bool GoalDone;
+        public double GoalReward;
+        public int Weather;
+        public float WeatherLeft;
+        public int PlannedWeather;
+        public float PlannedWeatherTime;
     }
 
     [Serializable]
@@ -100,6 +117,8 @@ namespace TillWinter.Core
         public int Kind;
         /// <summary>v9: last year's crop, -1 = none (crop rotation).</summary>
         public int LastYearTier = -1;
+        /// <summary>v10: seconds of drought on a Wet plot.</summary>
+        public float DryTimer;
     }
 
     [Serializable]
@@ -135,6 +154,7 @@ namespace TillWinter.Core
                     case 6: data = V6ToV7(data); break;
                     case 7: data = V7ToV8(data); break;
                     case 8: data = V8ToV9(data); break;
+                    case 9: data = V9ToV10(data); break;
                     default: return null;
                 }
             }
@@ -227,6 +247,27 @@ namespace TillWinter.Core
         {
             if (d.Plots != null) foreach (var p in d.Plots) if (p != null) { p.Kind = 0; p.LastYearTier = -1; }
             d.SchemaVersion = 9;
+            return d;
+        }
+
+        /// <summary>v9 → v10: no year graded or goal set yet, clear skies, no drought under way.</summary>
+        private static SaveData V9ToV10(SaveData d)
+        {
+            d.YearFreshSum = 0;
+            d.CropsLostThisYear = 0;
+            d.LastGrade = 0;
+            d.LastGradeBonus = 0;
+            d.LastYearCoins = 0;
+            d.GoalType = 0;
+            d.GoalTier = 0;
+            d.GoalTarget = d.GoalProgress = d.GoalReward = 0;
+            d.GoalDone = false;
+            d.Weather = 0;
+            d.WeatherLeft = 0f;
+            d.PlannedWeather = 0;
+            d.PlannedWeatherTime = 0f;
+            if (d.Plots != null) foreach (var p in d.Plots) if (p != null) p.DryTimer = 0f;
+            d.SchemaVersion = 10;
             return d;
         }
 

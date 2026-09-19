@@ -184,6 +184,15 @@ MonoBehaviour:
     UseColor2: 1
     MaxPerSecond: 1
     Continuous: 0
+  - Id: 20
+    Prefab: {fileID: 7809503409611231372, guid: d1a93c12e6570dd47b429b11a1070f8d, type: 3}
+    PoolSize: 1
+    BaseCount: 10
+    Color: 32
+    Color2: 38
+    UseColor2: 0
+    MaxPerSecond: 30
+    Continuous: 1
   - Id: 19
     Prefab: {fileID: 7219963198749553831, guid: b41ada039aab4ca49933748bca8c1f4c, type: 3}
     PoolSize: 1

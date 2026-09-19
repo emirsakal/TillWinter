@@ -163,6 +163,15 @@ namespace TillWinter.Unity
             UiKit.Box(strip.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, -8f), new Vector2(1080f, 84f));
             _yearSummary = UiKit.Label(top, "YearSummary", "", UiType.Label, _theme.Ink, TextAnchor.LowerLeft);
             UiKit.Box(_yearSummary.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(4f, 44f), new Vector2(720f, 40f));
+            // The year's grade (GDD §3.4 v1.9): three stars, the bonus they paid, and whether the goal was met.
+            _gradeStars = new Image[3];
+            for (int i = 0; i < 3; i++)
+            {
+                _gradeStars[i] = NodeIcons.Image(top, "star", _theme.Accent);
+                UiKit.Box(_gradeStars[i].rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(4f + i * 44f, 92f), new Vector2(40f, 40f));
+            }
+            _gradeLine = UiKit.Label(top, "Grade", "", UiType.Label, _theme.InkMuted, TextAnchor.LowerLeft);
+            UiKit.Box(_gradeLine.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(148f, 92f), new Vector2(700f, 40f));
             _greenhouse = UiKit.Label(top, "Greenhouse", "", UiType.Label, _theme.InkMuted, TextAnchor.LowerLeft);
             UiKit.Stretch(_greenhouse.rectTransform, new Vector2(0f, 0f), new Vector2(0.6f, 0.5f), Vector2.zero, Vector2.zero);
             _retireHint = UiKit.Label(top, "RetireHint", "", UiType.Label, _theme.Seed, TextAnchor.LowerRight, FontStyle.Bold);
@@ -612,6 +621,9 @@ namespace TillWinter.Unity
 
         private TMP_Text _effectNow, _effectNext, _effectArrow, _yearSummary;
         private long _yearSummaryKey = -1;
+        private Image[] _gradeStars;
+        private TMP_Text _gradeLine;
+        private int _gradeKey = -2;
         private Image _gainFill;
 
         /// <summary>The effect as "now » next" with a bar for the step, so what a level buys is visible at a glance.</summary>
@@ -716,6 +728,21 @@ namespace TillWinter.Unity
                 _ghCoinsKey = ghCoins;
                 _ghSecondsKey = ghSeconds;
                 _greenhouse.text = gh ? Strings.Format("ui.greenhouse", ("coins", NumberFormat.Short(s.Greenhouse.CoinsThisWinter)), ("seconds", ghSeconds)) : "";
+            }
+            int gradeKey = s.Phase == Phase.Winter ? s.LastGrade * 10 + (s.Goal.Active ? (s.Goal.Done ? 2 : 1) : 0) : -1;
+            if (gradeKey != _gradeKey)
+            {
+                _gradeKey = gradeKey;
+                bool graded = gradeKey >= 10;
+                for (int i = 0; i < 3; i++)
+                {
+                    _gradeStars[i].gameObject.SetActive(graded);
+                    _gradeStars[i].color = i < s.LastGrade ? _theme.Accent : _theme.InkMuted * new Color(1f, 1f, 1f, 0.35f);
+                }
+                string line = graded && s.LastGradeBonus > 0 ? Strings.Format("ui.grade_bonus", ("coins", NumberFormat.Short(s.LastGradeBonus))) : "";
+                if (graded && s.Goal.Active)
+                    line += (line.Length > 0 ? "  ·  " : "") + Strings.Get(s.Goal.Done ? "ui.goal_result_met" : "ui.goal_result_missed");
+                _gradeLine.text = graded ? line : "";
             }
             // What the year that just ended brought in (Core counts it from Spring; v5 save).
             long summaryKey = (long)s.CoinsThisYear * 1000 + s.HarvestsThisYear;

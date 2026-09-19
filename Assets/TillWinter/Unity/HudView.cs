@@ -147,6 +147,10 @@ namespace TillWinter.Unity
             _seedGlow = UiKit.CircleImage(_seedChipFace.transform, "Glow", _theme.Seed, new Vector2(-104f, 0f), 96f);
             _seedGlow.sprite = GlowSprite;
             UiKit.CircleImage(_seedChipFace.transform, "Seed", _theme.Seed, new Vector2(-104f, 0f), 44f);
+            _goalLine = UiKit.Label(top, "Goal", "", UiType.Caption, _theme.TextMuted, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(_goalLine.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 336f), new Vector2(960f, 44f));
+            UiKit.Outline(_goalLine, 0.14f);
+            _goalLine.gameObject.SetActive(false);
             _rate = UiKit.Label(top, "Rate", "", UiType.Caption, _theme.TextMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_rate.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 290f), new Vector2(500f, 40f)); // under the Year line: beside the counter a long number ran into it
             UiKit.Outline(_rate, 0.12f);
@@ -238,9 +242,75 @@ namespace TillWinter.Unity
             _game.Sim.YearStarted += OnYearStarted;
             _game.Sim.WinterStarted += OnWinter;
             _game.Sim.FrostWarningStarted += OnFrostWarning;
+            _game.Sim.GoalCompleted += OnGoalCompleted;
+            _game.Sim.WeatherChanged += OnWeatherChanged;
         }
 
-        private void OnFrostWarning() => Haptics.Play(HapticKind.Light);
+        private void OnFrostWarning()
+        {
+            Haptics.Play(HapticKind.Light);
+            // GDD §3.1 (v1.9): the last seconds before frost pay extra, and the banner says so.
+            double rush = _game.Sim.Config.FrostRushValue;
+            if (rush > 1 && !_game.Sim.IsSimulatingOffline)
+                Banner(Strings.Format("ui.frost_rush", ("percent", Mathf.RoundToInt((float)((rush - 1) * 100)))));
+        }
+
+        private void OnGoalCompleted(YearGoal goal)
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            Banner(Strings.Format("goal.met", ("coins", NumberFormat.Short(goal.Reward))));
+            Haptics.Play(HapticKind.Medium);
+            _audio?.Play(SfxId.Purchase, 0.8f);
+            _goalKey = -1;
+        }
+
+        private void OnWeatherChanged(Weather weather)
+        {
+            if (weather == Weather.Clear || _game.Sim.IsSimulatingOffline) return;
+            Banner(Strings.Get("weather." + weather));
+            Haptics.Play(HapticKind.Light);
+        }
+
+        /// <summary>The centre banner (combo milestones, goals, weather, the frost rush): one line that rises and fades.</summary>
+        private void Banner(string text)
+        {
+            _milestone.text = text;
+            _milestoneLeft = 1.6f;
+        }
+
+        // ------------------------------------------------------------------ yearly goal line (GDD §3.3 v1.9)
+
+        private TMP_Text _goalLine;
+        private long _goalKey = -1;
+
+        private void RefreshGoalLine(FarmState state)
+        {
+            var goal = state.Goal;
+            bool show = goal.Active && state.Phase == Phase.Year;
+            if (_goalLine.gameObject.activeSelf != show) _goalLine.gameObject.SetActive(show);
+            if (!show) { _goalKey = -1; return; }
+            long key = (long)goal.Type * 1000000000L + (long)System.Math.Min(goal.Progress, 99999999) * 10 + (goal.Done ? 1 : 0);
+            if (key == _goalKey) return;
+            _goalKey = key;
+            string what;
+            switch (goal.Type)
+            {
+                case GoalType.HarvestCrop:
+                    what = Strings.Format("goal.harvest", ("count", NumberFormat.Short(goal.Target)), ("crop", Strings.Get(_game.Sim.Config.Crops[goal.Tier].Key)));
+                    break;
+                case GoalType.Combo:
+                    what = Strings.Format("goal.combo", ("count", NumberFormat.Short(goal.Target)));
+                    break;
+                default:
+                    what = Strings.Format("goal.coins", ("coins", NumberFormat.Short(goal.Target)));
+                    break;
+            }
+            string progress = goal.Done
+                ? Strings.Get("goal.done")
+                : Strings.Format("goal.progress", ("progress", NumberFormat.Short(System.Math.Min(goal.Progress, goal.Target))), ("target", NumberFormat.Short(goal.Target)));
+            _goalLine.text = what + "  ·  " + progress;
+            _goalLine.color = goal.Done ? _theme.Gold : _theme.TextMuted;
+        }
 
         /// <summary>Splits a localized template around its placeholders once, so the parts can be written into a char buffer.</summary>
         private static void SplitTemplate(string template, string first, string second, out string s0, out string s1, out string s2)
@@ -334,6 +404,8 @@ namespace TillWinter.Unity
             if (_game == null || _game.Sim == null) return;
             _game.Sim.Harvested -= OnHarvested;
             _game.Sim.ComboMilestone -= OnComboMilestone;
+            _game.Sim.GoalCompleted -= OnGoalCompleted;
+            _game.Sim.WeatherChanged -= OnWeatherChanged;
             _game.Sim.CrowScared -= OnCrowScared;
             _game.Sim.YearStarted -= OnYearStarted;
             _game.Sim.WinterStarted -= OnWinter;
@@ -475,8 +547,7 @@ namespace TillWinter.Unity
                 _audio?.Play(SfxId.Sprout, 0.8f);
                 return true;
             }
-            _milestone.text = Strings.Get("ui.seed_bed_low");
-            _milestoneLeft = 1.6f;
+            Banner(Strings.Get("ui.seed_bed_low"));
             _audio?.Play(SfxId.Denied, 0.8f);
             return false;
         }
@@ -518,8 +589,7 @@ namespace TillWinter.Unity
         private void OnComboMilestone(int combo, double coins)
         {
             if (_game.Sim.IsSimulatingOffline) return;
-            _milestone.text = Strings.Format("ui.combo_milestone", ("combo", combo), ("coins", NumberFormat.Short(coins)));
-            _milestoneLeft = 1.6f;
+            Banner(Strings.Format("ui.combo_milestone", ("combo", combo), ("coins", NumberFormat.Short(coins))));
             Haptics.Play(HapticKind.Medium);
             _audio?.Play(SfxId.GoldenHarvest, 0.7f);
         }
@@ -718,6 +788,7 @@ namespace TillWinter.Unity
             else if (_milestone.alpha > 0f) _milestone.alpha = 0f;
             bool shapes = state.Stats.RingShapeLevel > 0 && !state.IsWinter;
             if (_shapeButton.gameObject.activeSelf != shapes) _shapeButton.gameObject.SetActive(shapes);
+            RefreshGoalLine(state);
             // The seed bag: once a second crop is unlocked, during the year, never on the Golden Year's field.
             bool bag = state.Stats.MaxTierUnlocked > 0 && !state.IsWinter && !state.GoldenYearActive;
             if (_bagButton.gameObject.activeSelf != bag)

@@ -22,6 +22,14 @@ namespace TillWinter.Tests
             cfg.FertileValue = 1;
             cfg.FertileChance = 0;
             cfg.StonyChance = 0;
+            // Seasons, grade, goals and weather (M.3) off as well: no season rules, no bonus, no RNG drawn for them.
+            cfg.SpringWaterBoost = 1f;
+            cfg.SummerDryOutSeconds = float.MaxValue;
+            cfg.AutumnComboWindow = 1f;
+            cfg.FrostRushValue = 1;
+            cfg.GradeBonusByStars = new double[] { 0, 0, 0, 0 };
+            cfg.GoalFirstYear = int.MaxValue;
+            cfg.WeatherFirstYear = int.MaxValue;
             return cfg;
         }
     }
