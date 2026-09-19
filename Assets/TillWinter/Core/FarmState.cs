@@ -224,7 +224,7 @@ namespace TillWinter.Core
         /// <summary>Real seconds the game was open and not paused (fed by the presentation layer through FarmSim.AddPlayTime).</summary>
         public double TimePlayedSeconds { get; internal set; }
         /// <summary>Years played across every generation.</summary>
-        public int YearsTotal { get; internal set; }
+        public int YearsTotal { get; internal set; } = 1; // the year being played counts, from the very first
         /// <summary>Coins spent in the Almanac this generation, and whether its one free respec is used (GDD §6.3 v2.2).</summary>
         public double AlmanacSpent { get; internal set; }
         public bool RespecUsed { get; internal set; }

@@ -24,10 +24,16 @@ namespace TillWinter.Unity
             _game.Sim.FieldExpanded += () => Rebuild(false);
         }
 
+        private Transform _setRoot;
+
         /// <summary>Rebuilds for the current generation; with <paramref name="animate"/> items pop in one after another.</summary>
         public void Rebuild(bool animate)
         {
-            for (int i = transform.childCount - 1; i >= 0; i--) Destroy(transform.GetChild(i).gameObject);
+            // A fresh root each time: Destroy is deferred to the end of the frame, and batching the old root now would
+            // fold the dying, already-batched decor into the new batch (DioramaView does the same).
+            if (_setRoot != null) Destroy(_setRoot.gameObject);
+            _setRoot = new GameObject("DecorSet").transform;
+            _setRoot.SetParent(transform, false);
             _items.Clear();
             int gen = _game.State.Generation.Generation;
             float half = _game.State.GridSize * 0.5f;
@@ -36,7 +42,7 @@ namespace TillWinter.Unity
             foreach (var item in _set.ForGeneration(gen))
             {
                 var root = new GameObject("Decor " + item.Id).transform;
-                root.SetParent(transform, false);
+                root.SetParent(_setRoot, false);
                 // Offsets are relative to the field edge so decor scales with the field.
                 float x = Mathf.Sign(item.Offset.x) * (half + Mathf.Abs(item.Offset.x) - 0.5f) * (Mathf.Abs(item.Offset.x) > 0.5f ? 1f : 0f) + (Mathf.Abs(item.Offset.x) <= 0.5f ? item.Offset.x : 0f);
                 float z = item.Offset.y > 0f ? half + item.Offset.y - 0.5f : -half + item.Offset.y + 0.5f;
@@ -50,7 +56,7 @@ namespace TillWinter.Unity
                 delay += 0.12f;
             }
             _reveal = animate ? 0f : 99f;
-            if (!animate) StaticBatchingUtility.Combine(gameObject);
+            if (!animate) StaticBatchingUtility.Combine(_setRoot.gameObject);
         }
 
         /// <summary>Skip the pop-in.</summary>
@@ -75,7 +81,7 @@ namespace TillWinter.Unity
             if (done)
             {
                 _reveal = 99f;
-                StaticBatchingUtility.Combine(gameObject);
+                if (_setRoot != null) StaticBatchingUtility.Combine(_setRoot.gameObject);
             }
         }
     }

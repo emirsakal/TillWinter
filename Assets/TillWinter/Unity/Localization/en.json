@@ -54,6 +54,7 @@
   "album.title": "Family album",
   "album.empty": "No generation has handed the farm on yet.",
   "album.generation": "Generation {n}",
+  "daily.date": "{m}/{d}/{y}",
   "album.ng_plus": "New Game+ {n}",
   "album.line": "{years} years · {coins} coins · {seeds} seeds · {harvests} harvests",
   "album.story.first": "They started with a small field and a big sky.",

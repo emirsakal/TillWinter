@@ -43,8 +43,9 @@ namespace TillWinter.Unity
             if (_game != null && _game.Sim != null) _game.Sim.WinterStarted -= Show;
         }
 
+        /// <summary>The day in the language's own order (daily.date: 9/19/2026 in English, 19.09.2026 in Turkish).</summary>
         private static string FormatDay(int yyyymmdd) =>
-            (yyyymmdd % 100).ToString("00") + "." + (yyyymmdd / 100 % 100).ToString("00") + "." + (yyyymmdd / 10000);
+            Strings.Format("daily.date", ("d", (yyyymmdd % 100).ToString("00")), ("m", (yyyymmdd / 100 % 100).ToString("00")), ("y", yyyymmdd / 10000));
 
         private void Show()
         {

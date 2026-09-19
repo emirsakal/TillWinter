@@ -193,8 +193,8 @@ namespace TillWinter.Core
         // Heritage (GDD §7)
         /// <summary>Lifetime coins in this generation needed before "Pass on the farm" unlocks.</summary>
         public double HeritageThreshold = 3500; // S9 balance (GDD §7 v1.4); M.3 3000 → 3500 for the season, goal and grade income (v1.9)
-        /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 3 500 coins = 10 seeds (at 35).</summary>
-        public double SeedDivisor = 35; // M.3: 30 → 33, the ending stays past five hours with the new year income (v1.9); M.7: → 35 for heirs and heirlooms (v2.3)
+        /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 3 500 coins = 9 seeds (at 37).</summary>
+        public double SeedDivisor = 37; // M.3: 30 → 33, the ending stays past five hours with the new year income (v1.9); M.7: → 35 for heirs and heirlooms (v2.3); play-test fixes: → 37, the balance bot stopped buying nodes it never uses
 
         // Events and remaining nodes (GDD §4, §5, §6, §7)
         public float CloudDriftSeconds = 8f;

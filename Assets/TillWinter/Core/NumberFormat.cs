@@ -25,6 +25,14 @@ namespace TillWinter.Core
             return Style == NumberStyle.Turkish ? s.Replace('.', ',') : s;
         }
 
+        /// <summary>A whole number with the style's thousands separator: 1,234 in English, 1.234 in Turkish.</summary>
+        public static string Whole(long value)
+        {
+            string s = Math.Abs(value).ToString("#,0", CultureInfo.InvariantCulture);
+            if (Style == NumberStyle.Turkish) s = s.Replace(',', '.');
+            return value < 0 ? "-" + s : s;
+        }
+
         private static readonly string[] Suffixes = { "", "K", "M", "B", "T", "Qa", "Qi" };
 
         /// <summary>950 -> "950", 1234 -> "1.2K", 15400 -> "15K", 3.4e6 -> "3.4M", 5.6e9 -> "5.6B".</summary>

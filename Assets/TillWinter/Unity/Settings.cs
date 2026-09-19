@@ -64,7 +64,7 @@ namespace TillWinter.Unity
         {
             get
             {
-                if (_current == null) _current = Load(Path) ?? new SettingsData();
+                if (_current == null) _current = Load(Path) ?? Load(Path + ".bak") ?? Load(Path + ".tmp") ?? new SettingsData();
                 return _current;
             }
         }
@@ -73,10 +73,16 @@ namespace TillWinter.Unity
         {
             try
             {
+                // Like the save: the old file becomes .bak before the new one moves in, so a kill between the two steps
+                // still leaves a readable copy (Load falls back to .bak, then .tmp) — the daily best lives here too.
                 string path = Path;
-                string tmp = path + ".tmp";
+                string tmp = path + ".tmp", bak = path + ".bak";
                 File.WriteAllText(tmp, JsonUtility.ToJson(Current, true));
-                if (File.Exists(path)) File.Delete(path);
+                if (File.Exists(path))
+                {
+                    if (File.Exists(bak)) File.Delete(bak);
+                    File.Move(path, bak);
+                }
                 File.Move(tmp, path);
             }
             catch (Exception e)

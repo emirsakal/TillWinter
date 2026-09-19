@@ -121,15 +121,15 @@ namespace TillWinter.Unity
             _skyMaterial = _catalog != null && _catalog.Sky != null ? new Material(_catalog.Sky) : null;
             if (_skyMaterial != null)
             {
-                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                quad.name = "Sky";
-                Destroy(quad.GetComponent<Collider>());
-                quad.transform.SetParent(_cam.transform, false);
+                var quad = _catalog.Spawn(_catalog.SkyQuad, _cam.transform, "Sky");
                 quad.transform.localPosition = new Vector3(0f, 0f, _cam.farClipPlane - 1f);
-                var r = quad.GetComponent<Renderer>();
-                r.sharedMaterial = _skyMaterial;
-                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                r.receiveShadows = false;
+                var r = quad.GetComponentInChildren<Renderer>();
+                if (r != null)
+                {
+                    r.sharedMaterial = _skyMaterial;
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    r.receiveShadows = false;
+                }
                 _sky = quad.transform;
             }
             FrameCamera();
@@ -264,12 +264,13 @@ namespace TillWinter.Unity
             UiKit.Outline(subtitle, 0.16f);
 
             RectTransform progressRt = null;
-            bool hasSave = File.Exists(SaveController.FilePath);
+            // What the farm scene will load: the save or its .bak. A file that cannot be read is no farm to continue.
+            string savePath = SaveController.FilePath;
+            var save = File.Exists(savePath) || File.Exists(savePath + ".bak") ? SaveController.Load(savePath) : null;
+            bool hasSave = save != null;
             if (hasSave)
             {
                 // Where the farm stands, read straight off the save file.
-                var save = SaveController.Load(SaveController.FilePath);
-                if (save != null)
                 {
                     // The loading seedling wears the season the farm was left in.
                     var look = SeasonPalette.Load().For((TillWinter.Core.Season)save.Season, false);
@@ -355,11 +356,13 @@ namespace TillWinter.Unity
             if (_leaveT >= 0f) return;
             GameSession.Daily = 0;
             _leaveT = 0f;
+            _fade.raycastTarget = true; // nothing else on the title screen takes a tap once we are leaving
             Haptics.Play(HapticKind.Selection);
         }
 
         private void NewGame()
         {
+            if (_leaveT >= 0f) return; // already on the way to the farm
             SaveController.DeleteFiles(SaveController.FilePath);
             _confirm.SetActive(false);
             StartGame();

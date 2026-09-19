@@ -76,7 +76,7 @@ namespace TillWinter.Core
             N("ring_grow_speed", Branch.Hand, new[] { "ring_radius" }, 5, 120, EffectType.RingGrowSpeed, 0.2),
             N("ring_harvest_speed", Branch.Hand, new[] { "ring_water_speed", "ring_grow_speed" }, 3, 200, EffectType.RingHarvestSpeed, 0.2),
             N("ring_bonus_coins", Branch.Hand, new[] { "ring_harvest_speed" }, 4, 400, EffectType.RingBonusCoins, 0.1),
-            N("ring_combo", Branch.Hand, new[] { "ring_bonus_coins" }, 3, 800, EffectType.RingCombo, 0.05),
+            N("ring_combo", Branch.Hand, new[] { "ring_bonus_coins" }, 3, 800, EffectType.RingCombo, 0.01), // GDD §6: level x 0.01 per stack
             N("ring_shape", Branch.Hand, new[] { "ring_radius" }, 2, 350, EffectType.RingShape, 1),
             N("tap_harvest", Branch.Hand, new[] { "ring_harvest_speed" }, 2, 450, EffectType.TapHarvest, 1),
 

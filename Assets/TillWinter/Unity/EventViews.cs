@@ -103,6 +103,7 @@ namespace TillWinter.Unity
 
         private void OnSweepStarted(int row)
         {
+            if (_game.Sim.IsSimulatingOffline) return;
             _fx.Play(VfxId.TractorExhaust, _body.position + Vector3.up * 0.55f);
             _audio.Play(SfxId.TractorStart);
         }

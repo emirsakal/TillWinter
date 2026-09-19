@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.6 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.7 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -342,7 +342,7 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
 
 ## 7. Heritage (rebirth)
 
-- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). *(v1.4)* Balance pass: `HeritageThreshold` = 3 000, `SeedDivisor` = 30 (3 000 coins = 10 seeds), so the first retire lands in year 6–8. Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation. *(v1.9)* Balance pass for M.3's new income: `HeritageThreshold` = 3 500, `SeedDivisor` = 33 (3 500 coins = 10 seeds). *(v2.3)* Balance pass for M.7's heirs and heirlooms: `SeedDivisor` = 35 (3 500 coins ≈ 10 seeds).
+- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). *(v1.4)* Balance pass: `HeritageThreshold` = 3 000, `SeedDivisor` = 30 (3 000 coins = 10 seeds), so the first retire lands in year 6–8. Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation. *(v1.9)* Balance pass for M.3's new income: `HeritageThreshold` = 3 500, `SeedDivisor` = 33 (3 500 coins = 10 seeds). *(v2.3)* Balance pass for M.7's heirs and heirlooms: `SeedDivisor` = 35 (3 500 coins ≈ 10 seeds). *(v2.7)* Balance pass after fixing the auto-play bot's either/or and choice-node spending: `SeedDivisor` = 37 (3 500 coins ≈ 9 seeds; first retire still lands at 10 seeds in the sim).
 - **Reset:** coins, plots (3×3, tier 0), Almanac levels, helpers, year counter → 1.
 - **Kept:** Heritage tree, generation counter, statistics, cosmetics.
 - **Heritage Seeds** = `floor( sqrt(lifetimeCoinsThisGeneration / K) )` with K *(tune)* so the first rebirth yields ~10 seeds. Shown on the Almanac screen as "seeds if you retire now", so the decision is visible every winter.
@@ -391,7 +391,7 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
 
 - `SetChallenge`, callable in the Heritage phase, picks one of two challenges for the coming
   generation (reset to none at every rebirth):
-  - No helpers: no apprentices, no tractor.
+  - No helpers: no apprentices, no tractor. *(v2.7)* Also closes `helper_water` (an apprentice-only effect); a blocked node does not close what lies behind it, so `scarecrow`, `farm_dog` and `hens` stay reachable.
   - Short years: year length ×0.7, frost warning capped at 20% of it.
 - Either challenge multiplies the seeds earned at retirement by `FarmConfig.ChallengeSeedBonus`
   (×1.5).

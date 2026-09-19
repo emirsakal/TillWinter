@@ -1172,3 +1172,93 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   checklist card only shows for a first generation, and the tour's 39-checklist screenshot runs
   past that point. Chosen: a debug-only `HudView.DebugPreviewChecklist` hook forces the checklist
   unticked for that one shot, gated the same as the rest of debug-only code.
+
+## Follow-up: play-test fixes, round three (second review) (2026-09-19)
+
+- **h_start_tomato now actually grants Tomato instead of an unusable flag.** Open: the node raised
+  `MaxTierUnlocked` but granted no level, so `upgrade_plot` and later crops stayed locked despite
+  the node reading as bought. Chosen: it grants `unlock_tomato` level 1 for free at every new
+  generation and after a respec, and that free level is excluded from `AlmanacSpent`, so it reads
+  as a genuine unlock rather than a purchase.
+- **ring_combo now feeds the resolved stat, at the value the GDD always specified.** Open: whether
+  the per-level table value reached `Stats.RingComboPerStack` at all, and the node's description
+  showed five times the real bonus. Chosen: the table reads `level x 0.01` as §7.3 specifies, the
+  resolver applies it to the harvest stat, and the description was corrected to match — the number
+  was fixed to the GDD, not the other way around.
+- **No-helpers challenge blocks by node, not by "apprentices/tractor" as a category.** Open: which
+  nodes count as a helper, and whether blocking one should close everything behind it in the tree.
+  Chosen: `SkillTree` gained a `Blocked` hook that closes apprentice_count, apprentice_speed,
+  apprentice_harvest_time, apprentice_yield, tractor and helper_water for that generation (locked,
+  never sold or suggested); a blocked node does not cascade to what lies behind it, so scarecrow,
+  farm_dog and hens stay reachable. Marked inline in the GDD.
+- **Balance bot no longer double-counts either/or choices or buys nodes it can't use, and
+  `SeedDivisor` moved 35 -> 37.** Open: the bot was deciding to retire on the strength of both
+  sides of exclusive Heritage pairs, spending on ring_shape/tap_harvest/barn whose effect needs a
+  choice it never makes, and booking winter greenhouse coins into the wrong year. Chosen:
+  retirement now counts one side of each pair, those three nodes are no longer bought, and
+  greenhouse coins book into the year just closed; with the bot spending better the ending fell to
+  4.9 h (under the 5-7 h target), so `SeedDivisor` moved 35 -> 37 (3 500 coins ~= 9 seeds; first
+  retire still nets 10 in the sim), landing back at 5.03-5.07 h across 6 generations. Marked inline
+  in the GDD.
+- **YearsTotal counts every generation's first year, New Game+ included.** Open: whether a rebirth
+  or an NG+ restart should add to the lifetime year count on its own. Chosen: it starts at 1 and
+  adds 1 at `StartNewGeneration` and again on entering a New Game+ round, so the lifetime counter
+  reflects every year actually played.
+- **Node descriptions now resolve through the same path the game plays with.** Open: whether Golden
+  Year, heirlooms, heir traits, the active challenge and New Game+ modifiers should be folded into
+  the numbers a description shows. Chosen: descriptions resolve via `FarmSim.ResolveWith`, so the
+  tree never shows a number the current run won't actually give.
+- **Late-frost rescues grade at half freshness.** Open: whether a plot saved by `late_frost` at half
+  value should also count at half freshness toward the year's grade. Chosen: yes, matching the half
+  price it sells for.
+- **upgrade_plot's shown max accounts for bulk_upgrade's pair purchases.** Open: whether the
+  displayed max should still assume one bed per purchase once bulk_upgrade is bought. Chosen: the
+  shown max counts two beds per purchase once bulk_upgrade is active, matching what a tap actually
+  buys.
+- **Debug tools match the rules they exercise.** Open: whether `DebugMaxHeritage` should max both
+  sides of an exclusive pair, and whether stepping `DebugSetSeason` back out of the frost window
+  should still show the frost warning. Chosen: `DebugMaxHeritage` takes one side of each pair, like
+  real play; backing `DebugSetSeason` out of the frost window ends the frost warning; flow-speed
+  tracking now resets at winter like the rest of the year's stats.
+- **Resuming skips offline feedback for passive events.** Open: whether a plot watering/ripening or
+  a tractor sweep that happened while the app was closed should replay its sound/VFX on resume.
+  Chosen: no — those cues are skipped for anything `SimulateOffline` advanced, so returning to the
+  farm after hours away doesn't burst into a pile of stacked feedback.
+- **Decor rebuilds under a fresh root every time.** Open: static batching was folding in decor
+  objects mid-destroy during a rebuild. Chosen: `FarmDecorView` (like `DioramaView`) parents each
+  rebuild under a new root object, so batching never references decor that's being torn down.
+- **A second time-away before the player dismisses the first adds to the card.** Open: whether a
+  second offline gap arriving before the player taps OK on the first should overwrite it, and how a
+  tap over UI should register as "OK". Chosen: a second time-away adds to the existing card instead
+  of replacing it; the dim behind the card is now a real button, since a tap over UI never reached
+  the pointer input it needed to count as OK.
+- **Main menu from pause saves before leaving and keeps the farm paused through the fade.** Open:
+  the farm kept ticking, unpaused, behind the fade-to-menu cover. Chosen: the save runs first,
+  saving is detached from the scene, and the farm stays paused through the whole transition.
+- **Only a ring harvest arms the "first ripe outside the ring" hint.** Open: whether a plot noticed
+  ripe on resume from offline simulation should count toward the one-shot hint. Chosen: no — only a
+  live ring harvest consumes it; offline ripening never arms it.
+- **Two display bugs: a waterer's bubble colour and the Almanac's thousands separator.** Chosen: the
+  waterer's first thought bubble now gets its water colour (a sentinel-value fix); the Almanac's
+  now-to-next bar reads a separator followed by exactly three digits as thousands (K/M/B scale)
+  instead of misparsing it.
+- **Remaining literal colours moved into theme/palette assets, defaults unchanged.** Open: several
+  colours were still hard-coded in views, against the art rule. Chosen: moved into `HudTheme`
+  (FrostEdge/Flash), `TreeTheme` (Dim/DimLight/Highlight), `Palette` (RipeGlow/StaleTint/WetSheen/
+  RingIdle/RingCombo/CameraClear) and `SeasonPalette` (Vignette/BloomTint/Rim*/FrostCold/Storm/Fog/
+  HeatFilter/SunWarm); white/black used as neutral multipliers stayed in code.
+- **The sky quad and the ring's fallback disc are now ArtSetup prefabs.** Open: these were still
+  built as runtime primitives, against the rule that primitive builders live only in `ArtSetup`.
+  Chosen: `SkyQuad` and `RingDisc` prefabs, spawned through `VisualCatalog` like everything else.
+- **settings.json gets the same backup/fallback scheme as the save.** Open: a write interrupted
+  mid-save could corrupt settings with no recovery path. Chosen: the old file becomes `.bak` before
+  the new one moves in, `Load` falls back to `.bak` then `.tmp`, and settings now also save when the
+  app goes to the background.
+- **Title screen treats a `.bak`-only save as saved, and guards the leave-fade.** Open: whether a
+  farm whose primary save failed but whose backup is intact should offer Continue, and whether input
+  during the fade to another scene could double-fire. Chosen: a farm counts as saved when either the
+  save or its `.bak` loads; an unreadable file shows no Continue; the fade blocks taps and New Game
+  is guarded while leaving.
+- **Small compliance fixes bundled with the rest.** GenerationCard's count-up now writes into a char
+  buffer instead of building a string per frame; stats values use `NumberFormat.Whole`; the daily
+  date reads from a `daily.date` template (`{m}/{d}/{y}` in English, `{d}.{m}.{y}` in Turkish).

@@ -344,9 +344,13 @@ namespace TillWinter.Unity
         private void ToMainMenu()
         {
             GameSession.Daily = 0;
-            Resume();
+            // Save first and keep the farm paused through the fade and the load: a sim ticking behind the cover would
+            // play time (even the frost) that is never saved.
             _save.SaveNow();
-            Time.timeScale = 1f;
+            _save.Detach();
+            HideAll();
+            SettingsStore.Save();
+            Time.timeScale = 1f; // the fade runs on real time; GameController.Paused still stops the sim
             SceneLoader.Load(SceneNames.Menu);
         }
 
@@ -578,10 +582,10 @@ namespace TillWinter.Unity
             long minutes = (long)(g.TimePlayedSeconds / 60.0);
             string[] values =
             {
-                g.Generation.ToString(), g.YearsTotal.ToString(), NumberFormat.Short(g.LifetimeCoinsTotal),
-                g.Harvests.ToString(), g.HarvestsRing.ToString(), g.HarvestsApprentice.ToString(),
-                g.HarvestsTractor.ToString(), g.CrowsScared.ToString(), g.GoldenHarvests.ToString(),
-                g.BestCombo.ToString(), Strings.Format("stats.time_value", ("hours", minutes / 60), ("minutes", minutes % 60)),
+                NumberFormat.Whole(g.Generation), NumberFormat.Whole(g.YearsTotal), NumberFormat.Short(g.LifetimeCoinsTotal),
+                NumberFormat.Whole(g.Harvests), NumberFormat.Whole(g.HarvestsRing), NumberFormat.Whole(g.HarvestsApprentice),
+                NumberFormat.Whole(g.HarvestsTractor), NumberFormat.Whole(g.CrowsScared), NumberFormat.Whole(g.GoldenHarvests),
+                NumberFormat.Whole(g.BestCombo), Strings.Format("stats.time_value", ("hours", minutes / 60), ("minutes", minutes % 60)),
                 HeirloomCount(g.Achievements) + " / " + TillWinter.Core.Legacy.AchievementCount,
                 Strings.Get("heir." + g.Trait),
             };

@@ -76,7 +76,8 @@ namespace TillWinter.Unity
             string flavour = Strings.Get(key);
             _flavour.text = flavour == key ? Strings.Get("gen.flavour.default") : flavour;
             _shownSeeds = 0;
-            _seeds.text = Strings.Format("gen.seeds", ("seeds", 0));
+            SplitSeedsTemplate();
+            WriteSeeds(0);
             _panel.transform.SetAsLastSibling();
             _panel.SetActive(true);
             _group.alpha = 0f;
@@ -95,6 +96,29 @@ namespace TillWinter.Unity
             _onDone?.Invoke();
         }
 
+        // The count-up rewrites the seed line every few frames: into a char buffer, not a new string each time.
+        private readonly char[] _seedChars = new char[128];
+        private readonly char[] _numChars = new char[32];
+        private string _seedHead = "", _seedTail = "";
+
+        private void SplitSeedsTemplate()
+        {
+            string t = Strings.Get("gen.seeds");
+            int at = t.IndexOf("{seeds}", System.StringComparison.Ordinal);
+            _seedHead = at < 0 ? t : t.Substring(0, at);
+            _seedTail = at < 0 ? "" : t.Substring(at + "{seeds}".Length);
+        }
+
+        private void WriteSeeds(int seeds)
+        {
+            int n = 0;
+            for (int i = 0; i < _seedHead.Length && n < _seedChars.Length; i++) _seedChars[n++] = _seedHead[i];
+            int digits = NumberFormat.Short(seeds, _numChars);
+            for (int i = 0; i < digits && n < _seedChars.Length; i++) _seedChars[n++] = _numChars[i];
+            for (int i = 0; i < _seedTail.Length && n < _seedChars.Length; i++) _seedChars[n++] = _seedTail[i];
+            _seeds.SetText(_seedChars, 0, n);
+        }
+
         private void Update()
         {
             if (!_open) return;
@@ -103,7 +127,7 @@ namespace TillWinter.Unity
             _group.alpha = Mathf.Clamp01(_t / 0.4f);
             float count = Mathf.Clamp01((_t - 0.6f) / 1.4f);
             int shown = Mathf.RoundToInt(Prims.EaseOutQuad(count) * _seedsTarget);
-            if (shown != _shownSeeds) { _shownSeeds = shown; _seeds.text = Strings.Format("gen.seeds", ("seeds", shown)); }
+            if (shown != _shownSeeds) { _shownSeeds = shown; WriteSeeds(shown); }
             if (count < 1f && _t - _lastTick > 0.08f) { _lastTick = _t; _audio.Play(SfxId.CoinArrive, 0.6f); }
             _tap.alpha = _t > 0.5f ? 0.5f + 0.5f * Mathf.Abs(Mathf.Sin(_t * 2f)) : 0f;
             float bars = UiMotion.EaseOut(Mathf.Clamp01(_t / 0.6f));

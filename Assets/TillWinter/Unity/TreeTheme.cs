@@ -51,6 +51,11 @@ namespace TillWinter.Unity
         public Color Stars = new Color(1f, 0.96f, 0.85f, 0.55f);
         /// <summary>Frost on the window: strong as Winter opens, then a thin frame that stays.</summary>
         public Color Frost = new Color(0.86f, 0.93f, 1f, 0.5f);
+        /// <summary>Dims behind the hint caption and the confirm sheet, and the lighter one behind the retire hint.</summary>
+        public Color Dim = new Color(0f, 0f, 0f, 0.6f);
+        public Color DimLight = new Color(0f, 0f, 0f, 0.5f);
+        /// <summary>What a node ring flashes toward when bought, and the colour of the edge flow lines.</summary>
+        public Color Highlight = Color.white;
         /// <summary>The Heritage page's aged-paper tint (over the grain).</summary>
         public Color Aged = new Color(0.95f, 0.78f, 0.25f, 0.025f);
         public float PulseAmplitude = 0.05f;

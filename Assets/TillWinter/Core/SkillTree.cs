@@ -61,6 +61,8 @@ namespace TillWinter.Core
         internal Func<double> GetCurrency;
         internal Action<double> Spend;
         internal Func<bool> PurchaseAllowed;
+        /// <summary>Nodes the running rules close off (a challenge): shown locked, never sold.</summary>
+        internal Func<SkillNode, bool> Blocked;
         internal Func<SkillNode, bool> IsMaxedOverride;
         internal Func<double> CostMultiplier;
 
@@ -89,9 +91,27 @@ namespace TillWinter.Core
             var node = GetNode(id);
             if (node == null) return false;
             if (node.Excludes != null && GetLevel(node.Excludes) > 0) return false;
+            if (Blocked != null && Blocked(node)) return false;
             if (node.Prerequisites.Length == 0) return true;
             foreach (var p in node.Prerequisites)
+            {
                 if (GetLevel(p) >= 1) return true;
+                // A prerequisite the rules have closed off (a challenge) does not also close what lies behind it.
+                var pn = GetNode(p);
+                if (Blocked != null && pn != null && Blocked(pn) && IsAvailableIgnoringLevel(pn)) return true;
+            }
+            return false;
+        }
+
+        private bool IsAvailableIgnoringLevel(SkillNode node)
+        {
+            if (node.Prerequisites.Length == 0) return true;
+            foreach (var p in node.Prerequisites)
+            {
+                if (GetLevel(p) >= 1) return true;
+                var pn = GetNode(p);
+                if (Blocked != null && pn != null && Blocked(pn) && IsAvailableIgnoringLevel(pn)) return true;
+            }
             return false;
         }
 

@@ -266,6 +266,93 @@ namespace TillWinter.Tests
             Assert.AreEqual(1f, at.Y, 1e-4);
         }
 
+        private static FarmSim RetiredIntoHeritage(FarmConfig cfg)
+        {
+            var sim = new FarmSim(cfg, 1);
+            sim.DebugSkipToWinter();
+            sim.DebugAddLifetimeCoins(cfg.HeritageThreshold);
+            Assert.IsTrue(sim.Retire());
+            return sim;
+        }
+
+        [Test]
+        public void TomatoSeeds_StartTheGenerationWithTomatoUnlocked()
+        {
+            var cfg = Cfg();
+            var sim = RetiredIntoHeritage(cfg);
+            sim.DebugSetLevel("h_start_field", 1);
+            sim.DebugSetLevel("h_start_tomato", 1);
+            sim.StartNewGeneration();
+            Assert.AreEqual(1, sim.State.GetLevel("unlock_tomato"), "owned, as if bought");
+            Assert.AreEqual(0, sim.State.Generation.AlmanacSpent, "but free");
+            Winter(sim, 1e6);
+            Assert.IsTrue(sim.CanBuy("upgrade_plot"), "the beds can be raised without buying tomato again");
+        }
+
+        [Test]
+        public void NoHelpers_ClosesTheHelperNodes_ButNotTheScarecrowPath()
+        {
+            var cfg = Cfg();
+            var sim = RetiredIntoHeritage(cfg);
+            Assert.IsTrue(sim.SetChallenge(ChallengeKind.NoHelpers));
+            sim.StartNewGeneration();
+            Winter(sim, 1e6);
+            Assert.IsFalse(sim.CanBuy("apprentice_count"));
+            Assert.IsFalse(sim.IsAvailable("apprentice_count"));
+            Assert.IsTrue(sim.CanBuy("scarecrow"), "the scarecrow behind it stays open");
+            Assert.AreNotEqual("apprentice_count", AlmanacAdvisor.Suggest(sim));
+        }
+
+        [Test]
+        public void YearsTotal_CountsEveryGenerationsFirstYear()
+        {
+            var cfg = Cfg();
+            var sim = new FarmSim(cfg, 1);
+            Assert.AreEqual(1, sim.State.Generation.YearsTotal);
+            sim.DebugSkipToWinter();
+            sim.StartNextYear();
+            Assert.AreEqual(2, sim.State.Generation.YearsTotal);
+            sim.DebugSkipToWinter();
+            sim.DebugAddLifetimeCoins(cfg.HeritageThreshold);
+            Assert.IsTrue(sim.Retire());
+            sim.StartNewGeneration();
+            Assert.AreEqual(3, sim.State.Generation.YearsTotal);
+        }
+
+        [Test]
+        public void UpgradePlotMax_CountsTwoBedsAPurchase_WithBulkUpgrade()
+        {
+            var sim = new FarmSim(Cfg(), 1);
+            Winter(sim, 1e6);
+            sim.DebugSetLevel("unlock_tomato", 1);
+            Assert.AreEqual(9, sim.GetMaxLevel("upgrade_plot"));
+            sim.DebugSetLevel("bulk_upgrade", 1);
+            Assert.AreEqual(5, sim.GetMaxLevel("upgrade_plot"), "nine beds, two a purchase");
+        }
+
+        [Test]
+        public void RingCombo_DescriptionMatchesWhatItPays()
+        {
+            var sim = new FarmSim(Cfg(), 1);
+            sim.DebugSetLevel("ring_combo", 1);
+            Assert.AreEqual(0.01, sim.State.Stats.RingComboPerStack, 1e-9, "GDD: level x 1% a stack");
+        }
+
+        [Test]
+        public void WholeNumbers_UseTheLanguagesSeparator()
+        {
+            var style = NumberFormat.Style;
+            try
+            {
+                NumberFormat.Style = NumberStyle.English;
+                Assert.AreEqual("1,234", NumberFormat.Whole(1234));
+                NumberFormat.Style = NumberStyle.Turkish;
+                Assert.AreEqual("1.234", NumberFormat.Whole(1234));
+                Assert.AreEqual("12", NumberFormat.Whole(12));
+            }
+            finally { NumberFormat.Style = style; }
+        }
+
         [Test]
         public void TheRainCloud_DoesNotGrowUnderASwarm()
         {

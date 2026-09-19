@@ -97,6 +97,7 @@ namespace TillWinter.Core
                 GetCurrency = () => State.Coins,
                 Spend = c => State.Coins -= c,
                 PurchaseAllowed = () => State.Phase == Phase.Winter,
+                Blocked = BlockedByChallenge,
                 IsMaxedOverride = n => (n.Effect == EffectType.UpgradePlot && FindLowestUpgradablePlot(null) == null)
                     || (n.Effect == EffectType.ExpandField && FieldAtMax),
                 CostMultiplier = () => State.Stats.AlmanacCostMult,
@@ -226,7 +227,13 @@ namespace TillWinter.Core
             var node = GetNode(nodeId);
             if (node == null) return 0;
             if (node.Effect == EffectType.UpgradePlot)
-                return State.GridSize * State.GridSize * State.Stats.MaxTierUnlocked;
+            {
+                // Purchases so far plus the ones still needed, two beds each with bulk_upgrade.
+                int cap = State.Stats.MaxTierUnlocked, left = 0;
+                foreach (var p in State.PlotArray) left += Math.Max(0, cap - p.BedTier);
+                int perBuy = State.Stats.BulkUpgrade ? 2 : 1;
+                return Almanac.GetLevel(nodeId) + (left + perBuy - 1) / perBuy;
+            }
             // A head start from Heritage fills the field sooner: the levels left then buy nothing, so they are not offered.
             if (node.Effect == EffectType.ExpandField && FieldAtMax && Almanac.Contains(nodeId))
                 return Math.Min(node.MaxLevel, Almanac.GetLevel(nodeId));
@@ -382,7 +389,9 @@ namespace TillWinter.Core
         {
             if (State.Phase != Phase.Heritage) return;
             State.Year = 1;
+            State.Generation.YearsTotal++; // the new generation's first year (StartNextYear counts the ones after it)
             State.GoldenYearActive = HeritageComplete && !State.EndingSeen;
+            GrantHeritageStarts();
             ResolveStats();
             if (!State.GoldenYearActive && State.GridSize != State.Stats.TargetGridSize) BuildField(State.Stats.TargetGridSize, false);
             BeginSpring();
@@ -392,6 +401,43 @@ namespace TillWinter.Core
                 GoldenYearStarted?.Invoke();
             }
             GenerationStarted?.Invoke();
+        }
+
+        /// <summary>
+        /// Heritage head starts that are Almanac nodes (GDD §7, `h_start_tomato`: "start with Tomato unlocked"): the
+        /// generation starts owning them, free (not in <see cref="GenerationStats.AlmanacSpent"/>), so everything behind
+        /// them — `upgrade_plot`, the later crops — opens exactly as if the player had bought it.
+        /// </summary>
+        /// <summary>
+        /// No helpers (GDD §7.5 v2.3): the generation has no apprentices and no tractor, so the nodes that only make them
+        /// better are closed rather than sold for nothing. The scarecrow, dog and hens behind them stay open.
+        /// </summary>
+        private bool BlockedByChallenge(SkillNode n)
+        {
+            if (State.Generation.Challenge != ChallengeKind.NoHelpers || State.GoldenYearActive) return false;
+            switch (n.Effect)
+            {
+                case EffectType.ApprenticeCount:
+                case EffectType.ApprenticeSpeed:
+                case EffectType.ApprenticeHarvestTime:
+                case EffectType.ApprenticeYield:
+                case EffectType.Tractor:
+                case EffectType.HelperWater:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private void GrantHeritageStarts()
+        {
+            bool tomato = false;
+            foreach (var n in Heritage.Nodes)
+                if (n.Effect == EffectType.HeritageStartTomato && Heritage.GetLevel(n.Id) > 0) tomato = true;
+            if (!tomato) return;
+            foreach (var n in Almanac.Nodes)
+                if (n.Effect == EffectType.UnlockTier && (int)Math.Round(n.ValuePerLevel) == 1 && Almanac.GetLevel(n.Id) < 1)
+                    Almanac.SetLevel(n.Id, 1);
         }
 
         private void BeginSpring()
@@ -801,7 +847,9 @@ namespace TillWinter.Core
         /// <summary>Every Heritage node to its max level (smoke / developer panel: reach the ending).</summary>
         public void DebugMaxHeritage()
         {
-            foreach (var n in Heritage.Nodes) Heritage.SetLevel(n.Id, n.MaxLevel < 0 ? 1 : n.MaxLevel);
+            // One side of each either/or pair only (GDD §7.3 v2.3), as a real family would end up.
+            foreach (var n in Heritage.Nodes)
+                if (n.Excludes == null || Heritage.GetLevel(n.Excludes) == 0) Heritage.SetLevel(n.Id, n.MaxLevel < 0 ? 1 : n.MaxLevel);
             ResolveStats();
         }
 
@@ -821,6 +869,8 @@ namespace TillWinter.Core
                 case Season.Summer: State.YearTime = length * 0.4f; break;
                 default: State.YearTime = Math.Max(length * 2f / 3f + 0.01f, length - State.Stats.FrostWarningSeconds * 0.9f); break;
             }
+            // Jumping back out of the frost warning ends it, as if the year had not got that far yet.
+            if (State.FrostWarning && State.YearTime < length - State.Stats.FrostWarningSeconds) State.FrostWarning = false;
             var s = SeasonAt(State.YearTime, length);
             if (s != State.Season)
             {
@@ -993,6 +1043,8 @@ namespace TillWinter.Core
             State.FrostWarning = false;
             State.Ring = null;
             State.Combo = 0;
+            State.Flow = 0f;       // a ring held at the frost does not carry its speed into next spring
+            _hasLastRing = false;
             ClearCrows();
             ClearEvents();
             foreach (var p in State.PlotArray) p.Reset();
@@ -1210,12 +1262,13 @@ namespace TillWinter.Core
             // GDD §3.1 (v1.9): the last rush before frost pays double; late frost's rescue keeps its own price.
             if (State.FrostWarning && !_offline && source != HarvestSource.LateFrost) coins *= Config.FrostRushValue;
             coins *= LuckMultiplier; // GDD §5.6 (v2.1): the shooting star's rush
-            State.YearFreshSum += Freshness(plot);
+            // A late-frost rescue is a half-price save, not a fresh harvest: in the year's grade it counts at that half.
+            State.YearFreshSum += source == HarvestSource.LateFrost ? Freshness(plot) * Config.LateFrostValueMultiplier : Freshness(plot);
             switch (source)
             {
                 case HarvestSource.Ring:
                     RegisterComboHit();
-                    coins *= st.RingBonusMult * (1 + st.RingComboLevel * 0.01 * Math.Min(State.Combo, Config.ComboMaxStacks));
+                    coins *= st.RingBonusMult * (1 + st.RingComboPerStack * Math.Min(State.Combo, Config.ComboMaxStacks));
                     coins += ComboMilestoneBonus(plot);
                     break;
                 case HarvestSource.Apprentice:
@@ -1503,6 +1556,7 @@ namespace TillWinter.Core
             var g = State.Generation;
             double refund = g.AlmanacSpent;
             Almanac.Reset();
+            GrantHeritageStarts(); // a respec does not take back what the family starts with
             foreach (var p in State.PlotArray)
             {
                 p.BedTier = 0;
@@ -2323,19 +2377,30 @@ namespace TillWinter.Core
             }
         }
 
-        private void ResolveStats()
+        /// <summary>
+        /// The numbers these levels give this farm right now: the tables through <see cref="StatResolver"/>, then the
+        /// Golden Year, heirlooms, heir, challenge and New Game+ on top. Node descriptions ask it "what if" so they show
+        /// what the player will really get.
+        /// </summary>
+        public Stats ResolveWith(IReadOnlyDictionary<string, int> almanacLevels, IReadOnlyDictionary<string, int> heritageLevels)
         {
-            State.Stats = StatResolver.Resolve(Config, Almanac.Levels, Heritage.Levels, Almanac.Nodes, Heritage.Nodes);
-            if (State.GoldenYearActive)
+            var stats = StatResolver.Resolve(Config, almanacLevels, heritageLevels, Almanac.Nodes, Heritage.Nodes);
+            bool golden = State.GoldenYearActive;
+            if (golden)
             {
-                State.Stats.YearLength = Config.GoldenYearSeconds;
-                State.Stats.FrostWarningSeconds = 0f;
+                stats.YearLength = Config.GoldenYearSeconds;
+                stats.FrostWarningSeconds = 0f;
             }
             // Heirlooms, the heir's trait and the challenge (GDD §7.4–§7.6 v2.3); the Golden Year is the same for everyone.
             var gen = State.Generation;
-            bool golden = State.GoldenYearActive;
-            Legacy.Apply(State.Stats, Config, Config.HeirloomsEnabled ? gen.Achievements : 0,
+            Legacy.Apply(stats, Config, Config.HeirloomsEnabled ? gen.Achievements : 0,
                 golden ? HeirTrait.None : gen.Trait, golden ? ChallengeKind.None : gen.Challenge, golden ? 0 : State.NgPlus);
+            return stats;
+        }
+
+        private void ResolveStats()
+        {
+            State.Stats = ResolveWith(Almanac.Levels, Heritage.Levels);
             State.RingRadius = _ringRadiusOverride ?? State.Stats.RingRadius;
             // A shape the levels no longer allow (retire, respec) falls back to round; the HUD hides the picker at 0.
             if ((int)State.RingShape > State.Stats.RingShapeLevel) State.RingShape = RingShape.Round;

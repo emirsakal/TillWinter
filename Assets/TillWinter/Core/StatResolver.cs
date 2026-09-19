@@ -45,6 +45,8 @@ namespace TillWinter.Core
 
         // Feature levels and flags applied by FarmSim rather than as a rate.
         public int RingComboLevel, TractorLevel, GreenhouseLevel, CrowBountyLevel;
+        /// <summary>ring_combo: extra ring value per combo stack (level x the table value).</summary>
+        public double RingComboPerStack;
         public bool BulkUpgrade, FertileStart, SpringHeadStart, LateFrost, HelperWater;
         public bool RainCloudUnlocked, ScarecrowImmunity;
         public double GoldenCropChance;
@@ -134,7 +136,7 @@ namespace TillWinter.Core
                     case EffectType.Barn: s.BarnCapacity = cfg.BarnCapacityByLevel[Math.Max(0, Math.Min(cfg.BarnCapacityByLevel.Length - 1, level))]; break;
                     case EffectType.YearLength: s.YearLength += (float)v; break;
                     case EffectType.FrostWarning: s.FrostWarningSeconds += (float)v; break;
-                    case EffectType.RingCombo: s.RingComboLevel = level; break;
+                    case EffectType.RingCombo: s.RingComboLevel = level; s.RingComboPerStack = v; break;
                     case EffectType.Tractor: s.TractorLevel = level; break;
                     case EffectType.Greenhouse: s.GreenhouseLevel = level; break;
                     case EffectType.CrowBounty: s.CrowBountyLevel = level; break;

@@ -35,7 +35,7 @@ namespace TillWinter.Core
             var almanac = new Dictionary<string, int>(sim.Almanac.Levels);
             var heritage = new Dictionary<string, int>(sim.Heritage.Levels);
             (sim.Almanac.Contains(node.Id) ? almanac : heritage)[node.Id] = level;
-            var s = StatResolver.Resolve(sim.Config, almanac, heritage, sim.Almanac.Nodes, sim.Heritage.Nodes);
+            var s = sim.ResolveWith(almanac, heritage); // with the heir, challenge, New Game+ and heirlooms, as it will play
             var cfg = sim.Config;
             switch (node.Effect)
             {

@@ -105,6 +105,20 @@ namespace TillWinter.Unity
             }
         }
 
+        [Header("Light effects (were literals in SeasonPresenter)")]
+        public Color Vignette = new Color(0.55f, 0.75f, 1f);
+        public Color BloomTint = new Color(1f, 0.96f, 0.88f);
+        public Color RimSpring = new Color(1f, 0.97f, 0.88f, 0f);
+        public Color RimSummer = new Color(1f, 0.92f, 0.66f, 0.4f);
+        public Color RimAutumn = new Color(1f, 0.72f, 0.42f, 0.7f);
+        public Color RimWinter = new Color(0.78f, 0.88f, 1f, 0.6f);
+        public Color RimGolden = new Color(1f, 0.78f, 0.4f, 0.75f);
+        public Color FrostCold = new Color(0.75f, 0.85f, 1f);
+        public Color StormFilter = new Color(0.55f, 0.6f, 0.7f);
+        public Color FogFilter = new Color(1.05f, 1.06f, 1.08f);
+        public Color HeatFilter = new Color(1f, 0.86f, 0.68f);
+        public Color SunWarm = new Color(1f, 0.86f, 0.55f);
+
         private static SeasonPalette _loaded;
 
         public static SeasonPalette Load()

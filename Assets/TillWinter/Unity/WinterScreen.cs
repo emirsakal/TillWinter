@@ -212,7 +212,7 @@ namespace TillWinter.Unity
 
             // At the top of the tree, not the bottom: down there it sat under the node sheet. Light text, because
             // Paper is the dark page colour now and read as dark on dark.
-            var cap = UiKit.Panel(_safe, "HintCaption", new Color(0f, 0f, 0f, 0.6f), true, false);
+            var cap = UiKit.Panel(_safe, "HintCaption", _theme.Dim, true, false);
             UiKit.Box(cap.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -250f), new Vector2(960f, 76f));
             _hintCaption = UiKit.Label(cap.transform, "Text", "", UiType.Label, _theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Stretch(_hintCaption.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 0f), new Vector2(-20f, 0f));
@@ -327,7 +327,7 @@ namespace TillWinter.Unity
         /// <summary>One-time sheet at the first Winter with CanRetire (GDD §10.5).</summary>
         private void BuildRetireSheet()
         {
-            var dim = UiKit.Panel(_safe, "RetireHintDim", new Color(0f, 0f, 0f, 0.5f), false, true);
+            var dim = UiKit.Panel(_safe, "RetireHintDim", _theme.DimLight, false, true);
             _retireSheet = dim.gameObject;
             var box = UiKit.Card(dim.transform, "Box", _theme.Paper);
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 420f));
@@ -364,7 +364,7 @@ namespace TillWinter.Unity
 
         private void BuildConfirm()
         {
-            var dim = UiKit.Panel(_safe, "ConfirmDim", new Color(0f, 0f, 0f, 0.6f), false, true);
+            var dim = UiKit.Panel(_safe, "ConfirmDim", _theme.Dim, false, true);
             _confirm = dim.gameObject;
             var box = UiKit.Card(dim.transform, "ConfirmBox", _theme.Paper);
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 620f));
@@ -771,19 +771,45 @@ namespace TillWinter.Unity
             _gainFill.rectTransform.anchorMax = new Vector2(ratio, 1f);
         }
 
-        /// <summary>Reads the leading number out of a formatted effect value ("1.2 plots", "%15"), in either language.</summary>
+        /// <summary>
+        /// Reads the leading number out of a formatted effect value ("1.2 plots", "%15", "1,050", "1.234", "2.5K"), in
+        /// either language. A separator followed by exactly three digits is a thousands separator; any other is the
+        /// decimal point (effect values carry at most two decimals). A K/M/B suffix scales it.
+        /// </summary>
         private static bool TryNumber(string text, out float value)
         {
             value = 0f;
             if (string.IsNullOrEmpty(text)) return false;
-            var digits = new System.Text.StringBuilder();
-            foreach (char ch in text)
+            double whole = 0, frac = 0, scale = 1;
+            bool any = false, inFrac = false;
+            int i = 0;
+            while (i < text.Length && !char.IsDigit(text[i])) i++;
+            for (; i < text.Length; i++)
             {
-                if (char.IsDigit(ch)) digits.Append(ch);
-                else if ((ch == '.' || ch == ',') && digits.Length > 0) digits.Append('.');
-                else if (digits.Length > 0) break;
+                char ch = text[i];
+                if (char.IsDigit(ch))
+                {
+                    any = true;
+                    if (inFrac) { scale /= 10; frac += (ch - '0') * scale; }
+                    else whole = whole * 10 + (ch - '0');
+                    continue;
+                }
+                if ((ch == '.' || ch == ',') && !inFrac)
+                {
+                    int run = 0;
+                    while (i + 1 + run < text.Length && char.IsDigit(text[i + 1 + run])) run++;
+                    if (run == 3) continue;  // thousands
+                    if (run == 0) break;
+                    inFrac = true;
+                    continue;
+                }
+                if (ch == 'K' || ch == 'k') { whole *= 1e3; frac *= 1e3; }
+                else if (ch == 'M') { whole *= 1e6; frac *= 1e6; }
+                else if (ch == 'B') { whole *= 1e9; frac *= 1e9; }
+                break;
             }
-            return digits.Length > 0 && float.TryParse(digits.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value);
+            value = (float)(whole + frac);
+            return any;
         }
 
         private List<SkillNode> Prereqs(SkillNode node)

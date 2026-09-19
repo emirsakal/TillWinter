@@ -58,6 +58,7 @@ namespace TillWinter.Unity
             {
                 _pausedAt = DateTime.UtcNow;
                 AudioListener.pause = true;
+                SettingsStore.Save(); // a volume dragged on the settings sheet survives the app being killed in the background
                 return;
             }
             AudioListener.pause = false;

@@ -53,7 +53,7 @@ namespace TillWinter.Core
             to.GoldenHarvests = from.GoldenHarvests;
             to.BestCombo = from.BestCombo;
             to.TimePlayedSeconds = from.TimePlayedSeconds;
-            to.YearsTotal = from.YearsTotal;
+            to.YearsTotal = from.YearsTotal + 1; // and the new round's first year
             to.GoalsMet = from.GoalsMet;
             to.PestsStopped = from.PestsStopped;
             s.Onboarding.Bits = ended.State.Onboarding.Bits;
