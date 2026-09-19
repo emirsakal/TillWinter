@@ -419,7 +419,7 @@ namespace TillWinter.Core
                 var p = s.PlotArray[i];
                 float crowTimer = 0f;
                 foreach (var c in s.CrowList) if (c.Pos == p.Pos) crowTimer = c.Timer;
-                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.Tier, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge };
+                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.BedTier, Choice = p.Choice, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge };
             }
             for (int i = 0; i < s.ApprenticeList.Count; i++)
                 d.Apprentices[i] = new ApprenticeSave { X = s.ApprenticeList[i].X, Y = s.ApprenticeList[i].Y };
@@ -476,7 +476,8 @@ namespace TillWinter.Core
                 var pos = new GridPos(ps.X, ps.Y);
                 if (!s.InBounds(pos)) return null;
                 var plot = s.GetPlot(pos);
-                plot.Tier = Math.Max(0, Math.Min(config.MaxTier, ps.Tier));
+                plot.BedTier = Math.Max(0, Math.Min(config.MaxTier, ps.Tier));
+                plot.Choice = Math.Max(-1, Math.Min(plot.BedTier, ps.Choice));
                 plot.State = (PlotState)ps.State;
                 plot.Progress = ps.Progress;
                 plot.IsGolden = ps.Golden;
@@ -771,6 +772,28 @@ namespace TillWinter.Core
 
         private CropDef Crop(Plot plot) => Config.Crops[Math.Max(0, Math.Min(Config.MaxTier, plot.Tier))];
 
+        /// <summary>True while the year is in the season this crop likes (GDD §2.3 v1.7).</summary>
+        public bool InSeason(int tier)
+        {
+            if (State.Phase != Phase.Year || tier < 0 || tier > Config.MaxTier) return false;
+            return Config.Crops[tier].Likes == State.Season;
+        }
+
+        /// <summary>
+        /// The seed bag (GDD §2.3 v1.7): plants <paramref name="tier"/> on the plot, any crop up to what its bed can grow,
+        /// or -1 to follow the bed again. A different crop replants the plot from Dry; the same crop keeps its progress.
+        /// </summary>
+        public bool SetPlotCrop(GridPos pos, int tier)
+        {
+            if (State.Phase != Phase.Year || State.GoldenYearActive || !State.InBounds(pos)) return false;
+            var plot = State.GetPlot(pos);
+            if (tier < -1 || tier > plot.BedTier) return false;
+            int before = plot.Tier;
+            plot.Choice = tier;
+            if (plot.Tier != before) plot.Reset();
+            return true;
+        }
+
         private void UpdatePlots(float dt)
         {
             var st = State.Stats;
@@ -796,8 +819,7 @@ namespace TillWinter.Core
                     }
                     case PlotState.Wet:
                     {
-                        float speed = (under ? st.RingGrowMult * FlowMult : st.SunFactor) * st.SoilMultiplier;
-                        if (speed <= 0f) break;
+                        float speed = (under ? st.RingGrowMult * FlowMult : st.SunFactor) * st.SoilMultiplier;                        if (speed <= 0f) break;
                         plot.Progress += speed / crop.Grow * dt;
                         if (plot.Progress >= 1f)
                         {
@@ -861,6 +883,7 @@ namespace TillWinter.Core
             var st = State.Stats;
             bool golden = plot.IsGolden;
             double coins = Crop(plot).Value * st.CropValueMult * (golden ? Config.GoldenValueMultiplier : 1) * Freshness(plot);
+            if (InSeason(plot.Tier)) coins *= Config.InSeasonValue;
             switch (source)
             {
                 case HarvestSource.Ring:
@@ -1369,7 +1392,8 @@ namespace TillWinter.Core
             BuildField(Config.MaxGridSize, false);
             foreach (var p in State.PlotArray)
             {
-                p.Tier = Config.MaxTier;
+                p.BedTier = Config.MaxTier;
+                p.Choice = -1;
                 p.IsGolden = true;
                 p.State = PlotState.Wet;
                 p.Progress = 0f;
@@ -1381,7 +1405,7 @@ namespace TillWinter.Core
             int cap = State.Stats.MaxTierUnlocked;
             Plot lowest = null;
             foreach (var p in State.PlotArray) // row-major: first lowest wins ties
-                if (p != exclude && p.Tier < cap && (lowest == null || p.Tier < lowest.Tier)) lowest = p;
+                if (p != exclude && p.BedTier < cap && (lowest == null || p.BedTier < lowest.BedTier)) lowest = p;
             return lowest;
         }
 
@@ -1396,11 +1420,11 @@ namespace TillWinter.Core
                 case EffectType.UpgradePlot:
                 {
                     var plot = FindLowestUpgradablePlot(null);
-                    if (plot != null) plot.Tier++;
+                    if (plot != null) plot.BedTier++;
                     if (State.Stats.BulkUpgrade)
                     {
                         var second = FindLowestUpgradablePlot(null);
-                        if (second != null) second.Tier++;
+                        if (second != null) second.BedTier++;
                     }
                     break;
                 }

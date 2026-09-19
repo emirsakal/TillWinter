@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 7;
+        public const int CurrentSchemaVersion = 8;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -94,6 +94,8 @@ namespace TillWinter.Core
         public bool Golden;
         /// <summary>v7: seconds the plot has stood Ripe (over-ripening).</summary>
         public float RipeAge;
+        /// <summary>v8: the crop picked from the seed bag, -1 = follow the bed; <c>Tier</c> is the bed's quality.</summary>
+        public int Choice = -1;
     }
 
     [Serializable]
@@ -127,6 +129,7 @@ namespace TillWinter.Core
                     case 4: data = V4ToV5(data); break;
                     case 5: data = V5ToV6(data); break;
                     case 6: data = V6ToV7(data); break;
+                    case 7: data = V7ToV8(data); break;
                     default: return null;
                 }
             }
@@ -197,10 +200,6 @@ namespace TillWinter.Core
             return d;
         }
 
-        /// <summary>
-        /// v5 -> v6: the remembered tree views are forgotten. They were pan offsets and zooms into the old lane layout;
-        /// against the radial one they open the tree off-centre with branches cut off, so each tree opens framed again.
-        /// </summary>
         /// <summary>v6 → v7: crops never aged and the ring was always round; both defaults are already right.</summary>
         private static SaveData V6ToV7(SaveData d)
         {
@@ -210,6 +209,18 @@ namespace TillWinter.Core
             return d;
         }
 
+        /// <summary>v7 → v8: no crop was ever picked, so every plot follows its bed; the saved tier becomes the bed's quality.</summary>
+        private static SaveData V7ToV8(SaveData d)
+        {
+            if (d.Plots != null) foreach (var p in d.Plots) if (p != null) p.Choice = -1;
+            d.SchemaVersion = 8;
+            return d;
+        }
+
+        /// <summary>
+        /// v5 -> v6: the remembered tree views are forgotten. They were pan offsets and zooms into the old lane layout;
+        /// against the radial one they open the tree off-centre with branches cut off, so each tree opens framed again.
+        /// </summary>
         private static SaveData V5ToV6(SaveData d)
         {
             d.AlmanacViewHas = false;

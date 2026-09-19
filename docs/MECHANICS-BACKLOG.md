@@ -36,9 +36,10 @@ implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
 
 ### M.2 Crops and field
 
-- **Open.** [H] **Choose the crop per plot** (seed bag); `upgrade_plot` becomes seed
-  unlocks/quality instead of an endless sink.
-- **Open.** [H] **Seasonal preferences** (pumpkin +50% in autumn, tomato faster in summer).
+- **Done.** [H] **Choose the crop per plot** (seed bag). `upgrade_plot` now raises a bed's quality
+  (bounded, unlocked-crop capped); a HUD basket chip row picks the crop grown up to that quality.
+- **Done.** [H] **Seasonal preferences.** Each crop likes one season and sells ×1.25 during it
+  (Year phase only); timings stay fixed per the tuning rule, so this is value-only, not speed.
 - **Open.** [M] **Neighbour bonuses** (companion planting, full rows).
 - **Open.** [M] **Crop rotation** (same crop repeatedly tires the soil).
 - **Open.** [M] **Special plots** (fertile, stony to clear, compost).

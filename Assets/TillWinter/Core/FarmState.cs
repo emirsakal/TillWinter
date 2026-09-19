@@ -5,7 +5,12 @@ namespace TillWinter.Core
     public sealed class Plot
     {
         public GridPos Pos { get; }
-        public int Tier { get; internal set; }
+        /// <summary>Highest crop this bed can grow; <c>upgrade_plot</c> raises it (GDD §2.4 v1.7).</summary>
+        public int BedTier { get; internal set; }
+        /// <summary>The crop picked from the seed bag, or -1 to follow the bed (GDD §2.3 v1.7).</summary>
+        public int Choice { get; internal set; } = -1;
+        /// <summary>The crop in the ground: the chosen one, never above what the bed can grow.</summary>
+        public int Tier => Choice < 0 ? BedTier : System.Math.Min(Choice, BedTier);
         public PlotState State { get; internal set; }
         /// <summary>0..1 progress of the current state (Dry: watering, Wet: growing, Ripe: ring harvest).</summary>
         public float Progress { get; internal set; }
@@ -19,7 +24,7 @@ namespace TillWinter.Core
         internal Plot(GridPos pos, int tier)
         {
             Pos = pos;
-            Tier = tier;
+            BedTier = tier;
             State = PlotState.Dry;
             Progress = 0f;
         }

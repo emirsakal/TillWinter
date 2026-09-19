@@ -14,6 +14,8 @@ namespace TillWinter.Tests
             cfg.Crops[0].Value = 1;
             cfg.HeritageThreshold = 5000;
             cfg.SeedDivisor = 50;
+            // Seasonal preferences (M.2) off: rule timings and values stay what they were written against.
+            cfg.InSeasonValue = 1;
             return cfg;
         }
     }

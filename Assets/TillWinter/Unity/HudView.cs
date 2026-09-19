@@ -205,6 +205,8 @@ namespace TillWinter.Unity
             _shapeIcon = UiKit.ButtonIcon(_shapeButton, ShapeIcon(RingShape.Round));
             _shapeButton.gameObject.SetActive(false);
 
+            BuildSeedBag();
+
             BuildEndYearConfirm(canvas);
 
             _fxLayer = UiKit.Rect("CoinFx", canvas);
@@ -393,6 +395,124 @@ namespace TillWinter.Unity
             if (!_game.Sim.SetRingShape(next)) return;
             _shapeIcon.sprite = NodeIcons.Get(ShapeIcon(next)) ?? _shapeIcon.sprite;
             Haptics.Play(HapticKind.Selection);
+        }
+
+        // ------------------------------------------------------------------ seed bag (GDD §2.3 v1.7)
+
+        private Button _bagButton;
+        private RectTransform _bagRow;
+        private TMP_Text _bagHint;
+        private Button[] _seedChips;
+        private TMP_Text[] _seedChipText;
+        /// <summary>The seed in hand: -1 = the bed's best, 0.. = a crop; <see cref="NoSeed"/> while nothing is picked.</summary>
+        private int _bagTier = NoSeed;
+        private const int NoSeed = int.MinValue;
+        private int _bagShownTiers = -1;
+        private Season _bagSeason = (Season)(-1);
+
+        private void BuildSeedBag()
+        {
+            _bagButton = UiKit.Button(_safe, "SeedBag", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleSeedBag);
+            UiKit.Box(_bagButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 180f), new Vector2(130f, 110f));
+            UiKit.ButtonIcon(_bagButton, "basket");
+            _bagButton.gameObject.SetActive(false);
+
+            _bagRow = UiKit.Rect("SeedRow", _safe);
+            UiKit.Box(_bagRow, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 350f), new Vector2(1000f, 170f));
+            _bagHint = UiKit.Label(_bagRow, "Hint", Strings.Get("ui.seed_hint"), UiType.Caption, _theme.Text, TextAnchor.MiddleLeft);
+            UiKit.Box(_bagHint.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(4f, 0f), new Vector2(990f, 44f));
+            UiKit.Outline(_bagHint, 0.14f);
+
+            int count = _game.Sim.Config.Crops.Length + 1; // "best" first, then every crop
+            _seedChips = new Button[count];
+            _seedChipText = new TMP_Text[count];
+            for (int i = 0; i < count; i++)
+            {
+                int tier = i - 1;
+                var chip = UiKit.Button(_bagRow, "Seed" + i, "", UiType.Caption, _theme.SheetIdle, _theme.SheetButtonText, () => PickSeed(tier));
+                UiKit.Box(chip.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(i * 141f, 0f), new Vector2(133f, 116f));
+                var label = UiKit.ButtonLabel(chip);
+                label.richText = true;
+                label.enableWordWrapping = true; // crop name over its season
+                label.lineSpacing = -12f;
+                _seedChips[i] = chip;
+                _seedChipText[i] = label;
+            }
+            _bagRow.gameObject.SetActive(false);
+        }
+
+        private void ToggleSeedBag()
+        {
+            bool open = !_bagRow.gameObject.activeSelf;
+            _bagRow.gameObject.SetActive(open);
+            _bagTier = NoSeed;
+            _game.PlotTapOverride = null;
+            if (open) RefreshSeedChips(true);
+            PaintSeedChips();
+            Haptics.Play(HapticKind.Selection);
+        }
+
+        private void CloseSeedBag()
+        {
+            if (_bagRow.gameObject.activeSelf) _bagRow.gameObject.SetActive(false);
+            _bagTier = NoSeed;
+            _game.PlotTapOverride = null;
+        }
+
+        private void PickSeed(int tier)
+        {
+            _bagTier = _bagTier == tier ? NoSeed : tier; // a second tap puts the seed back
+            _game.PlotTapOverride = _bagTier == NoSeed ? null : (System.Func<GridPos, bool>)PlantAt;
+            PaintSeedChips();
+        }
+
+        private bool PlantAt(GridPos pos)
+        {
+            if (_bagTier == NoSeed) return false;
+            if (_game.Sim.SetPlotCrop(pos, _bagTier))
+            {
+                Haptics.Play(HapticKind.Light);
+                _audio?.Play(SfxId.Sprout, 0.8f);
+                return true;
+            }
+            _milestone.text = Strings.Get("ui.seed_bed_low");
+            _milestoneLeft = 1.6f;
+            _audio?.Play(SfxId.Denied, 0.8f);
+            return false;
+        }
+
+        /// <summary>Shows one chip per unlocked crop, each with the season it likes; the liked season in play stands out.</summary>
+        private void RefreshSeedChips(bool force)
+        {
+            var state = _game.State;
+            int tiers = state.Stats.MaxTierUnlocked;
+            if (!force && tiers == _bagShownTiers && state.Season == _bagSeason) return;
+            _bagShownTiers = tiers;
+            _bagSeason = state.Season;
+            var crops = _game.Sim.Config.Crops;
+            for (int i = 0; i < _seedChips.Length; i++)
+            {
+                int tier = i - 1;
+                bool show = tier <= tiers;
+                _seedChips[i].gameObject.SetActive(show);
+                if (!show) continue;
+                if (tier < 0)
+                {
+                    _seedChipText[i].text = Strings.Get("ui.seed_auto");
+                    continue;
+                }
+                var likes = crops[tier].Likes;
+                bool now = _game.Sim.InSeason(tier);
+                string hex = ColorUtility.ToHtmlStringRGB(now ? _theme.Gold : _theme.SheetButtonText);
+                string season = Strings.Get("season." + likes);
+                _seedChipText[i].text = Strings.Get(crops[tier].Key) + "\n<size=72%><color=#" + hex + ">" + (now ? "<b>" + season + "</b>" : season) + "</color></size>";
+            }
+        }
+
+        private void PaintSeedChips()
+        {
+            for (int i = 0; i < _seedChips.Length; i++)
+                _seedChips[i].targetGraphic.color = i - 1 == _bagTier ? _theme.SheetButton : _theme.SheetIdle;
         }
 
         private void OnComboMilestone(int combo, double coins)
@@ -598,6 +718,14 @@ namespace TillWinter.Unity
             else if (_milestone.alpha > 0f) _milestone.alpha = 0f;
             bool shapes = state.Stats.RingShapeLevel > 0 && !state.IsWinter;
             if (_shapeButton.gameObject.activeSelf != shapes) _shapeButton.gameObject.SetActive(shapes);
+            // The seed bag: once a second crop is unlocked, during the year, never on the Golden Year's field.
+            bool bag = state.Stats.MaxTierUnlocked > 0 && !state.IsWinter && !state.GoldenYearActive;
+            if (_bagButton.gameObject.activeSelf != bag)
+            {
+                _bagButton.gameObject.SetActive(bag);
+                if (!bag) CloseSeedBag();
+            }
+            if (_bagRow.gameObject.activeSelf) RefreshSeedChips(false);
 
             MCombo.Begin();
             // Combo floats near the ring; on a break it keeps the last value and fades out.

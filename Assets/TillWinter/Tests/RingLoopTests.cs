@@ -46,7 +46,9 @@ namespace TillWinter.Tests
             fresh.TapAt(new GridPos(0, 0));
             double freshCoins = fresh.State.Coins - before;
 
+            // Standing that long carries the year from spring into summer; the carrot is kept in season so only freshness differs.
             var stale = Sim();
+            foreach (var crop in stale.Config.Crops) crop.Likes = Season.Summer;
             RipenAll(stale);
             stale.DebugSetLevel("tap_harvest", 1);
             for (float t = 0; t < stale.Config.RipeGraceSeconds + stale.Config.OverripeDecaySeconds; t += 0.5f) stale.Tick(0.5f, null);

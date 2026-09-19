@@ -826,3 +826,24 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   moved ring share at first retire from ~0.55 to ~0.58 by design (over-ripening and the flow bonus
   are meant to keep the ring relevant longer); pulling other costs to force it back to the old
   midpoint would fight the feature instead of measuring it.
+
+## Mechanics M.2: crop choice and seasonal preferences (2026-09-19)
+
+- **Bed quality + separate choice, instead of free planting of any unlocked crop.** Open: how a
+  seed bag should interact with `upgrade_plot`. Chosen: a bed quality (`BedTier`) that
+  `upgrade_plot` still raises (lowest first, capped at the highest unlocked crop), and a `Choice`
+  the player sets no higher than that quality. Free planting of any unlocked crop everywhere would
+  jump every plot to the top crop the moment it unlocks and erase `upgrade_plot`'s role and the
+  balance curve built around it.
+- **Seasonal preference is value-only (×1.25), not a growth-speed bonus.** Open: the backlog's own
+  wording ("tomato faster in summer"). Chosen: value only, because the tuning rule forbids changing
+  crop timings with season, and a growth-speed version pushed year-1 coins to 84 in testing —
+  outside `BalanceTests`' 40–70 range and out of reach without breaking the timing rule.
+- **Carrot base value 2.3 → 2.2.** Open: the in-season bonus alone pushed year 1 over range with
+  carrot still at 2.3. Chosen: drop it to 2.2 so year 1 lands at 69 coins (seed 1), inside range,
+  rather than touch `SeedDivisor`/`HeritageThreshold` or any other lever the last balance pass set.
+- **Seed bag is a paint mode from a HUD button, not tap-on-plot.** Open: how picking a crop and
+  planting it should feel on a plot that already has tap meanings. Chosen: a basket button opens a
+  chip row; picking a chip then tapping a plot plants it (crow-scare tap still wins first). Taps on
+  a plot already mean crow scare and tap-harvest (`tap_harvest`), so a bare tap-on-plot could not
+  also mean "plant this" without colliding with those.

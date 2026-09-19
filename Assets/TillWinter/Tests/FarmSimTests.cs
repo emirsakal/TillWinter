@@ -741,12 +741,12 @@ namespace TillWinter.Tests
             Assert.AreEqual(5, c.MaxTier);
             var expected = new[]
             {
-                ("crop.carrot", 1.0f, 1.5f, 0.5f, 2.3), // S9 balance (GDD §2.3 v1.4)
-                ("crop.tomato", 1.5f, 3.5f, 0.5f, 4.0),
-                ("crop.corn", 2.0f, 6.0f, 0.7f, 12.0),
-                ("crop.pumpkin", 3.0f, 10f, 1.0f, 35.0),
-                ("crop.grapes", 4.0f, 15f, 1.0f, 100.0),
-                ("crop.golden_wheat", 5.0f, 22f, 1.2f, 300.0),
+                ("crop.carrot", 1.0f, 1.5f, 0.5f, 2.2, Season.Spring), // S9 balance (GDD §2.3 v1.4), M.2 spring bonus (v1.7)
+                ("crop.tomato", 1.5f, 3.5f, 0.5f, 4.0, Season.Summer),
+                ("crop.corn", 2.0f, 6.0f, 0.7f, 12.0, Season.Summer),
+                ("crop.pumpkin", 3.0f, 10f, 1.0f, 35.0, Season.Autumn),
+                ("crop.grapes", 4.0f, 15f, 1.0f, 100.0, Season.Autumn),
+                ("crop.golden_wheat", 5.0f, 22f, 1.2f, 300.0, Season.Spring),
             };
             for (int i = 0; i < expected.Length; i++)
             {
@@ -755,6 +755,7 @@ namespace TillWinter.Tests
                 Assert.AreEqual(expected[i].Item3, c.Crops[i].Grow);
                 Assert.AreEqual(expected[i].Item4, c.Crops[i].Harvest);
                 Assert.AreEqual(expected[i].Item5, c.Crops[i].Value);
+                Assert.AreEqual(expected[i].Item6, c.Crops[i].Likes, c.Crops[i].Key);
             }
         }
     }
