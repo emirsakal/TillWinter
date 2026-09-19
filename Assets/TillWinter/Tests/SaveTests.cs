@@ -143,6 +143,12 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.Barn.Jars, sb.Barn.Jars);
             Assert.AreEqual(sa.Generation.AlmanacSpent, sb.Generation.AlmanacSpent);
             Assert.AreEqual(sa.Generation.RespecUsed, sb.Generation.RespecUsed);
+            Assert.AreEqual(sa.Generation.Trait, sb.Generation.Trait);
+            CollectionAssert.AreEqual(sa.Generation.HeirOffer, sb.Generation.HeirOffer);
+            Assert.AreEqual(sa.Generation.Challenge, sb.Generation.Challenge);
+            Assert.AreEqual(sa.Generation.Achievements, sb.Generation.Achievements);
+            Assert.AreEqual(sa.Generation.GoalsMet, sb.Generation.GoalsMet);
+            Assert.AreEqual(sa.Generation.PestsStopped, sb.Generation.PestsStopped);
             for (int i = 0; i < sa.Apprentices.Count; i++) Assert.AreEqual(sa.Apprentices[i].Role, sb.Apprentices[i].Role, "role " + i);
             Assert.AreEqual(sa.Goal.Type, sb.Goal.Type);
             Assert.AreEqual(sa.Goal.Tier, sb.Goal.Tier);

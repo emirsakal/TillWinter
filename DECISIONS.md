@@ -983,3 +983,25 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **Ice-fishing left out.** Open: whether Winter needed a second mini-game alongside the Almanac.
   Chosen: no — preserves are the winter activity; a second mini-game would compete for the same
   attention the Almanac (winter's real activity) already asks for.
+
+## Mechanics M.7: exclusive Heritage paths, heirs, challenge generations, achievements and heirlooms (2026-09-19)
+
+- **Heirlooms and achievements are one system.** Open: a separate collectibles screen/currency, or
+  tie rewards directly to achievements. Chosen: every achievement leaves a keepsake and there is no
+  separate currency or screen — the pause menu's stats list is enough.
+- **Heirloom bonuses kept tiny.** Open: how much permanent power 12 stacked bonuses should add.
+  Chosen: each is 1–1.5% (or smaller) so the full set rewards without steering the balance the way
+  a Heritage node does.
+- **Heirs chosen from three.** Open: auto-assign a trait each rebirth, or let the player choose.
+  Chosen: three are drawn (the sim's RNG) with the first preselected, so every rebirth carries a
+  small, optional decision instead of a forced one.
+- **Challenges pay in seeds.** Open: what a harder generation (no helpers, short years) should be
+  worth. Chosen: ×1.5 seeds at retirement, because seeds are the Heritage currency and a harder run
+  should speed up the system a harder run is already about.
+- **Exclusive pairs don't block the ending.** Open: whether a mutually exclusive Heritage node
+  should count as "missing" forever once its pair is chosen. Chosen: no — `HeritageComplete` counts
+  either side of the pair as done once one of them is maxed, so committing to a path never locks
+  the player out of the Golden Year.
+- **Achievements are local and offline.** Open: whether to hook into a platform achievements
+  service. Chosen: no — stored as bits in `GenerationStats`, checked locally (including while
+  offline), no network calls, keeping the no-live-ops pillar.

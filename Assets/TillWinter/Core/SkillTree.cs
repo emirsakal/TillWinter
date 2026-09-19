@@ -21,6 +21,8 @@ namespace TillWinter.Core
         public LayoutPos? LayoutOverride { get; }
         /// <summary>Sprite name in the node icon atlas (presentation resolves it; Core only carries the key).</summary>
         public string IconKey { get; }
+        /// <summary>A node this one rules out (GDD §7.3 v2.3): buying either locks the other for good.</summary>
+        public string Excludes { get; internal set; }
 
         public SkillNode(string id, Branch branch, string[] prerequisites, int maxLevel, double baseCost, double costGrowth,
             EffectType effect, double valuePerLevel, string nameKey, string descKey, LayoutPos? layoutOverride = null, string iconKey = null)
@@ -86,6 +88,7 @@ namespace TillWinter.Core
         {
             var node = GetNode(id);
             if (node == null) return false;
+            if (node.Excludes != null && GetLevel(node.Excludes) > 0) return false;
             if (node.Prerequisites.Length == 0) return true;
             foreach (var p in node.Prerequisites)
                 if (GetLevel(p) >= 1) return true;
@@ -146,6 +149,12 @@ namespace TillWinter.Core
             {
                 if (!ids.ContainsKey(p)) errors.Add(n.Id + ": unknown prerequisite " + p);
                 else if (p == n.Id) errors.Add(n.Id + ": depends on itself");
+            }
+            foreach (var n in nodes)
+            {
+                if (n.Excludes == null) continue;
+                if (!ids.TryGetValue(n.Excludes, out var other)) errors.Add(n.Id + ": excludes unknown " + n.Excludes);
+                else if (other.Excludes != n.Id) errors.Add(n.Id + ": exclusion with " + n.Excludes + " is not mutual");
             }
             var colour = new Dictionary<string, int>();
             foreach (var n in nodes)

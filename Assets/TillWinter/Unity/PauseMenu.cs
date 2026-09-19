@@ -408,13 +408,22 @@ namespace TillWinter.Unity
         {
             "stats.generations", "stats.years", "stats.coins", "stats.harvests", "stats.by_ring", "stats.by_apprentice",
             "stats.by_tractor", "stats.crows", "stats.golden", "stats.best_combo", "stats.time",
+            "stats.heirlooms", "stats.heir",
         };
 
         private static readonly string[] StatIcons =
         {
             UiIcons.Generation, UiIcons.Year, UiIcons.Coin, UiIcons.Harvest, UiIcons.Ring, UiIcons.Apprentice,
             UiIcons.Tractor, UiIcons.Crow, UiIcons.Golden, UiIcons.Combo, UiIcons.Time,
+            UiIcons.Golden, UiIcons.Generation,
         };
+
+        private static int HeirloomCount(int bits)
+        {
+            int n = 0;
+            for (; bits != 0; bits &= bits - 1) n++;
+            return n;
+        }
 
         private void FillStats()
         {
@@ -426,6 +435,8 @@ namespace TillWinter.Unity
                 g.Harvests.ToString(), g.HarvestsRing.ToString(), g.HarvestsApprentice.ToString(),
                 g.HarvestsTractor.ToString(), g.CrowsScared.ToString(), g.GoldenHarvests.ToString(),
                 g.BestCombo.ToString(), Strings.Format("stats.time_value", ("hours", minutes / 60), ("minutes", minutes % 60)),
+                HeirloomCount(g.Achievements) + " / " + TillWinter.Core.Legacy.AchievementCount,
+                Strings.Get("heir." + g.Trait),
             };
             for (int i = 0; i < _statValues.Length && i < values.Length; i++) _statValues[i].text = values[i];
         }

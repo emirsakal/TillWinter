@@ -245,6 +245,7 @@ namespace TillWinter.Tests
                 ["h_start_field"] = 1, ["h_start_tomato"] = 1, ["h_golden_crop"] = 5,
                 ["h_free_apprentice"] = 1, ["h_apprentice_yield"] = 4, ["h_scarecrow_immunity"] = 1,
                 ["h_start_year_length"] = 4, ["h_greenhouse_x2"] = 2, ["h_almanac_discount"] = 4,
+                ["h_ring_master"] = 2, ["h_steward"] = 2, ["h_long_summer"] = 1, ["h_rich_soil"] = 1,
             };
             Assert.AreEqual(max.Count, HeritageData.Nodes.Length);
             foreach (var kv in max) Assert.AreEqual(kv.Value, HeritageData.Get(kv.Key).MaxLevel, kv.Key);

@@ -254,6 +254,7 @@ namespace TillWinter.Unity
             _game.Sim.LuckyAppeared += OnLuckyAppeared;
             _game.Sim.LuckyFound += OnLuckyFound;
             _game.Sim.TraderArrived += OnTraderArrived;
+            _game.Sim.AchievementUnlocked += OnAchievement;
         }
 
         private void OnFrostWarning()
@@ -494,6 +495,13 @@ namespace TillWinter.Unity
             _audio?.Play(SfxId.GoldenHarvest, 0.7f);
         }
 
+        private void OnAchievement(AchievementId id)
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            Banner(Strings.Format("ach.unlocked", ("name", Strings.Get("ach." + id))));
+            Haptics.Play(HapticKind.Medium);
+        }
+
         private void OnTraderArrived()
         {
             if (_game.Sim.IsSimulatingOffline) return;
@@ -676,6 +684,7 @@ namespace TillWinter.Unity
             _game.Sim.LuckyAppeared -= OnLuckyAppeared;
             _game.Sim.LuckyFound -= OnLuckyFound;
             _game.Sim.TraderArrived -= OnTraderArrived;
+            _game.Sim.AchievementUnlocked -= OnAchievement;
             _game.Sim.CrowScared -= OnCrowScared;
             _game.Sim.YearStarted -= OnYearStarted;
             _game.Sim.WinterStarted -= OnWinter;

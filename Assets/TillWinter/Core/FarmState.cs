@@ -228,6 +228,14 @@ namespace TillWinter.Core
         /// <summary>Coins spent in the Almanac this generation, and whether its one free respec is used (GDD §6.3 v2.2).</summary>
         public double AlmanacSpent { get; internal set; }
         public bool RespecUsed { get; internal set; }
+        /// <summary>M.7 (GDD §7.4–§7.6 v2.3): this generation's heir trait, the three heirs offered at the last rebirth,
+        /// the chosen challenge, the achievements earned (bits, never reset) and the counters two of them need.</summary>
+        public HeirTrait Trait { get; internal set; }
+        public HeirTrait[] HeirOffer { get; } = new HeirTrait[3];
+        public ChallengeKind Challenge { get; internal set; }
+        public int Achievements { get; internal set; }
+        public int GoalsMet { get; internal set; }
+        public int PestsStopped { get; internal set; }
     }
 
     /// <summary>Read-only view of the simulation for the presentation layer.</summary>

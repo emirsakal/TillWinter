@@ -133,6 +133,10 @@ namespace TillWinter.EditorTools
             // Winter with a stocked barn (GDD §3.5 v2.2): the market strip, the respec and the suggested node.
             new Step("35-winter-barn", 2.4f, () => Game?.Sim.DebugSkipToWinter()),
 
+            // Handing the farm on (GDD §7.4 v2.3): the heirs on offer and the challenge.
+            new Step(null, 0.4f, () => { var g = Game; if (g == null) return; g.Sim.DebugAddLifetimeCoins(g.Sim.Config.HeritageThreshold); g.Sim.Retire(); }),
+            new Step("36-heirs", 4.5f, () => Click("Continue", "GenerationCard", optional: true)),
+
         };
 
         static UiTour()

@@ -97,11 +97,16 @@ implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
 
 ### M.7 Progression and rebirth
 
-- **Open.** [H] **Heirs / generation traits.** Pick one of two or three heirs at each rebirth.
-- **Open.** [H] **Heirlooms** carried across generations.
-- **Open.** [M] **Bigger Heritage**, with mutually exclusive choices.
-- **Open.** [M] **Challenge generations** (no helpers, short years) for extra seeds.
-- **Open.** [M] **In-game achievements** with small permanent rewards (offline, no platform
+- **Done.** [H] **Heirs / generation traits.** Pick one of three heirs at each rebirth; the trait
+  lasts the generation.
+- **Done.** [H] **Heirlooms** carried across generations. 12 achievements each leave a named
+  heirloom with a small permanent bonus, never reset.
+- **Done.** [M] **Bigger Heritage**, with mutually exclusive choices. Four new nodes in two
+  exclusive pairs (`SkillNode.Excludes`); the ending counts a path not taken as done once its
+  excluded pair is maxed.
+- **Done.** [M] **Challenge generations** (no helpers, short years) for extra seeds. Either
+  multiplies retirement seeds ×1.5.
+- **Done.** [M] **In-game achievements** with small permanent rewards (offline, no platform
   services).
 
 ### M.8 Ending and after
