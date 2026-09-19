@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.2 - September 2026 (through mechanics group M.6, winter — barn and market, preserves, Almanac suggestions and free respec, marked *(v2.2)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.3 - September 2026 (through mechanics group M.7, progression and rebirth — exclusive Heritage paths, heirs, challenge generations, achievements and heirlooms, marked *(v2.3)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -342,11 +342,11 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
 
 ## 7. Heritage (rebirth)
 
-- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). *(v1.4)* Balance pass: `HeritageThreshold` = 3 000, `SeedDivisor` = 30 (3 000 coins = 10 seeds), so the first retire lands in year 6–8. Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation. *(v1.9)* Balance pass for M.3's new income: `HeritageThreshold` = 3 500, `SeedDivisor` = 33 (3 500 coins = 10 seeds).
+- **Trigger:** "Pass on the farm" unlocks once lifetime coins in this generation reach `HeritageThreshold` (first generation target: around year 6–8 of natural play) *(tune)*. The player chooses when to press it; pressing later yields more seeds. *(v1.2)* `HeritageThreshold` = 5 000 lifetime coins this generation, `SeedDivisor` = 50 (so 5 000 coins = 10 seeds). *(v1.4)* Balance pass: `HeritageThreshold` = 3 000, `SeedDivisor` = 30 (3 000 coins = 10 seeds), so the first retire lands in year 6–8. Retiring is a Winter action; it leads to a `Heritage` phase (no ticking, Heritage purchases only) before Spring of the new generation. *(v1.9)* Balance pass for M.3's new income: `HeritageThreshold` = 3 500, `SeedDivisor` = 33 (3 500 coins = 10 seeds). *(v2.3)* Balance pass for M.7's heirs and heirlooms: `SeedDivisor` = 35 (3 500 coins ≈ 10 seeds).
 - **Reset:** coins, plots (3×3, tier 0), Almanac levels, helpers, year counter → 1.
 - **Kept:** Heritage tree, generation counter, statistics, cosmetics.
 - **Heritage Seeds** = `floor( sqrt(lifetimeCoinsThisGeneration / K) )` with K *(tune)* so the first rebirth yields ~10 seeds. Shown on the Almanac screen as "seeds if you retire now", so the decision is visible every winter.
-- **Heritage tree** (≈25 nodes, permanent, same visual language as the Almanac, five branches mirroring it):
+- **Heritage tree** (≈29 nodes *(v2.3)*, permanent, same visual language as the Almanac, five branches mirroring it):
   - Hand: starting radius +0.25 (3) · all ring speeds +10% (5) · ring harvests +5% coins (4)
   - Soil: start with Irrigation 1 / Sun 1 (1 each) · global growth +5% (5) · **unlock rain cloud** (1)
   - Field: start 4×4 (1) · start with Tomato unlocked (1) · **golden crop chance** 1%/lvl (5)
@@ -354,6 +354,62 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
   - Calendar: starting year length +10 s (4) · greenhouse ×2 (2) · Almanac costs −5% (4)
 - Each generation adds a visible change to the farm (bigger house, a tree, a fence, a well). Story is exactly this: a farm handed down.
 - *(v1.2)* The Heritage table has the 16 nodes listed above (edges in `DECISIONS.md`, Session 2). 'Start with Irrigation 1 / Sun 1' acts as a floor on the Almanac level, not an addition. Heritage effects are base modifiers applied before Almanac effects. Nodes whose feature does not exist yet are purchasable and stored as flags.
+
+### 7.3 Exclusive paths *(v2.3)*
+
+- `SkillNode.Excludes` names another node id; validated at load (the id must exist and the
+  exclusion must be mutual — if A excludes B, B excludes A). A node's `IsAvailable` is false once
+  the node it excludes has any level, so the two are a single either/or choice.
+- Four new Heritage nodes in two exclusive pairs:
+  - Hand: `h_ring_master` (prereq `h_ring_coins`, max 2, 6 seeds/level, ring speeds +8%/level)
+    excludes Helpers' `h_steward`.
+  - Helpers: `h_steward` (prereq `h_apprentice_yield`, max 2, 6 seeds/level, apprentice yield
+    +10%/level) excludes Hand's `h_ring_master`.
+  - Calendar: `h_long_summer` (prereq `h_start_year_length`, max 1, 8 seeds, years +15 s) excludes
+    Soil's `h_rich_soil`.
+  - Soil: `h_rich_soil` (prereq `h_global_growth`, max 1, 8 seeds, growth +8%) excludes Calendar's
+    `h_long_summer`.
+- The ending (§8) counts an exclusive node as done once either it or the node it excludes is
+  maxed, so a path not taken never blocks the Golden Year.
+
+### 7.4 Heirs *(v2.3)*
+
+- At each rebirth, three different heirs are drawn from six traits with the sim's own RNG; the
+  first drawn is preselected by default. In the Heritage phase, `ChooseHeir(index)` picks one of
+  the three before the new generation starts; the chosen trait lasts the whole generation.
+- Traits (`FarmConfig`):
+  - Green thumb: Irrigation and Sun +12%.
+  - Quick hands: ring speeds +8%.
+  - Merchant: Almanac costs −6%.
+  - Steady: crop value +4%.
+  - Shepherd: apprentice speed +15%.
+  - Watchful: 30% fewer crows.
+- Heritage screen: an heir strip of three buttons and the challenge button (§7.5) sit above "Start
+  the new generation".
+
+### 7.5 Challenge generations *(v2.3)*
+
+- `SetChallenge`, callable in the Heritage phase, picks one of two challenges for the coming
+  generation (reset to none at every rebirth):
+  - No helpers: no apprentices, no tractor.
+  - Short years: year length ×0.7, frost warning capped at 20% of it.
+- Either challenge multiplies the seeds earned at retirement by `FarmConfig.ChallengeSeedBonus`
+  (×1.5).
+
+### 7.6 Achievements and heirlooms *(v2.3)*
+
+- 12 achievements, checked every tick — including while offline, so an heirloom earned while away
+  applies as it would in play — and again after retire and at Winter: first harvest, a ×25 combo,
+  50 crows scared, 10 golden harvests, a three-star year, 1 000 harvests, a second generation,
+  golden wheat unlocked, 5 yearly goals met, a trader deal, 10 pests stopped, a market sale.
+- Each achievement leaves a named heirloom with a small permanent bonus, stacking and never reset:
+  Worn gloves, Old metronome, Tin whistle, Gilded seed, Blue ribbon, Farmer's almanac, Family
+  portrait, Seed tin, Pocket watch, Merchant's scale, Wooden mallet, Market ledger. Bonuses are
+  crop value +1–1.5%, ring speeds +1.5%, passive growth +1.5%, crows −5%, golden chance +0.3% or
+  Almanac −1%, one per heirloom.
+- Stored as bits in `GenerationStats.Achievements`, never reset by a rebirth. HUD banner "Heirloom
+  found: X" on a new one; the pause menu's stats show heirlooms found (n / 12) and this
+  generation's heir.
 
 ---
 
@@ -366,7 +422,8 @@ normal starting size and `EndingSeen` is set once; the ending does not repeat on
 generations. Credits roll next (skippable after 3 s, 24 s total), then a statistics sheet
 (generations, years, coins, per-source harvests, crows scared, best combo, time played), then the
 normal Winter screen underneath. The Heritage tree title shows "Complete". The game continues
-after, but nothing new unlocks.
+after, but nothing new unlocks. *(v2.3)* "Every Heritage node is maxed" counts an exclusive node
+(§7.3) as done once it or the node it excludes is maxed.
 
 ---
 
@@ -384,6 +441,12 @@ after, but nothing new unlocks.
   `V12ToV13` starts with an empty barn, no respec used, and estimates `AlmanacSpent` from the
   saved node levels at base prices (without Heritage discounts). Fixture-tested in `SaveV13Tests`
   against a hand-written v12 JSON.
+- *(v2.3)* Schema is now **14**: adds `Trait`, `HeirOffer` (int[]), `Challenge`, `Achievements`,
+  `GoalsMet` and `PestsStopped` to `SaveData`. Migration `V13ToV14` starts all of them at their
+  defaults (no trait, no heir offer remembered, no challenge, no achievements); the first tick
+  after load earns every achievement the loaded stats already meet, so an older save catches up on
+  anything it already qualified for. Fixture-tested in `SaveV14Tests` against a hand-written v13
+  JSON.
 
 ---
 
@@ -609,3 +672,16 @@ never stores, so balance targets keep measuring the core loop.
 Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 11 seeds at
 first retire, 6 generations to max Heritage, 5.21 h to the ending, ring share 100% / 54% / 28%
 (year 1 / first retire / generation 4). No tuning needed; 280 tests green.
+
+**2026-09-19 — M.7 progression and rebirth pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer`, seed 1).
+
+What changed: exclusive Heritage paths (§7.3), heirs (§7.4), challenge generations (§7.5), and
+achievements and heirlooms (§7.6). `AutoPlayer` always accepts the preselected heir and never sets
+a challenge, so balance targets keep measuring the core loop. Tuned: heirs and heirlooms alone took
+the ending under 5 h (4.83); traits were softened to the numbers in §7.4 and `SeedDivisor` 33 → 35
+(§7; 3 500 coins ≈ 10 seeds) to bring it back.
+
+Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 10 seeds at
+first retire, 6 generations to max Heritage, 5.07 h to the ending, ring share 100% / 54% / 31%
+(year 1 / first retire / generation 4). 289 tests green.

@@ -145,6 +145,16 @@ namespace TillWinter.Core
         /// <summary>Preserves pay this multiple of the stored value, next spring.</summary>
         public double PreserveValue = 1.25;
 
+        // Progression and rebirth (GDD §7.4–§7.6 v2.3)
+        /// <summary>Offer heirs at each rebirth, and let heirlooms apply (rule tests turn both off).</summary>
+        public bool HeirsEnabled = true, HeirloomsEnabled = true;
+        /// <summary>Each heir trait's size.</summary>
+        public double TraitGreenThumb = 0.12, TraitQuickHands = 0.08, TraitMerchant = 0.06, TraitSteady = 0.04, TraitWatchful = 0.3;
+        public float TraitShepherd = 0.15f;
+        /// <summary>A short-years challenge scales the year by this; any challenge multiplies the seeds at retirement.</summary>
+        public float ChallengeShortYear = 0.7f;
+        public double ChallengeSeedBonus = 1.5;
+
         // Ring (GDD §2.1)
         public float BaseRingRadius = 0.7f;
         public float MaxRingRadius = 2.5f;
@@ -178,8 +188,8 @@ namespace TillWinter.Core
         // Heritage (GDD §7)
         /// <summary>Lifetime coins in this generation needed before "Pass on the farm" unlocks.</summary>
         public double HeritageThreshold = 3500; // S9 balance (GDD §7 v1.4); M.3 3000 → 3500 for the season, goal and grade income (v1.9)
-        /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 3 500 coins = 10 seeds.</summary>
-        public double SeedDivisor = 33; // M.3: 30 → 33, the ending stays past five hours with the new year income (v1.9)
+        /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 3 500 coins = 10 seeds (at 35).</summary>
+        public double SeedDivisor = 35; // M.3: 30 → 33, the ending stays past five hours with the new year income (v1.9); M.7: → 35 for heirs and heirlooms (v2.3)
 
         // Events and remaining nodes (GDD §4, §5, §6, §7)
         public float CloudDriftSeconds = 8f;

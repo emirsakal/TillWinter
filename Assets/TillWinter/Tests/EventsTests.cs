@@ -540,6 +540,7 @@ namespace TillWinter.Tests
             ["h_start_sun"] = "stat", ["h_global_growth"] = "stat", ["h_unlock_rain_cloud"] = "stat", ["h_start_field"] = "stat",
             ["h_start_tomato"] = "stat", ["h_golden_crop"] = "stat", ["h_free_apprentice"] = "stat", ["h_apprentice_yield"] = "stat",
             ["h_scarecrow_immunity"] = "stat+scarecrow2", ["h_start_year_length"] = "stat", ["h_greenhouse_x2"] = "stat", ["h_almanac_discount"] = "stat",
+            ["h_ring_master"] = "stat", ["h_steward"] = "stat", ["h_long_summer"] = "stat", ["h_rich_soil"] = "stat",
         };
 
         [Test]

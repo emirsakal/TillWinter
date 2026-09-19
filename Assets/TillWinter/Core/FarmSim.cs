@@ -144,6 +144,7 @@ namespace TillWinter.Core
             UpdateLuck(dt);
             UpdateTrader(dt);
             UpdateCloud(dt);
+            CheckAchievements();
         }
 
         /// <summary>Tap a plot. Scares a crow (dropping the bounty) if one is there. Returns true if something happened.</summary>
@@ -295,7 +296,9 @@ namespace TillWinter.Core
             get
             {
                 if (Heritage.Nodes.Count == 0) return false;
-                foreach (var n in Heritage.Nodes) if (!Heritage.IsMaxed(n.Id)) return false;
+                // A path not taken counts as done once the one taken is maxed (GDD §7.3 v2.3).
+                foreach (var n in Heritage.Nodes)
+                    if (!Heritage.IsMaxed(n.Id) && !(n.Excludes != null && Heritage.IsMaxed(n.Excludes))) return false;
                 return true;
             }
         }
@@ -307,7 +310,7 @@ namespace TillWinter.Core
         }
 
         /// <summary>floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)).</summary>
-        public int SeedsIfRetiredNow => SeedsFor(State.Generation.LifetimeCoinsThisGeneration);
+        public int SeedsIfRetiredNow => (int)Math.Floor(SeedsFor(State.Generation.LifetimeCoinsThisGeneration) * ChallengeSeedMult);
 
         public int SeedsFor(double lifetimeCoins) =>
             Config.SeedDivisor <= 0 ? 0 : (int)Math.Floor(Math.Sqrt(Math.Max(0, lifetimeCoins) / Config.SeedDivisor));
@@ -348,6 +351,10 @@ namespace TillWinter.Core
             ResetTractor();
             State.Phase = Phase.Heritage;
             State.Season = Season.Winter;
+            if (Config.HeirsEnabled) OfferHeirs();
+            else { g.Trait = HeirTrait.None; g.Challenge = ChallengeKind.None; }
+            ResolveStats();
+            CheckAchievements();
             Retired?.Invoke(new RetireEvent(seeds, g.Generation));
             return true;
         }
@@ -519,6 +526,13 @@ namespace TillWinter.Core
             d.BarnJars = s.Barn.Jars;
             d.AlmanacSpent = s.Generation.AlmanacSpent;
             d.RespecUsed = s.Generation.RespecUsed;
+            d.Trait = (int)s.Generation.Trait;
+            d.HeirOffer = new int[s.Generation.HeirOffer.Length];
+            for (int i = 0; i < d.HeirOffer.Length; i++) d.HeirOffer[i] = (int)s.Generation.HeirOffer[i];
+            d.Challenge = (int)s.Generation.Challenge;
+            d.Achievements = s.Generation.Achievements;
+            d.GoalsMet = s.Generation.GoalsMet;
+            d.PestsStopped = s.Generation.PestsStopped;
             d.LuckyCheckTimer = _luckyCheckTimer;
             return d;
         }
@@ -648,6 +662,17 @@ namespace TillWinter.Core
             s.Barn.Jars = Math.Max(0, data.BarnJars);
             g.AlmanacSpent = Math.Max(0, data.AlmanacSpent);
             g.RespecUsed = data.RespecUsed;
+            g.Trait = data.Trait >= 0 && data.Trait <= Legacy.TraitCount ? (HeirTrait)data.Trait : HeirTrait.None;
+            for (int i = 0; i < g.HeirOffer.Length; i++)
+            {
+                int t = data.HeirOffer != null && i < data.HeirOffer.Length ? data.HeirOffer[i] : 0;
+                g.HeirOffer[i] = t >= 0 && t <= Legacy.TraitCount ? (HeirTrait)t : HeirTrait.None;
+            }
+            g.Challenge = data.Challenge >= 0 && data.Challenge <= (int)ChallengeKind.ShortYears ? (ChallengeKind)data.Challenge : ChallengeKind.None;
+            g.Achievements = data.Achievements & ((1 << Legacy.AchievementCount) - 1);
+            g.GoalsMet = Math.Max(0, data.GoalsMet);
+            g.PestsStopped = Math.Max(0, data.PestsStopped);
+            sim.ResolveStats(); // heirlooms, trait and challenge on top of the trees
             sim._luckyCheckTimer = data.LuckyCheckTimer;
             s.Cloud.Active = data.CloudActive;
             s.Cloud.X = data.CloudX;
@@ -709,6 +734,7 @@ namespace TillWinter.Core
                 UpdatePlots(step);
                 UpdateApprentices(step);
                 UpdateTractor(step);
+                CheckAchievements(); // an heirloom earned while away applies from then on, as it would have in play
             }
             _offline = false;
             Harvested -= count;
@@ -938,6 +964,7 @@ namespace TillWinter.Core
                 GoldenYearEnded?.Invoke();
             }
             SeasonChanged?.Invoke(Season.Winter);
+            CheckAchievements();
             WinterStarted?.Invoke();
         }
 
@@ -1344,6 +1371,7 @@ namespace TillWinter.Core
             barn.Count = 0;
             AddCoins(coins, false);
             BarnSold?.Invoke(coins);
+            Unlock(AchievementId.MarketSale);
             return true;
         }
 
@@ -1435,6 +1463,7 @@ namespace TillWinter.Core
             var goal = State.Goal;
             if (!goal.Active || goal.Done || goal.Progress < goal.Target) return;
             goal.Done = true; // before paying: the reward's coins must not re-enter here
+            State.Generation.GoalsMet++;
             AddCoins(goal.Reward);
             GoalCompleted?.Invoke(goal);
         }
@@ -2162,6 +2191,11 @@ namespace TillWinter.Core
                 State.Stats.YearLength = Config.GoldenYearSeconds;
                 State.Stats.FrostWarningSeconds = 0f;
             }
+            // Heirlooms, the heir's trait and the challenge (GDD §7.4–§7.6 v2.3); the Golden Year is the same for everyone.
+            var gen = State.Generation;
+            bool golden = State.GoldenYearActive;
+            Legacy.Apply(State.Stats, Config, Config.HeirloomsEnabled ? gen.Achievements : 0,
+                golden ? HeirTrait.None : gen.Trait, golden ? ChallengeKind.None : gen.Challenge);
             State.RingRadius = _ringRadiusOverride ?? State.Stats.RingRadius;
             bool ownedBefore = State.Tractor.Owned;
             State.Tractor.Owned = State.Stats.TractorLevel > 0;

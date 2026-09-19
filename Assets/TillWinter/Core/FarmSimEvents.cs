@@ -174,6 +174,7 @@ namespace TillWinter.Core
 
         private void ClearPest(PestState pest, double coins)
         {
+            State.Generation.PestsStopped++;
             var kind = pest.Kind;
             var at = pest.Pos;
             pest.Kind = PestKind.None;
@@ -350,6 +351,7 @@ namespace TillWinter.Core
             }
             State.Coins -= price;
             TraderSold?.Invoke(offer, price);
+            Unlock(AchievementId.TraderDeal);
             return true;
         }
 

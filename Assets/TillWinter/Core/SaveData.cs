@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 13;
+        public const int CurrentSchemaVersion = 14;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -126,6 +126,13 @@ namespace TillWinter.Core
         public double BarnJars;
         public double AlmanacSpent;
         public bool RespecUsed;
+
+        // v14: heirs, challenge, achievements (GDD §7.4–§7.6 v2.3)
+        public int Trait;
+        public int[] HeirOffer = new int[0];
+        public int Challenge;
+        public int Achievements;
+        public int GoalsMet, PestsStopped;
     }
 
     [Serializable]
@@ -188,6 +195,7 @@ namespace TillWinter.Core
                     case 10: data = V10ToV11(data); break;
                     case 11: data = V11ToV12(data); break;
                     case 12: data = V12ToV13(data); break;
+                    case 13: data = V13ToV14(data); break;
                     default: return null;
                 }
             }
@@ -331,6 +339,21 @@ namespace TillWinter.Core
             d.TraderSeedSold = d.TraderRareSold = false;
             d.PestCheckTimer = d.LuckyCheckTimer = 0f;
             d.SchemaVersion = 12;
+            return d;
+        }
+
+        /// <summary>
+        /// v13 → v14: no heir (the farm was handed on before heirs existed), no challenge, no heirs on offer. Achievements
+        /// start empty; the first tick earns every one the saved stats already meet.
+        /// </summary>
+        private static SaveData V13ToV14(SaveData d)
+        {
+            d.Trait = 0;
+            d.HeirOffer = new int[0];
+            d.Challenge = 0;
+            d.Achievements = 0;
+            d.GoalsMet = d.PestsStopped = 0;
+            d.SchemaVersion = 14;
             return d;
         }
 

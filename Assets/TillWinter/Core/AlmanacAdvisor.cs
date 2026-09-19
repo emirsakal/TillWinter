@@ -25,6 +25,7 @@ namespace TillWinter.Core
             ["apprentice_speed"] = 1.5, ["apprentice_harvest_time"] = 1.5, ["apprentice_yield"] = 2,
             ["h_ring_coins"] = 1, ["h_start_tomato"] = 2, ["h_apprentice_yield"] = 1.5, ["h_scarecrow_immunity"] = 0.8,
             ["h_start_year_length"] = 1.5, ["h_greenhouse_x2"] = 0.8,
+            ["h_ring_master"] = 1.2, ["h_steward"] = 1.2, ["h_long_summer"] = 1, ["h_rich_soil"] = 1,
         };
 
         private static Dictionary<string, double> _weights;

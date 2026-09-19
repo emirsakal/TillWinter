@@ -34,6 +34,9 @@ namespace TillWinter.Tests
             cfg.PestFirstYear = int.MaxValue;
             cfg.LuckyFirstYear = int.MaxValue;
             cfg.TraderFirstYear = int.MaxValue;
+            // Heirs and heirlooms (M.7) off: a rebirth draws no heir and achievements add no bonus.
+            cfg.HeirsEnabled = false;
+            cfg.HeirloomsEnabled = false;
             return cfg;
         }
     }

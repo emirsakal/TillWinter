@@ -193,6 +193,7 @@ namespace TillWinter.Unity
 
             BuildSheet();
             BuildBarnStrip();
+            BuildHeirStrip();
 
             // Bottom buttons.
             _nextYear = UiKit.Button(_safe, "NextYear", Strings.Get("ui.next_year") + "  »", UiType.Heading, _theme.Accent, _theme.Ink, OnNextYear);
@@ -680,6 +681,58 @@ namespace TillWinter.Unity
             UiKit.ButtonLabel(_respec).text = Strings.Format("ui.respec", ("coins", NumberFormat.Short(s.Generation.AlmanacSpent)));
         }
 
+        // ------------------------------------------------------------------ heirs and challenge (GDD §7.4/§7.5 v2.3)
+
+        private RectTransform _heirStrip;
+        private readonly Button[] _heirs = new Button[3];
+        private Button _challenge;
+        private int _heirKey = -1;
+
+        private void BuildHeirStrip()
+        {
+            _heirStrip = UiKit.Rect("HeirStrip", _safe);
+            UiKit.Stretch(_heirStrip, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 176f), new Vector2(0f, 316f));
+            for (int i = 0; i < _heirs.Length; i++)
+            {
+                int index = i;
+                _heirs[i] = UiKit.Button(_heirStrip, "Heir" + i, "", UiType.Caption, _theme.InkMuted, _theme.Paper, () =>
+                {
+                    if (_game.Sim.ChooseHeir(index)) Haptics.Play(HapticKind.Selection);
+                });
+                UiKit.Box(_heirs[i].GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f + i * 250f, 0f), new Vector2(238f, 118f));
+                UiKit.ButtonLabel(_heirs[i]).richText = true;
+            }
+            _challenge = UiKit.Button(_heirStrip, "Challenge", "", UiType.Caption, _theme.InkMuted, _theme.Paper, CycleChallenge);
+            UiKit.Box(_challenge.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-24f, 0f), new Vector2(270f, 118f));
+            UiKit.ButtonLabel(_challenge).enableWordWrapping = true;
+            _heirStrip.gameObject.SetActive(false);
+        }
+
+        private void CycleChallenge()
+        {
+            var next = (ChallengeKind)(((int)_game.State.Generation.Challenge + 1) % 3);
+            if (_game.Sim.SetChallenge(next)) Haptics.Play(HapticKind.Selection);
+        }
+
+        private void RefreshHeirStrip(FarmState s)
+        {
+            var g = s.Generation;
+            bool show = s.Phase == Phase.Heritage && g.HeirOffer[0] != HeirTrait.None;
+            if (_heirStrip.gameObject.activeSelf != show) _heirStrip.gameObject.SetActive(show);
+            if (!show) { _heirKey = -1; return; }
+            int key = (int)g.Trait * 1000 + (int)g.Challenge * 100 + (int)g.HeirOffer[0] * 49 + (int)g.HeirOffer[1] * 7 + (int)g.HeirOffer[2];
+            if (key == _heirKey) return;
+            _heirKey = key;
+            for (int i = 0; i < _heirs.Length; i++)
+            {
+                var t = g.HeirOffer[i];
+                UiKit.ButtonLabel(_heirs[i]).text = "<b>" + Strings.Get("heir." + t) + "</b>\n<size=78%>" + Strings.Get("heir." + t + ".desc") + "</size>";
+                _heirs[i].targetGraphic.color = t == g.Trait ? _theme.Accent : _theme.InkMuted;
+            }
+            UiKit.ButtonLabel(_challenge).text = Strings.Get("challenge." + g.Challenge);
+            _challenge.targetGraphic.color = g.Challenge != ChallengeKind.None ? _theme.Seed : _theme.InkMuted;
+        }
+
         private void RefreshSuggestion(FarmState s)
         {
             long key = s.Phase == Phase.Winter ? (long)System.Math.Min(s.Coins, 1e15) * 64 + _game.Sim.Almanac.Levels.Count : -2;
@@ -812,6 +865,7 @@ namespace TillWinter.Unity
                 _gradeLine.text = graded ? line : "";
             }
             RefreshBarnStrip(s);
+            RefreshHeirStrip(s);
             RefreshSuggestion(s);
             // What the year that just ended brought in (Core counts it from Spring; v5 save).
             long summaryKey = (long)s.CoinsThisYear * 1000 + s.HarvestsThisYear;

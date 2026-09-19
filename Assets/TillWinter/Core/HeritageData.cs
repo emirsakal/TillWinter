@@ -42,6 +42,10 @@ namespace TillWinter.Core
             { "h_start_year_length", "scrollHorizontal" },
             { "h_greenhouse_x2", "home" },
             { "h_almanac_discount", "minus" },
+            { "h_ring_master", "target" },
+            { "h_steward", "multiplayer" },
+            { "h_long_summer", "scrollHorizontal" },
+            { "h_rich_soil", "contrast" },
         };
 
         private static string IconFor(string id) => Icons.TryGetValue(id, out var k) ? k : "";
@@ -73,7 +77,19 @@ namespace TillWinter.Core
             N("h_start_year_length", Branch.Calendar, None, 4, 4, EffectType.HeritageStartYearLength, 10),
             N("h_greenhouse_x2", Branch.Calendar, new[] { "h_start_year_length" }, 2, 10, EffectType.GreenhouseX2, 1),
             N("h_almanac_discount", Branch.Calendar, new[] { "h_start_year_length" }, 4, 6, EffectType.AlmanacDiscount, 0.05),
+
+            // Paths (GDD §7.3 v2.3): two pairs where taking one rules out the other.
+            X(N("h_ring_master", Branch.Hand, new[] { "h_ring_coins" }, 2, 6, EffectType.HeritageRingSpeeds, 0.08), "h_steward"),
+            X(N("h_steward", Branch.Helpers, new[] { "h_apprentice_yield" }, 2, 6, EffectType.HeritageApprenticeYield, 0.1), "h_ring_master"),
+            X(N("h_long_summer", Branch.Calendar, new[] { "h_start_year_length" }, 1, 8, EffectType.HeritageStartYearLength, 15), "h_rich_soil"),
+            X(N("h_rich_soil", Branch.Soil, new[] { "h_global_growth" }, 1, 8, EffectType.HeritageGlobalGrowth, 0.08), "h_long_summer"),
         };
+
+        private static SkillNode X(SkillNode node, string excludes)
+        {
+            node.Excludes = excludes;
+            return node;
+        }
 
 
         private static Dictionary<string, SkillNode> _byId;
