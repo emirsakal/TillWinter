@@ -1562,7 +1562,7 @@ namespace TillWinter.Core
             if (!goal.Active || goal.Done || goal.Progress < goal.Target) return;
             goal.Done = true; // before paying: the reward's coins must not re-enter here
             State.Generation.GoalsMet++;
-            AddCoins(goal.Reward, false); // like the grade bonus: paid on top, so it does not raise next year's target
+            AddCoins(goal.Reward); // part of the year's take (the daily score counts it); GradeYear keeps it out of next year's target
             GoalCompleted?.Invoke(goal);
         }
 
@@ -1620,7 +1620,9 @@ namespace TillWinter.Core
             var gs = State.Generation;
             if (stars > gs.BestGradeThisGeneration) gs.BestGradeThisGeneration = stars;
             State.LastGradeBonus = bonus;
-            State.LastYearCoins = State.CoinsThisYear;
+            // The goal's reward is the year's money but not its yardstick: left in, each goal would raise the next.
+            var met = State.Goal;
+            State.LastYearCoins = Math.Max(0, State.CoinsThisYear - (met.Active && met.Done ? met.Reward : 0));
             YearGraded?.Invoke(stars, bonus);
         }
 
@@ -2003,7 +2005,11 @@ namespace TillWinter.Core
             for (int y = 0; y < n; y++)
             {
                 int count = 0;
-                for (int x = 0; x < n; x++) if (State.GetPlot(x, y).IsRipe) count++;
+                for (int x = 0; x < n; x++)
+                {
+                    var p = State.GetPlot(x, y);
+                    if (p.IsRipe && !(_offline && p.HasCrow)) count++; // offline it leaves crowed plots alone: they are no reason to go
+                }
                 if (count > bestCount)
                 {
                     bestCount = count;

@@ -1098,12 +1098,13 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   preserves still sitting in the barn at retirement should just vanish. Chosen: they pay into the
   generation's lifetime coins and seeds, and the retire button's seed count includes them, because
   a jar earned is a jar earned regardless of which screen the player retires from.
-- **Respec claws back this winter's greenhouse coins; greenhouse coins and the goal reward never
-  counted as the year's take.** Open: whether a winter-only respec should keep coins the
-  greenhouse produced during that same winter, and whether the goal reward and greenhouse income
-  belong in `CoinsThisYear`. Chosen: respec takes the greenhouse coins back; greenhouse coins and
-  the goal reward join the grade bonus as coins that count toward totals and lifetime coins but
-  never toward `CoinsThisYear`, so neither can backdoor a Coins goal.
+- **Respec claws back this winter's greenhouse coins; greenhouse coins are not the year's take.**
+  Open: whether a winter-only respec should keep coins the greenhouse produced during that same
+  winter, and whether the goal reward and greenhouse income belong in `CoinsThisYear`. Chosen:
+  respec takes the greenhouse coins back; greenhouse coins join the grade bonus as coins that count
+  toward totals and lifetime coins but never toward `CoinsThisYear`. The goal reward stays in
+  `CoinsThisYear` (it is the year's money, and the daily farm's score is `CoinsThisYear`), but
+  `GradeYear` leaves it out of `LastYearCoins`, so a met goal never raises the next one.
 - **Scarecrow duplicates re-place instead of vanishing; the rain cloud skips locust-held plots.**
   Open: what a clamp that removes an over-count of scarecrows should do with the orphaned ones, and
   whether the rain cloud's instant-grow should reach a plot a locust swarm is sitting on. Chosen:

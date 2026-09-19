@@ -151,6 +151,7 @@ namespace TillWinter.Unity
             _goalPlate = UiKit.Panel(top, "GoalPlate", _theme.BarBackground, true, false);
             _goalPlateRt = _goalPlate.rectTransform;
             UiKit.Box(_goalPlateRt, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 332f), new Vector2(960f, 52f));
+            _goalPlate.gameObject.SetActive(false); // shown with the goal line
             _goalLine = UiKit.Label(top, "Goal", "", UiType.Caption, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_goalLine.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 336f), new Vector2(960f, 44f));
             UiKit.Outline(_goalLine, 0.14f);
