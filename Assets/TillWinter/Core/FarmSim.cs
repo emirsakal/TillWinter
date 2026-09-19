@@ -2244,13 +2244,35 @@ namespace TillWinter.Core
             foreach (var p in State.PlotArray)
             {
                 if (p.Pos.X < oldSize && p.Pos.Y < oldSize) continue;
-                double r = _rng.NextDouble();
+                double r = GroundRoll(p.Pos);
                 if (r < Config.StonyChance)
                 {
                     p.Kind = PlotKind.Stony;
                     p.Reset(); // stones first: a new plot that would have started wet waits for the clearing
                 }
                 else if (r < Config.StonyChance + Config.FertileChance) p.Kind = PlotKind.Fertile;
+            }
+        }
+
+        /// <summary>
+        /// A plot's ground is fixed for the generation by where it lies, not drawn from the running RNG: shrinking the
+        /// field with a respec and buying it back gives the same stones and fertile patches, so the ground cannot be
+        /// re-rolled for a better draw.
+        /// </summary>
+        private double GroundRoll(GridPos pos)
+        {
+            var g = State.Generation;
+            unchecked
+            {
+                uint h = 2166136261u;
+                void Mix(int v) { for (int i = 0; i < 4; i++) { h ^= (uint)((v >> (i * 8)) & 0xff); h *= 16777619u; } }
+                Mix(pos.X);
+                Mix(pos.Y);
+                Mix(g.Generation);
+                Mix(g.HarvestsAtGenerationStart);
+                Mix(State.NgPlus);
+                Mix(State.Daily);
+                return new Rng((int)h).NextDouble();
             }
         }
 

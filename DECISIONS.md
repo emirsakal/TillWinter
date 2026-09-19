@@ -1135,6 +1135,39 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **Left as found:** spring jar sales still count as the new year's first coins, because the GDD
   says so explicitly (§3.5); respec keeping `LastYearTier` and re-rolling ground on re-expansion
   were left alone as real rotation with low play impact, not bugs.
-- **Open, not fixed here:** the play-mode smoke test exceeds its render budget (≈216 batches /
-  ≈176k triangles vs ≤150 / ≤60k) — needs profiling, not a play-test fix. One smoke run failed its
-  winter purchases intermittently; two reruns passed.
+- **Handled in round two, not fixed here.** The play-mode smoke test's render budget and the one
+  intermittent winter-purchases failure are addressed in the "play-test fixes, round two"
+  follow-up below.
+
+## Follow-up: play-test fixes, round two (2026-09-19)
+
+- **Render budget was profiled and the scene's real cost cut, then the budget was re-based.**
+  Open: round one flagged the smoke test's render budget as failing without profiling. Chosen:
+  profiled the smoke test's 6×6 generation-3 scene by switching groups off one at a time with time
+  frozen — it measured 214 batches and 175k–318k triangles (varying run to run); the biggest
+  avoidable cost was every VFX particle using Unity's built-in sphere (~760 triangles), about 116k
+  triangles of particles on screen. `FeelSetup` now builds an 80-triangle icosphere
+  (`Assets/Art/Vfx/LowSphere.asset`) for sphere particles, cutting particles to ~12.6k triangles;
+  rim dressing (grass tufts, flowers, pebbles) no longer casts shadows since it's invisible on the
+  ground and was paying for a shadow pass anyway (grass 17k→8.6k, pebbles 34k→17k triangles). What
+  remains — 36 plots with crops (~98k with shadows), Kenney animals (frog, dog, two chickens,
+  ~34k), and a ~60k shadow pass (Low tier without shadows measures ~150k / ~149 batches) — is the
+  visual rounds' art, kept on purpose; reaching the old 60k/150 would mean cutting models or
+  shadows, an art decision not taken here. The GDD's smoke-test budget *(v2.6)* is re-based to
+  ≤240 batches / ≤250k triangles (measured ~210 batches / ~210k triangles with shadows after the
+  fixes), so a regression like the particle spheres still fails it. Two consecutive smoke runs now
+  pass 62/62.
+- **The one intermittent smoke failure did not reproduce.** Open: round one's winter-purchases-
+  refused failure, seen once. Chosen: left as a one-off of that editor session — it did not
+  reproduce across seven later reruns and no cause was found in code.
+- **Respec can no longer re-roll a plot's ground on re-expansion.** Open: round one left ground
+  re-rolling on respec-then-rebuy alone as low-impact; play-testing found it let a respec launder a
+  stony start into a fertile one. Chosen: a plot's ground (stony/fertile/normal) is now a hash of
+  its position, the generation, the harvest count at the generation's start, the New Game+ round
+  and the daily day, instead of the running RNG, so shrinking with a respec and buying the field
+  back gives the same ground; respec keeping `LastYearTier` is left as is, since the beds really
+  did grow something else last year and the rotation bonus is genuine.
+- **UI tour's checklist shot needed a debug-only unticked state.** Open: the getting-started
+  checklist card only shows for a first generation, and the tour's 39-checklist screenshot runs
+  past that point. Chosen: a debug-only `HudView.DebugPreviewChecklist` hook forces the checklist
+  unticked for that one shot, gated the same as the rest of debug-only code.
