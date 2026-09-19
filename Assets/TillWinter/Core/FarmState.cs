@@ -324,6 +324,9 @@ namespace TillWinter.Core
         /// <summary>The daily farm's day (yyyymmdd), 0 for the family farm. The daily farm is never saved (GDD §8.4 v2.4).</summary>
         public int Daily { get; internal set; }
         public bool IsDaily => Daily != 0;
+        /// <summary>M.9 (GDD §10.5/§10.7 v2.5): the first generation's checklist (bits) and the away plan.</summary>
+        public int ChecklistBits { get; internal set; }
+        public AwayPlan AwayPlan { get; internal set; }
         public IReadOnlyList<ApprenticeState> Apprentices => ApprenticeList;
 
         public CloudState Cloud { get; } = new CloudState();

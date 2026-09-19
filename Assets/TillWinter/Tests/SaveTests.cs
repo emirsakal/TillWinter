@@ -58,6 +58,7 @@ namespace TillWinter.Tests
             // v13: a barn taking half the harvest (the Almanac spend is already counted by the purchases above).
             sim.DebugSetLevel("barn", 1);
             Assert.IsTrue(sim.SetStoreShare(0.5f));
+            sim.SetAwayPlan(AwayPlan.Balanced); // v16
             return sim;
         }
 
@@ -152,6 +153,8 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.Generation.BestGradeThisGeneration, sb.Generation.BestGradeThisGeneration);
             Assert.AreEqual(sa.Generation.HarvestsAtGenerationStart, sb.Generation.HarvestsAtGenerationStart);
             Assert.AreEqual(sa.NgPlus, sb.NgPlus);
+            Assert.AreEqual(sa.ChecklistBits, sb.ChecklistBits);
+            Assert.AreEqual(sa.AwayPlan, sb.AwayPlan);
             Assert.AreEqual(sa.Album.Count, sb.Album.Count);
             for (int i = 0; i < sa.Album.Count; i++)
             {

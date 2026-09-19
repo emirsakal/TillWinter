@@ -213,6 +213,7 @@ namespace TillWinter.Unity
             BuildHelperButtons();
             BuildEventUi();
             BuildStoreButton();
+            BuildChecklist();
 
             BuildEndYearConfirm(canvas);
 
@@ -493,6 +494,46 @@ namespace TillWinter.Unity
             Banner(kind == LuckyKind.ShootingStar ? Strings.Get("lucky.found.ShootingStar") : Strings.Format("lucky.found." + kind, ("coins", NumberFormat.Short(coins))));
             Haptics.Play(HapticKind.Medium);
             _audio?.Play(SfxId.GoldenHarvest, 0.7f);
+        }
+
+        // ------------------------------------------------------------------ getting started (GDD §10.5 v2.5)
+
+        private RectTransform _checklist;
+        private readonly Image[] _checkMarks = new Image[FarmSim.ChecklistSteps];
+        private readonly TMP_Text[] _checkLines = new TMP_Text[FarmSim.ChecklistSteps];
+        private int _checkShown = -1;
+
+        private void BuildChecklist()
+        {
+            var card = UiKit.Panel(_safe, "Checklist", _theme.HintBackground, true, false);
+            _checklist = card.rectTransform;
+            UiKit.Box(_checklist, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -_theme.TopPadding - 390f), new Vector2(520f, 290f));
+            var title = UiKit.Label(_checklist, "Title", Strings.Get("check.title"), UiType.Label, _theme.HintAccent, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Box(title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -10f), new Vector2(480f, 44f));
+            for (int i = 0; i < FarmSim.ChecklistSteps; i++)
+            {
+                _checkMarks[i] = NodeIcons.Image(_checklist, "checkmark", _theme.HintText);
+                UiKit.Box(_checkMarks[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -62f - i * 44f), new Vector2(32f, 32f));
+                _checkLines[i] = UiKit.Label(_checklist, "Step" + i, Strings.Get("check." + (ChecklistStep)i), UiType.Caption, _theme.HintText, TextAnchor.MiddleLeft);
+                UiKit.Box(_checkLines[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(64f, -56f - i * 44f), new Vector2(440f, 44f));
+            }
+            card.raycastTarget = false;
+            _checklist.gameObject.SetActive(false);
+        }
+
+        private void RefreshChecklist(FarmState state)
+        {
+            bool show = state.Phase == Phase.Year && _game.Sim.ChecklistActive;
+            if (_checklist.gameObject.activeSelf != show) _checklist.gameObject.SetActive(show);
+            if (!show || state.ChecklistBits == _checkShown) return;
+            _checkShown = state.ChecklistBits;
+            for (int i = 0; i < FarmSim.ChecklistSteps; i++)
+            {
+                bool done = (state.ChecklistBits & (1 << i)) != 0;
+                _checkMarks[i].color = done ? _theme.HintAccent : new Color(_theme.HintText.r, _theme.HintText.g, _theme.HintText.b, 0.25f);
+                _checkLines[i].color = done ? new Color(_theme.HintText.r, _theme.HintText.g, _theme.HintText.b, 0.55f) : _theme.HintText;
+                _checkLines[i].fontStyle = done ? FontStyles.Strikethrough : FontStyles.Normal;
+            }
         }
 
         private void OnAchievement(AchievementId id)
@@ -1071,6 +1112,7 @@ namespace TillWinter.Unity
             RefreshHelperButtons(state);
             RefreshEventUi(state, dt);
             RefreshStoreButton(state);
+            RefreshChecklist(state);
             // The seed bag: once a second crop is unlocked, during the year, never on the Golden Year's field.
             bool bag = state.Stats.MaxTierUnlocked > 0 && !state.IsWinter && !state.GoldenYearActive;
             if (_bagButton.gameObject.activeSelf != bag)

@@ -17,7 +17,7 @@ namespace TillWinter.Unity
     {
         public const float ResetHoldSeconds = 3f;
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
-        private const float SettingsHeight = 1720f; // four section headings since round three
+        private const float SettingsHeight = 1900f; // four section headings since round three; hands-free (v2.5)
         private const float SectionHeight = 64f;
         private const float BandHeight = 128f;
         private const float LabelX = -230f, LabelWidth = 380f, ControlX = 225f, ControlWidth = 410f;
@@ -76,7 +76,7 @@ namespace TillWinter.Unity
 
         private void BuildPause(RectTransform canvas)
         {
-            _pause = Sheet(canvas, "PauseSheet", "pause.title", 940f, out var p);
+            _pause = Sheet(canvas, "PauseSheet", "pause.title", 1060f, out var p);
             // Where the farm stands, so the sheet says more than "Paused".
             _pauseSummary = Text(p, "Summary", "", -150f, UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter, 56f);
             float y = -230f;
@@ -86,7 +86,9 @@ namespace TillWinter.Unity
             UiKit.ButtonIcon(Btn(p, "pause.album", ShowAlbum, y - 3f * RowHeight), "singleplayer");
             _ngPlus = Btn(p, "pause.new_game_plus", NewGamePlus, y - 4f * RowHeight);
             UiKit.ButtonIcon(_ngPlus, "star");
-            UiKit.ButtonIcon(Btn(p, "pause.main_menu", ToMainMenu, y - 5f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle), "home");
+            _away = Btn(p, "pause.away", CycleAwayPlan, y - 5f * RowHeight);
+            UiKit.ButtonIcon(_away, "multiplayer");
+            UiKit.ButtonIcon(Btn(p, "pause.main_menu", ToMainMenu, y - 6f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle), "home");
         }
 
         private void BuildSettings(RectTransform canvas)
@@ -103,6 +105,11 @@ namespace TillWinter.Unity
             RowLabel(p, "settings.haptics", y);
             _hapticsSwitch = SwitchRow(p, "Haptics", s.HapticsEnabled, on => { SettingsStore.Current.HapticsEnabled = on; if (on) Haptics.Play(HapticKind.Medium); }, y);
             y -= RowHeight;
+            RowLabel(p, "settings.hands_free", y);
+            _handsFreeSwitch = SwitchRow(p, "HandsFree", s.HandsFree, on => { SettingsStore.Current.HandsFree = on; if (!on && _game != null) _game.HandsFree.Clear(); }, y);
+            y -= RowHeight - 10f;
+            Text(p, "HandsFreeHint", Strings.Get("settings.hands_free_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleLeft, 44f);
+            y -= 60f;
 
             Section(p, "settings.section.sound", ref y);
             RowLabel(p, "settings.sfx", y);
@@ -219,7 +226,25 @@ namespace TillWinter.Unity
         /// <summary>Saves and loads the title scene (Menu.unity).</summary>
         // ------------------------------------------------------------------ album and New Game+ (GDD §8.2–§8.3 v2.4)
 
-        private Button _ngPlus;
+        private Button _ngPlus, _away;
+        private UiSwitch _handsFreeSwitch;
+
+        /// <summary>Before you leave (GDD §10.7 v2.5): what the apprentices do while the game is closed.</summary>
+        private void CycleAwayPlan()
+        {
+            if (_game == null) return;
+            var next = (TillWinter.Core.AwayPlan)(((int)_game.State.AwayPlan + 1) % 3);
+            _game.Sim.SetAwayPlan(next);
+            RefreshAwayLabel();
+            Haptics.Play(HapticKind.Selection);
+        }
+
+        private void RefreshAwayLabel()
+        {
+            if (_away == null || _game == null) return;
+            UiKit.ButtonLabel(_away).text = Strings.Format("pause.away", ("plan", Strings.Get("away." + _game.State.AwayPlan)));
+            _away.gameObject.SetActive(_game.State.Stats.ApprenticeCount > 0 && !_game.State.IsDaily);
+        }
         private float _ngPlusArmed;
         private GameObject _album;
         private RectTransform _albumRows;
@@ -332,6 +357,7 @@ namespace TillWinter.Unity
             _ngPlus.gameObject.SetActive(st.EndingSeen && !st.IsDaily);
             UiKit.ButtonLabel(_ngPlus).text = Strings.Get("pause.new_game_plus");
             _ngPlusArmed = 0f;
+            RefreshAwayLabel();
             _game.SetPaused(true);
             Haptics.Play(HapticKind.Selection);
             Show(_pause);
@@ -462,6 +488,7 @@ namespace TillWinter.Unity
             var s = SettingsStore.Current;
             _hapticsSwitch.Set(s.HapticsEnabled);
             _motionSwitch.Set(s.ReduceMotion);
+            _handsFreeSwitch.Set(s.HandsFree);
             _largeTextSwitch.Set(s.LargeText);
             _sfxValue.text = Mathf.RoundToInt(s.SfxVolume * 100f) + "%";
             _ambienceValue.text = Mathf.RoundToInt(s.AmbienceVolume * 100f) + "%";
