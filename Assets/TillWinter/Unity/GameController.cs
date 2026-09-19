@@ -44,6 +44,8 @@ namespace TillWinter.Unity
         public System.Func<Vector2, int> ApprenticeHitTest;
         /// <summary>A tapped apprentice switched role (GDD §4.2 v2.0): its index.</summary>
         public event System.Action<int> ApprenticeRoleToggled;
+        /// <summary>Hands-free play (GDD §10.6 v2.5): the ring a tap has placed, stepping on its own.</summary>
+        public readonly AutoRing HandsFree = new AutoRing();
 
         /// <summary>Sim seconds elapsed (respects TimeScale). Use for animation that should follow the sim.</summary>
         public float SimTime { get; private set; }
@@ -108,6 +110,12 @@ namespace TillWinter.Unity
                 }
                 if (s.IsDown && TryScreenToPlot(s.Position, out var p))
                     ring = new RingInput(p.x, p.y + RingOffsetPlots);
+                else if (SettingsStore.Current.HandsFree)
+                {
+                    // A tap on the field moves the ring's home; with no finger down the ring tends the plots near it.
+                    if (s.Tapped && TryScreenToPlot(s.TapPosition, out var home)) HandsFree.Place(home.x, home.y);
+                    ring = HandsFree.Step(State, dt);
+                }
                 if (s.Tapped && CloudHitTest != null && CloudHitTest(s.TapPosition) && Sim.TapCloud())
                 {
                     s.Tapped = false;

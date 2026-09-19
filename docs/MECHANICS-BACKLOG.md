@@ -121,9 +121,14 @@ implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
 
 ### M.9 Feel and accessibility
 
-- **Open.** [M] **Early-year goal checklist** instead of one-off hints.
-- **Open.** [M] **Hands-free mode.** Tap to place the ring, it follows plots on its own.
-- **Open.** [L] **Before you leave.** Set the helpers' focus for offline passive income.
+- **Done.** [M] **Early-year goal checklist** instead of one-off hints. A HUD "Getting started"
+  card, shown only during the family's first generation, ticks off five steps by themselves; sits
+  beside the existing one-shot hints rather than replacing them.
+- **Done.** [M] **Hands-free mode.** Tap to place the ring, it follows plots on its own. Settings
+  switch, Core-side steering (`AutoRing`) that produces ordinary ring input so the sim stays
+  deterministic; a finger still takes over at any time.
+- **Done.** [L] **Before you leave.** Set the helpers' focus for offline passive income. Pause-menu
+  away plan applied for the time away only, then the player's own roles come back.
 
 ## Recommended first five
 
@@ -134,3 +139,9 @@ balance and each need their own `balance-sim.bat` pass.
 ## Deliberately out
 
 Monetization, ads, live-ops, online services.
+
+## Status
+
+Every group M.1–M.9 is done, with a few items deliberately left out along the way: the compost
+plot, ice-fishing, and a hand-picked tractor row. See `DECISIONS.md` for the choices made along the
+way, session by session.

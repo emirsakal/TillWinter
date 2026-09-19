@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.4 - September 2026 (through mechanics group M.8, ending and after — family album, New Game+ and the daily farm, marked *(v2.4)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.5 - September 2026 (through mechanics group M.9, feel and accessibility — getting-started checklist, hands-free ring and the before-you-leave away plan, marked *(v2.5)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -483,6 +483,10 @@ local only) and returns to the title. Offline, no online services, no live-ops.
   album (earlier generations were never written down), `NgPlus` 0, and the running generation's
   harvest count picked up from the load. Fixture-tested in `SaveV15Tests` against a hand-written
   v14 JSON. The daily farm (§8.4) never saves, so it never touches this schema.
+- *(v2.5)* Schema is now **16**: adds `ChecklistBits` and `AwayPlan` to `SaveData`. Migration
+  `V15ToV16` marks every checklist step (§10.5) done — a farm saved before the checklist existed is
+  already past what it teaches — and keeps apprentice roles as they are. Fixture-tested in
+  `SaveV16Tests` against a hand-written v15 JSON.
 
 ---
 
@@ -493,6 +497,32 @@ local only) and returns to the title. Offline, no online services, no live-ops.
 3. **Heritage** — *(v1.3, Session 5)* the same `SkillTreeView` shown full screen, themed by a second asset (`HeritageTheme`: deep green paper, gold accents, seed currency, darker branch colours, tighter initial zoom so all five branches fit). Reached after rebirth (Retire on the farm -> confirm dialog -> `Retire()` -> a full-screen **Generation card**: "Generation N", one flavour line, seeds counting up, skip after 0.5 s / auto-continue at 6 s -> Heritage screen), before Spring of the new generation; also reachable as the Winter tab above. Starting the new generation reveals plots one by one bottom-left to top-right, clears snow, and pops in generation-appropriate decor (`FarmDecorSet`/`FarmDecorView`, data-driven, `MinGeneration`-gated). Pan/zoom is remembered per tree (Almanac and Heritage separately) across sessions.
 4. **Pause / Settings** — language, sound, haptics, reset save, credits. Last.
 5. **Onboarding** — no tutorial screen; a `Hint` enum + `OnboardingFlags` in Core make every hint fire once and only once, saved. *(v1.3, Session 5)* Shipped hints: first touch on a Dry plot (pulsing hand + hold caption), first Ripe plot outside the ring, first frost warning, first crow; first Winter (the tree centres on `ring_radius`/`irrigation` with a pulse and caption until the first purchase); the first time `CanRetire` (a one-time explanatory sheet); first entry to Heritage ("Seeds never reset."). Hints never block input. **While-you-were-away card** (`AwayCard`, shown on resume when offline sim earned coins): duration in h/min, total coins, a line per source (apprentices, tractor), a note when capped at the 8 h offline cap; the HUD coin counter withholds the earned coins (`HudView.HeldCoins`) until the card is dismissed.
+
+### 10.5 Getting-started checklist *(v2.5)*
+
+During the family's first generation only (not New Game+, not the daily farm), a HUD card
+"Getting started" lists five steps that tick themselves as they happen: water a plot with the
+ring; grow a crop until it is ripe; harvest 5 crops; harvest 3 in a row for a combo; buy something
+in the Almanac. Done steps show struck through; the card hides once every step is done. The steps
+are Core state — `ChecklistBits` on `FarmState` (saved), one bit per `ChecklistStep`, checked each
+tick, firing event `ChecklistStepDone`. The existing one-shot onboarding hints above stay; the
+checklist sits beside them rather than replacing them (the hints explain, the checklist shows
+progress).
+
+### 10.6 Hands-free ring *(v2.5)*
+
+A Settings switch "Hands-free ring" (`SettingsData.HandsFree`). A tap on the field places the
+ring's home; with no finger down, `AutoRing` (Core, pure input) tends the plots within 1.6 plots of
+home on its own at 3 plots/s, most urgent first (Ripe, then the Wet plot nearest ripening, then
+Dry, stones last; nearest wins ties). It produces the same `RingInput` a finger would, so the sim
+stays deterministic and balance measurements are unchanged. A finger still takes over at any time.
+
+### 10.7 Before you leave *(v2.5)*
+
+The pause menu's "While away: …" row cycles the away plan (`AwayPlan`: helpers as they are /
+everyone harvests / half water, half harvest); shown only when there are apprentices, not on the
+daily farm. `SimulateOffline` applies the plan's roles for the time away only, then restores the
+player's own roles afterward.
 
 ---
 
@@ -730,3 +760,14 @@ never starts New Game+ or the daily farm, so balance targets keep measuring the 
 ending.
 
 Results (seed 1): 5.07 h to the ending, unchanged from M.7. No tuning needed; 296 tests green.
+
+**2026-09-19 — M.9 feel and accessibility pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer`, seed 1).
+
+What changed: the getting-started checklist (§10.5), the hands-free ring (§10.6) and the
+before-you-leave away plan (§10.7). `AutoPlayer` never enables hands-free and never sets an away
+plan, and the checklist is presentation-only, so balance targets keep measuring the core loop.
+
+Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 10 seeds at
+first retire, 6 generations to max Heritage, 5.07 h to the ending, unchanged from M.8. No tuning
+needed; 302 tests green.

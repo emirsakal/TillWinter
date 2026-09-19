@@ -117,6 +117,9 @@ namespace TillWinter.EditorTools
 
             new Step(null, 1.5f, () => Game?.Sim.DebugStartWeather(Weather.Clear)),
 
+            // Getting started, for a first generation's early year (GDD §10.5 v2.5): the checklist card.
+            new Step("39-checklist", 0.8f, () => { var g = Game; if (g == null) return; g.Sim.DebugResetChecklist(); }),
+
             // The ring's shapes, cycled from the HUD button.
             new Step("25-ring-rake", 0.6f, () => Click("RingShape")),
             new Step("26-ring-cross", 0.6f, () => Click("RingShape")),

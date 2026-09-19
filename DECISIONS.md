@@ -1024,3 +1024,19 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   challenge without a backend. Chosen: an FNV hash of the date seeds field size, ring radius,
   helpers, scarecrow and crop unlocks, so the same day is the same farm everywhere with nothing
   fetched — at the edge of the no-live-ops pillar rather than across it.
+
+## Mechanics M.9: feel and accessibility (2026-09-19)
+
+- **The getting-started checklist is Core state, like the hints.** Open: whether "steps ticked off"
+  could live as a view-side bool list since it is only ever shown once. Chosen: `ChecklistBits` on
+  `FarmState`, saved, one bit per `ChecklistStep`, because the rule that a one-shot teaching aid is
+  "shown once and never again" belongs in Core the same way `OnboardingFlags` does — the checklist
+  sits beside the hints rather than replacing them.
+- **Hands-free steering is input, not a rule.** Open: where `AutoRing` should live given it decides
+  where the ring goes. Chosen: Core, but as something that only ever produces the same `RingInput`
+  a finger would — it can never make the game play better than a finger could, so the AutoPlayer's
+  balance measurements still hold with hands-free left off.
+- **The away plan changes roles only while away.** Open: whether picking "everyone harvests" should
+  stick after the player returns. Chosen: `SimulateOffline` applies the plan's roles for the
+  simulated time only and restores the player's own role assignments afterward, so a player's own
+  helper setup is never silently overwritten by a plan picked for one offline stretch.

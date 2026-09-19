@@ -145,6 +145,7 @@ namespace TillWinter.Core
             UpdateTrader(dt);
             UpdateCloud(dt);
             CheckAchievements();
+            UpdateChecklist();
         }
 
         /// <summary>Tap a plot. Scares a crow (dropping the bounty) if one is there. Returns true if something happened.</summary>
@@ -538,6 +539,8 @@ namespace TillWinter.Core
             d.HarvestsAtGenerationStart = s.Generation.HarvestsAtGenerationStart;
             d.NgPlus = s.NgPlus;
             d.Album = s.AlbumList.ToArray();
+            d.ChecklistBits = s.ChecklistBits;
+            d.AwayPlan = (int)s.AwayPlan;
             d.LuckyCheckTimer = _luckyCheckTimer;
             return d;
         }
@@ -681,6 +684,8 @@ namespace TillWinter.Core
             g.HarvestsAtGenerationStart = Math.Max(0, Math.Min(g.Harvests, data.HarvestsAtGenerationStart));
             s.NgPlus = Math.Max(0, data.NgPlus);
             if (data.Album != null) foreach (var page in data.Album) if (page != null) s.AlbumList.Add(page);
+            s.ChecklistBits = data.ChecklistBits & ((1 << ChecklistSteps) - 1);
+            s.AwayPlan = data.AwayPlan >= 0 && data.AwayPlan <= (int)AwayPlan.Balanced ? (AwayPlan)data.AwayPlan : AwayPlan.AsTheyAre;
             sim.ResolveStats(); // heirlooms, trait and challenge on top of the trees
             sim._luckyCheckTimer = data.LuckyCheckTimer;
             s.Cloud.Active = data.CloudActive;
@@ -738,6 +743,7 @@ namespace TillWinter.Core
             var ringBefore = State.Ring;
             State.Ring = null;
             _offline = true;
+            ApplyAwayPlan(); // GDD §10.7 (v2.5): the plan the player left, for the time away only
             for (int i = 0; i < steps; i++)
             {
                 UpdatePlots(step);
@@ -746,6 +752,7 @@ namespace TillWinter.Core
                 CheckAchievements(); // an heirloom earned while away applies from then on, as it would have in play
             }
             _offline = false;
+            RestoreRolesAfterAway();
             Harvested -= count;
             State.Ring = ringBefore;
             return new OfflineReport(steps * (double)step, State.Coins - coinsBefore, State.Generation.Harvests - harvestsBefore, capped, apprentice, tractor);

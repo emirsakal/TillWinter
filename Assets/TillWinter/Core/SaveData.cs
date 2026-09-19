@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 15;
+        public const int CurrentSchemaVersion = 16;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -139,6 +139,10 @@ namespace TillWinter.Core
         public int HarvestsAtGenerationStart;
         public int NgPlus;
         public AlbumEntry[] Album = new AlbumEntry[0];
+
+        // v16: the first generation's checklist and the away plan (GDD §10.5/§10.7 v2.5)
+        public int ChecklistBits;
+        public int AwayPlan;
     }
 
     [Serializable]
@@ -203,6 +207,7 @@ namespace TillWinter.Core
                     case 12: data = V12ToV13(data); break;
                     case 13: data = V13ToV14(data); break;
                     case 14: data = V14ToV15(data); break;
+                    case 15: data = V15ToV16(data); break;
                     default: return null;
                 }
             }
@@ -346,6 +351,18 @@ namespace TillWinter.Core
             d.TraderSeedSold = d.TraderRareSold = false;
             d.PestCheckTimer = d.LuckyCheckTimer = 0f;
             d.SchemaVersion = 12;
+            return d;
+        }
+
+        /// <summary>
+        /// v15 → v16: a farm saved before the checklist is past what it teaches, so every step counts as done; the
+        /// apprentices keep their own roles while away.
+        /// </summary>
+        private static SaveData V15ToV16(SaveData d)
+        {
+            d.ChecklistBits = (1 << FarmSim.ChecklistSteps) - 1;
+            d.AwayPlan = 0;
+            d.SchemaVersion = 16;
             return d;
         }
 

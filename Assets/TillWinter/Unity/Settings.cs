@@ -24,6 +24,8 @@ namespace TillWinter.Unity
         /// <summary>The daily farm's best score and its day (GDD §8.4 v2.4): local only, like every setting.</summary>
         public int DailyBestDate;
         public double DailyBestCoins;
+        /// <summary>Hands-free ring (GDD §10.6 v2.5): a tap places the ring and it tends the plots around it.</summary>
+        public bool HandsFree;
     }
 
     /// <summary>The two shipped languages. Strings and the number style switch together.</summary>
