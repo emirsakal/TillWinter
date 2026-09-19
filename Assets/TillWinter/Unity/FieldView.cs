@@ -165,6 +165,7 @@ namespace TillWinter.Unity
 
         private void OnWatered(GridPos pos)
         {
+            if (_game.Sim.IsSimulatingOffline) return; // hours away on resume: the field just shows where it is now
             if (_plots.TryGetValue(pos, out var view)) view.SproutPop();
             var at = _game.PlotToWorld(pos, 0.2f);
             _fx.Play(VfxId.WaterSplash, at);
@@ -173,6 +174,7 @@ namespace TillWinter.Unity
 
         private void OnRipened(GridPos pos)
         {
+            if (_game.Sim.IsSimulatingOffline) return;
             if (_plots.TryGetValue(pos, out var view)) view.RipePop();
             _fx.Play(VfxId.RipeSparkle, _game.PlotToWorld(pos, 0.6f));
         }
@@ -480,8 +482,8 @@ namespace TillWinter.Unity
             float pulse = Mathf.Clamp01(_ripePunch) * 0.8f;
             if (stageBinder != null && !golden)
             {
-                stageBinder.SetEmission(Color.Lerp(Color.black, new Color(0.3f, 0.24f, 0.08f), (_ripeGlow * breathe + pulse) * (1f - _stale * 0.8f)));
-                stageBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(0.72f, 0.66f, 0.55f), _stale)); // a crop past its best goes dull
+                stageBinder.SetEmission(Color.Lerp(Color.black, Palette.Load().RipeGlow, (_ripeGlow * breathe + pulse) * (1f - _stale * 0.8f)));
+                stageBinder.SetTintMultiplier(Color.Lerp(Color.white, Palette.Load().StaleTint, _stale)); // a crop past its best goes dull
             }
 
             // Stones sink as the ring works them loose, shiver under it, and are gone once the plot is cleared.
@@ -511,7 +513,7 @@ namespace TillWinter.Unity
             }
             _soilBinder.Override(PaletteSlot.SoilDry, soil);
             // Wet soil takes a faint cool sheen; the rain cloud's sweep adds more.
-            _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(0.85f, 0.92f, 1.15f), sheen * 0.6f + _wetBlend * (1f - _winterBlend) * 0.3f));
+            _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, Palette.Load().WetSheen, sheen * 0.6f + _wetBlend * (1f - _winterBlend) * 0.3f));
             bool showCracks = _wetBlend < 0.5f && _winterBlend < 0.5f;
             if (_cracks != null && _cracks.activeSelf != showCracks) _cracks.SetActive(showCracks);
             // Ready marker: pops in over a ripe bed, bobs and turns; hidden under the ring while it is being harvested.

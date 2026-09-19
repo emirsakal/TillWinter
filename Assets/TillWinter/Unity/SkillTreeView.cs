@@ -639,7 +639,7 @@ namespace TillWinter.Unity
                 {
                     nv.Punch = Mathf.Max(0f, nv.Punch - dt * 3f);
                     s *= 1f + 0.35f * Mathf.Sin(nv.Punch * Mathf.PI);
-                    nv.Ring.color = Color.Lerp(nv.State == NodeState.Maxed ? _theme.Gold : nv.BranchColor, Color.white, nv.Punch * 0.6f);
+                    nv.Ring.color = Color.Lerp(nv.State == NodeState.Maxed ? _theme.Gold : nv.BranchColor, _theme.Highlight, nv.Punch * 0.6f);
                 }
                 nv.Rt.localScale = Vector3.one * s;
                 // The level ring eases toward its target; a bought node sends a wave outward.
@@ -689,7 +689,7 @@ namespace TillWinter.Unity
                     _flows[i] = f;
                     int edge = f.Edge + _rootEdges.Count;
                     float t0 = Mathf.Clamp01(f.T - 0.15f), t1 = Mathf.Clamp01(f.T);
-                    _flowLines.Add(new UILines.Line { A = _lines.PointAt(edge, t0), B = _lines.PointAt(edge, t1), Color = Color.white, Width = _theme.EdgeWidth * 1.2f });
+                    _flowLines.Add(new UILines.Line { A = _lines.PointAt(edge, t0), B = _lines.PointAt(edge, t1), Color = _theme.Highlight, Width = _theme.EdgeWidth * 1.2f });
                 }
                 _lines.SetFlows(_flowLines);
                 if (_flows.Count == 0) { _flowLines.Clear(); _lines.SetFlows(_flowLines); }

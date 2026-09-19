@@ -230,12 +230,12 @@ namespace TillWinter.Unity
             _comboRt.anchorMin = _comboRt.anchorMax = new Vector2(0.5f, 0.5f); // WorldToCanvas is centre-relative, like the coins
             _comboRt.pivot = new Vector2(0f, 0.5f);
             // Frost creeping in from the screen edges (UI overlay under the coin FX), and the golden-harvest flash.
-            _frostEdge = UiKit.Panel(canvas, "FrostEdge", new Color(0.8f, 0.9f, 1f, 0f), false, false);
+            _frostEdge = UiKit.Panel(canvas, "FrostEdge", Transparent(_theme.FrostEdge), false, false);
             _frostEdge.sprite = Prims.EdgeFadeSprite(256, 0.45f);
             _frostEdge.type = Image.Type.Simple;
             UiKit.Stretch(_frostEdge.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _frostEdge.transform.SetSiblingIndex(_fxLayer.GetSiblingIndex());
-            _flash = UiKit.Panel(canvas, "Flash", new Color(1f, 1f, 1f, 0f), false, false);
+            _flash = UiKit.Panel(canvas, "Flash", Transparent(_theme.Flash), false, false);
             UiKit.Stretch(_flash.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             // Pre-warm the coin flight pool so a harvest burst never creates UI objects mid-play.
@@ -263,6 +263,8 @@ namespace TillWinter.Unity
             _game.Sim.TraderArrived += OnTraderArrived;
             _game.Sim.AchievementUnlocked += OnAchievement;
         }
+
+        private static Color Transparent(Color c) => new Color(c.r, c.g, c.b, 0f);
 
         private void OnFrostWarning()
         {

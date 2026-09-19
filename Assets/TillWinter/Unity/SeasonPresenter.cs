@@ -88,15 +88,15 @@ namespace TillWinter.Unity
             _skyMaterial = catalog.Sky != null ? new Material(catalog.Sky) : null;
             if (_skyMaterial != null)
             {
-                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                quad.name = "Sky";
-                Destroy(quad.GetComponent<Collider>());
-                quad.transform.SetParent(cam.transform, false);
+                var quad = catalog.Spawn(catalog.SkyQuad, cam.transform, "Sky");
                 quad.transform.localPosition = new Vector3(0f, 0f, cam.farClipPlane - 1f);
-                var r = quad.GetComponent<Renderer>();
-                r.sharedMaterial = _skyMaterial;
-                r.shadowCastingMode = ShadowCastingMode.Off;
-                r.receiveShadows = false;
+                var r = quad.GetComponentInChildren<Renderer>();
+                if (r != null)
+                {
+                    r.sharedMaterial = _skyMaterial;
+                    r.shadowCastingMode = ShadowCastingMode.Off;
+                    r.receiveShadows = false;
+                }
                 _sky = quad.transform;
             }
 
@@ -112,7 +112,7 @@ namespace TillWinter.Unity
             _vignette.intensity.overrideState = true;
             _vignette.intensity.value = 0f;
             _vignette.color.overrideState = true;
-            _vignette.color.value = new Color(0.55f, 0.75f, 1f);
+            _vignette.color.value = _palette.Vignette;
             _vignette.smoothness.overrideState = true;
             _vignette.smoothness.value = 0.7f;
             // Ripe glow, golden harvests, node purchases and the Golden Year are all emissive: let them bleed a little.
@@ -124,7 +124,7 @@ namespace TillWinter.Unity
             _bloom.scatter.overrideState = true;
             _bloom.scatter.value = 0.6f;
             _bloom.tint.overrideState = true;
-            _bloom.tint.value = new Color(1f, 0.96f, 0.88f);
+            _bloom.tint.value = _palette.BloomTint;
             var vol = volGo.AddComponent<Volume>();
             vol.isGlobal = true;
             vol.priority = 10f;
@@ -174,15 +174,15 @@ namespace TillWinter.Unity
         }
 
         /// <summary>Rim light per season: warm in autumn and the Golden Year, cool in winter, soft gold in summer.</summary>
-        private static Color RimFor(Season s, bool golden)
+        private Color RimFor(Season s, bool golden)
         {
-            if (golden) return new Color(1f, 0.78f, 0.4f, 0.75f);
+            if (golden) return _palette.RimGolden;
             switch (s)
             {
-                case Season.Autumn: return new Color(1f, 0.72f, 0.42f, 0.7f);
-                case Season.Winter: return new Color(0.78f, 0.88f, 1f, 0.6f);
-                case Season.Summer: return new Color(1f, 0.92f, 0.66f, 0.4f);
-                default: return new Color(1f, 0.97f, 0.88f, 0f);
+                case Season.Autumn: return _palette.RimAutumn;
+                case Season.Winter: return _palette.RimWinter;
+                case Season.Summer: return _palette.RimSummer;
+                default: return _palette.RimSpring;
             }
         }
 
@@ -259,7 +259,7 @@ namespace TillWinter.Unity
 
         private void Apply(SeasonLook look, float frost)
         {
-            var cold = new Color(0.75f, 0.85f, 1f);
+            var cold = _palette.FrostCold;
             _sun.color = Color.Lerp(look.Light, cold, frost * 0.8f);
             _sun.intensity = look.Intensity * (1f - frost * 0.25f) * (1f - 0.55f * _storm) * (1f - 0.3f * _fog) * (1f + 0.12f * _heat);
             _sun.transform.rotation = Quaternion.Euler(look.Angle);
@@ -271,9 +271,9 @@ namespace TillWinter.Unity
             RenderSettings.fogStartDistance = Mathf.Lerp(look.FogStart, look.FogStart * 0.72f, mist);
             RenderSettings.fogEndDistance = look.FogEnd;
             var filter = Color.Lerp(look.ColorFilter, cold, frost * 0.5f);
-            filter = Color.Lerp(filter, new Color(0.55f, 0.6f, 0.7f), _storm * 0.7f); // a storm greys the light
-            filter = Color.Lerp(filter, new Color(1.05f, 1.06f, 1.08f), _fog * 0.3f); // fog washes it pale
-            filter = Color.Lerp(filter, new Color(1f, 0.86f, 0.68f), _heat * 0.3f); // a heat wave bakes it
+            filter = Color.Lerp(filter, _palette.StormFilter, _storm * 0.7f); // a storm greys the light
+            filter = Color.Lerp(filter, _palette.FogFilter, _fog * 0.3f); // fog washes it pale
+            filter = Color.Lerp(filter, _palette.HeatFilter, _heat * 0.3f); // a heat wave bakes it
             _color.colorFilter.value = Color.Lerp(filter, Color.black, Mathf.SmoothStep(0f, 1f, _rebirth) * 0.75f);
             _vignette.intensity.value = frost * 0.35f + (_game.State.IsWinter ? 0.25f : 0f);
             if (_skyMaterial != null)
@@ -290,7 +290,7 @@ namespace TillWinter.Unity
                 _skyMaterial.SetColor(MoonColorId, moon);
                 _skyMaterial.SetFloat(RainbowId, Mathf.Clamp01(_rainbow / 2f) * Mathf.Clamp01((RainbowSeconds - _rainbow) / 1.5f));
                 _skyMaterial.SetFloat(SunSizeId, 0.034f);
-                var sunColor = Color.Lerp(look.Light, new Color(1f, 0.86f, 0.55f), 0.3f);
+                var sunColor = Color.Lerp(look.Light, _palette.SunWarm, 0.3f);
                 sunColor.a = Mathf.Lerp(0.95f, 0.5f, frost) * (_game.State.IsWinter ? 0.55f : 1f);
                 _skyMaterial.SetColor(SunColorId, sunColor);
                 if (_cam != null) _skyMaterial.SetFloat(AspectId, _cam.aspect);

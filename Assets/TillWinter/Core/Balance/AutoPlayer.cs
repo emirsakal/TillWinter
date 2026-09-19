@@ -177,6 +177,7 @@ namespace TillWinter.Core.Balance
         }
 
         private float _pestSeen;
+        private bool _winterBooked;
 
         /// <summary>Urgency: a locust swarm first, then Ripe, then highest Wet progress, then Dry (nearest wins ties).</summary>
         private GridPos? PickTarget()
@@ -205,6 +206,14 @@ namespace TillWinter.Core.Balance
                 return;
             }
             var s = Sim.State;
+            if (!_winterBooked && Rows.Count > 0)
+            {
+                // The winter's greenhouse coins belong to the year just closed; otherwise no row of the table shows them.
+                var last = Rows[Rows.Count - 1];
+                last.CoinsThisYear += s.Greenhouse.CoinsThisWinter;
+                last.TotalCoins = s.Generation.LifetimeCoinsTotal;
+                _winterBooked = true;
+            }
             bool firstGen = s.Generation.Generation == 1;
             if (firstGen && Summary.FirstCanRetireYear < 0 && Sim.CanRetire) Summary.FirstCanRetireYear = s.Year;
             int bought = BuyGreedy(Sim.Nodes, true);
@@ -244,11 +253,23 @@ namespace TillWinter.Core.Balance
             double total = -Sim.State.Seeds;
             foreach (var n in Sim.HeritageNodes)
             {
-                int level = Sim.Heritage.GetLevel(n.Id);
-                int max = n.MaxLevel < 0 ? level : n.MaxLevel;
-                for (int l = level; l < max; l++) total += Math.Round(n.BaseCost * Math.Pow(n.CostGrowth, l));
+                if (n.Excludes == null) { total += Left(n); continue; }
+                // Either/or pairs (GDD §7.3 v2.3): only one side will ever be bought, so count one side once.
+                var other = Sim.Heritage.GetNode(n.Excludes);
+                if (Sim.Heritage.GetLevel(n.Excludes) > 0) continue;          // the other path was taken
+                if (Sim.Heritage.GetLevel(n.Id) > 0 || other == null) { total += Left(n); continue; }
+                if (string.CompareOrdinal(n.Id, n.Excludes) < 0) total += Math.Min(Left(n), Left(other)); // neither yet: the cheaper, once
             }
             return total;
+
+            double Left(SkillNode node)
+            {
+                double sum = 0;
+                int level = Sim.Heritage.GetLevel(node.Id);
+                int max = node.MaxLevel < 0 ? level : node.MaxLevel;
+                for (int l = level; l < max; l++) sum += Math.Round(node.BaseCost * Math.Pow(node.CostGrowth, l));
+                return sum;
+            }
         }
 
         private void DoHeritage()
@@ -260,6 +281,13 @@ namespace TillWinter.Core.Balance
             StartRow();
         }
 
+        /// <summary>
+        /// Nodes whose effect only exists through a choice the bot never makes (a ring shape, tapping a ripe plot, a
+        /// store share): buying them would only sink coins and make the balance table read poorer than a player plays.
+        /// </summary>
+        private static bool BotCanUse(SkillNode n) =>
+            n.Effect != EffectType.RingShape && n.Effect != EffectType.TapHarvest && n.Effect != EffectType.Barn;
+
         private int BuyGreedy(IReadOnlyList<SkillNode> nodes, bool coins)
         {
             int bought = 0;
@@ -269,7 +297,7 @@ namespace TillWinter.Core.Balance
                 double bestScore = 0;
                 foreach (var n in nodes)
                 {
-                    if (!Sim.CanBuy(n.Id)) continue;
+                    if (!Sim.CanBuy(n.Id) || !BotCanUse(n)) continue;
                     double w = Weights.TryGetValue(n.Id, out var v) ? v : 1;
                     double score = w / Math.Max(1, Sim.CostOf(n.Id));
                     if (score > bestScore) { bestScore = score; best = n; }
@@ -324,6 +352,7 @@ namespace TillWinter.Core.Balance
             _row = new YearRow { Generation = s.Generation.Generation, Year = s.Year, FirstRipeTime = -1f };
             _row.NodesBought = _boughtThisWinter;
             _boughtThisWinter = 0;
+            _winterBooked = false;
         }
 
         private void FinishRow()

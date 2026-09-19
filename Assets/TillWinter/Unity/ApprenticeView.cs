@@ -71,7 +71,7 @@ namespace TillWinter.Unity
         private Transform _bubble;
         private PaletteBinder _bubbleBinder;
         private float _bubbleShow;
-        private int _bubbleTier = -1;
+        private int _bubbleTier = int.MinValue; // -1 means "water", so "not painted yet" must be something else
 
         public ApprenticeView Setup(VisualCatalog catalog = null)
         {

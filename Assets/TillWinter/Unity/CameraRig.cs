@@ -48,7 +48,7 @@ namespace TillWinter.Unity
             Cam.nearClipPlane = 0.1f;
             Cam.farClipPlane = 100f;
             Cam.clearFlags = CameraClearFlags.SolidColor;
-            Cam.backgroundColor = new Color(0.55f, 0.75f, 0.55f);
+            Cam.backgroundColor = Palette.Load().CameraClear;
             Cam.allowHDR = false;
             Cam.allowMSAA = false;
             go.AddComponent<AudioListener>();

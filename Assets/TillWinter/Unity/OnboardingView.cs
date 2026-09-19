@@ -63,12 +63,18 @@ namespace TillWinter.Unity
             _game.Sim.CrowScared += _ => { if (_crowPlot.HasValue) { _crowPlot = null; _game.Sim.MarkHint(Hint.FirstCrow); } };
             _game.Sim.CrowAte += _ => { _crowPlot = null; };
             _game.Sim.FrostWarningStarted += () => { if (_game.Sim.MarkHint(Hint.FirstFrost)) Say("hint.first_frost", 5f); };
-            _game.Sim.Harvested += e => { if (_ripePlot.HasValue && e.Pos == _ripePlot.Value) { _ripePlot = null; _game.Sim.MarkHint(Hint.FirstRipeOutside); } };
+            _game.Sim.Harvested += e =>
+            {
+                if (!_ripePlot.HasValue || e.Pos != _ripePlot.Value) return;
+                _ripePlot = null;
+                // Only the player's own ring learns the lesson; a helper or the tractor taking it lets the next one show it.
+                if (e.Source == HarvestSource.Ring) _game.Sim.MarkHint(Hint.FirstRipeOutside);
+            };
         }
 
         private void OnRipened(GridPos pos)
         {
-            if (!_game.Sim.HintPending(Hint.FirstRipeOutside) || _ripePlot.HasValue) return;
+            if (_game.Sim.IsSimulatingOffline || !_game.Sim.HintPending(Hint.FirstRipeOutside) || _ripePlot.HasValue) return;
             if (_game.State.IsUnderRing(pos)) return;
             _ripePlot = pos;
             Say("hint.first_ripe", 4f);

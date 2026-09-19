@@ -44,17 +44,11 @@ namespace TillWinter.Unity
             }
             else
             {
-                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                quad.name = "Disc";
-                Destroy(quad.GetComponent<Collider>());
-                quad.transform.SetParent(go.transform, false);
-                quad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                var quad = catalog.Spawn(catalog.RingDisc, go.transform, "Disc");
                 _discMaterial = Prims.MakeTransparent(Prims.Unlit(Color.white));
                 _discMaterial.SetTexture("_BaseMap", catalog.RingTexture != null ? catalog.RingTexture : Prims.RadialGradient(256, 0.55f, 1f));
-                var r = quad.GetComponent<Renderer>();
-                r.sharedMaterial = _discMaterial;
-                r.shadowCastingMode = ShadowCastingMode.Off;
-                r.receiveShadows = false;
+                var r = quad.GetComponentInChildren<Renderer>();
+                if (r != null) r.sharedMaterial = _discMaterial;
             }
             // The cross is the same decal turned a quarter: one extra projector, hidden unless the shape needs it.
             if (_decal != null && catalog.UseDecalRing && catalog.RingDecal != null)
@@ -171,7 +165,7 @@ namespace TillWinter.Unity
             {
                 _ring.position = _pos + Vector3.up * 0.24f; // just above the soil ridges (0.21)
                 _ring.localScale = new Vector3(longSide, shortSide, 1f);
-                var c = Color.Lerp(Color.white, new Color(1f, 0.92f, 0.55f), Mathf.Max(combo, flow * 0.5f));
+                var c = Color.Lerp(Palette.Load().RingIdle, Palette.Load().RingCombo, Mathf.Max(combo, flow * 0.5f));
                 c.a = Mathf.Min(1f, (0.85f + 0.15f * combo) * _alpha);
                 _discMaterial.SetColor("_BaseColor", c);
             }

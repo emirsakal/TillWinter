@@ -54,6 +54,9 @@ namespace TillWinter.Unity
         // Sheets (pause, settings, credits, stats) and the ending roll (S9)
         public Color PauseButton = new Color(0f, 0f, 0f, 0.35f);
         public Color SheetOverlay = new Color(0.08f, 0.06f, 0.04f, 0.7f);
+        /// <summary>Frost creeping in from the edges and the golden-harvest flash (the HUD animates their alpha from 0).</summary>
+        public Color FrostEdge = new Color(0.8f, 0.9f, 1f, 1f);
+        public Color Flash = new Color(1f, 1f, 1f, 1f);
         public Color SheetPaper = new Color(0.97f, 0.93f, 0.84f);
         public Color SheetInk = new Color(0.22f, 0.16f, 0.1f);
         public Color SheetMuted = new Color(0.22f, 0.16f, 0.1f, 0.65f);

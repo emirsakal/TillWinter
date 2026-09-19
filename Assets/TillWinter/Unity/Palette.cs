@@ -68,6 +68,14 @@ namespace TillWinter.Unity
         public Color Beak = new Color(0.95f, 0.65f, 0.15f);
         public Color Eye = Color.white;
 
+        [Header("Effects (were literals in the views)")]
+        public Color RipeGlow = new Color(0.3f, 0.24f, 0.08f);
+        public Color StaleTint = new Color(0.72f, 0.66f, 0.55f);
+        public Color WetSheen = new Color(0.85f, 0.92f, 1.15f);
+        public Color RingIdle = Color.white;
+        public Color RingCombo = new Color(1f, 0.92f, 0.55f);
+        public Color CameraClear = new Color(0.55f, 0.75f, 0.55f);
+
         public Color Get(PaletteSlot slot)
         {
             switch (slot)

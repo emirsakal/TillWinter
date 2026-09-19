@@ -54,6 +54,7 @@
   "album.title": "Aile albümü",
   "album.empty": "Henüz çiftliği devreden bir nesil yok.",
   "album.generation": "Nesil {n}",
+  "daily.date": "{d}.{m}.{y}",
   "album.ng_plus": "Yeni Oyun+ {n}",
   "album.line": "{years} yıl · {coins} jeton · {seeds} tohum · {harvests} hasat",
   "album.story.first": "Küçük bir tarla ve koca bir gökyüzüyle başladılar.",

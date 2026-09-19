@@ -250,6 +250,18 @@ namespace TillWinter.EditorTools
             });
         }
 
+        /// <summary>A quad with no shadows and no material of its own; the view that spawns it assigns one.</summary>
+        private static GameObject BuildBareQuad(string name, bool flat)
+        {
+            var root = new GameObject(name);
+            var quad = Primitive(PrimitiveType.Quad, root.transform, "Quad", Vector3.zero, Vector3.one, null);
+            if (flat) quad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            var r = quad.GetComponent<Renderer>();
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            return root;
+        }
+
         private static GameObject BuildBlobShadow()
         {
             var root = new GameObject("BlobShadow");
@@ -605,6 +617,8 @@ namespace TillWinter.EditorTools
             c.Bee = Save("Bee", BuildBee());
             c.Frog = Save("Frog", BuildFrog());
             c.BlobShadow = Save("BlobShadow", BuildBlobShadow());
+            c.SkyQuad = Save("SkyQuad", BuildBareQuad("SkyQuad", false));
+            c.RingDisc = Save("RingDisc", BuildBareQuad("RingDisc", true));
         }
 
         /// <summary>Plant spots on a plot: on the two soil ridges (z = +-RidgeZ), inside the soil tile.</summary>
