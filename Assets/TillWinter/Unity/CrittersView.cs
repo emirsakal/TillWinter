@@ -192,6 +192,8 @@ namespace TillWinter.Unity
         private void Awake()
         {
             _cloth = transform.Find("Cloth");
+            // New Game+ flies a golden flag (GDD §8.3 v2.4): the family's mark of having been round once already.
+            if (GameSession.NgPlus > 0) GetComponent<PaletteBinder>()?.Override(PaletteSlot.Roof, Palette.Load().Golden);
             _phase = Random.value * 10f;
         }
 

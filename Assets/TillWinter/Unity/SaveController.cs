@@ -145,6 +145,15 @@ namespace TillWinter.Unity
         /// <summary>Reset save: stop every save trigger so nothing writes the old farm back before the reload.</summary>
         public void Detach() => _hooked = false;
 
+        /// <summary>Replaces the save with another farm (New Game+, GDD §8.3 v2.4) and stops saving the running one.</summary>
+        public void WriteFresh(FarmSim sim)
+        {
+            Detach();
+            var data = sim.ToSave();
+            data.SavedAtUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            Write(Path, JsonUtility.ToJson(data));
+        }
+
         public void DeleteSave()
         {
             DeleteFiles(Path);

@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.3 - September 2026 (through mechanics group M.7, progression and rebirth — exclusive Heritage paths, heirs, challenge generations, achievements and heirlooms, marked *(v2.3)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.4 - September 2026 (through mechanics group M.8, ending and after — family album, New Game+ and the daily farm, marked *(v2.4)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -425,6 +425,37 @@ normal Winter screen underneath. The Heritage tree title shows "Complete". The g
 after, but nothing new unlocks. *(v2.3)* "Every Heritage node is maxed" counts an exclusive node
 (§7.3) as done once it or the node it excludes is maxed.
 
+### 8.2 Family album *(v2.4)*
+
+Each retirement writes a page: `AlbumEntry` (generation, years, coins earned that generation,
+seeds, harvests that generation, best year's stars, heir trait, challenge, New Game+ round). At
+most 64 pages are kept (`AlbumPages`); the oldest is dropped once full. The pause menu's "Family
+album" sheet lists pages newest first: "Generation N · heir · NG+n", "{years} years · {coins}
+coins · {seeds} seeds · {harvests} harvests", a one-line story (by challenge, else by the heir's
+trait, else a first-generation line) and three stars. The house is not shown — the diorama already
+grows with the generation.
+
+### 8.3 New Game+ *(v2.4)*
+
+After the ending, the pause menu offers New Game+ (two taps: the first explains, the second
+starts). `AfterEnding.NewGamePlus` builds a fresh farm that keeps the album and the heirlooms
+(achievements); everything else starts over. `NgPlus` increments by 1. Each round scales crows
+×(1 + 0.3 × round) and years ×(1 − 0.06 × round), never below 70% (`NgPlusCrows`, `NgPlusYear`),
+applied in `Legacy.Apply` and never in the Golden Year itself. Cosmetic reward: the farm's flag
+flies gold from the first round on. `SaveController.WriteFresh` writes the new farm and the scene
+reloads.
+
+### 8.4 Daily farm *(v2.4)*
+
+A "Daily farm" button sits on the title screen. `AfterEnding.Daily(yyyymmdd)` builds one year from
+the day (an FNV hash seed): field size, ring radius, Irrigation, Sun, apprentices, a scarecrow and
+which crops (tomato up to pumpkin) are unlocked are all rolled from the day, with beds mixed;
+goals, a weather spell (every day), pests and luck use the first year's rules. No heirs, heirlooms
+or trader. Onboarding hints are marked shown. The daily farm is never saved and never touches the
+family farm's save (the bootstrap does not attach saving). When its year ends, a card shows the
+day's coins and the best score on this device (`SettingsData.DailyBestDate`/`DailyBestCoins`,
+local only) and returns to the title. Offline, no online services, no live-ops.
+
 ---
 
 ## 9. Save and offline
@@ -447,6 +478,11 @@ after, but nothing new unlocks. *(v2.3)* "Every Heritage node is maxed" counts a
   after load earns every achievement the loaded stats already meet, so an older save catches up on
   anything it already qualified for. Fixture-tested in `SaveV14Tests` against a hand-written v13
   JSON.
+- *(v2.4)* Schema is now **15**: adds `BestGradeThisGeneration`, `HarvestsAtGenerationStart`,
+  `NgPlus` and `Album` (`AlbumEntry[]`) to `SaveData`. Migration `V14ToV15` starts with an empty
+  album (earlier generations were never written down), `NgPlus` 0, and the running generation's
+  harvest count picked up from the load. Fixture-tested in `SaveV15Tests` against a hand-written
+  v14 JSON. The daily farm (§8.4) never saves, so it never touches this schema.
 
 ---
 
@@ -685,3 +721,12 @@ the ending under 5 h (4.83); traits were softened to the numbers in §7.4 and `S
 Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 10 seeds at
 first retire, 6 generations to max Heritage, 5.07 h to the ending, ring share 100% / 54% / 31%
 (year 1 / first retire / generation 4). 289 tests green.
+
+**2026-09-19 — M.8 ending and after pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer`, seed 1).
+
+What changed: the family album (§8.2), New Game+ (§8.3) and the daily farm (§8.4). `AutoPlayer`
+never starts New Game+ or the daily farm, so balance targets keep measuring the core loop to the
+ending.
+
+Results (seed 1): 5.07 h to the ending, unchanged from M.7. No tuning needed; 296 tests green.

@@ -49,7 +49,7 @@ namespace TillWinter.Unity
         /// <summary>Credits reached through Settings, so Back owes the player a trip back to Settings; straight from the menu it owes them nothing.</summary>
         private bool _creditsFromSettings;
 
-        public bool IsOpen => _pause.activeSelf || _settings.activeSelf || _credits.activeSelf || _stats.activeSelf;
+        public bool IsOpen => _pause.activeSelf || _settings.activeSelf || _credits.activeSelf || _stats.activeSelf || (_album != null && _album.activeSelf);
 
         public void Init(GameController game, AudioManager audio, RectTransform canvas, SaveController save)
         {
@@ -69,20 +69,24 @@ namespace TillWinter.Unity
             BuildSettings(canvas);
             BuildCredits(canvas);
             BuildStats(canvas);
+            BuildAlbum(canvas);
         }
 
         // ------------------------------------------------------------------ sheets
 
         private void BuildPause(RectTransform canvas)
         {
-            _pause = Sheet(canvas, "PauseSheet", "pause.title", 700f, out var p);
+            _pause = Sheet(canvas, "PauseSheet", "pause.title", 940f, out var p);
             // Where the farm stands, so the sheet says more than "Paused".
             _pauseSummary = Text(p, "Summary", "", -150f, UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter, 56f);
             float y = -230f;
             UiKit.ButtonIcon(Btn(p, "pause.resume", Resume, y), "forward");
             UiKit.ButtonIcon(Btn(p, "pause.settings", () => Show(_settings), y - RowHeight), "gear");
             UiKit.ButtonIcon(Btn(p, "pause.stats", () => ShowStats(() => Show(_pause)), y - 2f * RowHeight), "leaderboardsSimple");
-            UiKit.ButtonIcon(Btn(p, "pause.main_menu", ToMainMenu, y - 3f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle), "home");
+            UiKit.ButtonIcon(Btn(p, "pause.album", ShowAlbum, y - 3f * RowHeight), "singleplayer");
+            _ngPlus = Btn(p, "pause.new_game_plus", NewGamePlus, y - 4f * RowHeight);
+            UiKit.ButtonIcon(_ngPlus, "star");
+            UiKit.ButtonIcon(Btn(p, "pause.main_menu", ToMainMenu, y - 5f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle), "home");
         }
 
         private void BuildSettings(RectTransform canvas)
@@ -213,8 +217,77 @@ namespace TillWinter.Unity
         }
 
         /// <summary>Saves and loads the title scene (Menu.unity).</summary>
+        // ------------------------------------------------------------------ album and New Game+ (GDD §8.2–§8.3 v2.4)
+
+        private Button _ngPlus;
+        private float _ngPlusArmed;
+        private GameObject _album;
+        private RectTransform _albumRows;
+
+        private void NewGamePlus()
+        {
+            // Two taps: the first says what is about to happen, the second does it.
+            if (Time.unscaledTime > _ngPlusArmed)
+            {
+                _ngPlusArmed = Time.unscaledTime + 4f;
+                UiKit.ButtonLabel(_ngPlus).text = Strings.Get("pause.new_game_plus_confirm");
+                Haptics.Play(HapticKind.Medium);
+                return;
+            }
+            var plus = TillWinter.Core.AfterEnding.NewGamePlus(_game.Sim, _game.Sim.Config, System.Environment.TickCount);
+            if (plus == null || _save == null) return;
+            Haptics.Play(HapticKind.Heavy);
+            _save.WriteFresh(plus);
+            Reload();
+        }
+
+        private void BuildAlbum(RectTransform canvas)
+        {
+            _album = Sheet(canvas, "AlbumSheet", "album.title", 1300f, out var page);
+            UiKit.ScrollView(page, "Scroll", out _albumRows);
+            UiKit.Stretch((RectTransform)_albumRows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -110f));
+            Btn(page, "stats.continue", () => { _album.SetActive(false); Show(_pause); }, -1180f);
+        }
+
+        private void ShowAlbum()
+        {
+            for (int i = _albumRows.childCount - 1; i >= 0; i--) Destroy(_albumRows.GetChild(i).gameObject);
+            var pages = _game.State.Album;
+            const float row = 200f;
+            _albumRows.sizeDelta = new Vector2(0f, Mathf.Max(1, pages.Count) * row + 20f);
+            if (pages.Count == 0)
+            {
+                var empty = UiKit.Label(_albumRows, "Empty", Strings.Get("album.empty"), UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter);
+                UiKit.Box(empty.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(800f, 120f));
+            }
+            // Newest first: the family reads its own story backwards.
+            for (int i = 0; i < pages.Count; i++)
+            {
+                var e = pages[pages.Count - 1 - i];
+                var r = UiKit.Rect("Page " + e.Generation, _albumRows);
+                UiKit.Box(r, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -i * row), new Vector2(820f, row));
+                string heir = e.Trait > 0 ? "  ·  " + Strings.Get("heir." + (TillWinter.Core.HeirTrait)e.Trait) : "";
+                string round = e.NgPlus > 0 ? "  ·  NG+" + e.NgPlus : "";
+                var title = UiKit.Label(r, "Title", Strings.Format("album.generation", ("n", e.Generation)) + heir + round, UiType.Heading, _theme.SheetInk, TextAnchor.UpperLeft, FontStyle.Bold);
+                UiKit.Stretch(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -64f), new Vector2(-150f, -8f));
+                var line = UiKit.Label(r, "Line", Strings.Format("album.line", ("years", e.Years), ("coins", NumberFormat.Short(e.Coins)), ("seeds", e.Seeds), ("harvests", e.Harvests)), UiType.Body, _theme.SheetInk, TextAnchor.UpperLeft);
+                UiKit.Stretch(line.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -116f), new Vector2(0f, -66f));
+                string storyKey = e.Challenge > 0 ? "album.story.challenge" : e.Trait > 0 ? "album.story." + (TillWinter.Core.HeirTrait)e.Trait : "album.story.first";
+                var story = UiKit.Label(r, "Story", Strings.Get(storyKey), UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft);
+                UiKit.Stretch(story.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -176f), new Vector2(0f, -118f));
+                for (int s = 0; s < 3; s++)
+                {
+                    var star = NodeIcons.Image(r, "star", s < e.BestGrade ? _theme.Gold : new Color(_theme.SheetMuted.r, _theme.SheetMuted.g, _theme.SheetMuted.b, 0.3f));
+                    UiKit.Box(star.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-s * 46f, -14f), new Vector2(40f, 40f));
+                }
+            }
+            _pause.SetActive(false);
+            _album.SetActive(true);
+        }
+
         private void ToMainMenu()
         {
+            GameSession.Daily = 0;
             Resume();
             _save.SaveNow();
             Time.timeScale = 1f;
@@ -255,6 +328,10 @@ namespace TillWinter.Unity
             if (IsOpen) return;
             var st = _game.State;
             _pauseSummary.text = Strings.Format("pause.summary", ("year", st.Year), ("gen", st.Generation.Generation), ("coins", NumberFormat.Short(st.Coins)));
+            // New Game+ once the ending is seen, never on the daily farm (GDD §8.3 v2.4).
+            _ngPlus.gameObject.SetActive(st.EndingSeen && !st.IsDaily);
+            UiKit.ButtonLabel(_ngPlus).text = Strings.Get("pause.new_game_plus");
+            _ngPlusArmed = 0f;
             _game.SetPaused(true);
             Haptics.Play(HapticKind.Selection);
             Show(_pause);

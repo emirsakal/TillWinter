@@ -1005,3 +1005,22 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **Achievements are local and offline.** Open: whether to hook into a platform achievements
   service. Chosen: no — stored as bits in `GenerationStats`, checked locally (including while
   offline), no network calls, keeping the no-live-ops pillar.
+
+## Mechanics M.8: ending and after (2026-09-19)
+
+- **New Game+ keeps the album and the heirlooms, resets everything else.** Open: how much of a
+  generation's progress should survive into a New Game+ round. Chosen: only the album and the
+  heirlooms carry over, because they are the family's story and its keepsakes; every other system
+  starts over so a round is a real new start, not a head start.
+- **New Game+ gets harder through crows and shorter years, not bigger numbers.** Open: how to
+  raise difficulty each round. Chosen: crows ×(1 + 0.3 × round) and years ×(1 − 0.06 × round),
+  floored at 70%, applied in `Legacy.Apply` — pressure lands on the ring, not on rescaled costs or
+  values.
+- **The daily farm never touches the family farm's save.** Open: whether the daily farm should
+  share the save file or run alongside it. Chosen: it is never written to disk and the bootstrap
+  does not attach saving, so a daily run can never cost the family farm anything; its best score
+  lives with `SettingsData` on the device instead, separate from `SaveData`.
+- **The daily farm's setup is rolled from the date, not fetched.** Open: how to keep a shared daily
+  challenge without a backend. Chosen: an FNV hash of the date seeds field size, ring radius,
+  helpers, scarecrow and crop unlocks, so the same day is the same farm everywhere with nothing
+  fetched — at the edge of the no-live-ops pillar rather than across it.
