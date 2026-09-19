@@ -4,7 +4,7 @@ namespace TillWinter.Core
 {
     /// <summary>
     /// Hands-free play (GDD §10.6 v2.5): the player taps to place the ring's home, and the ring tends the plots around it
-    /// on its own, most urgent first (a Ripe crop, then the Wet plot nearest to ripening, then a Dry one). Input, not a
+    /// on its own, most urgent first (a pest or clover, a Ripe crop, the Wet plot nearest to ripening, a stone, a Dry one). Input, not a
     /// rule: it only produces the <see cref="RingInput"/> a finger would have, so everything stays deterministic.
     /// </summary>
     public sealed class AutoRing
@@ -33,6 +33,15 @@ namespace TillWinter.Core
 
         public void Clear() => Placed = false;
 
+        /// <summary>Pulls a home left outside the field (it shrank) back onto its nearest plot.</summary>
+        public void KeepOnField(int gridSize)
+        {
+            if (!Placed || gridSize <= 0) return;
+            float max = gridSize - 1;
+            HomeX = Math.Max(0f, Math.Min(max, HomeX));
+            HomeY = Math.Max(0f, Math.Min(max, HomeY));
+        }
+
         /// <summary>The ring for this frame, or null before a home is placed or outside the year.</summary>
         public RingInput? Step(FarmState state, float dt)
         {
@@ -44,8 +53,11 @@ namespace TillWinter.Core
             {
                 float hx = p.Pos.X - HomeX, hy = p.Pos.Y - HomeY;
                 if (hx * hx + hy * hy > reach2) continue;
-                // Stones are cleared by the ring too, but only when nothing else needs it.
-                double score = p.IsRipe ? 3 : p.State == PlotState.Wet ? 1 + p.Progress : p.IsStony ? 0.2 : 0.5;
+                // A pest in reach goes first (the ring sends it off), then a clover before it wilts, then Ripe crops,
+                // Wet plots nearest to ripening, stones (cleared once, then they grow), and Dry plots last.
+                double score = p.IsRipe ? 3 : p.State == PlotState.Wet ? 1 + p.Progress : p.IsStony ? 0.6 : 0.5;
+                if (state.Pest.Kind != PestKind.None && state.Pest.Pos == p.Pos) score = 5;
+                else if (state.Luck.CloverLeft > 0f && state.Luck.CloverPos == p.Pos) score = 4;
                 float dx = p.Pos.X - X, dy = p.Pos.Y - Y;
                 score -= 0.05 * Math.Sqrt(dx * dx + dy * dy); // near beats far on a tie
                 if (score > bestScore)

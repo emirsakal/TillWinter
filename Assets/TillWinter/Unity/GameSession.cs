@@ -8,6 +8,11 @@ namespace TillWinter.Unity
     {
         public static int Daily;
         public static int NgPlus;
+        /// <summary>
+        /// The running daily farm across a scene rebuild (language, text size): the daily is never saved to disk, so
+        /// the pause menu hands it over here and the bootstrap takes it once.
+        /// </summary>
+        public static TillWinter.Core.SaveData DailyCarry;
 
         /// <summary>Today as yyyymmdd, on the device's own calendar.</summary>
         public static int Today()

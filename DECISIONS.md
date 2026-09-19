@@ -1040,3 +1040,101 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   stick after the player returns. Chosen: `SimulateOffline` applies the plan's roles for the
   simulated time only and restores the player's own role assignments afterward, so a player's own
   helper setup is never silently overwritten by a plan picked for one offline stretch.
+
+## Follow-up: play-test fixes after mechanics round one (2026-09-19)
+
+- **Offline simulation must freeze active-only effects, not just skip them.** Open: whether
+  weather, locusts and the frost rush should still colour a tractor/apprentice sweep across an
+  offline gap, and whether the tractor should still pay a crow bounty for a crowed plot it passes.
+  Chosen: none of these tick offline — weather counts as Clear, locusts do not block growth, the
+  frost-rush ×1.25 does not apply, and the tractor leaves a crowed plot alone with no bounty —
+  because `SimulateOffline` only advances passive systems (§9) and these are active-only effects
+  that were leaking through a stale flag across up to 8 h away; `SimulateOffline` now restores its
+  flags in `try`/`finally` so a crash mid-simulation can't leave them stuck.
+- **The daily farm has no offline progress and survives a rebuild in memory only.** Open: what
+  `SimulateOffline` should do on a farm that is never saved, and whether a language/text-size
+  rebuild should end the running day. Chosen: `SimulateOffline` returns nothing on the daily farm;
+  a rebuild hands the running day over in memory (`SaveData` via `AfterEnding.ResumeDaily`) instead
+  of restarting it; "Reset save" on the daily farm restarts the day only and no longer deletes the
+  family save, because the daily farm's one-day scope should survive incidental UI rebuilds without
+  ever touching disk or the family's persistent progress.
+- **Ring shape falls back silently instead of getting stuck invalid.** Open: what happens when a
+  ring shape a level no longer allows (retire, respec, load) is still the player's chosen shape.
+  Chosen: it falls back to Round whenever the level check fails, because a shape the player can no
+  longer afford should never leave the ring unable to act.
+- **A fully-expanded field counts as maxed, not stuck at a sellable-for-nothing last level.** Open:
+  whether `expand_field` should report maxed once the field hits its 6×6 Heritage head-start cap
+  even though the node's own level counter has room left. Chosen: `SkillTree.IsMaxed` now consults
+  `IsMaxedOverride` for capped nodes too, because a node that visually reads "MAX" but still lets
+  the player spend on a level that does nothing is a trap, not a choice.
+- **fertile_start plots bought in winter keep their Wet start into spring.** Open: whether the
+  Winter-phase "all plots reset to Dry" pass (§9) should re-apply to a plot bought after that pass
+  already ran. Chosen: no — a plot created during Winter is never touched by the entry-to-Winter
+  reset, so its `fertile_start` Wet start survives into the new Spring unchanged, matching what the
+  node promises regardless of which phase the purchase happened in.
+- **bulk_upgrade raises two different plots, not the two lowest.** Open: "two lowest plots per
+  purchase" repeatedly upgraded the same pair once they were tied for lowest, which felt broken
+  rather than efficient; bed upgrades also need to choose sensibly among ties. Chosen: bulk_upgrade
+  now raises two different plots per purchase, and bed upgrades prefer a non-stony plot at the same
+  bed level, because "lowest" was never meant to mean "same plot twice." Marked inline in the GDD.
+- **A crop change sends the plot's crow off with no bounty.** Open: what should happen to a crow
+  sitting on a plot whose crop the player just switched out from under it. Chosen: the crow leaves
+  without paying a bounty, because a bounty is a reward for scaring a crow off a crop it was
+  eating, not for a plot the player emptied themselves.
+- **A tractor with nothing to sweep stays charged instead of resetting.** Open: whether the
+  tractor's timer should keep counting down to 0 and re-arm on a fixed interval even when no row
+  has anything Ripe. Chosen: when the timer runs out with nothing ripe, the tractor stays fully
+  charged and sweeps as soon as a row ripens, because losing the charge to an empty field punishes
+  the player for something outside their control.
+- **LastYearCoins resets after the Golden Year so the next generation starts from plain years.**
+  Open: whether goals and trader prices in a fresh generation should be seeded off the outgoing
+  generation's inflated Golden Year total. Chosen: `LastYearCoins` resets to 0 after the Golden
+  Year, so the first goal and trader prices of a new generation read like any other year one.
+- **New Game+ keeps onboarding hints and lifetime stats, not per-generation ones.** Open: which
+  saved counters should survive a New Game+ restart versus reset with the field. Chosen:
+  onboarding hint bits and lifetime statistics carry over; per-generation statistics reset, because
+  New Game+ is a fresh generation on the same install, not a fresh install.
+- **Retiring with unsold jars pays them into the generation's lifetime totals.** Open: whether
+  preserves still sitting in the barn at retirement should just vanish. Chosen: they pay into the
+  generation's lifetime coins and seeds, and the retire button's seed count includes them, because
+  a jar earned is a jar earned regardless of which screen the player retires from.
+- **Respec claws back this winter's greenhouse coins; greenhouse coins and the goal reward never
+  counted as the year's take.** Open: whether a winter-only respec should keep coins the
+  greenhouse produced during that same winter, and whether the goal reward and greenhouse income
+  belong in `CoinsThisYear`. Chosen: respec takes the greenhouse coins back; greenhouse coins and
+  the goal reward join the grade bonus as coins that count toward totals and lifetime coins but
+  never toward `CoinsThisYear`, so neither can backdoor a Coins goal.
+- **Scarecrow duplicates re-place instead of vanishing; the rain cloud skips locust-held plots.**
+  Open: what a clamp that removes an over-count of scarecrows should do with the orphaned ones, and
+  whether the rain cloud's instant-grow should reach a plot a locust swarm is sitting on. Chosen:
+  a duplicate scarecrow left over after a clamp is re-placed rather than dropped, and the rain
+  cloud does not grow plots under a locust swarm, because "nothing grows in the patch while it
+  stays" (§5.5) has to hold against every grower, not just the ring and passive systems.
+- **Save schema 17 adds `TapCooldown` and fixes the v12→v13 `AlmanacSpent` estimate.** Open: the
+  v16 save had no field for the tap-harvest cooldown, and the v12→v13 migration's `AlmanacSpent`
+  estimate ignored the Heritage almanac discount, over-stating what a loaded save had spent.
+  Chosen: v16→v17 adds `TapCooldown` (default 0 on migration); the v12→v13 estimate now applies the
+  Heritage discount. `FromSave` also rejects an undefined `Phase`/`Season` (start fresh) and clamps
+  `PlotState`; `SetChallenge` rejects undefined values; achievements never unlock on the daily farm,
+  because a schema fixer that trusts out-of-range enum values is a crash waiting to load.
+- **Hands-free steering only follows a plain tap, never another input's side effect.** Open: which
+  taps should count as "the player pointed the ring here" once seed planting, scarecrow moves and
+  pest/cloud/dog/apprentice taps all land on the same field. Chosen: only a plain tap on a plot
+  moves the ring's home; a home left outside a shrunken field is pulled back in; it chases pests,
+  then clovers, then clears stones before Dry plots, because a hands-free ring that reacts to every
+  incidental tap would fight the player's own intent.
+- **UI overlap and localization fixes bundled with the mechanics fixes.** Open: several small
+  layout and string bugs found in the same play-test pass. Chosen, in one pass: the seed bag
+  hides the trader card and tractor button while open (they covered chips); the winter coin counter
+  auto-sizes to stay on one line; the album list starts below the title rule; optional pause-menu
+  rows close up when hidden; the New Game+ confirm label resets after 4 s; a failed New Game+ write
+  keeps the running farm saving instead of losing it; respec redraws the tree; the shooting star
+  draws above the checklist; the goal line sits on a dark pill (TMP outlines don't render on these
+  labels); the seed-bag hint uses dark ink; "+x/s" and "NG+" are localized (`ui.rate`,
+  `album.ng_plus`).
+- **Left as found:** spring jar sales still count as the new year's first coins, because the GDD
+  says so explicitly (§3.5); respec keeping `LastYearTier` and re-rolling ground on re-expansion
+  were left alone as real rotation with low play impact, not bugs.
+- **Open, not fixed here:** the play-mode smoke test exceeds its render budget (≈216 batches /
+  ≈176k triangles vs ≤150 / ≤60k) — needs profiling, not a play-test fix. One smoke run failed its
+  winter purchases intermittently; two reruns passed.

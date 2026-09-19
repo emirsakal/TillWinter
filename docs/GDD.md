@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.5 - September 2026 (through mechanics group M.9, feel and accessibility — getting-started checklist, hands-free ring and the before-you-leave away plan, marked *(v2.5)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.6 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice, marked *(v2.6)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -309,7 +309,7 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 **Calendar**
 - `year_length` (6) · `frost_warning` +5 s per level (2) · `late_frost` at Winter, plots that are ≥80% grown are harvested at half value instead of lost (1) · `greenhouse` (3) · `crow_bounty` scared crows drop more (3) · `spring_head_start` year starts with all plots Wet (1)
 
-*(v1.3)* `ring_combo`: consecutive ring harvests within 1 s stack, `1 + level x 0.01 x min(combo, 10)` on ring harvests. `late_frost`: at Winter, Ripe plots and Wet plots at >= 80 % are harvested at half value. `crow_bounty`: scare drop = `(2 + level) x value`. `bulk_upgrade`: two lowest plots per purchase. `fertile_start`: expansion plots start Wet. `spring_head_start`: all plots Wet at Spring. `helper_water`: apprentice replants Wet.
+*(v1.3)* `ring_combo`: consecutive ring harvests within 1 s stack, `1 + level x 0.01 x min(combo, 10)` on ring harvests. `late_frost`: at Winter, Ripe plots and Wet plots at >= 80 % are harvested at half value. `crow_bounty`: scare drop = `(2 + level) x value`. `bulk_upgrade`: two lowest plots per purchase. *(v2.6)* Raises two **different** plots per purchase (never the same plot twice), preferring a non-stony plot at the same bed level. `fertile_start`: expansion plots start Wet. `spring_head_start`: all plots Wet at Spring. `helper_water`: apprentice replants Wet.
 
 *(v1.6)* Combo milestones pay out on top of `ring_combo`'s stacking bonus: combo 10/25/50 pays 3x/8x/20x the harvested crop's value (`ComboMilestones`/`ComboMilestoneBonus`). A crow eating a crop now breaks the combo, same as it already breaks on a miss.
 

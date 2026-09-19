@@ -88,7 +88,26 @@ namespace TillWinter.Unity
             UiKit.ButtonIcon(_ngPlus, "star");
             _away = Btn(p, "pause.away", CycleAwayPlan, y - 5f * RowHeight);
             UiKit.ButtonIcon(_away, "multiplayer");
-            UiKit.ButtonIcon(Btn(p, "pause.main_menu", ToMainMenu, y - 6f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle), "home");
+            var mainMenu = Btn(p, "pause.main_menu", ToMainMenu, y - 6f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle);
+            UiKit.ButtonIcon(mainMenu, "home");
+            _tailRows = new[] { (RectTransform)_ngPlus.transform, (RectTransform)_away.transform, (RectTransform)mainMenu.transform };
+            _tailSlots = new float[_tailRows.Length];
+            for (int i = 0; i < _tailRows.Length; i++) _tailSlots[i] = _tailRows[i].anchoredPosition.y;
+        }
+
+        private RectTransform[] _tailRows;
+        private float[] _tailSlots;
+
+        /// <summary>The optional rows (New Game+, the away plan) close up when hidden, so the sheet has no holes.</summary>
+        private void StackTailRows()
+        {
+            int slot = 0;
+            foreach (var rt in _tailRows)
+            {
+                if (!rt.gameObject.activeSelf) continue;
+                var pos = rt.anchoredPosition;
+                rt.anchoredPosition = new Vector2(pos.x, _tailSlots[slot++]);
+            }
         }
 
         private void BuildSettings(RectTransform canvas)
@@ -261,16 +280,28 @@ namespace TillWinter.Unity
             }
             var plus = TillWinter.Core.AfterEnding.NewGamePlus(_game.Sim, _game.Sim.Config, System.Environment.TickCount);
             if (plus == null || _save == null) return;
+            if (!_save.WriteFresh(plus))
+            {
+                _audio?.Play(SfxId.Denied, 0.8f);
+                ResetNgPlusLabel();
+                return;
+            }
             Haptics.Play(HapticKind.Heavy);
-            _save.WriteFresh(plus);
             Reload();
+        }
+
+        private void ResetNgPlusLabel()
+        {
+            UiKit.ButtonLabel(_ngPlus).text = Strings.Get("pause.new_game_plus");
+            _ngPlusArmed = 0f;
         }
 
         private void BuildAlbum(RectTransform canvas)
         {
             _album = Sheet(canvas, "AlbumSheet", "album.title", 1300f, out var page);
             UiKit.ScrollView(page, "Scroll", out _albumRows);
-            UiKit.Stretch((RectTransform)_albumRows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -110f));
+            // Clear of the sheet's title rule: the newest page's heading sat on the line.
+            UiKit.Stretch((RectTransform)_albumRows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -150f));
             Btn(page, "stats.continue", () => { _album.SetActive(false); Show(_pause); }, -1180f);
         }
 
@@ -292,7 +323,7 @@ namespace TillWinter.Unity
                 var r = UiKit.Rect("Page " + e.Generation, _albumRows);
                 UiKit.Box(r, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -i * row), new Vector2(820f, row));
                 string heir = e.Trait > 0 ? "  ·  " + Strings.Get("heir." + (TillWinter.Core.HeirTrait)e.Trait) : "";
-                string round = e.NgPlus > 0 ? "  ·  NG+" + e.NgPlus : "";
+                string round = e.NgPlus > 0 ? "  ·  " + Strings.Format("album.ng_plus", ("n", e.NgPlus)) : "";
                 var title = UiKit.Label(r, "Title", Strings.Format("album.generation", ("n", e.Generation)) + heir + round, UiType.Heading, _theme.SheetInk, TextAnchor.UpperLeft, FontStyle.Bold);
                 UiKit.Stretch(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -64f), new Vector2(-150f, -8f));
                 var line = UiKit.Label(r, "Line", Strings.Format("album.line", ("years", e.Years), ("coins", NumberFormat.Short(e.Coins)), ("seeds", e.Seeds), ("harvests", e.Harvests)), UiType.Body, _theme.SheetInk, TextAnchor.UpperLeft);
@@ -358,6 +389,7 @@ namespace TillWinter.Unity
             UiKit.ButtonLabel(_ngPlus).text = Strings.Get("pause.new_game_plus");
             _ngPlusArmed = 0f;
             RefreshAwayLabel();
+            StackTailRows();
             _game.SetPaused(true);
             Haptics.Play(HapticKind.Selection);
             Show(_pause);
@@ -420,6 +452,8 @@ namespace TillWinter.Unity
 
         private void Update()
         {
+            // The New Game+ confirmation runs out: the button says so instead of waiting for a tap that only re-arms it.
+            if (_ngPlusArmed > 0f && Time.unscaledTime > _ngPlusArmed) ResetNgPlusLabel();
             if (_resetDone || !_settings.activeSelf) return;
             _resetHeld = _reset.Held ? _resetHeld + Time.unscaledDeltaTime : 0f;
             _resetFill.anchorMax = new Vector2(Mathf.Clamp01(_resetHeld / ResetHoldSeconds), 1f);
@@ -449,6 +483,12 @@ namespace TillWinter.Unity
         {
             _resetDone = true;
             Haptics.Play(HapticKind.Heavy);
+            if (_game != null && _game.State.IsDaily)
+            {
+                // On the daily farm the family save is not the farm on screen: reset starts the day over and leaves it be.
+                Reload(false);
+                return;
+            }
             if (_save != null)
             {
                 _save.Detach();
@@ -460,8 +500,11 @@ namespace TillWinter.Unity
         }
 
         /// <summary>A language or text-size change rebuilds every label, so the scene reloads behind a short cover.</summary>
-        private void Reload()
+        private void Reload() => Reload(true);
+
+        private void Reload(bool keepDaily)
         {
+            if (keepDaily && _game != null && _game.State.IsDaily) GameSession.DailyCarry = _game.Sim.ToSave();
             if (_applying == null)
             {
                 _applying = UiKit.Panel((RectTransform)transform, "Applying", _theme.SheetOverlay, false, true);

@@ -59,6 +59,7 @@ namespace TillWinter.Tests
             sim.DebugSetLevel("barn", 1);
             Assert.IsTrue(sim.SetStoreShare(0.5f));
             sim.SetAwayPlan(AwayPlan.Balanced); // v16
+            sim.DebugSetTapCooldown(1.25f); // v17
             return sim;
         }
 
@@ -155,6 +156,7 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.NgPlus, sb.NgPlus);
             Assert.AreEqual(sa.ChecklistBits, sb.ChecklistBits);
             Assert.AreEqual(sa.AwayPlan, sb.AwayPlan);
+            Assert.AreEqual(sa.TapCooldown, sb.TapCooldown, 1e-6);
             Assert.AreEqual(sa.Album.Count, sb.Album.Count);
             for (int i = 0; i < sa.Album.Count; i++)
             {

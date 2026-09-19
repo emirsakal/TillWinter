@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 16;
+        public const int CurrentSchemaVersion = 17;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -143,6 +143,9 @@ namespace TillWinter.Core
         // v16: the first generation's checklist and the away plan (GDD §10.5/§10.7 v2.5)
         public int ChecklistBits;
         public int AwayPlan;
+
+        // v17: the tap-harvest cooldown, so a relaunch does not skip it
+        public float TapCooldown;
     }
 
     [Serializable]
@@ -208,6 +211,7 @@ namespace TillWinter.Core
                     case 13: data = V13ToV14(data); break;
                     case 14: data = V14ToV15(data); break;
                     case 15: data = V15ToV16(data); break;
+                    case 16: data = V16ToV17(data); break;
                     default: return null;
                 }
             }
@@ -354,6 +358,14 @@ namespace TillWinter.Core
             return d;
         }
 
+        /// <summary>v16 → v17: no tap harvest waiting (the cooldown was not written before).</summary>
+        private static SaveData V16ToV17(SaveData d)
+        {
+            d.TapCooldown = 0f;
+            d.SchemaVersion = 17;
+            return d;
+        }
+
         /// <summary>
         /// v15 → v16: a farm saved before the checklist is past what it teaches, so every step counts as done; the
         /// apprentices keep their own roles while away.
@@ -397,7 +409,8 @@ namespace TillWinter.Core
 
         /// <summary>
         /// v12 → v13: an empty barn, no respec used. What the Almanac cost this generation was never counted, so it is
-        /// estimated from the levels at the tables' base prices (without Heritage discounts), which is what a respec refunds.
+        /// estimated from the levels at the tables' base prices, less the Heritage discount it was bought with, which is
+        /// what a respec refunds.
         /// </summary>
         private static SaveData V12ToV13(SaveData d)
         {
@@ -414,6 +427,11 @@ namespace TillWinter.Core
                 if (node == null) continue;
                 for (int l = 0; l < pair.Level; l++) spent += Math.Round(node.BaseCost * Math.Pow(node.CostGrowth, l));
             }
+            int discount = 0;
+            foreach (var pair in d.HeritageLevels ?? new LevelPair[0])
+                if (pair != null && pair.Id == "h_almanac_discount") discount = pair.Level;
+            var discountNode = HeritageData.Get("h_almanac_discount");
+            if (discount > 0 && discountNode != null) spent *= Math.Max(0.05, 1 - discountNode.ValuePerLevel * discount);
             d.AlmanacSpent = spent;
             d.SchemaVersion = 13;
             return d;

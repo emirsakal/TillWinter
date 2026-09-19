@@ -38,6 +38,25 @@ namespace TillWinter.Core
             s.NgPlus = ended.State.NgPlus + 1;
             s.Generation.Achievements = ended.State.Generation.Achievements;
             s.AlbumList.AddRange(ended.State.AlbumList);
+            // The family's lifetime record and what it has already been taught stay too: hints never fire twice.
+            var from = ended.State.Generation;
+            var to = s.Generation;
+            to.LifetimeCoinsTotal = from.LifetimeCoinsTotal;
+            to.SeedsEarnedTotal = from.SeedsEarnedTotal;
+            to.CrowsScared = from.CrowsScared;
+            to.Harvests = from.Harvests;
+            to.HarvestsRing = from.HarvestsRing;
+            to.HarvestsApprentice = from.HarvestsApprentice;
+            to.HarvestsTractor = from.HarvestsTractor;
+            to.HarvestsLateFrost = from.HarvestsLateFrost;
+            to.HarvestsAtGenerationStart = from.Harvests;
+            to.GoldenHarvests = from.GoldenHarvests;
+            to.BestCombo = from.BestCombo;
+            to.TimePlayedSeconds = from.TimePlayedSeconds;
+            to.YearsTotal = from.YearsTotal;
+            to.GoalsMet = from.GoalsMet;
+            to.PestsStopped = from.PestsStopped;
+            s.Onboarding.Bits = ended.State.Onboarding.Bits;
             sim.RefreshStats();
             return sim;
         }
@@ -64,7 +83,25 @@ namespace TillWinter.Core
         /// </summary>
         public static FarmSim Daily(int yyyymmdd)
         {
-            var cfg = new FarmConfig
+            return DailyFrom(DailyConfig(), DailySeed(yyyymmdd), yyyymmdd);
+        }
+
+        /// <summary>
+        /// The same day's farm again, where it was (a language or text-size change rebuilds the scene): the daily is
+        /// never written to disk, so the scene hands its <see cref="FarmSim.ToSave"/> across in memory.
+        /// </summary>
+        public static FarmSim ResumeDaily(SaveData data, int yyyymmdd)
+        {
+            if (data == null || yyyymmdd == 0) return null;
+            var sim = FarmSim.FromSave(data, DailyConfig());
+            if (sim == null) return null;
+            sim.State.Daily = yyyymmdd;
+            return sim;
+        }
+
+        private static FarmConfig DailyConfig()
+        {
+            return new FarmConfig
             {
                 GoalFirstYear = 1,
                 WeatherFirstYear = 1,
@@ -75,7 +112,10 @@ namespace TillWinter.Core
                 HeirsEnabled = false,
                 HeirloomsEnabled = false,
             };
-            int seed = DailySeed(yyyymmdd);
+        }
+
+        private static FarmSim DailyFrom(FarmConfig cfg, int seed, int yyyymmdd)
+        {
             var sim = new FarmSim(cfg, seed);
             var pick = new Rng(seed ^ 0x2545F491); // its own stream: the sim's RNG stays the day's
             int Roll(int min, int max) => min + Math.Min(max - min, (int)(pick.NextDouble() * (max - min + 1)));

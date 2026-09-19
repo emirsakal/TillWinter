@@ -47,8 +47,11 @@ namespace TillWinter.Unity
             OfflineReport offline = default;
             if (daily)
             {
-                // The daily farm (GDD §8.4 v2.4): built from the day, played once, never saved.
-                game.InitFrom(AfterEnding.Daily(GameSession.Daily));
+                // The daily farm (GDD §8.4 v2.4): built from the day, played once, never saved; a settings rebuild
+                // brings the running day back from memory.
+                var carried = AfterEnding.ResumeDaily(GameSession.DailyCarry, GameSession.Daily);
+                GameSession.DailyCarry = null;
+                game.InitFrom(carried ?? AfterEnding.Daily(GameSession.Daily));
             }
             else if (sim != null)
             {

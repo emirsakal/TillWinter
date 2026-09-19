@@ -26,7 +26,7 @@ namespace TillWinter.Core
         /// <summary>Sets the coming generation's challenge (Heritage phase only). It pays more seeds when that generation retires.</summary>
         public bool SetChallenge(ChallengeKind challenge)
         {
-            if (State.Phase != Phase.Heritage) return false;
+            if (State.Phase != Phase.Heritage || !Enum.IsDefined(typeof(ChallengeKind), challenge)) return false;
             State.Generation.Challenge = challenge;
             ResolveStats();
             return true;
@@ -57,6 +57,7 @@ namespace TillWinter.Core
 
         private bool Unlock(AchievementId id)
         {
+            if (State.IsDaily) return false; // the daily farm starts with none and keeps none: no toast every day
             var g = State.Generation;
             int bit = 1 << (int)id;
             if ((g.Achievements & bit) != 0) return false;
