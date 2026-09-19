@@ -960,3 +960,26 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   mechanics session. Chosen: no — `hens` (prereq `farm_dog`) eats a pest and has a golden-egg
   chance, closing the M.4 helpers backlog item in the same session pests were added, since the
   dependency was pests existing, not additional design work.
+
+## Mechanics M.6: barn and market, preserves, Almanac suggestions and free respec (2026-09-19)
+
+- **Storing is a real choice, not a strict upgrade.** Open: how to make holding crops in the barn
+  interesting rather than a pure delay. Chosen: the winter market price is a gamble (×0.8–×1.7)
+  against a certain ×1.25 from preserves, and stock spoils 10% if carried into a new year; the
+  stored value already includes every bonus the harvest would have paid, so choosing to store
+  never costs a combo or a multiplier — only the eventual sale price is uncertain.
+- **Market income doesn't count toward the year's take.** Open: whether selling stock should feed
+  `CoinsThisYear` (goals, grade). Chosen: it's paid into coins and the generation's lifetime coins
+  but kept out of the year's take, so the Coins goal (§3.3) and the grade (§3.4) stay about the
+  year's field work, not about a winter trade.
+- **Free respec refunds the actual spend, once a generation.** Open: a flat refund or a discount
+  vs. exact cost, and how often. Chosen: `RespecAlmanac` refunds exactly `Generation.AlmanacSpent`
+  and is available once per generation only when something was bought — enough to fix a
+  mis-planned tree without making the Almanac free to re-plan every winter.
+- **The suggested marker reuses the balance bot's weights.** Open: hand-tune a separate "best
+  node" heuristic for the UI, or share one. Chosen: `AlmanacAdvisor.CreateWeights()` is now the one
+  table both `AutoPlayer` and `SkillTreeView`'s star badge read from, so the marker a player sees
+  and the play `BalanceTests` measures never disagree.
+- **Ice-fishing left out.** Open: whether Winter needed a second mini-game alongside the Almanac.
+  Chosen: no — preserves are the winter activity; a second mini-game would compete for the same
+  attention the Almanac (winter's real activity) already asks for.

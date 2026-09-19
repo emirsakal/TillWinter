@@ -57,6 +57,7 @@ namespace TillWinter.Core
             { "farm_dog", "singleplayer" },
             { "beehive", "zoomIn" },
             { "hens", "basket" },
+            { "barn", "home" },
             { "year_length", "scrollHorizontal" },
             { "frost_warning", "exclamation" },
             { "late_frost", "pause" },
@@ -96,6 +97,7 @@ namespace TillWinter.Core
             N("unlock_grapes", Branch.Field, new[] { "unlock_pumpkin" }, 1, 1200, EffectType.UnlockTier, 4),
             N("unlock_golden_wheat", Branch.Field, new[] { "unlock_grapes" }, 1, 2000, EffectType.UnlockTier, 5),
             N("bulk_upgrade", Branch.Field, new[] { "unlock_corn" }, 1, 900, EffectType.BulkUpgrade, 1),
+            N("barn", Branch.Field, new[] { "expand_field" }, 3, 250, EffectType.Barn, 1),
 
             // Helpers
             N("apprentice_count", Branch.Helpers, None, 6, 80, EffectType.ApprenticeCount, 1),

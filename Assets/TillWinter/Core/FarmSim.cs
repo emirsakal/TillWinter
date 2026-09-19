@@ -29,6 +29,14 @@ namespace TillWinter.Core
         public event Action<YearGoal> GoalCompleted;
         /// <summary>A new year set a goal.</summary>
         public event Action<YearGoal> GoalSet;
+        /// <summary>A harvest went to the barn instead of the purse (plot, stored value) (GDD §3.5 v2.2).</summary>
+        public event Action<GridPos, double> Stored;
+        /// <summary>The barn sold at the winter market, put up preserves, or the jars sold in spring (coins or jar value).</summary>
+        public event Action<double> BarnSold;
+        public event Action<double> PreservesMade;
+        public event Action<double> PreservesSold;
+        /// <summary>The Almanac was reset for its refund (GDD §6.3 v2.2).</summary>
+        public event Action<double> Respecced;
         /// <summary>The finished year's stars and the coins they paid, fired before WinterStarted (GDD §3.4 v1.9).</summary>
         public event Action<int, double> YearGraded;
         /// <summary>Weather began (a spell) or ended (Clear) (GDD §5.4 v1.9).</summary>
@@ -223,8 +231,10 @@ namespace TillWinter.Core
         {
             var tree = TreeOf(nodeId);
             if (tree == null) return false;
+            double cost = tree.CostOf(nodeId);
             int level = tree.Buy(nodeId);
             if (level <= 0) return false;
+            if (tree == Almanac) State.Generation.AlmanacSpent += cost;
             ApplyPurchase(tree.GetNode(nodeId));
             ResolveStats();
             Purchased?.Invoke(new PurchaseEvent(nodeId, level, tree.Kind));
@@ -315,6 +325,9 @@ namespace TillWinter.Core
             g.YearsThisGeneration = 0;
 
             State.Coins = 0;
+            ResetBarn();
+            g.AlmanacSpent = 0;
+            g.RespecUsed = false;
             State.LastYearCoins = 0;
             State.LastGrade = 0;
             State.LastGradeBonus = 0;
@@ -381,6 +394,7 @@ namespace TillWinter.Core
             SetYearGoal();
             ClearEvents();
             PlanTrader();
+            OpenBarnForSpring();
             SeasonChanged?.Invoke(Season.Spring);
             YearStarted?.Invoke();
         }
@@ -497,6 +511,14 @@ namespace TillWinter.Core
             d.TraderSeedSold = s.Trader.SeedSold;
             d.TraderRareSold = s.Trader.RareSold;
             d.PestCheckTimer = _pestCheckTimer;
+            d.BarnStock = s.Barn.Stock;
+            d.BarnCount = s.Barn.Count;
+            d.BarnStoreShare = s.Barn.StoreShare;
+            d.BarnStoreAcc = s.Barn.StoreAcc;
+            d.BarnMarketPrice = s.Barn.MarketPrice;
+            d.BarnJars = s.Barn.Jars;
+            d.AlmanacSpent = s.Generation.AlmanacSpent;
+            d.RespecUsed = s.Generation.RespecUsed;
             d.LuckyCheckTimer = _luckyCheckTimer;
             return d;
         }
@@ -618,6 +640,14 @@ namespace TillWinter.Core
             s.Trader.SeedSold = data.TraderSeedSold;
             s.Trader.RareSold = data.TraderRareSold;
             sim._pestCheckTimer = data.PestCheckTimer;
+            s.Barn.Stock = Math.Max(0, data.BarnStock);
+            s.Barn.Count = Math.Max(0, data.BarnCount);
+            s.Barn.StoreShare = Array.IndexOf(config.StoreShares, data.BarnStoreShare) >= 0 ? data.BarnStoreShare : 0f;
+            s.Barn.StoreAcc = Math.Max(0f, Math.Min(1f, data.BarnStoreAcc));
+            s.Barn.MarketPrice = data.BarnMarketPrice > 0 ? data.BarnMarketPrice : 1;
+            s.Barn.Jars = Math.Max(0, data.BarnJars);
+            g.AlmanacSpent = Math.Max(0, data.AlmanacSpent);
+            g.RespecUsed = data.RespecUsed;
             sim._luckyCheckTimer = data.LuckyCheckTimer;
             s.Cloud.Active = data.CloudActive;
             s.Cloud.X = data.CloudX;
@@ -876,6 +906,7 @@ namespace TillWinter.Core
                         Harvest(p, HarvestSource.LateFrost, -1);
             }
             GradeYear();
+            DrawMarketPrice();
             State.Weather = Weather.Clear;
             State.WeatherLeft = 0f;
             State.PlannedWeather = Weather.Clear;
@@ -1109,7 +1140,8 @@ namespace TillWinter.Core
                     coins *= Config.LateFrostValueMultiplier;
                     break;
             }
-            AddCoins(coins);
+            bool stored = TryStore(coins);
+            if (!stored) AddCoins(coins);
             var gen = State.Generation;
             gen.Harvests++;
             switch (source)
@@ -1131,7 +1163,8 @@ namespace TillWinter.Core
                 RemoveCrowAt(plot.Pos);
                 CrowScared?.Invoke(new CrowEvent(plot.Pos, 0));
             }
-            Harvested?.Invoke(new HarvestEvent(plot.Pos, tier, coins, source, apprenticeIndex, golden));
+            if (stored) Stored?.Invoke(plot.Pos, coins);
+            Harvested?.Invoke(new HarvestEvent(plot.Pos, tier, stored ? 0 : coins, source, apprenticeIndex, golden));
         }
 
         /// <summary>Same tier back to Dry (or Wet), rolling the golden chance.</summary>
@@ -1275,6 +1308,126 @@ namespace TillWinter.Core
             t.Active = false;
             t.TimeLeft = 0f;
             t.PlannedTime = -1f;
+        }
+
+        // ------------------------------------------------------------------ barn and market (GDD §3.5 v2.2)
+
+        /// <summary>Sends this harvest to the barn when the share says so and there is room. Deterministic: no RNG.</summary>
+        private bool TryStore(double coins)
+        {
+            var barn = State.Barn;
+            if (barn.StoreShare <= 0f || barn.Count >= State.Stats.BarnCapacity || coins <= 0) return false;
+            barn.StoreAcc += barn.StoreShare;
+            if (barn.StoreAcc < 1f) return false;
+            barn.StoreAcc -= 1f;
+            barn.Stock += coins;
+            barn.Count++;
+            return true;
+        }
+
+        /// <summary>Picks the share of the harvest the barn keeps (one of <see cref="FarmConfig.StoreShares"/>; needs a barn).</summary>
+        public bool SetStoreShare(float share)
+        {
+            if (State.Stats.BarnCapacity <= 0 && share > 0f) return false;
+            if (Array.IndexOf(Config.StoreShares, share) < 0) return false;
+            State.Barn.StoreShare = share;
+            return true;
+        }
+
+        /// <summary>Winter: sells everything in the barn at this winter's price. Counts toward the generation, not the year.</summary>
+        public bool SellBarn()
+        {
+            var barn = State.Barn;
+            if (State.Phase != Phase.Winter || barn.Stock <= 0) return false;
+            double coins = barn.Stock * barn.MarketPrice;
+            barn.Stock = 0;
+            barn.Count = 0;
+            AddCoins(coins, false);
+            BarnSold?.Invoke(coins);
+            return true;
+        }
+
+        /// <summary>Winter: puts the barn up as preserves, paid at a fixed multiple next spring.</summary>
+        public bool MakePreserves()
+        {
+            var barn = State.Barn;
+            if (State.Phase != Phase.Winter || barn.Stock <= 0) return false;
+            double jars = barn.Stock * Config.PreserveValue;
+            barn.Jars += jars;
+            barn.Stock = 0;
+            barn.Count = 0;
+            PreservesMade?.Invoke(jars);
+            return true;
+        }
+
+        /// <summary>Each winter draws a market price for the barn (only once there is one, so farms without keep their RNG).</summary>
+        private void DrawMarketPrice()
+        {
+            var barn = State.Barn;
+            if (State.Stats.BarnCapacity <= 0 && barn.Stock <= 0) return;
+            barn.MarketPrice = Config.MarketMin + _rng.NextDouble() * (Config.MarketMax - Config.MarketMin);
+        }
+
+        /// <summary>Spring: stock held over loses a little, and last winter's jars sell.</summary>
+        private void OpenBarnForSpring()
+        {
+            var barn = State.Barn;
+            if (barn.Stock > 0)
+            {
+                barn.Stock *= 1 - Config.BarnSpoil;
+                barn.Count = (int)Math.Round(barn.Count * (1 - Config.BarnSpoil));
+            }
+            if (barn.Jars > 0)
+            {
+                double jars = barn.Jars;
+                barn.Jars = 0;
+                AddCoins(jars);
+                PreservesSold?.Invoke(jars);
+            }
+        }
+
+        private void ResetBarn()
+        {
+            var barn = State.Barn;
+            barn.Stock = 0;
+            barn.Count = 0;
+            barn.StoreAcc = 0f;
+            barn.Jars = 0;
+            barn.MarketPrice = 1;
+        }
+
+        // ------------------------------------------------------------------ Almanac respec (GDD §6.3 v2.2)
+
+        /// <summary>Once a generation, in winter, with something bought and paid for (a respec that refunds nothing is no offer).</summary>
+        public bool CanRespec => State.Phase == Phase.Winter && !State.Generation.RespecUsed && Almanac.Levels.Count > 0 && State.Generation.AlmanacSpent > 0;
+
+        /// <summary>
+        /// Resets the Almanac and refunds what it cost this generation. What the purchases built goes with them: beds go
+        /// back to carrots and the field back to the size the trees now give (the plots nearest the house stay).
+        /// </summary>
+        public bool RespecAlmanac()
+        {
+            if (!CanRespec) return false;
+            var g = State.Generation;
+            double refund = g.AlmanacSpent;
+            Almanac.Reset();
+            foreach (var p in State.PlotArray)
+            {
+                p.BedTier = 0;
+                p.Choice = -1;
+            }
+            ResolveStats();
+            if (State.GridSize > State.Stats.TargetGridSize)
+            {
+                BuildField(State.Stats.TargetGridSize, false);
+                ResolveStats();
+                FieldExpanded?.Invoke();
+            }
+            State.Coins += refund;
+            g.AlmanacSpent = 0;
+            g.RespecUsed = true;
+            Respecced?.Invoke(refund);
+            return true;
         }
 
         private void CheckGoal()

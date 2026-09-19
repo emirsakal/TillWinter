@@ -114,11 +114,8 @@ namespace TillWinter.EditorTools
             new Step("32-locusts-clover", 1.2f, () => { var g = Game; if (g == null) return; g.Sim.DebugSpawnPest(PestKind.Locusts, new GridPos(1, 1)); g.Sim.DebugSpawnLucky(LuckyKind.Clover, new GridPos(0, 0)); }),
             new Step("33-mole-trader", 1.2f, () => { var g = Game; if (g == null) return; g.Sim.DebugSpawnPest(PestKind.Mole, new GridPos(2, 1)); g.Sim.DebugBringTrader(); }),
             new Step("34-star", 1.4f, () => Game?.Sim.DebugSpawnLucky(LuckyKind.ShootingStar, new GridPos(0, 0))),
-            new Step(null, 1.5f, () => Game?.Sim.DebugStartWeather(Weather.Clear)),
 
-            // Weather and light the rest of the tour never meets: a rainbow after the rain cloud, then autumn at dusk.
-            new Step("23-rainbow", 2.4f, () => { var g = Game; if (g != null && g.Sim.DebugSpawnCloud()) g.Sim.TapCloud(); }),
-            new Step("24-autumn-dusk", 3.2f, () => Game?.Sim.DebugSetSeason(Season.Autumn)),
+            new Step(null, 1.5f, () => Game?.Sim.DebugStartWeather(Weather.Clear)),
 
             // The ring's shapes, cycled from the HUD button.
             new Step("25-ring-rake", 0.6f, () => Click("RingShape")),
@@ -128,6 +125,14 @@ namespace TillWinter.EditorTools
             new Step("27-seed-bag", 0.6f, () => Click("SeedBag")),
             new Step("28-seed-picked", 0.6f, () => Click("Seed2")),
             new Step(null, 0.2f, () => Click("SeedBag")),
+
+            // Weather and light the rest of the tour never meets: a rainbow after the rain cloud, then autumn at dusk.
+            new Step("23-rainbow", 2.4f, () => { var g = Game; if (g != null && g.Sim.DebugSpawnCloud()) g.Sim.TapCloud(); }),
+            new Step("24-autumn-dusk", 3.2f, () => Game?.Sim.DebugSetSeason(Season.Autumn)),
+
+            // Winter with a stocked barn (GDD §3.5 v2.2): the market strip, the respec and the suggested node.
+            new Step("35-winter-barn", 2.4f, () => Game?.Sim.DebugSkipToWinter()),
+
         };
 
         static UiTour()
@@ -347,6 +352,8 @@ namespace TillWinter.EditorTools
             game.Sim.DebugSetLevel("tractor", 1);
             game.Sim.DebugSetLevel("farm_dog", 1);
             game.Sim.DebugSetLevel("beehive", 1);
+            game.Sim.DebugSetLevel("barn", 1); // the store-share button, and a barn strip in the winter shots
+            game.Sim.SetStoreShare(0.5f);
         }
 
         /// <summary>
