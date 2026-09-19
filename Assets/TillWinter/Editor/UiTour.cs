@@ -104,6 +104,11 @@ namespace TillWinter.EditorTools
             new Step(null, 0.5f, () => Click("Ok", "AwayCard", optional: true)),
             new Step("22-hud-end", 0.6f, null),
 
+            // A yearly goal on the HUD and weather over the field (GDD §3.3/§5.4 v1.9), then clear skies again.
+            new Step("29-goal-storm", 2.4f, () => { var g = Game; if (g == null) return; g.Sim.DebugSetGoal(GoalType.HarvestCrop, 18, 1, 20); g.Sim.DebugStartWeather(Weather.Storm); }),
+            new Step("30-fog", 2.6f, () => Game?.Sim.DebugStartWeather(Weather.Fog)),
+            new Step(null, 1.5f, () => Game?.Sim.DebugStartWeather(Weather.Clear)),
+
             // Weather and light the rest of the tour never meets: a rainbow after the rain cloud, then autumn at dusk.
             new Step("23-rainbow", 2.4f, () => { var g = Game; if (g != null && g.Sim.DebugSpawnCloud()) g.Sim.TapCloud(); }),
             new Step("24-autumn-dusk", 3.2f, () => Game?.Sim.DebugSetSeason(Season.Autumn)),
@@ -115,6 +120,7 @@ namespace TillWinter.EditorTools
             // The seed bag, opened from the HUD, then a crop in hand.
             new Step("27-seed-bag", 0.6f, () => Click("SeedBag")),
             new Step("28-seed-picked", 0.6f, () => Click("Seed2")),
+            new Step(null, 0.2f, () => Click("SeedBag")),
         };
 
         static UiTour()

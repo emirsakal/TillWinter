@@ -35,6 +35,30 @@ namespace TillWinter.Core
         }
     }
 
+    /// <summary>GDD §3.3 (v1.9): the one goal a year sets.</summary>
+    public enum GoalType
+    {
+        None = 0,
+        /// <summary>Harvest a number of one crop.</summary>
+        HarvestCrop = 1,
+        /// <summary>Reach a combo length.</summary>
+        Combo = 2,
+        /// <summary>Earn more coins than last year.</summary>
+        Coins = 3,
+    }
+
+    /// <summary>GDD §5.4 (v1.9): a weather spell, at most one a year.</summary>
+    public enum Weather
+    {
+        Clear = 0,
+        /// <summary>Rain waters every Dry plot, the sun is gone, the crows hide.</summary>
+        Storm = 1,
+        /// <summary>Strong sun, but unshaded Wet plots dry out twice as fast.</summary>
+        HeatWave = 2,
+        /// <summary>Cool mist: ripe crops keep, crows cannot find the field.</summary>
+        Fog = 3,
+    }
+
     /// <summary>GDD §2.4 (v1.8): what kind of ground a plot is. New plots from a field expansion may be special.</summary>
     public enum PlotKind
     {

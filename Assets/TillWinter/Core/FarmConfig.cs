@@ -39,7 +39,7 @@ namespace TillWinter.Core
         // Crops (GDD §2.3), indexed by tier
         public CropDef[] Crops =
         {
-            new CropDef("crop.carrot", 1.0f, 1.5f, 0.5f, 2.2, Season.Spring), // S9 balance: year 1 ≈ 67 coins (M.2: 2.3 → 2.2 for the spring bonus)
+            new CropDef("crop.carrot", 1.0f, 1.5f, 0.5f, 2.0, Season.Spring), // S9 balance: year 1 ≈ 67 coins (M.2: 2.3 → 2.2 spring bonus; M.3: → 2.0 frost rush + grade)
             new CropDef("crop.tomato", 1.5f, 3.5f, 0.5f, 4, Season.Summer),
             new CropDef("crop.corn", 2.0f, 6.0f, 0.7f, 12, Season.Summer),
             new CropDef("crop.pumpkin", 3.0f, 10f, 1.0f, 35, Season.Autumn),
@@ -62,6 +62,37 @@ namespace TillWinter.Core
         public double StonyChance = 0.25;
         /// <summary>Seconds of ring over a stony plot to clear it.</summary>
         public float StoneClearSeconds = 3f;
+
+        // Seasons, goals, grade and weather (GDD §3/§5.4 v1.9)
+        /// <summary>Spring rain: passive watering (Irrigation) runs this much faster in spring.</summary>
+        public float SpringWaterBoost = 1.5f;
+        /// <summary>Summer drought: a Wet plot with nothing growing it dries back to Dry after this long.</summary>
+        public float SummerDryOutSeconds = 8f;
+        /// <summary>Autumn harvest festival: the combo window is this much longer in autumn.</summary>
+        public float AutumnComboWindow = 1.5f;
+        /// <summary>Harvests during the frost warning are worth this much more.</summary>
+        public double FrostRushValue = 1.25;
+        /// <summary>Average harvest freshness needed for 2 and for 3 stars (crops lost to crows count as 0).</summary>
+        public double[] GradeThresholds = { 0.85, 0.97 };
+        /// <summary>Share of the year's coins paid on top, indexed by stars (0–3).</summary>
+        public double[] GradeBonusByStars = { 0, 0, 0.02, 0.04 };
+        /// <summary>Goals start in this year of a generation.</summary>
+        public int GoalFirstYear = 2;
+        public double GoalHarvestsPerPlot = 2;
+        public int GoalComboBase = 8, GoalComboPerYear = 2, GoalComboMax = 30;
+        /// <summary>A coins goal asks for last year's coins times this.</summary>
+        public double GoalCoinsGrowth = 1.2;
+        /// <summary>A goal pays this share of last year's coins, never less than <see cref="GoalMinReward"/>.</summary>
+        public double GoalRewardShare = 0.05;
+        public double GoalMinReward = 10;
+        /// <summary>Weather starts in this year of a generation, with this chance of one spell a year.</summary>
+        public int WeatherFirstYear = 2;
+        public double WeatherChance = 0.6;
+        public float StormSeconds = 12f, HeatWaveSeconds = 15f, FogSeconds = 12f;
+        /// <summary>Storm rain waters Dry plots at this passive rate.</summary>
+        public float StormWaterRate = 0.5f;
+        /// <summary>A heat wave multiplies the Sun by this.</summary>
+        public float HeatWaveSun = 1.5f;
 
         // Ring (GDD §2.1)
         public float BaseRingRadius = 0.7f;
@@ -93,9 +124,9 @@ namespace TillWinter.Core
 
         // Heritage (GDD §7)
         /// <summary>Lifetime coins in this generation needed before "Pass on the farm" unlocks.</summary>
-        public double HeritageThreshold = 3000; // S9 balance (GDD §7 v1.4)
-        /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 3 000 coins = 10 seeds.</summary>
-        public double SeedDivisor = 30;
+        public double HeritageThreshold = 3500; // S9 balance (GDD §7 v1.4); M.3 3000 → 3500 for the season, goal and grade income (v1.9)
+        /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 3 500 coins = 10 seeds.</summary>
+        public double SeedDivisor = 33; // M.3: 30 → 33, the ending stays past five hours with the new year income (v1.9)
 
         // Events and remaining nodes (GDD §4, §5, §6, §7)
         public float CloudDriftSeconds = 8f;

@@ -25,6 +25,8 @@ namespace TillWinter.Core
         /// <summary>The crop this plot grew last year, or -1; a different crop this year is a rotation (GDD §2.3 v1.8).</summary>
         public int LastYearTier { get; internal set; } = -1;
         public bool IsStony => Kind == PlotKind.Stony;
+        /// <summary>Seconds a Wet plot has stood with nothing growing it in a drought (GDD §3.2 v1.9).</summary>
+        public float DryTimer { get; internal set; }
         /// <summary>Growing something other than last year's crop.</summary>
         public bool IsRotated => LastYearTier >= 0 && Tier != LastYearTier;
 
@@ -42,6 +44,28 @@ namespace TillWinter.Core
             Progress = 0f;
             IsGolden = false;
             RipeAge = 0f;
+            DryTimer = 0f;
+        }
+    }
+
+    /// <summary>This year's goal (GDD §3.3 v1.9): what it asks, how far it has got, what it pays.</summary>
+    public sealed class YearGoal
+    {
+        public GoalType Type { get; internal set; }
+        /// <summary>The crop a HarvestCrop goal asks for.</summary>
+        public int Tier { get; internal set; }
+        public double Target { get; internal set; }
+        public double Progress { get; internal set; }
+        public bool Done { get; internal set; }
+        public double Reward { get; internal set; }
+        public bool Active => Type != GoalType.None;
+
+        internal void Clear()
+        {
+            Type = GoalType.None;
+            Tier = 0;
+            Target = Progress = Reward = 0;
+            Done = false;
         }
     }
 
@@ -171,6 +195,21 @@ namespace TillWinter.Core
         public double CoinsThisYear { get; internal set; }
         /// <summary>Harvests since Spring (all sources). Reset every year.</summary>
         public int HarvestsThisYear { get; internal set; }
+        /// <summary>Sum of each harvest's freshness this year; with the crops lost to crows it makes the grade (GDD §3.4 v1.9).</summary>
+        public double YearFreshSum { get; internal set; }
+        public int CropsLostThisYear { get; internal set; }
+        /// <summary>Stars (1–3) the last finished year earned, 0 before any, and the coins they paid.</summary>
+        public int LastGrade { get; internal set; }
+        public double LastGradeBonus { get; internal set; }
+        /// <summary>What the last finished year earned; goals and their rewards scale from it.</summary>
+        public double LastYearCoins { get; internal set; }
+        public YearGoal Goal { get; } = new YearGoal();
+        /// <summary>The weather now (GDD §5.4 v1.9) and seconds it has left.</summary>
+        public Weather Weather { get; internal set; }
+        public float WeatherLeft { get; internal set; }
+        /// <summary>The spell this year still has coming, and when (year seconds).</summary>
+        public Weather PlannedWeather { get; internal set; }
+        public float PlannedWeatherTime { get; internal set; }
         public float SecondsUntilWinter => System.Math.Max(0f, YearLength - YearTime);
 
         public int GridSize { get; internal set; }

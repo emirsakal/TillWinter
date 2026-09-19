@@ -23,6 +23,16 @@ namespace TillWinter.Core
         public event Action<GridPos> PlotRipened;
         /// <summary>The ring has cleared the stones off a plot (GDD §2.4 v1.8).</summary>
         public event Action<GridPos> PlotCleared;
+        /// <summary>Summer drought turned a neglected Wet plot back to Dry (GDD §3.2 v1.9).</summary>
+        public event Action<GridPos> PlotDriedOut;
+        /// <summary>The year's goal was met: the goal, with its reward already paid (GDD §3.3 v1.9).</summary>
+        public event Action<YearGoal> GoalCompleted;
+        /// <summary>A new year set a goal.</summary>
+        public event Action<YearGoal> GoalSet;
+        /// <summary>The finished year's stars and the coins they paid, fired before WinterStarted (GDD §3.4 v1.9).</summary>
+        public event Action<int, double> YearGraded;
+        /// <summary>Weather began (a spell) or ended (Clear) (GDD §5.4 v1.9).</summary>
+        public event Action<Weather> WeatherChanged;
         public event Action<CrowEvent> CrowLanded;
         public event Action<CrowEvent> CrowScared;
         public event Action<CrowEvent> CrowAte;
@@ -110,6 +120,7 @@ namespace TillWinter.Core
             AdvanceYear(dt);
             if (State.Phase != Phase.Year) return;
 
+            UpdateWeather(dt);
             UpdateFlow(dt);
             if (State.TapCooldown > 0f) State.TapCooldown = Math.Max(0f, State.TapCooldown - dt);
             UpdateCombo(dt);
@@ -296,6 +307,10 @@ namespace TillWinter.Core
             g.YearsThisGeneration = 0;
 
             State.Coins = 0;
+            State.LastYearCoins = 0;
+            State.LastGrade = 0;
+            State.LastGradeBonus = 0;
+            State.Goal.Clear();
             Almanac.Reset();
             ClearCrows();
             State.Year = 1;
@@ -352,6 +367,10 @@ namespace TillWinter.Core
             ResetApprentices();
             ResetTractor();
             ScheduleCloud();
+            State.YearFreshSum = 0;
+            State.CropsLostThisYear = 0;
+            PlanWeather();
+            SetYearGoal();
             SeasonChanged?.Invoke(Season.Spring);
             YearStarted?.Invoke();
         }
@@ -416,13 +435,28 @@ namespace TillWinter.Core
                 YearsTotal = s.Generation.YearsTotal,
                 CoinsThisYear = s.CoinsThisYear,
                 HarvestsThisYear = s.HarvestsThisYear,
+                YearFreshSum = s.YearFreshSum,
+                CropsLostThisYear = s.CropsLostThisYear,
+                LastGrade = s.LastGrade,
+                LastGradeBonus = s.LastGradeBonus,
+                LastYearCoins = s.LastYearCoins,
+                GoalType = (int)s.Goal.Type,
+                GoalTier = s.Goal.Tier,
+                GoalTarget = s.Goal.Target,
+                GoalProgress = s.Goal.Progress,
+                GoalDone = s.Goal.Done,
+                GoalReward = s.Goal.Reward,
+                Weather = (int)s.Weather,
+                WeatherLeft = s.WeatherLeft,
+                PlannedWeather = (int)s.PlannedWeather,
+                PlannedWeatherTime = s.PlannedWeatherTime,
             };
             for (int i = 0; i < s.PlotArray.Length; i++)
             {
                 var p = s.PlotArray[i];
                 float crowTimer = 0f;
                 foreach (var c in s.CrowList) if (c.Pos == p.Pos) crowTimer = c.Timer;
-                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.BedTier, Choice = p.Choice, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge, Kind = (int)p.Kind, LastYearTier = p.LastYearTier };
+                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.BedTier, Choice = p.Choice, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge, Kind = (int)p.Kind, LastYearTier = p.LastYearTier, DryTimer = p.DryTimer };
             }
             for (int i = 0; i < s.ApprenticeList.Count; i++)
                 d.Apprentices[i] = new ApprenticeSave { X = s.ApprenticeList[i].X, Y = s.ApprenticeList[i].Y };
@@ -465,6 +499,22 @@ namespace TillWinter.Core
             g.YearsTotal = data.YearsTotal;
             s.CoinsThisYear = data.CoinsThisYear;
             s.HarvestsThisYear = data.HarvestsThisYear;
+            s.YearFreshSum = data.YearFreshSum;
+            s.CropsLostThisYear = data.CropsLostThisYear;
+            s.LastGrade = Math.Max(0, Math.Min(3, data.LastGrade));
+            s.LastGradeBonus = data.LastGradeBonus;
+            s.LastYearCoins = data.LastYearCoins;
+            var goal = s.Goal;
+            goal.Type = data.GoalType >= 0 && data.GoalType <= (int)GoalType.Coins ? (GoalType)data.GoalType : GoalType.None;
+            goal.Tier = Math.Max(0, Math.Min(config.MaxTier, data.GoalTier));
+            goal.Target = data.GoalTarget;
+            goal.Progress = data.GoalProgress;
+            goal.Done = data.GoalDone;
+            goal.Reward = data.GoalReward;
+            s.Weather = data.Weather >= 0 && data.Weather <= (int)Weather.Fog ? (Weather)data.Weather : Weather.Clear;
+            s.WeatherLeft = data.WeatherLeft;
+            s.PlannedWeather = data.PlannedWeather >= 0 && data.PlannedWeather <= (int)Weather.Fog ? (Weather)data.PlannedWeather : Weather.Clear;
+            s.PlannedWeatherTime = data.PlannedWeatherTime;
             s.EndingSeen = data.EndingSeen;
             s.GoldenYearActive = data.GoldenYearActive;
 
@@ -487,6 +537,7 @@ namespace TillWinter.Core
                 plot.RipeAge = ps.RipeAge;
                 plot.Kind = ps.Kind >= 0 && ps.Kind <= (int)PlotKind.Stony ? (PlotKind)ps.Kind : PlotKind.Normal;
                 plot.LastYearTier = Math.Max(-1, Math.Min(config.MaxTier, ps.LastYearTier));
+                plot.DryTimer = ps.DryTimer;
                 if (ps.HasCrow)
                 {
                     plot.HasCrow = true;
@@ -755,6 +806,10 @@ namespace TillWinter.Core
                     if (p.IsRipe || (p.State == PlotState.Wet && p.Progress >= Config.LateFrostThreshold))
                         Harvest(p, HarvestSource.LateFrost, -1);
             }
+            GradeYear();
+            State.Weather = Weather.Clear;
+            State.WeatherLeft = 0f;
+            State.PlannedWeather = Weather.Clear;
             // Crop rotation (GDD §2.3 v1.8): each plot remembers what it grew this year; stony ground grew nothing.
             foreach (var p in State.PlotArray) p.LastYearTier = p.IsStony ? -1 : p.Tier;
             State.Phase = Phase.Winter;
@@ -870,7 +925,7 @@ namespace TillWinter.Core
                             }
                             break;
                         }
-                        float speed = under ? st.RingWaterMult * FlowMult : st.IrrigationFactor;
+                        float speed = under ? st.RingWaterMult * FlowMult : PassiveWater;
                         if (speed <= 0f) break;
                         plot.Progress += speed / crop.Water * dt;
                         if (plot.Progress >= 1f)
@@ -883,7 +938,24 @@ namespace TillWinter.Core
                     }
                     case PlotState.Wet:
                     {
-                        float speed = (under ? st.RingGrowMult * FlowMult : st.SunFactor) * st.SoilMultiplier;                        if (speed <= 0f) break;
+                        float speed = (under ? st.RingGrowMult * FlowMult : PassiveSun) * st.SoilMultiplier;
+                        if (speed <= 0f)
+                        {
+                            // GDD §3.2 (v1.9): in a drought a Wet plot nothing is growing dries back out.
+                            if (!_offline && InDrought)
+                            {
+                                plot.DryTimer += dt * (State.Weather == Weather.HeatWave ? 2f : 1f);
+                                if (plot.DryTimer >= Config.SummerDryOutSeconds)
+                                {
+                                    plot.State = PlotState.Dry;
+                                    plot.Progress = 0f;
+                                    plot.DryTimer = 0f;
+                                    PlotDriedOut?.Invoke(plot.Pos);
+                                }
+                            }
+                            break;
+                        }
+                        plot.DryTimer = 0f;
                         plot.Progress += speed / crop.Grow * dt;
                         if (plot.Progress >= 1f)
                         {
@@ -896,7 +968,7 @@ namespace TillWinter.Core
                     case PlotState.Ripe:
                     {
                         // GDD §2.5 (v1.6): a crop left standing slowly loses value, so the ring has to prioritise.
-                        if (!_offline) plot.RipeAge += dt;
+                        if (!_offline && State.Weather != Weather.Fog) plot.RipeAge += dt; // fog keeps them (GDD §5.4 v1.9)
                         if (plot != ringHarvest) break; // GDD §2.1 (v1.4): the ring harvests one plot at a time
                         plot.Progress += st.RingHarvestMult * FlowMult / crop.Harvest * dt;
                         if (plot.Progress >= 1f)
@@ -948,6 +1020,9 @@ namespace TillWinter.Core
             bool golden = plot.IsGolden;
             double coins = Crop(plot).Value * st.CropValueMult * (golden ? Config.GoldenValueMultiplier : 1) * Freshness(plot);
             coins *= PlotValueMultiplier(plot);
+            // GDD §3.1 (v1.9): the last rush before frost pays double; late frost's rescue keeps its own price.
+            if (State.FrostWarning && source != HarvestSource.LateFrost) coins *= Config.FrostRushValue;
+            State.YearFreshSum += Freshness(plot);
             switch (source)
             {
                 case HarvestSource.Ring:
@@ -975,6 +1050,9 @@ namespace TillWinter.Core
             if (golden) gen.GoldenHarvests++;
             State.HarvestsThisYear++;
             int tier = plot.Tier;
+            var goal = State.Goal;
+            if (goal.Type == GoalType.HarvestCrop && !goal.Done && tier == goal.Tier) goal.Progress++;
+            CheckGoal();
             Replant(plot, source == HarvestSource.Apprentice && st.HelperWater);
             if (plot.HasCrow)
             {
@@ -1055,23 +1133,192 @@ namespace TillWinter.Core
 
         private void RegisterComboHit()
         {
-            State.Combo = State.ComboTimer <= Config.ComboWindowSeconds && State.Combo > 0 ? State.Combo + 1 : 1;
+            State.Combo = State.ComboTimer <= ComboWindow && State.Combo > 0 ? State.Combo + 1 : 1;
             State.ComboTimer = 0f;
             if (State.Combo > State.Generation.BestCombo) State.Generation.BestCombo = State.Combo;
+            var goal = State.Goal;
+            if (goal.Type == GoalType.Combo && !goal.Done) goal.Progress = Math.Max(goal.Progress, State.Combo);
         }
 
         private void UpdateCombo(float dt)
         {
             State.ComboTimer += dt;
-            if (State.Combo > 0 && State.ComboTimer > Config.ComboWindowSeconds) State.Combo = 0;
+            if (State.Combo > 0 && State.ComboTimer > ComboWindow) State.Combo = 0;
         }
 
-        private void AddCoins(double coins)
+        /// <summary>GDD §3.2 (v1.9): the autumn harvest festival gives a streak longer to breathe.</summary>
+        private float ComboWindow => Config.ComboWindowSeconds * (State.Season == Season.Autumn ? Config.AutumnComboWindow : 1f);
+
+        /// <summary>Passive watering: Irrigation, faster in spring rain; a storm waters every Dry plot (GDD §3.2/§5.4 v1.9).</summary>
+        private float PassiveWater
+        {
+            get
+            {
+                float w = State.Stats.IrrigationFactor * (State.Season == Season.Spring ? Config.SpringWaterBoost : 1f);
+                return State.Weather == Weather.Storm ? Math.Max(w, Config.StormWaterRate) : w;
+            }
+        }
+
+        /// <summary>Passive growing: the Sun, gone in a storm, stronger in a heat wave.</summary>
+        private float PassiveSun
+        {
+            get
+            {
+                float s = State.Stats.SunFactor;
+                if (State.Weather == Weather.Storm) return 0f;
+                return State.Weather == Weather.HeatWave ? s * Config.HeatWaveSun : s;
+            }
+        }
+
+        /// <summary>Summer, or a heat wave; never while it storms.</summary>
+        private bool InDrought => State.Weather != Weather.Storm && (State.Season == Season.Summer || State.Weather == Weather.HeatWave);
+
+        /// <param name="yearTake">False for the grade's bonus: it is paid on top of the year, not part of what the year earned.</param>
+        private void AddCoins(double coins, bool yearTake = true)
         {
             State.Coins += coins;
-            State.CoinsThisYear += coins;
+            if (yearTake) State.CoinsThisYear += coins;
             State.Generation.LifetimeCoinsThisGeneration += coins;
             State.Generation.LifetimeCoinsTotal += coins;
+            var goal = State.Goal;
+            if (goal.Type == GoalType.Coins && !goal.Done && State.Phase == Phase.Year)
+            {
+                goal.Progress = State.CoinsThisYear;
+                CheckGoal();
+            }
+        }
+
+        // ------------------------------------------------------------------ goals, grade, weather (GDD §3/§5.4 v1.9)
+
+        private void CheckGoal()
+        {
+            var goal = State.Goal;
+            if (!goal.Active || goal.Done || goal.Progress < goal.Target) return;
+            goal.Done = true; // before paying: the reward's coins must not re-enter here
+            AddCoins(goal.Reward);
+            GoalCompleted?.Invoke(goal);
+        }
+
+        /// <summary>Each year from <see cref="FarmConfig.GoalFirstYear"/> sets one goal, scaled to the farm and last year.</summary>
+        private void SetYearGoal()
+        {
+            var goal = State.Goal;
+            goal.Clear();
+            if (State.Year < Config.GoalFirstYear || State.GoldenYearActive) return;
+            int kinds = State.LastYearCoins > 0 ? 3 : 2;
+            var type = (GoalType)(1 + Math.Min(kinds - 1, (int)(_rng.NextDouble() * kinds)));
+            goal.Type = type;
+            switch (type)
+            {
+                case GoalType.HarvestCrop:
+                {
+                    int top = 0, plots = 0;
+                    foreach (var p in State.PlotArray)
+                    {
+                        if (p.IsStony) continue;
+                        plots++;
+                        top = Math.Max(top, Math.Min(p.BedTier, State.Stats.MaxTierUnlocked));
+                    }
+                    goal.Tier = Math.Min(top, (int)(_rng.NextDouble() * (top + 1)));
+                    goal.Target = Math.Max(1, Math.Ceiling(Config.GoalHarvestsPerPlot * Math.Max(1, plots)));
+                    break;
+                }
+                case GoalType.Combo:
+                    goal.Target = Math.Min(Config.GoalComboMax, Config.GoalComboBase + Config.GoalComboPerYear * (State.Year - 1));
+                    break;
+                case GoalType.Coins:
+                    goal.Target = Math.Ceiling(State.LastYearCoins * Config.GoalCoinsGrowth);
+                    break;
+            }
+            goal.Reward = Math.Max(Config.GoalMinReward, State.LastYearCoins * Config.GoalRewardShare);
+            GoalSet?.Invoke(goal);
+        }
+
+        /// <summary>
+        /// Stars for the finished year from how fresh its crops were (crops lost to crows count as 0), and the share of
+        /// the year's coins they pay on top.
+        /// </summary>
+        private void GradeYear()
+        {
+            int counted = State.HarvestsThisYear + State.CropsLostThisYear;
+            double quality = counted > 0 ? State.YearFreshSum / counted : 0;
+            int stars = 1;
+            var t = Config.GradeThresholds;
+            if (counted > 0 && t != null && t.Length >= 2)
+                stars = quality >= t[1] ? 3 : quality >= t[0] ? 2 : 1;
+            var b = Config.GradeBonusByStars;
+            double bonus = b != null && stars < b.Length ? State.CoinsThisYear * b[stars] : 0;
+            if (bonus > 0) AddCoins(bonus, false);
+            State.LastGrade = stars;
+            State.LastGradeBonus = bonus;
+            State.LastYearCoins = State.CoinsThisYear;
+            YearGraded?.Invoke(stars, bonus);
+        }
+
+        /// <summary>From <see cref="FarmConfig.WeatherFirstYear"/>, a year may bring one spell: a storm any time, fog in spring, a heat wave in summer.</summary>
+        private void PlanWeather()
+        {
+            State.Weather = Weather.Clear;
+            State.WeatherLeft = 0f;
+            State.PlannedWeather = Weather.Clear;
+            State.PlannedWeatherTime = 0f;
+            if (State.Year < Config.WeatherFirstYear || State.GoldenYearActive) return;
+            if (_rng.NextDouble() >= Config.WeatherChance) return;
+            var kind = (Weather)(1 + Math.Min(2, (int)(_rng.NextDouble() * 3)));
+            float length = State.Stats.YearLength;
+            float dur = WeatherSeconds(kind);
+            float from, to;
+            switch (kind)
+            {
+                case Weather.Fog: from = 0.02f * length; to = length / 3f - dur; break;
+                case Weather.HeatWave: from = length / 3f; to = 2f * length / 3f - dur; break;
+                default: from = 0.15f * length; to = 0.85f * length - dur; break;
+            }
+            State.PlannedWeather = kind;
+            State.PlannedWeatherTime = from + (float)_rng.NextDouble() * Math.Max(0f, to - from);
+        }
+
+        private float WeatherSeconds(Weather kind) =>
+            kind == Weather.Storm ? Config.StormSeconds : kind == Weather.HeatWave ? Config.HeatWaveSeconds : kind == Weather.Fog ? Config.FogSeconds : 0f;
+
+        private void UpdateWeather(float dt)
+        {
+            if (State.Weather != Weather.Clear)
+            {
+                State.WeatherLeft -= dt;
+                if (State.WeatherLeft > 0f) return;
+                State.Weather = Weather.Clear;
+                State.WeatherLeft = 0f;
+                WeatherChanged?.Invoke(Weather.Clear);
+                return;
+            }
+            if (State.PlannedWeather == Weather.Clear || State.YearTime < State.PlannedWeatherTime) return;
+            State.Weather = State.PlannedWeather;
+            State.WeatherLeft = WeatherSeconds(State.Weather);
+            State.PlannedWeather = Weather.Clear;
+            WeatherChanged?.Invoke(State.Weather);
+        }
+
+        /// <summary>Starts a weather spell now (tests and the UI tour).</summary>
+        public void DebugStartWeather(Weather kind)
+        {
+            if (State.Phase != Phase.Year) return;
+            State.Weather = kind;
+            State.WeatherLeft = WeatherSeconds(kind);
+            WeatherChanged?.Invoke(kind);
+        }
+
+        /// <summary>Sets this year's goal directly (tests and the UI tour).</summary>
+        public void DebugSetGoal(GoalType type, double target, int tier = 0, double reward = 10)
+        {
+            var goal = State.Goal;
+            goal.Clear();
+            goal.Type = type;
+            goal.Target = target;
+            goal.Tier = tier;
+            goal.Reward = reward;
+            if (type == GoalType.Coins) goal.Progress = State.CoinsThisYear;
+            GoalSet?.Invoke(goal);
         }
 
         // ------------------------------------------------------------------ apprentices
@@ -1374,11 +1621,13 @@ namespace TillWinter.Core
                     plot.HasCrow = false;
                     crows.RemoveAt(i);
                     State.Combo = 0; // a crop lost to a crow breaks the streak
+                    State.CropsLostThisYear++;
                     CrowAte?.Invoke(new CrowEvent(crow.Pos));
                 }
             }
 
             if (State.Year < Config.CrowFirstYear || State.GoldenYearActive) return;
+            if (State.Weather == Weather.Storm || State.Weather == Weather.Fog) return; // no crow flies in it
 
             _crowSpawnTimer += dt;
             while (_crowSpawnTimer >= Config.CrowSpawnInterval)

@@ -43,6 +43,10 @@ namespace TillWinter.Tests
             Run(sim, 3f, null);
             sim.DebugSpawnCrow();
             Run(sim, 1.3f, null);
+            // v10: a goal part-way and a heat wave under way.
+            sim.DebugSetGoal(GoalType.HarvestCrop, 500, 0, 40);
+            sim.DebugStartWeather(Weather.HeatWave);
+            Run(sim, 0.4f, null);
             return sim;
         }
 
@@ -82,6 +86,7 @@ namespace TillWinter.Tests
                 Assert.AreEqual(sa.Plots[i].HasCrow, sb.Plots[i].HasCrow, "crow " + i);
                 Assert.AreEqual(sa.Plots[i].IsGolden, sb.Plots[i].IsGolden, "golden " + i);
                 Assert.AreEqual(sa.Plots[i].RipeAge, sb.Plots[i].RipeAge, "ripe age " + i);
+                Assert.AreEqual(sa.Plots[i].DryTimer, sb.Plots[i].DryTimer, "dry timer " + i);
             }
             Assert.AreEqual(sa.Crows.Count, sb.Crows.Count);
             for (int i = 0; i < sa.Crows.Count; i++)
@@ -100,6 +105,21 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.Stats.ApprenticeCount, sb.Stats.ApprenticeCount);
             Assert.AreEqual(sa.Stats.TargetGridSize, sb.Stats.TargetGridSize);
             Assert.AreEqual(sa.RingShape, sb.RingShape);
+            Assert.AreEqual(sa.Goal.Type, sb.Goal.Type);
+            Assert.AreEqual(sa.Goal.Tier, sb.Goal.Tier);
+            Assert.AreEqual(sa.Goal.Target, sb.Goal.Target);
+            Assert.AreEqual(sa.Goal.Progress, sb.Goal.Progress);
+            Assert.AreEqual(sa.Goal.Done, sb.Goal.Done);
+            Assert.AreEqual(sa.Goal.Reward, sb.Goal.Reward);
+            Assert.AreEqual(sa.Weather, sb.Weather);
+            Assert.AreEqual(sa.WeatherLeft, sb.WeatherLeft);
+            Assert.AreEqual(sa.PlannedWeather, sb.PlannedWeather);
+            Assert.AreEqual(sa.PlannedWeatherTime, sb.PlannedWeatherTime);
+            Assert.AreEqual(sa.YearFreshSum, sb.YearFreshSum);
+            Assert.AreEqual(sa.CropsLostThisYear, sb.CropsLostThisYear);
+            Assert.AreEqual(sa.LastGrade, sb.LastGrade);
+            Assert.AreEqual(sa.LastGradeBonus, sb.LastGradeBonus);
+            Assert.AreEqual(sa.LastYearCoins, sb.LastYearCoins);
             Assert.AreEqual(sa.Combo, sb.Combo);
         }
 
