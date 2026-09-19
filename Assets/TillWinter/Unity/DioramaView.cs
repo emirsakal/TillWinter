@@ -248,7 +248,10 @@ namespace TillWinter.Unity
             else if (roll < 0.82f && _catalog.Flowers != null && _catalog.Flowers.Length > 0) prefab = _catalog.Flowers[rnd.Next(_catalog.Flowers.Length)];
             else prefab = _catalog.Pebbles;
             var go = Place(prefab, "Dressing", pos, yaw);
-            if (go != null) go.transform.localScale = Vector3.one * scale;
+            if (go == null) return;
+            go.transform.localScale = Vector3.one * scale;
+            // Grass, flowers and pebbles hug the ground: their shadows were invisible and cost a shadow pass each.
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
         }
 
         /// <summary>

@@ -527,15 +527,24 @@ namespace TillWinter.Unity
             _checklist.gameObject.SetActive(false);
         }
 
+#if TW_DEBUG || UNITY_EDITOR
+        /// <summary>UI tour: shows the card with nothing ticked on a farm that is past it (a late generation).</summary>
+        public static bool DebugPreviewChecklist;
+#endif
+
         private void RefreshChecklist(FarmState state)
         {
             bool show = state.Phase == Phase.Year && _game.Sim.ChecklistActive;
+            int bits = state.ChecklistBits;
+#if TW_DEBUG || UNITY_EDITOR
+            if (DebugPreviewChecklist && state.Phase == Phase.Year) { show = true; bits = 0; }
+#endif
             if (_checklist.gameObject.activeSelf != show) _checklist.gameObject.SetActive(show);
-            if (!show || state.ChecklistBits == _checkShown) return;
-            _checkShown = state.ChecklistBits;
+            if (!show || bits == _checkShown) return;
+            _checkShown = bits;
             for (int i = 0; i < FarmSim.ChecklistSteps; i++)
             {
-                bool done = (state.ChecklistBits & (1 << i)) != 0;
+                bool done = (bits & (1 << i)) != 0;
                 _checkMarks[i].color = done ? _theme.HintAccent : new Color(_theme.HintText.r, _theme.HintText.g, _theme.HintText.b, 0.25f);
                 _checkLines[i].color = done ? new Color(_theme.HintText.r, _theme.HintText.g, _theme.HintText.b, 0.55f) : _theme.HintText;
                 _checkLines[i].fontStyle = done ? FontStyles.Strikethrough : FontStyles.Normal;

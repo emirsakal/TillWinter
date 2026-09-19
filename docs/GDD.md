@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.6 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice, marked *(v2.6)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.6 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -579,8 +579,9 @@ Quality tiers (`QualityTiers`): Low (no shadows, no post) auto-selected on mobil
 3 GB RAM / 1 GB VRAM, Default (soft shadows + colour volume) otherwise; a debug-panel toggle
 overrides it. Measured draw-call budgets (Editor Game view, 1080x2340): 3x3 generation 1 is 45
 batches / 67 draw calls / 4.7k triangles; 6x6 generation 3 with seven apprentices and the tractor
-is 106 batches / 142 draw calls / 27.8k triangles, against a smoke-test budget of <=150 batches /
-<=60k triangles.
+is 106 batches / 142 draw calls / 27.8k triangles. The smoke test's 6x6 generation-3 scene (with
+particles and rim dressing) measures ~210 batches / ~210k triangles with shadows, against a
+smoke-test budget of <=240 batches / <=250k triangles *(v2.6)*.
 
 ---
 

@@ -222,6 +222,26 @@ namespace TillWinter.Tests
         }
 
         [Test]
+        public void Respec_CannotReRollTheGround()
+        {
+            var cfg = Cfg();
+            cfg.StonyChance = 0.3;
+            cfg.FertileChance = 0.3;
+            var sim = new FarmSim(cfg, 1);
+            Winter(sim, 1e6);
+            Assert.IsTrue(sim.TryBuy("expand_field"));
+            Assert.IsTrue(sim.TryBuy("expand_field"));
+            var before = new PlotKind[sim.State.GridSize * sim.State.GridSize];
+            foreach (var p in sim.State.Plots) before[p.Pos.Y * sim.State.GridSize + p.Pos.X] = p.Kind;
+            Assert.IsTrue(sim.RespecAlmanac());
+            Assert.AreEqual(cfg.StartGridSize, sim.State.GridSize);
+            Assert.IsTrue(sim.TryBuy("expand_field"));
+            Assert.IsTrue(sim.TryBuy("expand_field"));
+            foreach (var p in sim.State.Plots)
+                Assert.AreEqual(before[p.Pos.Y * sim.State.GridSize + p.Pos.X], p.Kind, "same ground at " + p.Pos);
+        }
+
+        [Test]
         public void TheRainCloud_DoesNotGrowUnderASwarm()
         {
             var sim = new FarmSim(Cfg(), 1);
