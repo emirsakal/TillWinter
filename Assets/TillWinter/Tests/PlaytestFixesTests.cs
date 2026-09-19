@@ -242,6 +242,31 @@ namespace TillWinter.Tests
         }
 
         [Test]
+        public void TheGoalReward_IsTheYearsMoney_ButNotNextYearsYardstick()
+        {
+            var sim = new FarmSim(Cfg(), 1);
+            sim.DebugSetGoal(GoalType.Coins, 3, 0, 50);
+            for (int i = 0; i < 2000 && !sim.State.Goal.Done; i++) sim.Tick(0.05f, new RingInput(1f, 1f));
+            Assert.IsTrue(sim.State.Goal.Done);
+            double take = sim.State.CoinsThisYear;
+            sim.DebugSkipToWinter();
+            Assert.AreEqual(take - 50, sim.State.LastYearCoins, 1e-6);
+        }
+
+        [Test]
+        public void TheHandsFreeRing_DoesNotWaitOnAMole()
+        {
+            var sim = new FarmSim(Cfg(), 1);
+            sim.DebugForceRipeAll();
+            sim.DebugSpawnPest(PestKind.Mole, new GridPos(0, 0));
+            var ring = new AutoRing();
+            ring.Place(1f, 1f);
+            var at = ring.Step(sim.State, 0.05f).Value;
+            Assert.AreEqual(1f, at.X, 1e-4, "a ripe plot under the home beats a mole the ring cannot move");
+            Assert.AreEqual(1f, at.Y, 1e-4);
+        }
+
+        [Test]
         public void TheRainCloud_DoesNotGrowUnderASwarm()
         {
             var sim = new FarmSim(Cfg(), 1);
@@ -283,7 +308,7 @@ namespace TillWinter.Tests
 
             var sim = new FarmSim(Cfg(), 1);
             sim.DebugForceRipeAll();
-            sim.DebugSpawnPest(PestKind.Mole, new GridPos(0, 0));
+            sim.DebugSpawnPest(PestKind.Rabbit, new GridPos(0, 0));
             var ring = new AutoRing();
             ring.Place(1f, 1f);
             var at = ring.Step(sim.State, 0.05f).Value;

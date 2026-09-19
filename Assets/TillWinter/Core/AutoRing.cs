@@ -56,7 +56,9 @@ namespace TillWinter.Core
                 // A pest in reach goes first (the ring sends it off), then a clover before it wilts, then Ripe crops,
                 // Wet plots nearest to ripening, stones (cleared once, then they grow), and Dry plots last.
                 double score = p.IsRipe ? 3 : p.State == PlotState.Wet ? 1 + p.Progress : p.IsStony ? 0.6 : 0.5;
-                if (state.Pest.Kind != PestKind.None && state.Pest.Pos == p.Pos) score = 5;
+                // Only a rabbit or a swarm leaves when the ring comes; a mole wants a tap, so the ring does not wait on it.
+                var pest = state.Pest.Kind;
+                if ((pest == PestKind.Rabbit || pest == PestKind.Locusts) && state.Pest.Pos == p.Pos) score = 5;
                 else if (state.Luck.CloverLeft > 0f && state.Luck.CloverPos == p.Pos) score = 4;
                 float dx = p.Pos.X - X, dy = p.Pos.Y - Y;
                 score -= 0.05 * Math.Sqrt(dx * dx + dy * dy); // near beats far on a tie
