@@ -40,9 +40,14 @@ implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
   (bounded, unlocked-crop capped); a HUD basket chip row picks the crop grown up to that quality.
 - **Done.** [H] **Seasonal preferences.** Each crop likes one season and sells ×1.25 during it
   (Year phase only); timings stay fixed per the tuning rule, so this is value-only, not speed.
-- **Open.** [M] **Neighbour bonuses** (companion planting, full rows).
-- **Open.** [M] **Crop rotation** (same crop repeatedly tires the soil).
-- **Open.** [M] **Special plots** (fertile, stony to clear, compost).
+- **Done.** [M] **Neighbour bonuses.** Each orthogonal neighbour growing a different crop adds a
+  small multiplicative value bonus, capped at four neighbours; stony neighbours and field edges
+  don't count.
+- **Done.** [M] **Crop rotation.** Growing a different crop than last year sells for a bonus all
+  year; measured year-to-year, not harvest-to-harvest. Retiring clears the memory.
+- **Done.** [M] **Special plots** (fertile, stony to clear). Fertile ground sells for more; stony
+  ground grows nothing until the ring clears it. Compost is deferred — it would need an
+  input/resource system that doesn't exist yet.
 
 ### M.3 Seasons, year and weather
 

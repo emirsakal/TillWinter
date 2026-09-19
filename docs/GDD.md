@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 1.7 - September 2026 (through mechanics group M.2 first half, crop choice and seasonal preferences, marked *(v1.7)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 1.8 - September 2026 (through mechanics group M.2, field variety — neighbour variety, crop rotation and special ground, marked *(v1.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -70,6 +70,16 @@ rejected (see `DECISIONS.md`). Carrot's base value moved 2.3 → 2.2 to keep yea
 `BalanceTests`' 40–70 range once the in-season bonus is in play (measured: year 1 = 69 coins, seed
 1; ring share at first retire 58%; 5.59 h to the ending; 6 generations to max Heritage).
 
+*(v1.8)* **Neighbour variety.** Each orthogonal neighbour (up/down/left/right) growing a different
+crop tier adds `FarmConfig.NeighbourVarietyBonus` (**4%**) to harvest value, multiplicative:
+`1 + 0.04 × count` (max **+16%** at four different neighbours). A stony neighbour doesn't count; a
+field edge counts for nothing.
+
+*(v1.8)* **Crop rotation.** Entering Winter, every plot remembers the crop it grew that year
+(`Plot.LastYearTier`; a stony plot remembers none, **-1**). A plot growing a different crop than
+last year sells for `FarmConfig.RotationBonus` (**×1.15**) all year; an upgraded bed moving to a
+higher crop counts as a rotation. Retiring gives a fresh field with no memory.
+
 ### 2.4 Field
 - Starts **3×3**. Expands to 4×4, 5×5, 6×6. Expansion is anchored bottom-left (existing plots keep coordinates); the camera re-centres.
 - New plots start at tier 0, Dry.
@@ -84,6 +94,20 @@ rejected (see `DECISIONS.md`). Carrot's base value moved 2.3 → 2.2 to keep yea
   currently in play highlighted. With a chip picked, tapping a plot plants it (a crow on the plot
   still takes the tap first); a bed too low shows "Upgrade this bed first". Tapping the picked chip
   again puts the seed back.
+
+*(v1.8)* **Special ground.** `PlotKind { Normal, Fertile, Stony }`. A plot added by `expand_field`
+rolls with the sim RNG: **25%** stony (`FarmConfig.StonyChance`), **15%** fertile
+(`FarmConfig.FertileChance`), else normal; the starting field and the Heritage starting field are
+always plain, and a debug-set level doesn't roll. Fertile sells for `FarmConfig.FertileValue`
+(**×1.3**). Stony grows nothing — not irrigation, not the rain cloud, no spring head start, no seed
+bag — only the ring hovering over it clears it (`FarmConfig.StoneClearSeconds`, **3 s** of ring
+time; progress is kept within a year, reset at year end), then it becomes plain ground
+(`PlotCleared` event: dust puff + sound). Special ground lasts the generation; retiring gives a
+plain field.
+
+*(v1.8)* All value modifiers — in-season, fertile, rotation, neighbour variety — combine
+multiplicatively in `FarmSim.PlotValueMultiplier`, applied to every harvest source (ring,
+apprentice, tractor, late frost); crop timings are untouched by any of them.
 
 ### 2.5 Over-ripening *(v1.6)*
 - A Ripe plot keeps full value for `RipeGraceSeconds` (**12 s**), then its value falls linearly over `OverripeDecaySeconds` (**24 s**) to `OverripeMinValue` (**50%**) and stays there. The crop is never lost to age — the ring, apprentices and tractor still harvest it, just for less.
@@ -207,6 +231,7 @@ after, but nothing new unlocks.
 - Offline progress: on resume, simulate passive systems only (irrigation → sun → apprentices/tractor) for `min(elapsed, 8 h)` at a fixed dt in the pure core; the year timer does **not** advance offline (you never come back to a lost year). Show a "while you were away" card with coins earned. *(v1.2)* Simulated at a 1 s step; the ring, crows and seasons are frozen. A clock that went backwards counts as 0 elapsed. *(v1.3)* The tractor also runs offline; the greenhouse does not (phase is not Year).
 - *(v1.6)* Schema is now **7**: adds each plot's `RipeAge` and the player's chosen ring shape. Migration `V6ToV7` is a no-op with safe defaults (age 0, circle shape).
 - *(v1.7)* Schema is now **8**: adds each plot's `Choice` (default **-1**); `Tier` now means the bed's quality, not the crop growing. Migration `V7ToV8` sets `Choice = -1` on every plot. Fixture-tested in `SaveV8Tests` against a hand-written v7 JSON.
+- *(v1.8)* Schema is now **9**: adds each plot's `Kind` (int) and `LastYearTier` (default **-1**). Migration `V8ToV9` sets every plot to plain ground with no rotation memory. Fixture-tested in `SaveV9Tests` against a hand-written v8 JSON.
 
 ---
 
@@ -375,3 +400,13 @@ and `tap_harvest` nodes (§2.1, §6), and the flow bonus for a moving ring (§2.
 Measured effect: ring share at first retire rose from ~0.55 to ~0.58, so the `BalanceTests` range
 for it was widened from `(0.40, 0.57)` to `(0.40, 0.62)`. Everything else in `BalanceTests` is
 unchanged and green (214 tests).
+
+**2026-09-19 — M.2 field variety pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer`, seed 1).
+
+What changed: neighbour variety bonus, crop rotation bonus, and special ground — fertile and stony
+plots (§2.3, §2.4).
+
+Measured effect: year-1 coins 69 (unchanged), first apprentice year 3, first `CanRetire` year 7,
+seeds at first retire 11, 6 generations to max Heritage, 5.36 h to the ending (was 5.59 h), ring
+share at first retire 52% (was 58%), generation 4 29%. No tuning needed; 233 tests green.

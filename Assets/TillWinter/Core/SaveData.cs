@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 8;
+        public const int CurrentSchemaVersion = 9;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -96,6 +96,10 @@ namespace TillWinter.Core
         public float RipeAge;
         /// <summary>v8: the crop picked from the seed bag, -1 = follow the bed; <c>Tier</c> is the bed's quality.</summary>
         public int Choice = -1;
+        /// <summary>v9: <see cref="PlotKind"/> (plain, fertile, stony).</summary>
+        public int Kind;
+        /// <summary>v9: last year's crop, -1 = none (crop rotation).</summary>
+        public int LastYearTier = -1;
     }
 
     [Serializable]
@@ -130,6 +134,7 @@ namespace TillWinter.Core
                     case 5: data = V5ToV6(data); break;
                     case 6: data = V6ToV7(data); break;
                     case 7: data = V7ToV8(data); break;
+                    case 8: data = V8ToV9(data); break;
                     default: return null;
                 }
             }
@@ -214,6 +219,14 @@ namespace TillWinter.Core
         {
             if (d.Plots != null) foreach (var p in d.Plots) if (p != null) p.Choice = -1;
             d.SchemaVersion = 8;
+            return d;
+        }
+
+        /// <summary>v8 → v9: every plot is plain ground and none remembers a crop from last year.</summary>
+        private static SaveData V8ToV9(SaveData d)
+        {
+            if (d.Plots != null) foreach (var p in d.Plots) if (p != null) { p.Kind = 0; p.LastYearTier = -1; }
+            d.SchemaVersion = 9;
             return d;
         }
 

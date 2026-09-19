@@ -16,6 +16,12 @@ namespace TillWinter.Tests
             cfg.SeedDivisor = 50;
             // Seasonal preferences (M.2) off: rule timings and values stay what they were written against.
             cfg.InSeasonValue = 1;
+            // Field variety (M.2) off too: no neighbour, rotation or ground bonuses, and expansions add plain ground.
+            cfg.NeighbourVarietyBonus = 0;
+            cfg.RotationBonus = 1;
+            cfg.FertileValue = 1;
+            cfg.FertileChance = 0;
+            cfg.StonyChance = 0;
             return cfg;
         }
     }

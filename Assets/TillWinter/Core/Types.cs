@@ -35,6 +35,16 @@ namespace TillWinter.Core
         }
     }
 
+    /// <summary>GDD §2.4 (v1.8): what kind of ground a plot is. New plots from a field expansion may be special.</summary>
+    public enum PlotKind
+    {
+        Normal = 0,
+        /// <summary>Rich soil: its crop sells for more.</summary>
+        Fertile = 1,
+        /// <summary>Grows nothing until the ring has cleared the stones off it.</summary>
+        Stony = 2,
+    }
+
     /// <summary>GDD §2.2. Each state has its own 0..1 progress.</summary>
     public enum PlotState
     {
