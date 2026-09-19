@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 14;
+        public const int CurrentSchemaVersion = 15;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -133,6 +133,12 @@ namespace TillWinter.Core
         public int Challenge;
         public int Achievements;
         public int GoalsMet, PestsStopped;
+
+        // v15: the family album and New Game+ (GDD §8.2–§8.3 v2.4)
+        public int BestGradeThisGeneration;
+        public int HarvestsAtGenerationStart;
+        public int NgPlus;
+        public AlbumEntry[] Album = new AlbumEntry[0];
     }
 
     [Serializable]
@@ -196,6 +202,7 @@ namespace TillWinter.Core
                     case 11: data = V11ToV12(data); break;
                     case 12: data = V12ToV13(data); break;
                     case 13: data = V13ToV14(data); break;
+                    case 14: data = V14ToV15(data); break;
                     default: return null;
                 }
             }
@@ -339,6 +346,20 @@ namespace TillWinter.Core
             d.TraderSeedSold = d.TraderRareSold = false;
             d.PestCheckTimer = d.LuckyCheckTimer = 0f;
             d.SchemaVersion = 12;
+            return d;
+        }
+
+        /// <summary>
+        /// v14 → v15: an empty album (earlier generations were never written down), no New Game+, and the running
+        /// generation's page counts harvests from now on.
+        /// </summary>
+        private static SaveData V14ToV15(SaveData d)
+        {
+            d.Album = new AlbumEntry[0];
+            d.NgPlus = 0;
+            d.BestGradeThisGeneration = Math.Max(0, d.LastGrade);
+            d.HarvestsAtGenerationStart = d.Harvests;
+            d.SchemaVersion = 15;
             return d;
         }
 

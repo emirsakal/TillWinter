@@ -137,6 +137,12 @@ namespace TillWinter.EditorTools
             new Step(null, 0.4f, () => { var g = Game; if (g == null) return; g.Sim.DebugAddLifetimeCoins(g.Sim.Config.HeritageThreshold); g.Sim.Retire(); }),
             new Step("36-heirs", 4.5f, () => Click("Continue", "GenerationCard", optional: true)),
 
+            // After the ending (GDD §8.2–§8.3 v2.4): New Game+ in the pause sheet, and the album's first page.
+            new Step(null, 2.0f, () => Click("StartGeneration")),
+            new Step(null, 0.4f, () => Game?.Sim.DebugMarkEndingSeen()),
+            new Step("37-pause-ngplus", 0.8f, () => Click("PauseButton")),
+            new Step("38-album", 0.8f, () => Click("pause.album", "PauseSheet")),
+
         };
 
         static UiTour()

@@ -41,10 +41,16 @@ namespace TillWinter.Unity
             var saveGo = new GameObject("Save");
             saveGo.transform.SetParent(root.transform, false);
             var save = saveGo.AddComponent<SaveController>();
-            var loaded = SaveController.Load(save.Path);
+            bool daily = GameSession.Daily != 0;
+            var loaded = daily ? null : SaveController.Load(save.Path);
             FarmSim sim = loaded != null ? FarmSim.FromSave(loaded, config) : null;
             OfflineReport offline = default;
-            if (sim != null)
+            if (daily)
+            {
+                // The daily farm (GDD §8.4 v2.4): built from the day, played once, never saved.
+                game.InitFrom(AfterEnding.Daily(GameSession.Daily));
+            }
+            else if (sim != null)
             {
                 game.InitFrom(sim);
                 long now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -57,7 +63,8 @@ namespace TillWinter.Unity
                 if (loaded != null) Debug.LogWarning("[TillWinter] Save could not be restored (schema " + loaded.SchemaVersion + "); starting fresh");
                 game.Init(config, Seed);
             }
-            save.Attach(game);
+            if (!daily) save.Attach(game);
+            GameSession.NgPlus = game.Sim.State.NgPlus;
             game.RingOffsetPlots = RingOffsetPlots;
             game.Pointer = root.AddComponent<PointerInput>();
 
@@ -135,6 +142,7 @@ namespace TillWinter.Unity
             onboarding.Init(game, canvas);
             var pause = canvas.gameObject.AddComponent<PauseMenu>();
             pause.Init(game, audio, canvas, save);
+            if (daily) canvas.gameObject.AddComponent<DailyResult>().Init(game, audio, canvas);
             var ending = canvas.gameObject.AddComponent<EndingView>();
             ending.Init(game, canvas, pause);
 #if TW_DEBUG || UNITY_EDITOR

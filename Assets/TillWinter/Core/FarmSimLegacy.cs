@@ -85,5 +85,8 @@ namespace TillWinter.Core
 
         /// <summary>Earns an achievement now (tests and the UI tour).</summary>
         public void DebugUnlockAchievement(AchievementId id) => Unlock(id);
+
+        /// <summary>Marks the ending as seen, as the Golden Year does (tests and the UI tour).</summary>
+        public void DebugMarkEndingSeen() => State.EndingSeen = true;
     }
 }

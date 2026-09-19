@@ -91,7 +91,7 @@ namespace TillWinter.Core
         public static bool Has(int bits, AchievementId id) => (bits & (1 << (int)id)) != 0;
 
         /// <summary>Heirlooms, then the heir's trait, then the challenge, on top of the resolved stats.</summary>
-        public static void Apply(Stats s, FarmConfig cfg, int achievements, HeirTrait trait, ChallengeKind challenge)
+        public static void Apply(Stats s, FarmConfig cfg, int achievements, HeirTrait trait, ChallengeKind challenge, int ngPlus = 0)
         {
             double crop = 0, ring = 0, passive = 0, crows = 0, golden = 0, discount = 0;
             for (int i = 0; i < AchievementCount; i++)
@@ -128,6 +128,13 @@ namespace TillWinter.Core
             s.CrowSpawnChance *= (float)Math.Max(0, 1 - crows);
             if (golden > 0) s.GoldenCropChance += golden;
             s.AlmanacCostMult = Math.Max(0.05, s.AlmanacCostMult * (1 - discount));
+
+            // New Game+ (GDD §8.3 v2.4): harder years each round.
+            if (ngPlus > 0)
+            {
+                s.CrowSpawnChance *= (float)(1 + cfg.NgPlusCrows * ngPlus);
+                s.YearLength *= Math.Max(0.7f, 1f - cfg.NgPlusYear * ngPlus);
+            }
 
             switch (challenge)
             {

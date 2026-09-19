@@ -236,6 +236,9 @@ namespace TillWinter.Core
         public int Achievements { get; internal set; }
         public int GoalsMet { get; internal set; }
         public int PestsStopped { get; internal set; }
+        /// <summary>M.8 (GDD §8.2 v2.4): the best year's stars this generation, and the harvest count when it began (for its album page).</summary>
+        public int BestGradeThisGeneration { get; internal set; }
+        public int HarvestsAtGenerationStart { get; internal set; }
     }
 
     /// <summary>Read-only view of the simulation for the presentation layer.</summary>
@@ -313,6 +316,14 @@ namespace TillWinter.Core
         public TraderState Trader { get; } = new TraderState();
         public float HenCooldown { get; internal set; }
         public BarnState Barn { get; } = new BarnState();
+        /// <summary>The family album, one page per generation handed on (GDD §8.2 v2.4).</summary>
+        internal readonly List<AlbumEntry> AlbumList = new List<AlbumEntry>();
+        public IReadOnlyList<AlbumEntry> Album => AlbumList;
+        /// <summary>The New Game+ round, 0 before the first (GDD §8.3 v2.4).</summary>
+        public int NgPlus { get; internal set; }
+        /// <summary>The daily farm's day (yyyymmdd), 0 for the family farm. The daily farm is never saved (GDD §8.4 v2.4).</summary>
+        public int Daily { get; internal set; }
+        public bool IsDaily => Daily != 0;
         public IReadOnlyList<ApprenticeState> Apprentices => ApprenticeList;
 
         public CloudState Cloud { get; } = new CloudState();

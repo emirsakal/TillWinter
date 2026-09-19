@@ -154,6 +154,11 @@ namespace TillWinter.Core
         /// <summary>A short-years challenge scales the year by this; any challenge multiplies the seeds at retirement.</summary>
         public float ChallengeShortYear = 0.7f;
         public double ChallengeSeedBonus = 1.5;
+        /// <summary>Each New Game+ round: this many more crows, and years this much shorter (never below 70%) (GDD §8.3 v2.4).</summary>
+        public double NgPlusCrows = 0.3;
+        public float NgPlusYear = 0.06f;
+        /// <summary>The album keeps this many pages.</summary>
+        public int AlbumPages = 64;
 
         // Ring (GDD §2.1)
         public float BaseRingRadius = 0.7f;

@@ -321,6 +321,7 @@ namespace TillWinter.Core
             if (State.Phase != Phase.Winter || !CanRetire) return false;
             var g = State.Generation;
             int seeds = SeedsIfRetiredNow;
+            WriteAlbumPage(seeds);
             g.SeedsBanked += seeds;
             g.SeedsEarnedTotal += seeds;
             g.Generation++;
@@ -533,6 +534,10 @@ namespace TillWinter.Core
             d.Achievements = s.Generation.Achievements;
             d.GoalsMet = s.Generation.GoalsMet;
             d.PestsStopped = s.Generation.PestsStopped;
+            d.BestGradeThisGeneration = s.Generation.BestGradeThisGeneration;
+            d.HarvestsAtGenerationStart = s.Generation.HarvestsAtGenerationStart;
+            d.NgPlus = s.NgPlus;
+            d.Album = s.AlbumList.ToArray();
             d.LuckyCheckTimer = _luckyCheckTimer;
             return d;
         }
@@ -672,6 +677,10 @@ namespace TillWinter.Core
             g.Achievements = data.Achievements & ((1 << Legacy.AchievementCount) - 1);
             g.GoalsMet = Math.Max(0, data.GoalsMet);
             g.PestsStopped = Math.Max(0, data.PestsStopped);
+            g.BestGradeThisGeneration = Math.Max(0, Math.Min(3, data.BestGradeThisGeneration));
+            g.HarvestsAtGenerationStart = Math.Max(0, Math.Min(g.Harvests, data.HarvestsAtGenerationStart));
+            s.NgPlus = Math.Max(0, data.NgPlus);
+            if (data.Album != null) foreach (var page in data.Album) if (page != null) s.AlbumList.Add(page);
             sim.ResolveStats(); // heirlooms, trait and challenge on top of the trees
             sim._luckyCheckTimer = data.LuckyCheckTimer;
             s.Cloud.Active = data.CloudActive;
@@ -1458,6 +1467,33 @@ namespace TillWinter.Core
             return true;
         }
 
+        // ------------------------------------------------------------------ album (GDD §8.2 v2.4)
+
+        private void WriteAlbumPage(int seeds)
+        {
+            var g = State.Generation;
+            State.AlbumList.Add(new AlbumEntry
+            {
+                Generation = g.Generation,
+                Years = g.YearsThisGeneration + 1,
+                Coins = g.LifetimeCoinsThisGeneration,
+                Seeds = seeds,
+                Harvests = Math.Max(0, g.Harvests - g.HarvestsAtGenerationStart),
+                BestGrade = g.BestGradeThisGeneration,
+                Trait = (int)g.Trait,
+                Challenge = (int)g.Challenge,
+                NgPlus = State.NgPlus,
+            });
+            while (State.AlbumList.Count > Math.Max(1, Config.AlbumPages)) State.AlbumList.RemoveAt(0);
+            g.HarvestsAtGenerationStart = g.Harvests;
+            g.BestGradeThisGeneration = 0;
+        }
+
+        internal void RefreshStats() => ResolveStats();
+
+        /// <summary>The daily farm starts its one year like any spring (goals, weather and events planned).</summary>
+        internal void BeginFirstYear() => BeginSpring();
+
         private void CheckGoal()
         {
             var goal = State.Goal;
@@ -1519,6 +1555,8 @@ namespace TillWinter.Core
             double bonus = b != null && stars < b.Length ? State.CoinsThisYear * b[stars] : 0;
             if (bonus > 0) AddCoins(bonus, false);
             State.LastGrade = stars;
+            var gs = State.Generation;
+            if (stars > gs.BestGradeThisGeneration) gs.BestGradeThisGeneration = stars;
             State.LastGradeBonus = bonus;
             State.LastYearCoins = State.CoinsThisYear;
             YearGraded?.Invoke(stars, bonus);
@@ -2195,7 +2233,7 @@ namespace TillWinter.Core
             var gen = State.Generation;
             bool golden = State.GoldenYearActive;
             Legacy.Apply(State.Stats, Config, Config.HeirloomsEnabled ? gen.Achievements : 0,
-                golden ? HeirTrait.None : gen.Trait, golden ? ChallengeKind.None : gen.Challenge);
+                golden ? HeirTrait.None : gen.Trait, golden ? ChallengeKind.None : gen.Challenge, golden ? 0 : State.NgPlus);
             State.RingRadius = _ringRadiusOverride ?? State.Stats.RingRadius;
             bool ownedBefore = State.Tractor.Owned;
             State.Tractor.Owned = State.Stats.TractorLevel > 0;

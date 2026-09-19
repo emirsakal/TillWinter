@@ -21,6 +21,9 @@ namespace TillWinter.Unity
         public bool ReduceMotion;
         /// <summary>Larger text everywhere (the UiType scale multiplier).</summary>
         public bool LargeText;
+        /// <summary>The daily farm's best score and its day (GDD §8.4 v2.4): local only, like every setting.</summary>
+        public int DailyBestDate;
+        public double DailyBestCoins;
     }
 
     /// <summary>The two shipped languages. Strings and the number style switch together.</summary>

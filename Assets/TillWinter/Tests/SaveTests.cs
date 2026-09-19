@@ -149,6 +149,19 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.Generation.Achievements, sb.Generation.Achievements);
             Assert.AreEqual(sa.Generation.GoalsMet, sb.Generation.GoalsMet);
             Assert.AreEqual(sa.Generation.PestsStopped, sb.Generation.PestsStopped);
+            Assert.AreEqual(sa.Generation.BestGradeThisGeneration, sb.Generation.BestGradeThisGeneration);
+            Assert.AreEqual(sa.Generation.HarvestsAtGenerationStart, sb.Generation.HarvestsAtGenerationStart);
+            Assert.AreEqual(sa.NgPlus, sb.NgPlus);
+            Assert.AreEqual(sa.Album.Count, sb.Album.Count);
+            for (int i = 0; i < sa.Album.Count; i++)
+            {
+                Assert.AreEqual(sa.Album[i].Generation, sb.Album[i].Generation);
+                Assert.AreEqual(sa.Album[i].Years, sb.Album[i].Years);
+                Assert.AreEqual(sa.Album[i].Coins, sb.Album[i].Coins);
+                Assert.AreEqual(sa.Album[i].Seeds, sb.Album[i].Seeds);
+                Assert.AreEqual(sa.Album[i].Harvests, sb.Album[i].Harvests);
+                Assert.AreEqual(sa.Album[i].Trait, sb.Album[i].Trait);
+            }
             for (int i = 0; i < sa.Apprentices.Count; i++) Assert.AreEqual(sa.Apprentices[i].Role, sb.Apprentices[i].Role, "role " + i);
             Assert.AreEqual(sa.Goal.Type, sb.Goal.Type);
             Assert.AreEqual(sa.Goal.Tier, sb.Goal.Tier);

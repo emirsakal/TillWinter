@@ -283,6 +283,7 @@ namespace TillWinter.Unity
             }
             var entries = new List<(string key, UnityAction action, bool primary)> { (hasSave ? "menu.continue" : "menu.play", StartGame, true) };
             if (hasSave) entries.Add(("menu.new_game", () => _confirm.SetActive(true), false));
+            entries.Add(("menu.daily", StartDaily, false));
             entries.Add(("menu.settings", () => _sheets.OpenSettingsFrom(null), false));
             entries.Add(("menu.credits", () => _sheets.OpenCreditsFrom(null), false));
             if (Application.platform != RuntimePlatform.IPhonePlayer) entries.Add(("menu.quit", Application.Quit, false)); // iOS apps never quit themselves
@@ -341,9 +342,18 @@ namespace TillWinter.Unity
 
         // ------------------------------------------------------------------ flow
 
+        /// <summary>Today's daily farm (GDD §8.4 v2.4): the farm scene reads the day and leaves the family save alone.</summary>
+        private void StartDaily()
+        {
+            if (_leaveT >= 0f) return;
+            StartGame();
+            GameSession.Daily = GameSession.Today();
+        }
+
         private void StartGame()
         {
             if (_leaveT >= 0f) return;
+            GameSession.Daily = 0;
             _leaveT = 0f;
             Haptics.Play(HapticKind.Selection);
         }

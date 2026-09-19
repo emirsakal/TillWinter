@@ -390,6 +390,7 @@ namespace TillWinter.Unity
 
         public void Open()
         {
+            if (_game.State.IsDaily) return; // the daily farm ends on its own card
             _visible = true;
             _closing = false;
             _group.blocksRaycasts = true;

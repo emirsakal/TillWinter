@@ -111,10 +111,13 @@ implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
 
 ### M.8 Ending and after
 
-- **Open.** [M] **Family album.** House, stats and a short story per generation.
-- **Open.** [M] **New Game+.** Harder years after the ending with cosmetic rewards.
-- **Open.** [L] **Daily farm seeded by the date** (offline only; at the edge of the no-live-ops
-  pillar).
+- **Done.** [M] **Family album.** Stats and a short story per generation, 64 pages, newest first
+  in the pause menu; the house is not shown (the diorama already grows with the generation).
+- **Done.** [M] **New Game+.** Harder years after the ending (crows up, years down, never below
+  70%) with a gold-flag cosmetic reward; the album and heirlooms carry over, everything else
+  starts fresh.
+- **Done.** [L] **Daily farm seeded by the date** (offline only; at the edge of the no-live-ops
+  pillar). Never saved, never touches the family farm's save; best score kept locally in settings.
 
 ### M.9 Feel and accessibility
 
