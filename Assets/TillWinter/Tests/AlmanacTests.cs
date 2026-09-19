@@ -27,7 +27,7 @@ namespace TillWinter.Tests
                 "ring_radius", "ring_water_speed", "ring_grow_speed", "ring_harvest_speed", "ring_bonus_coins", "ring_combo",
                 "ring_shape", "tap_harvest",
                 "irrigation", "sun", "soil_quality", "crop_value", "fertile_start", "beehive",
-                "expand_field", "upgrade_plot", "unlock_tomato", "unlock_corn", "unlock_pumpkin", "unlock_grapes", "unlock_golden_wheat", "bulk_upgrade",
+                "expand_field", "upgrade_plot", "unlock_tomato", "unlock_corn", "unlock_pumpkin", "unlock_grapes", "unlock_golden_wheat", "bulk_upgrade", "barn",
                 "apprentice_count", "apprentice_speed", "apprentice_harvest_time", "apprentice_yield", "tractor", "scarecrow", "helper_water", "farm_dog", "hens",
                 "year_length", "frost_warning", "late_frost", "greenhouse", "crow_bounty", "spring_head_start",
             };
@@ -47,7 +47,7 @@ namespace TillWinter.Tests
                 ["ring_radius"] = 5, ["ring_water_speed"] = 5, ["ring_grow_speed"] = 5, ["ring_harvest_speed"] = 3, ["ring_bonus_coins"] = 4, ["ring_combo"] = 3,
                 ["ring_shape"] = 2, ["tap_harvest"] = 2,
                 ["irrigation"] = 5, ["sun"] = 5, ["soil_quality"] = 6, ["crop_value"] = 5, ["fertile_start"] = 1, ["beehive"] = 1,
-                ["expand_field"] = 3, ["upgrade_plot"] = -1, ["unlock_tomato"] = 1, ["unlock_corn"] = 1, ["unlock_pumpkin"] = 1, ["unlock_grapes"] = 1, ["unlock_golden_wheat"] = 1, ["bulk_upgrade"] = 1,
+                ["expand_field"] = 3, ["upgrade_plot"] = -1, ["unlock_tomato"] = 1, ["unlock_corn"] = 1, ["unlock_pumpkin"] = 1, ["unlock_grapes"] = 1, ["unlock_golden_wheat"] = 1, ["bulk_upgrade"] = 1, ["barn"] = 3,
                 ["apprentice_count"] = 6, ["apprentice_speed"] = 4, ["apprentice_harvest_time"] = 3, ["apprentice_yield"] = 4, ["tractor"] = 3, ["scarecrow"] = 2, ["helper_water"] = 1, ["farm_dog"] = 1, ["hens"] = 1,
                 ["year_length"] = 6, ["frost_warning"] = 2, ["late_frost"] = 1, ["greenhouse"] = 3, ["crow_bounty"] = 3, ["spring_head_start"] = 1,
             };

@@ -66,6 +66,7 @@ namespace TillWinter.Core
                 case EffectType.HeritageApprenticeYield: return "+" + Pct(node.ValuePerLevel * level);
                 case EffectType.Tractor: return level > 0 && level < cfg.TractorIntervalByLevel.Length ? F(cfg.TractorIntervalByLevel[level], "0") + " s" : "-";
                 case EffectType.Scarecrow: return s.ScarecrowCount.ToString(CultureInfo.InvariantCulture);
+                case EffectType.Barn: return s.BarnCapacity.ToString(CultureInfo.InvariantCulture);
                 case EffectType.ScarecrowImmunity: return level > 0 ? "owned" : "-";
                 case EffectType.YearLength:
                 case EffectType.HeritageStartYearLength: return F(s.YearLength, "0") + " s";

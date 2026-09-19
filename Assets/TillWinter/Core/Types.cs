@@ -180,6 +180,8 @@ namespace TillWinter.Core
         Beehive,
         /// <summary>Hens eat pests, and now and then lay a golden egg (GDD §4.3/§5.5 v2.1).</summary>
         Hens,
+        /// <summary>A barn that keeps part of the harvest for the winter market (GDD §3.5 v2.2).</summary>
+        Barn,
         HelperWater,
         YearLength,
         FrostWarning,

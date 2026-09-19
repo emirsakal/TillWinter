@@ -23,6 +23,8 @@ namespace TillWinter.Unity
             public SkillNode Node;
             public RectTransform Rt;
             public Image Ring, Inner, Lock;
+            /// <summary>The Almanac's suggestion (GDD §6.3 v2.2): a small star badge.</summary>
+            public Image Badge;
             public TMP_Text LevelText;
             public Image Icon;
             public Image[] Pips;
@@ -79,6 +81,20 @@ namespace TillWinter.Unity
         private float _introTarget;
 
         public SkillTree Tree => _tree;
+
+        private string _suggested;
+
+        /// <summary>Marks one node as the suggestion (null clears it).</summary>
+        public void SetSuggested(string id)
+        {
+            if (id == _suggested) return;
+            _suggested = id;
+            for (int i = 0; i < _nodeList.Count; i++)
+            {
+                var badge = _nodeList[i].Badge;
+                if (badge != null) badge.gameObject.SetActive(_nodeList[i].Node.Id == id);
+            }
+        }
         public string SelectedId => _selectedId;
         public float Zoom => _zoom;
         public Vector2 Pan => _content != null ? _content.anchoredPosition : Vector2.zero;
@@ -222,6 +238,12 @@ namespace TillWinter.Unity
                 nv.Lock = UiKit.CircleImage(nv.Rt, "Lock", _theme.InkMuted, new Vector2(size * 0.32f, -size * 0.32f), size * 0.3f);
                 var padlock = NodeIcons.Image(nv.Lock.transform, "locked", _theme.Paper); // a padlock, not a cross
                 UiKit.Box(padlock.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (size * 0.19f));
+
+                nv.Badge = UiKit.CircleImage(nv.Rt, "Suggested", _theme.Accent, new Vector2(-size * 0.36f, size * 0.36f), size * 0.34f);
+                nv.Badge.raycastTarget = false;
+                var badgeStar = NodeIcons.Image(nv.Badge.transform, "star", _theme.Paper);
+                UiKit.Box(badgeStar.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (size * 0.22f));
+                nv.Badge.gameObject.SetActive(false);
 
                 _nodes[node.Id] = nv;
                 _nodeList.Add(nv);

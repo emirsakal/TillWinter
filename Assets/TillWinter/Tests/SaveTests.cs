@@ -55,6 +55,9 @@ namespace TillWinter.Tests
             sim.DebugSpawnPest(PestKind.Mole, new GridPos(1, 1));
             sim.DebugSpawnLucky(LuckyKind.Clover, new GridPos(0, 1));
             sim.DebugBringTrader();
+            // v13: a barn taking half the harvest (the Almanac spend is already counted by the purchases above).
+            sim.DebugSetLevel("barn", 1);
+            Assert.IsTrue(sim.SetStoreShare(0.5f));
             return sim;
         }
 
@@ -132,6 +135,14 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.Trader.PlannedTime, sb.Trader.PlannedTime);
             Assert.AreEqual(sa.Trader.SeedPrice, sb.Trader.SeedPrice);
             Assert.AreEqual(sa.Trader.RarePrice, sb.Trader.RarePrice);
+            Assert.AreEqual(sa.Barn.Stock, sb.Barn.Stock);
+            Assert.AreEqual(sa.Barn.Count, sb.Barn.Count);
+            Assert.AreEqual(sa.Barn.StoreShare, sb.Barn.StoreShare);
+            Assert.AreEqual(sa.Barn.StoreAcc, sb.Barn.StoreAcc);
+            Assert.AreEqual(sa.Barn.MarketPrice, sb.Barn.MarketPrice);
+            Assert.AreEqual(sa.Barn.Jars, sb.Barn.Jars);
+            Assert.AreEqual(sa.Generation.AlmanacSpent, sb.Generation.AlmanacSpent);
+            Assert.AreEqual(sa.Generation.RespecUsed, sb.Generation.RespecUsed);
             for (int i = 0; i < sa.Apprentices.Count; i++) Assert.AreEqual(sa.Apprentices[i].Role, sb.Apprentices[i].Role, "role " + i);
             Assert.AreEqual(sa.Goal.Type, sb.Goal.Type);
             Assert.AreEqual(sa.Goal.Tier, sb.Goal.Tier);

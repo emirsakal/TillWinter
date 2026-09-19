@@ -86,12 +86,14 @@ implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
 
 ### M.6 Winter
 
-- **Open.** [H] **Storage and market.** Keep part of the harvest, sell in another season at a
-  better price.
-- **Open.** [M] **Winter activity.** Turn stored crops into preserves sold in spring, or a
-  one-finger ice-fishing mini-game.
-- **Open.** [M] **Almanac help.** Effect preview, a suggested marker, one free respec per
-  generation.
+- **Done.** [H] **Storage and market.** Keep part of the harvest, sell in another season at a
+  better price. The `barn` Almanac node stores a deterministic share of harvests; each winter
+  draws a market price (×0.8–×1.7) to sell into, or turn the stock into preserves.
+- **Done.** [M] **Winter activity.** Preserves (stock sold at a fixed rate at next spring) are
+  winter's activity. The one-finger ice-fishing mini-game is not done.
+- **Done.** [M] **Almanac help.** Effect preview already existed; added a suggested marker
+  (`AlmanacAdvisor`, gold star badge on the best-value affordable node) and one free respec per
+  generation that refunds exactly what was spent.
 
 ### M.7 Progression and rebirth
 

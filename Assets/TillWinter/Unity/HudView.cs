@@ -212,6 +212,7 @@ namespace TillWinter.Unity
             BuildSeedBag();
             BuildHelperButtons();
             BuildEventUi();
+            BuildStoreButton();
 
             BuildEndYearConfirm(canvas);
 
@@ -420,6 +421,43 @@ namespace TillWinter.Unity
             UiKit.ButtonLabel(_traderRare).text = t.RareSold ? Strings.Get("trader.sold") : Strings.Format("trader.rare", ("price", NumberFormat.Short(t.RarePrice)));
             _traderSeed.interactable = !t.SeedSold;
             _traderRare.interactable = !t.RareSold;
+        }
+
+        // ------------------------------------------------------------------ barn share (GDD §3.5 v2.2)
+
+        private Button _storeButton;
+        private float _storeShown = -1f;
+
+        private void BuildStoreButton()
+        {
+            _storeButton = UiKit.Button(_safe, "StoreShare", "", UiType.Caption, _theme.SheetIdle, _theme.SheetButtonText, CycleStoreShare);
+            UiKit.Box(_storeButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 300f), new Vector2(170f, 110f));
+            UiKit.ButtonIcon(_storeButton, "home");
+            _storeButton.gameObject.SetActive(false);
+        }
+
+        private void CycleStoreShare()
+        {
+            var shares = _game.Sim.Config.StoreShares;
+            int i = System.Array.IndexOf(shares, _game.State.Barn.StoreShare);
+            var next = shares[(i + 1) % shares.Length];
+            if (_game.Sim.SetStoreShare(next))
+            {
+                Haptics.Play(HapticKind.Selection);
+                Banner(Strings.Format("ui.store_share", ("percent", Mathf.RoundToInt(next * 100f))));
+            }
+        }
+
+        private void RefreshStoreButton(FarmState state)
+        {
+            bool show = state.Phase == Phase.Year && state.Stats.BarnCapacity > 0;
+            if (_storeButton.gameObject.activeSelf != show) _storeButton.gameObject.SetActive(show);
+            if (!show) return;
+            float share = state.Barn.StoreShare;
+            if (share == _storeShown) return;
+            _storeShown = share;
+            UiKit.ButtonLabel(_storeButton).text = Strings.Format("ui.store_pct", ("percent", Mathf.RoundToInt(share * 100f)));
+            _storeButton.targetGraphic.color = share > 0f ? _theme.SheetButton : _theme.SheetIdle;
         }
 
         private void OnPestArrived(PestKind kind, GridPos pos)
@@ -722,7 +760,7 @@ namespace TillWinter.Unity
             _bagButton.gameObject.SetActive(false);
 
             _bagRow = UiKit.Rect("SeedRow", _safe);
-            UiKit.Box(_bagRow, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 350f), new Vector2(1000f, 170f));
+            UiKit.Box(_bagRow, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 420f), new Vector2(1000f, 170f));
             _bagHint = UiKit.Label(_bagRow, "Hint", Strings.Get("ui.seed_hint"), UiType.Caption, _theme.Text, TextAnchor.MiddleLeft);
             UiKit.Box(_bagHint.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(4f, 0f), new Vector2(990f, 44f));
             UiKit.Outline(_bagHint, 0.14f);
@@ -1023,6 +1061,7 @@ namespace TillWinter.Unity
             RefreshGoalLine(state);
             RefreshHelperButtons(state);
             RefreshEventUi(state, dt);
+            RefreshStoreButton(state);
             // The seed bag: once a second crop is unlocked, during the year, never on the Golden Year's field.
             bool bag = state.Stats.MaxTierUnlocked > 0 && !state.IsWinter && !state.GoldenYearActive;
             if (_bagButton.gameObject.activeSelf != bag)

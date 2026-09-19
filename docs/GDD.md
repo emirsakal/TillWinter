@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.1 - September 2026 (through mechanics group M.5, events and threats — pests, hens, lucky moments and the travelling trader, marked *(v2.1)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.2 - September 2026 (through mechanics group M.6, winter — barn and market, preserves, Almanac suggestions and free respec, marked *(v2.2)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -168,6 +168,26 @@ helps a Coins goal, §3.3). `LastGrade`, `LastGradeBonus` and `LastYearCoins` ar
 `YearGraded` fires before `WinterStarted`. The Winter screen shows three star icons, "Grade bonus
 +X" and "Goal met"/"Goal missed".
 
+### 3.5 Barn and market *(v2.2)*
+
+- The `barn` Almanac node (Field branch, prereq `expand_field`, max 3, cost 250) holds
+  20/50/120 crops (`FarmConfig.BarnCapacityByLevel`).
+- Once a barn exists, a HUD store-share button (bottom-left, above the seed bag; Year phase only)
+  cycles 0% → 25% → 50% (`FarmConfig.StoreShares`). A running fraction (`State.StoreAcc`) sends
+  every 2nd harvest (50%) or every 4th (25%) to the barn instead of the purse, deterministically —
+  no RNG — until the barn is full. The stored value is exactly what the harvest would have paid,
+  all bonuses included; a stored harvest fires `Stored` and reports 0 coins in the `Harvested`
+  event.
+- Each winter, once a barn exists, a market price is drawn between `FarmConfig.MarketMin` (×0.8)
+  and `FarmConfig.MarketMax` (×1.7). In Winter the player may **Sell** (`Stock × price`, paid into
+  coins and the generation's lifetime coins, not into the year's take) or make **Preserves**
+  (`Stock × FarmConfig.PreserveValue` (×1.25), paid at the start of next Spring as that year's
+  first coins, event `PreservesSold`). Preserves are winter's activity; a one-finger ice-fishing
+  mini-game was considered but is not implemented.
+- Stock carried into a new year spoils 10% (`FarmConfig.BarnSpoil`). Retiring empties the barn.
+- Winter screen: a barn strip above the bottom buttons — "Barn: N crops worth X", "Market ×p" or
+  "Jars for spring: X", buttons "Sell X" and "Preserves X in spring".
+
 ---
 
 ## 4. Passive systems and helpers
@@ -281,7 +301,7 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 - `irrigation` (5) · `sun` (5) · `soil_quality` (6) · `crop_value` +10%/lvl all harvests (5) · `fertile_start` new plots start Wet (1) · `beehive` *(v2.0)* prereq `sun`, Sun grows the two right-most columns ×1.3 (1)
 
 **Field**
-- `expand_field` (3) · `upgrade_plot` (until all max) · `unlock_tomato` (1) · `unlock_corn` (1) · `unlock_pumpkin` (1) · `unlock_grapes` (1) · `unlock_golden_wheat` (1) · `bulk_upgrade` UpgradePlot raises 2 plots per purchase (1)
+- `expand_field` (3) · `upgrade_plot` (until all max) · `unlock_tomato` (1) · `unlock_corn` (1) · `unlock_pumpkin` (1) · `unlock_grapes` (1) · `unlock_golden_wheat` (1) · `bulk_upgrade` UpgradePlot raises 2 plots per purchase (1) · `barn` *(v2.2)* prereq `expand_field`, storage and market (3)
 
 **Helpers**
 - `apprentice_count` (6) · `apprentice_speed` (4) · `apprentice_harvest_time` (3) · `apprentice_yield` (4) · `tractor` (3) · `scarecrow` (2) · `helper_water` apprentices also water the plot they stand on (1) · `farm_dog` *(v2.0)* prereq `scarecrow`, chases off a crow after it lands, no bounty (1) · `hens` *(v2.1)* prereq `farm_dog`, eats a pest, chance of a golden egg (1)
@@ -297,7 +317,26 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 
 *(v2.1)* `hens`: prereq `farm_dog`, max 1, cost 500; eats a pest (§5.5) that has been present `FarmConfig.HenEatSeconds` (2.5 s), then rests `FarmConfig.HenCooldownSeconds` (12 s, saved as `State.HenCooldown`); after a meal, `FarmConfig.GoldenEggChance` (20%) chance of a golden egg worth `FarmConfig.GoldenEggValue` (6) crop values (§5.6). Completes the M.4 "hens eat pests" item above.
 
+*(v2.2)* `barn`: prereq `expand_field`, max 3, cost 250; holds 20/50/120 crops
+(`FarmConfig.BarnCapacityByLevel`) — see §3.5 for storage, the market and preserves.
+
 Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `year_length`) have no prerequisites.
+
+### 6.3 Almanac help *(v2.2)*
+
+- The node detail card's effect preview (current » next) already existed.
+- **Suggested marker.** `AlmanacAdvisor` (Core) holds the node weight table, moved out of
+  `AutoPlayer` — `AutoPlayer` now builds its weights from `AlmanacAdvisor.CreateWeights()` (weight
+  for `barn` 0.3). `AlmanacAdvisor.Suggest(sim)` returns the affordable Almanac node with the best
+  weight per coin in Winter, or null if nothing is affordable; `SkillTreeView.SetSuggested` draws a
+  small gold star badge on it. The same weights drive the balance `AutoPlayer`, so the marker and
+  measured play agree.
+- **Free respec.** Once per generation, in Winter, if something was bought and paid for this
+  generation (`Generation.AlmanacSpent > 0`): `RespecAlmanac` resets the Almanac and refunds
+  exactly what it cost this generation (`TryBuy` now adds every Almanac cost to
+  `Generation.AlmanacSpent`). Beds return to carrots (`BedTier` 0, `Choice` -1) and the field
+  shrinks to the size the Heritage tree now gives (plots nearest the house stay; `FieldExpanded`
+  fires). Retiring clears `AlmanacSpent` and `RespecUsed`. Winter strip button "Free respec +X".
 
 ---
 
@@ -340,6 +379,11 @@ after, but nothing new unlocks.
 - *(v1.8)* Schema is now **9**: adds each plot's `Kind` (int) and `LastYearTier` (default **-1**). Migration `V8ToV9` sets every plot to plain ground with no rotation memory. Fixture-tested in `SaveV9Tests` against a hand-written v8 JSON.
 - *(v1.9)* Schema is now **10**: adds `YearFreshSum`, `CropsLostThisYear`, `LastGrade`, `LastGradeBonus`, `LastYearCoins`, `GoalType`/`GoalTier`/`GoalTarget`/`GoalProgress`/`GoalDone`/`GoalReward`, `Weather`, `WeatherLeft`, `PlannedWeather`, `PlannedWeatherTime` to `SaveData`, and each plot's `DryTimer` to `PlotSave`. Migration `V9ToV10` starts with no active goal, no grade recorded, and clears any in-progress weather. Fixture-tested in `SaveV10Tests` against a hand-written v9 JSON.
 - *(v2.0)* Schema is now **11**: adds `ScarecrowX`/`ScarecrowY` (int arrays) and `DogCooldown` to `SaveData`, and `Role` to `ApprenticeSave`. Migration `V10ToV11` starts with no scarecrows remembered (they are placed fresh on load), a rested dog, and every apprentice as a Harvester. Fixture-tested in `SaveV11Tests` against a hand-written v10 JSON.
+- *(v2.2)* Schema is now **13**: adds `BarnStock`, `BarnCount`, `BarnStoreShare`, `BarnStoreAcc`,
+  `BarnMarketPrice`, `BarnJars`, `AlmanacSpent` and `RespecUsed` to `SaveData`. Migration
+  `V12ToV13` starts with an empty barn, no respec used, and estimates `AlmanacSpent` from the
+  saved node levels at base prices (without Heritage discounts). Fixture-tested in `SaveV13Tests`
+  against a hand-written v12 JSON.
 
 ---
 
@@ -554,3 +598,14 @@ targets keep measuring the core loop.
 Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 11 seeds at
 first retire, 6 generations to max Heritage, 5.27 h to the ending, ring share 100% / 54% / 29%
 (year 1 / first retire / generation 4). No tuning needed; 270 tests green.
+
+**2026-09-19 — M.6 winter pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer`, seed 1).
+
+What changed: the `barn` Almanac node and the storage/market/preserves loop (§3.5), and the
+`AlmanacAdvisor` suggested marker and free respec (§6.3). `AutoPlayer` buys the barn rarely and
+never stores, so balance targets keep measuring the core loop.
+
+Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 11 seeds at
+first retire, 6 generations to max Heritage, 5.21 h to the ending, ring share 100% / 54% / 28%
+(year 1 / first retire / generation 4). No tuning needed; 280 tests green.

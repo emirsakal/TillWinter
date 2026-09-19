@@ -69,6 +69,23 @@ namespace TillWinter.Core
         }
     }
 
+    /// <summary>The barn (GDD §3.5 v2.2): what is stored, at what share, the winter's market price and the jars put up.</summary>
+    public sealed class BarnState
+    {
+        /// <summary>Coins the stored crops were worth when harvested.</summary>
+        public double Stock { get; internal set; }
+        /// <summary>How many crops are stored (against the barn's capacity).</summary>
+        public int Count { get; internal set; }
+        /// <summary>Share of harvests that go to the barn: one of <see cref="FarmConfig.StoreShares"/>.</summary>
+        public float StoreShare { get; internal set; }
+        /// <summary>Running fraction: each harvest adds the share; a whole one sends that harvest to the barn.</summary>
+        public float StoreAcc { get; internal set; }
+        /// <summary>This winter's market price, a multiple of the stored value.</summary>
+        public double MarketPrice { get; internal set; } = 1;
+        /// <summary>Preserves put up this winter, paid out in spring.</summary>
+        public double Jars { get; internal set; }
+    }
+
     /// <summary>The one pest on the field, if any (GDD §5.5 v2.1).</summary>
     public sealed class PestState
     {
@@ -208,6 +225,9 @@ namespace TillWinter.Core
         public double TimePlayedSeconds { get; internal set; }
         /// <summary>Years played across every generation.</summary>
         public int YearsTotal { get; internal set; }
+        /// <summary>Coins spent in the Almanac this generation, and whether its one free respec is used (GDD §6.3 v2.2).</summary>
+        public double AlmanacSpent { get; internal set; }
+        public bool RespecUsed { get; internal set; }
     }
 
     /// <summary>Read-only view of the simulation for the presentation layer.</summary>
@@ -284,6 +304,7 @@ namespace TillWinter.Core
         public LuckState Luck { get; } = new LuckState();
         public TraderState Trader { get; } = new TraderState();
         public float HenCooldown { get; internal set; }
+        public BarnState Barn { get; } = new BarnState();
         public IReadOnlyList<ApprenticeState> Apprentices => ApprenticeList;
 
         public CloudState Cloud { get; } = new CloudState();

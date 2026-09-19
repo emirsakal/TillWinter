@@ -533,7 +533,7 @@ namespace TillWinter.Tests
             ["unlock_tomato"] = "stat", ["unlock_corn"] = "stat", ["unlock_pumpkin"] = "stat", ["unlock_grapes"] = "stat",
             ["unlock_golden_wheat"] = "stat", ["bulk_upgrade"] = "stat", ["apprentice_count"] = "stat", ["apprentice_speed"] = "stat",
             ["apprentice_harvest_time"] = "stat", ["apprentice_yield"] = "stat", ["tractor"] = "stat", ["scarecrow"] = "stat",
-            ["helper_water"] = "stat", ["farm_dog"] = "stat", ["beehive"] = "stat", ["hens"] = "stat", ["year_length"] = "stat", ["frost_warning"] = "stat", ["late_frost"] = "stat",
+            ["helper_water"] = "stat", ["farm_dog"] = "stat", ["beehive"] = "stat", ["hens"] = "stat", ["barn"] = "stat", ["year_length"] = "stat", ["frost_warning"] = "stat", ["late_frost"] = "stat",
             ["greenhouse"] = "stat", ["crow_bounty"] = "stat", ["spring_head_start"] = "stat",
             // Heritage
             ["h_start_radius"] = "stat", ["h_ring_speeds"] = "stat", ["h_ring_coins"] = "stat", ["h_start_irrigation"] = "stat",

@@ -54,21 +54,7 @@ namespace TillWinter.Core.Balance
         public int MaxTicks = 2_000_000;
 
         /// <summary>Static desirability per node id; missing = 1. Greedy score = weight / cost.</summary>
-        public Dictionary<string, double> Weights = new Dictionary<string, double>
-        {
-            ["irrigation"] = 3, ["sun"] = 3, ["ring_radius"] = 2.5, ["apprentice_count"] = 2.5, ["expand_field"] = 2,
-            ["unlock_tomato"] = 2, ["upgrade_plot"] = 1.5, ["soil_quality"] = 1.5, ["ring_water_speed"] = 1.2, ["ring_grow_speed"] = 1.2,
-            ["year_length"] = 1.5, ["scarecrow"] = 0.8, ["farm_dog"] = 0.6, ["beehive"] = 0.6, ["hens"] = 0.5, ["tractor"] = 1.2, ["greenhouse"] = 0.8, ["crow_bounty"] = 0.4,
-            ["ring_combo"] = 0.5, ["ring_shape"] = 0.6, ["tap_harvest"] = 0.6, ["late_frost"] = 0.6, ["frost_warning"] = 0.3, ["helper_water"] = 0.7, ["spring_head_start"] = 0.7,
-            ["h_start_field"] = 3, ["h_free_apprentice"] = 3, ["h_start_irrigation"] = 2.5, ["h_start_sun"] = 2.5, ["h_start_radius"] = 2,
-            ["h_global_growth"] = 1.5, ["h_almanac_discount"] = 1.2, ["h_ring_speeds"] = 1.2, ["h_unlock_rain_cloud"] = 1, ["h_golden_crop"] = 1,
-            // S9: every node has a weight; crop unlocks are weighted by the value jump they bring.
-            ["unlock_corn"] = 5, ["unlock_pumpkin"] = 6, ["unlock_grapes"] = 7, ["unlock_golden_wheat"] = 8, ["bulk_upgrade"] = 2,
-            ["crop_value"] = 1.5, ["fertile_start"] = 0.5, ["ring_harvest_speed"] = 1, ["ring_bonus_coins"] = 1,
-            ["apprentice_speed"] = 1.5, ["apprentice_harvest_time"] = 1.5, ["apprentice_yield"] = 2,
-            ["h_ring_coins"] = 1, ["h_start_tomato"] = 2, ["h_apprentice_yield"] = 1.5, ["h_scarecrow_immunity"] = 0.8,
-            ["h_start_year_length"] = 1.5, ["h_greenhouse_x2"] = 0.8,
-        };
+        public Dictionary<string, double> Weights = AlmanacAdvisor.CreateWeights();
 
         public FarmSim Sim { get; }
         public List<YearRow> Rows { get; } = new List<YearRow>();

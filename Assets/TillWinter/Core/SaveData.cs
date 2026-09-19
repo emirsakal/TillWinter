@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 12;
+        public const int CurrentSchemaVersion = 13;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -117,6 +117,15 @@ namespace TillWinter.Core
         public double TraderSeedPrice, TraderRarePrice;
         public bool TraderSeedSold, TraderRareSold;
         public float PestCheckTimer, LuckyCheckTimer;
+
+        // v13: the barn and the Almanac respec (GDD §3.5/§6.3 v2.2)
+        public double BarnStock;
+        public int BarnCount;
+        public float BarnStoreShare, BarnStoreAcc;
+        public double BarnMarketPrice = 1;
+        public double BarnJars;
+        public double AlmanacSpent;
+        public bool RespecUsed;
     }
 
     [Serializable]
@@ -178,6 +187,7 @@ namespace TillWinter.Core
                     case 9: data = V9ToV10(data); break;
                     case 10: data = V10ToV11(data); break;
                     case 11: data = V11ToV12(data); break;
+                    case 12: data = V12ToV13(data); break;
                     default: return null;
                 }
             }
@@ -321,6 +331,30 @@ namespace TillWinter.Core
             d.TraderSeedSold = d.TraderRareSold = false;
             d.PestCheckTimer = d.LuckyCheckTimer = 0f;
             d.SchemaVersion = 12;
+            return d;
+        }
+
+        /// <summary>
+        /// v12 → v13: an empty barn, no respec used. What the Almanac cost this generation was never counted, so it is
+        /// estimated from the levels at the tables' base prices (without Heritage discounts), which is what a respec refunds.
+        /// </summary>
+        private static SaveData V12ToV13(SaveData d)
+        {
+            d.BarnStock = 0;
+            d.BarnCount = 0;
+            d.BarnStoreShare = d.BarnStoreAcc = 0f;
+            d.BarnMarketPrice = 1;
+            d.BarnJars = 0;
+            d.RespecUsed = false;
+            double spent = 0;
+            foreach (var pair in d.AlmanacLevels ?? new LevelPair[0])
+            {
+                var node = pair == null ? null : AlmanacData.Get(pair.Id);
+                if (node == null) continue;
+                for (int l = 0; l < pair.Level; l++) spent += Math.Round(node.BaseCost * Math.Pow(node.CostGrowth, l));
+            }
+            d.AlmanacSpent = spent;
+            d.SchemaVersion = 13;
             return d;
         }
 

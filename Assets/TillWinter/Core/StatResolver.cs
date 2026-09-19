@@ -26,6 +26,8 @@ namespace TillWinter.Core
         public bool FarmDog, Beehive;
         /// <summary>GDD §4.3/§5.5 (v2.1): hens that eat pests.</summary>
         public bool Hens;
+        /// <summary>Crops the barn holds (GDD §3.5 v2.2); 0 = no barn.</summary>
+        public int BarnCapacity;
         public float YearLength, FrostWarningSeconds;
 
         /// <summary>Highest crop tier plots may be upgraded to.</summary>
@@ -129,6 +131,7 @@ namespace TillWinter.Core
                     case EffectType.FarmDog: s.FarmDog = true; break;
                     case EffectType.Beehive: s.Beehive = true; break;
                     case EffectType.Hens: s.Hens = true; break;
+                    case EffectType.Barn: s.BarnCapacity = cfg.BarnCapacityByLevel[Math.Max(0, Math.Min(cfg.BarnCapacityByLevel.Length - 1, level))]; break;
                     case EffectType.YearLength: s.YearLength += (float)v; break;
                     case EffectType.FrostWarning: s.FrostWarningSeconds += (float)v; break;
                     case EffectType.RingCombo: s.RingComboLevel = level; break;

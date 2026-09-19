@@ -192,6 +192,7 @@ namespace TillWinter.Unity
             _heritage.Selected += OnSelected;
 
             BuildSheet();
+            BuildBarnStrip();
 
             // Bottom buttons.
             _nextYear = UiKit.Button(_safe, "NextYear", Strings.Get("ui.next_year") + "  »", UiType.Heading, _theme.Accent, _theme.Ink, OnNextYear);
@@ -621,6 +622,72 @@ namespace TillWinter.Unity
 
         private TMP_Text _effectNow, _effectNext, _effectArrow, _yearSummary;
         private long _yearSummaryKey = -1;
+        // ------------------------------------------------------------------ barn, respec, suggestion (GDD §3.5/§6.3 v2.2)
+
+        private RectTransform _barnStrip;
+        private TMP_Text _barnLine;
+        private Button _sell, _preserve, _respec;
+        private long _barnKey = -1;
+        private long _suggestKey = -1;
+
+        private void BuildBarnStrip()
+        {
+            _barnStrip = UiKit.Rect("BarnStrip", _safe);
+            UiKit.Stretch(_barnStrip, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 176f), new Vector2(0f, 316f));
+            _barnLine = UiKit.Label(_barnStrip, "Barn", "", UiType.Caption, _theme.Ink, TextAnchor.MiddleLeft);
+            UiKit.Box(_barnLine.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f, 0f), new Vector2(400f, 130f));
+            _sell = UiKit.Button(_barnStrip, "SellBarn", "", UiType.Caption, _theme.Accent, _theme.Ink, () => { if (_game.Sim.SellBarn()) { Haptics.Play(HapticKind.Medium); _barnKey = -1; } });
+            UiKit.Box(_sell.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(430f, 0f), new Vector2(200f, 96f));
+            _preserve = UiKit.Button(_barnStrip, "Preserves", "", UiType.Caption, _theme.Seed, _theme.Paper, () => { if (_game.Sim.MakePreserves()) { Haptics.Play(HapticKind.Medium); _barnKey = -1; } });
+            UiKit.Box(_preserve.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(640f, 0f), new Vector2(210f, 96f));
+            _respec = UiKit.Button(_barnStrip, "Respec", "", UiType.Caption, _theme.InkMuted, _theme.Paper, () =>
+            {
+                if (_game.Sim.RespecAlmanac()) { Haptics.Play(HapticKind.Heavy); _barnKey = -1; _suggestKey = -1; }
+            });
+            UiKit.Box(_respec.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-24f, 0f), new Vector2(200f, 96f));
+            _barnStrip.gameObject.SetActive(false);
+        }
+
+        private void RefreshBarnStrip(FarmState s)
+        {
+            bool winter = s.Phase == Phase.Winter && !_showingHeritage;
+            var barn = s.Barn;
+            bool hasBarn = s.Stats.BarnCapacity > 0 || barn.Stock > 0 || barn.Jars > 0;
+            bool respec = _game.Sim.CanRespec;
+            bool show = winter && (hasBarn || respec);
+            if (_barnStrip.gameObject.activeSelf != show) _barnStrip.gameObject.SetActive(show);
+            if (!show) { _barnKey = -1; return; }
+            long key = (long)System.Math.Min(barn.Stock * 100, 1e15) + barn.Count * 7L + (long)(barn.Jars * 13) + (respec ? 1L << 50 : 0) + (long)(s.Generation.AlmanacSpent * 3);
+            if (key == _barnKey) return;
+            _barnKey = key;
+            string line = "";
+            if (hasBarn)
+            {
+                line = Strings.Format("barn.line", ("count", barn.Count), ("coins", NumberFormat.Short(barn.Stock)));
+                line += "\n" + (barn.Jars > 0
+                    ? Strings.Format("barn.jars", ("coins", NumberFormat.Short(barn.Jars)))
+                    : Strings.Format("barn.price", ("price", barn.MarketPrice.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))));
+            }
+            _barnLine.text = line;
+            bool stock = barn.Stock > 0;
+            _sell.gameObject.SetActive(hasBarn);
+            _preserve.gameObject.SetActive(hasBarn);
+            _sell.interactable = stock;
+            _preserve.interactable = stock;
+            UiKit.ButtonLabel(_sell).text = Strings.Format("barn.sell", ("coins", NumberFormat.Short(barn.Stock * barn.MarketPrice)));
+            UiKit.ButtonLabel(_preserve).text = Strings.Format("barn.preserve", ("coins", NumberFormat.Short(barn.Stock * _game.Sim.Config.PreserveValue)));
+            _respec.gameObject.SetActive(respec);
+            UiKit.ButtonLabel(_respec).text = Strings.Format("ui.respec", ("coins", NumberFormat.Short(s.Generation.AlmanacSpent)));
+        }
+
+        private void RefreshSuggestion(FarmState s)
+        {
+            long key = s.Phase == Phase.Winter ? (long)System.Math.Min(s.Coins, 1e15) * 64 + _game.Sim.Almanac.Levels.Count : -2;
+            if (key == _suggestKey) return;
+            _suggestKey = key;
+            _almanac.SetSuggested(AlmanacAdvisor.Suggest(_game.Sim));
+        }
+
         private Image[] _gradeStars;
         private TMP_Text _gradeLine;
         private int _gradeKey = -2;
@@ -744,6 +811,8 @@ namespace TillWinter.Unity
                     line += (line.Length > 0 ? "  ·  " : "") + Strings.Get(s.Goal.Done ? "ui.goal_result_met" : "ui.goal_result_missed");
                 _gradeLine.text = graded ? line : "";
             }
+            RefreshBarnStrip(s);
+            RefreshSuggestion(s);
             // What the year that just ended brought in (Core counts it from Spring; v5 save).
             long summaryKey = (long)s.CoinsThisYear * 1000 + s.HarvestsThisYear;
             if (summaryKey != _yearSummaryKey)

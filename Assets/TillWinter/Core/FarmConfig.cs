@@ -133,6 +133,18 @@ namespace TillWinter.Core
         public double TraderRarePriceShare = 0.15, TraderRareMinPrice = 20;
         public int TraderRarePlots = 2;
 
+        // Winter (GDD §3.5/§6.3 v2.2)
+        /// <summary>Crops the barn holds, per `barn` level.</summary>
+        public int[] BarnCapacityByLevel = { 0, 20, 50, 120 };
+        /// <summary>The shares of the harvest the player can send to the barn.</summary>
+        public float[] StoreShares = { 0f, 0.25f, 0.5f };
+        /// <summary>Each winter's market price is drawn between these (a multiple of the stored value).</summary>
+        public double MarketMin = 0.8, MarketMax = 1.7;
+        /// <summary>Stock held into a new year loses this share.</summary>
+        public double BarnSpoil = 0.1;
+        /// <summary>Preserves pay this multiple of the stored value, next spring.</summary>
+        public double PreserveValue = 1.25;
+
         // Ring (GDD §2.1)
         public float BaseRingRadius = 0.7f;
         public float MaxRingRadius = 2.5f;
