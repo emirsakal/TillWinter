@@ -327,6 +327,9 @@ namespace TillWinter.EditorTools
             game.Sim.DebugSetLevel("unlock_tomato", 1); // the seed bag shows once a second crop is unlocked
             game.Sim.DebugSetLevel("unlock_corn", 1);
             game.Sim.DebugSetLevel("unlock_pumpkin", 1);
+            // Special ground (GDD §2.4 v1.8), so the later shots show a stony and a fertile plot.
+            game.Sim.DebugSetPlotKind(new GridPos(0, 2), PlotKind.Stony);
+            game.Sim.DebugSetPlotKind(new GridPos(2, 0), PlotKind.Fertile);
         }
 
         /// <summary>

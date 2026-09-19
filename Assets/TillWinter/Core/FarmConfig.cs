@@ -50,6 +50,19 @@ namespace TillWinter.Core
         /// <summary>A crop in its liked season sells for this much more (GDD §2.3 v1.7). Timings never change with the season.</summary>
         public double InSeasonValue = 1.25;
 
+        // Field variety (GDD §2.3/§2.4 v1.8)
+        /// <summary>Each side neighbour growing a different crop adds this much to a harvest's value.</summary>
+        public double NeighbourVarietyBonus = 0.04;
+        /// <summary>A plot growing a different crop than it did last year sells for this much more.</summary>
+        public double RotationBonus = 1.15;
+        /// <summary>A fertile plot sells for this much more.</summary>
+        public double FertileValue = 1.3;
+        /// <summary>Chances that a plot added by expanding the field is fertile, or stony.</summary>
+        public double FertileChance = 0.15;
+        public double StonyChance = 0.25;
+        /// <summary>Seconds of ring over a stony plot to clear it.</summary>
+        public float StoneClearSeconds = 3f;
+
         // Ring (GDD §2.1)
         public float BaseRingRadius = 0.7f;
         public float MaxRingRadius = 2.5f;

@@ -20,6 +20,13 @@ namespace TillWinter.Core
         public bool IsGolden { get; internal set; }
         /// <summary>Seconds this plot has stood Ripe; past the grace the crop is worth less (GDD §2.5 v1.6).</summary>
         public float RipeAge { get; internal set; }
+        /// <summary>Fertile, stony or plain ground (GDD §2.4 v1.8). A stony plot's Progress is how far its clearing has got.</summary>
+        public PlotKind Kind { get; internal set; }
+        /// <summary>The crop this plot grew last year, or -1; a different crop this year is a rotation (GDD §2.3 v1.8).</summary>
+        public int LastYearTier { get; internal set; } = -1;
+        public bool IsStony => Kind == PlotKind.Stony;
+        /// <summary>Growing something other than last year's crop.</summary>
+        public bool IsRotated => LastYearTier >= 0 && Tier != LastYearTier;
 
         internal Plot(GridPos pos, int tier)
         {

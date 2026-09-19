@@ -32,6 +32,7 @@ namespace TillWinter.Unity
             _game.Sim.Harvested += OnHarvested;
             _game.Sim.PlotWatered += OnWatered;
             _game.Sim.PlotRipened += OnRipened;
+            _game.Sim.PlotCleared += OnCleared;
             _game.Sim.CrowAte += OnCrowAte;
             _game.Sim.FieldExpanded += OnFieldExpanded;
             _game.Sim.RainCloudTapped += OnRainSweep;
@@ -47,6 +48,7 @@ namespace TillWinter.Unity
             if (_game == null || _game.Sim == null) return;
             _game.Sim.Harvested -= OnHarvested;
             _game.Sim.PlotWatered -= OnWatered;
+            _game.Sim.PlotCleared -= OnCleared;
             _game.Sim.PlotRipened -= OnRipened;
             _game.Sim.CrowAte -= OnCrowAte;
             _game.Sim.FieldExpanded -= OnFieldExpanded;
@@ -142,6 +144,16 @@ namespace TillWinter.Unity
             }
         }
 
+        /// <summary>The ring has cleared a stony plot (GDD §2.4 v1.8): the stones burst away in a puff of dirt.</summary>
+        private void OnCleared(GridPos pos)
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            var at = _game.PlotToWorld(pos, 0.2f);
+            _fx.Play(VfxId.SoilPuff, at, 1.8f);
+            _fx.Play(VfxId.PlotPop, at);
+            _audio.Play(SfxId.Expansion, 0.8f);
+        }
+
         private void OnWatered(GridPos pos)
         {
             if (_plots.TryGetValue(pos, out var view)) view.SproutPop();
@@ -221,6 +233,8 @@ namespace TillWinter.Unity
         private float _markShow;
         private float _goldSpark;
         private float _stale;
+        private Transform _rocks;
+        private float _rockShow;
         private readonly GameObject[] _stages = new GameObject[3];
         private readonly PaletteBinder[] _stageBinders = new PaletteBinder[3];
         private int _builtTier = -1;
@@ -264,8 +278,31 @@ namespace TillWinter.Unity
                 _cropRoot.localPosition = new Vector3(0f, 0.2f, 0f);
             }
             _ripeMark = transform.Find("RipeMark");
+            BuildRocks(plot);
             BuildCrop(plot.Tier);
             _cropRoot.localScale = Vector3.one * 0.0001f;
+        }
+
+        /// <summary>Stony ground (GDD §2.4 v1.8): three rocks laid out per grid position, hidden on any other plot.</summary>
+        private void BuildRocks(Plot plot)
+        {
+            _rocks = new GameObject("Rocks").transform;
+            _rocks.SetParent(transform, false);
+            _rocks.localPosition = new Vector3(0f, 0.12f, 0f);
+            int h = (plot.Pos.X * 92821) ^ (plot.Pos.Y * 68917);
+            if (h < 0) h = -h;
+            for (int i = 0; i < 3; i++)
+            {
+                var rock = _catalog.Spawn(_catalog.Rock, _rocks, "Rock" + i).transform;
+                float a = (h % 360 + i * 120) * Mathf.Deg2Rad;
+                float r = i == 0 ? 0.08f : 0.26f;
+                rock.localPosition = new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r);
+                rock.localRotation = Quaternion.Euler(0f, (h / 7 % 360) + i * 97f, 0f);
+                rock.localScale = Vector3.one * (i == 0 ? 0.8f : 0.6f); // the catalogue rock is a pebble at plot scale
+            }
+            _rockShow = plot.IsStony ? 1f : 0f;
+            _rocks.localScale = Vector3.one * Mathf.Max(0.0001f, _rockShow);
+            _rocks.gameObject.SetActive(plot.IsStony);
         }
 
         private void BuildCrop(int tier)
@@ -438,12 +475,31 @@ namespace TillWinter.Unity
                 stageBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(0.72f, 0.66f, 0.55f), _stale)); // a crop past its best goes dull
             }
 
+            // Stones sink as the ring works them loose, shiver under it, and are gone once the plot is cleared.
+            bool stony = plot.IsStony;
+            _rockShow = Prims.Damp(_rockShow, stony ? 1f - 0.45f * plot.Progress : 0f, stony ? 10f : 14f, dt);
+            bool showRocks = stony || _rockShow > 0.02f;
+            if (_rocks.gameObject.activeSelf != showRocks) _rocks.gameObject.SetActive(showRocks);
+            if (showRocks)
+            {
+                float shiver = stony && underRing && SettingsStore.MotionAllowed ? 0.025f * Mathf.Sin(simTime * 47f + _phase) : 0f;
+                _rocks.localPosition = new Vector3(shiver, 0.12f, 0f);
+                _rocks.localScale = Vector3.one * Mathf.Max(0.0001f, _rockShow);
+            }
+
             // Soil: Dry -> Wet -> winter white, all through the binder. The ring shows only as its round decal:
             // no per-tile tint or lift, which drew square highlights under a round ring.
             _wetBlend = Prims.Damp(_wetBlend, dry || winter ? 0f : 1f, 10f, dt);
             _winterBlend = Prims.Damp(_winterBlend, winter ? 1f : 0f, 4f, dt);
             var palette = Palette.Load();
             var soil = Color.Lerp(palette.SoilDry, palette.SoilWet, _wetBlend);
+            if (plot.Kind == PlotKind.Fertile)
+            {
+                // Rich, dark earth: darker than any wet plot, so it reads at a glance in every phase.
+                float a = soil.a;
+                soil = Color.Lerp(soil, soil * 0.5f, 0.85f);
+                soil.a = a;
+            }
             _soilBinder.Override(PaletteSlot.SoilDry, soil);
             // Wet soil takes a faint cool sheen; the rain cloud's sweep adds more.
             _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, new Color(0.85f, 0.92f, 1.15f), sheen * 0.6f + _wetBlend * (1f - _winterBlend) * 0.3f));

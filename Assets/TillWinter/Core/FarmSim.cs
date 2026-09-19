@@ -21,6 +21,8 @@ namespace TillWinter.Core
         public event Action<HarvestEvent> Harvested;
         public event Action<GridPos> PlotWatered;
         public event Action<GridPos> PlotRipened;
+        /// <summary>The ring has cleared the stones off a plot (GDD §2.4 v1.8).</summary>
+        public event Action<GridPos> PlotCleared;
         public event Action<CrowEvent> CrowLanded;
         public event Action<CrowEvent> CrowScared;
         public event Action<CrowEvent> CrowAte;
@@ -157,6 +159,7 @@ namespace TillWinter.Core
             if (State.Phase != Phase.Year || !c.Active) return false;
             foreach (var p in State.PlotArray)
             {
+                if (p.IsStony) continue; // rain does not move stones
                 if (p.State == PlotState.Dry)
                 {
                     p.State = PlotState.Wet;
@@ -344,7 +347,7 @@ namespace TillWinter.Core
             foreach (var p in State.PlotArray)
             {
                 p.Reset();
-                if (State.Stats.SpringHeadStart) p.State = PlotState.Wet;
+                if (State.Stats.SpringHeadStart && !p.IsStony) p.State = PlotState.Wet;
             }
             ResetApprentices();
             ResetTractor();
@@ -419,7 +422,7 @@ namespace TillWinter.Core
                 var p = s.PlotArray[i];
                 float crowTimer = 0f;
                 foreach (var c in s.CrowList) if (c.Pos == p.Pos) crowTimer = c.Timer;
-                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.BedTier, Choice = p.Choice, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge };
+                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.BedTier, Choice = p.Choice, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge, Kind = (int)p.Kind, LastYearTier = p.LastYearTier };
             }
             for (int i = 0; i < s.ApprenticeList.Count; i++)
                 d.Apprentices[i] = new ApprenticeSave { X = s.ApprenticeList[i].X, Y = s.ApprenticeList[i].Y };
@@ -482,6 +485,8 @@ namespace TillWinter.Core
                 plot.Progress = ps.Progress;
                 plot.IsGolden = ps.Golden;
                 plot.RipeAge = ps.RipeAge;
+                plot.Kind = ps.Kind >= 0 && ps.Kind <= (int)PlotKind.Stony ? (PlotKind)ps.Kind : PlotKind.Normal;
+                plot.LastYearTier = Math.Max(-1, Math.Min(config.MaxTier, ps.LastYearTier));
                 if (ps.HasCrow)
                 {
                     plot.HasCrow = true;
@@ -633,9 +638,19 @@ namespace TillWinter.Core
             if (State.Phase != Phase.Year) return;
             foreach (var p in State.PlotArray)
             {
+                if (p.IsStony) continue;
                 p.State = PlotState.Ripe;
                 p.Progress = 0f;
             }
+        }
+
+        /// <summary>Makes a plot fertile, stony or plain, as a field expansion might.</summary>
+        public void DebugSetPlotKind(GridPos pos, PlotKind kind)
+        {
+            if (!State.InBounds(pos)) return;
+            var p = State.GetPlot(pos);
+            p.Kind = kind;
+            if (kind == PlotKind.Stony) p.Reset();
         }
 
         /// <summary>Spawns the rain cloud now (even if not unlocked or already spawned this year).</summary>
@@ -740,6 +755,8 @@ namespace TillWinter.Core
                     if (p.IsRipe || (p.State == PlotState.Wet && p.Progress >= Config.LateFrostThreshold))
                         Harvest(p, HarvestSource.LateFrost, -1);
             }
+            // Crop rotation (GDD §2.3 v1.8): each plot remembers what it grew this year; stony ground grew nothing.
+            foreach (var p in State.PlotArray) p.LastYearTier = p.IsStony ? -1 : p.Tier;
             State.Phase = Phase.Winter;
             State.Season = Season.Winter;
             State.YearTime = State.Stats.YearLength;
@@ -780,6 +797,40 @@ namespace TillWinter.Core
         }
 
         /// <summary>
+        /// Everything about where and what a crop is that changes its price (GDD §2.3/§2.4 v1.7–1.8): its liked season,
+        /// fertile ground, a rotation from last year, and each side neighbour growing a different crop.
+        /// </summary>
+        public double PlotValueMultiplier(Plot plot)
+        {
+            double m = 1;
+            if (InSeason(plot.Tier)) m *= Config.InSeasonValue;
+            if (plot.Kind == PlotKind.Fertile) m *= Config.FertileValue;
+            if (plot.IsRotated) m *= Config.RotationBonus;
+            int variety = DifferentNeighbours(plot);
+            if (variety > 0) m *= 1 + Config.NeighbourVarietyBonus * variety;
+            return m;
+        }
+
+        /// <summary>Side neighbours (not diagonals) growing a crop other than this plot's; stony ground grows nothing.</summary>
+        public int DifferentNeighbours(Plot plot)
+        {
+            int n = 0;
+            var p = plot.Pos;
+            n += Differs(plot, new GridPos(p.X - 1, p.Y));
+            n += Differs(plot, new GridPos(p.X + 1, p.Y));
+            n += Differs(plot, new GridPos(p.X, p.Y - 1));
+            n += Differs(plot, new GridPos(p.X, p.Y + 1));
+            return n;
+        }
+
+        private int Differs(Plot plot, GridPos at)
+        {
+            if (!State.InBounds(at)) return 0;
+            var o = State.GetPlot(at);
+            return !o.IsStony && o.Tier != plot.Tier ? 1 : 0;
+        }
+
+        /// <summary>
         /// The seed bag (GDD §2.3 v1.7): plants <paramref name="tier"/> on the plot, any crop up to what its bed can grow,
         /// or -1 to follow the bed again. A different crop replants the plot from Dry; the same crop keeps its progress.
         /// </summary>
@@ -787,7 +838,7 @@ namespace TillWinter.Core
         {
             if (State.Phase != Phase.Year || State.GoldenYearActive || !State.InBounds(pos)) return false;
             var plot = State.GetPlot(pos);
-            if (tier < -1 || tier > plot.BedTier) return false;
+            if (plot.IsStony || tier < -1 || tier > plot.BedTier) return false;
             int before = plot.Tier;
             plot.Choice = tier;
             if (plot.Tier != before) plot.Reset();
@@ -806,6 +857,19 @@ namespace TillWinter.Core
                 {
                     case PlotState.Dry:
                     {
+                        if (plot.IsStony)
+                        {
+                            // GDD §2.4 (v1.8): only the ring clears stones; nothing grows until it has.
+                            if (!under || Config.StoneClearSeconds <= 0f) break;
+                            plot.Progress += dt / Config.StoneClearSeconds;
+                            if (plot.Progress >= 1f)
+                            {
+                                plot.Kind = PlotKind.Normal;
+                                plot.Progress = 0f;
+                                PlotCleared?.Invoke(plot.Pos);
+                            }
+                            break;
+                        }
                         float speed = under ? st.RingWaterMult * FlowMult : st.IrrigationFactor;
                         if (speed <= 0f) break;
                         plot.Progress += speed / crop.Water * dt;
@@ -883,7 +947,7 @@ namespace TillWinter.Core
             var st = State.Stats;
             bool golden = plot.IsGolden;
             double coins = Crop(plot).Value * st.CropValueMult * (golden ? Config.GoldenValueMultiplier : 1) * Freshness(plot);
-            if (InSeason(plot.Tier)) coins *= Config.InSeasonValue;
+            coins *= PlotValueMultiplier(plot);
             switch (source)
             {
                 case HarvestSource.Ring:
@@ -1400,6 +1464,22 @@ namespace TillWinter.Core
             }
         }
 
+        /// <summary>GDD §2.4 (v1.8): the ground a field expansion adds may be fertile or stony; the starting field never is.</summary>
+        private void RollNewGround(int oldSize)
+        {
+            foreach (var p in State.PlotArray)
+            {
+                if (p.Pos.X < oldSize && p.Pos.Y < oldSize) continue;
+                double r = _rng.NextDouble();
+                if (r < Config.StonyChance)
+                {
+                    p.Kind = PlotKind.Stony;
+                    p.Reset(); // stones first: a new plot that would have started wet waits for the clearing
+                }
+                else if (r < Config.StonyChance + Config.FertileChance) p.Kind = PlotKind.Fertile;
+            }
+        }
+
         private Plot FindLowestUpgradablePlot(Plot exclude)
         {
             int cap = State.Stats.MaxTierUnlocked;
@@ -1414,9 +1494,13 @@ namespace TillWinter.Core
             switch (node.Effect)
             {
                 case EffectType.ExpandField:
+                {
+                    int oldSize = State.GridSize;
                     BuildField(Math.Min(Config.MaxGridSize, State.GridSize + 1), State.Stats.FertileStart);
+                    RollNewGround(oldSize);
                     FieldExpanded?.Invoke();
                     break;
+                }
                 case EffectType.UpgradePlot:
                 {
                     var plot = FindLowestUpgradablePlot(null);

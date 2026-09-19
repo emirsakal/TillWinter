@@ -847,3 +847,24 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   chip row; picking a chip then tapping a plot plants it (crow-scare tap still wins first). Taps on
   a plot already mean crow scare and tap-harvest (`tap_harvest`), so a bare tap-on-plot could not
   also mean "plant this" without colliding with those.
+
+## Mechanics M.2 (field variety): neighbour variety, crop rotation and special ground (2026-09-19)
+
+- **Variety is "different neighbours", not named companion pairs.** Open: the backlog's own wording
+  ("companion planting, full rows"). Chosen: any orthogonal neighbour growing a different crop tier
+  counts, no lookup table of which crops pair with which. This reads without a table and pairs
+  naturally with the seed bag — a player free to plant any unlocked crop anywhere can already reason
+  about "different from its neighbours" without memorising a companion chart.
+- **Rotation is measured year-to-year, not harvest-to-harvest.** Open: the backlog's own wording
+  ("same crop repeatedly tires the soil"). Chosen: a plot remembers only the crop it grew last year
+  and compares at Spring; an idle game shouldn't punish replanting the same crop every few seconds
+  under the ring, and one decision per year fits the season rhythm the rest of the game already
+  keeps to.
+- **Stony plots are cleared by the ring, not by a tap or a purchase.** Open: how the player removes
+  stony ground. Chosen: the ring hovering over a stony plot for `StoneClearSeconds` clears it. The
+  ring is already the player's main tool and this gives a concrete reason to steer it onto a plot
+  that otherwise does nothing, instead of adding a new interaction just for stones.
+- **Compost plot deferred, not shipped as a stub.** The backlog's "special plots" item also named a
+  compost plot; it would need an input/resource system (something to feed it) that doesn't exist
+  anywhere else in the game yet. Fertile and stony ship; compost stays open in
+  `docs/MECHANICS-BACKLOG.md` rather than landing half-built.

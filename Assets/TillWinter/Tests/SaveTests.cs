@@ -38,6 +38,7 @@ namespace TillWinter.Tests
             // A seed-bag pick survives the round trip; picking the crop already growing keeps the timings of this fixture.
             Assert.IsTrue(sim.SetPlotCrop(new GridPos(0, 0), 1));
             Assert.AreEqual(1, sim.State.GetPlot(0, 0).Choice);
+            sim.DebugSetPlotKind(new GridPos(2, 2), PlotKind.Fertile); // special ground survives too (v9)
             Run(sim, 12f, new RingInput(1, 1));
             Run(sim, 3f, null);
             sim.DebugSpawnCrow();
@@ -74,6 +75,8 @@ namespace TillWinter.Tests
                 Assert.AreEqual(sa.Plots[i].Tier, sb.Plots[i].Tier, "tier " + i);
                 Assert.AreEqual(sa.Plots[i].BedTier, sb.Plots[i].BedTier, "bed " + i);
                 Assert.AreEqual(sa.Plots[i].Choice, sb.Plots[i].Choice, "choice " + i);
+                Assert.AreEqual(sa.Plots[i].Kind, sb.Plots[i].Kind, "kind " + i);
+                Assert.AreEqual(sa.Plots[i].LastYearTier, sb.Plots[i].LastYearTier, "last year " + i);
                 Assert.AreEqual(sa.Plots[i].State, sb.Plots[i].State, "state " + i);
                 Assert.AreEqual(sa.Plots[i].Progress, sb.Plots[i].Progress, "progress " + i);
                 Assert.AreEqual(sa.Plots[i].HasCrow, sb.Plots[i].HasCrow, "crow " + i);
