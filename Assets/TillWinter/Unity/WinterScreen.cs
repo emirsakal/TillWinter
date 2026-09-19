@@ -157,6 +157,11 @@ namespace TillWinter.Unity
             UiKit.Stretch(_coinsRt, new Vector2(0.58f, 0.5f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-200f, 0f));
             _coins.fontSize = 42;
             _coins.richText = true;
+            // One line always: "10K coins" in Turkish wrapped onto the retire hint below it. Long values shrink instead.
+            _coins.enableWordWrapping = false;
+            _coins.enableAutoSizing = true;
+            _coins.fontSizeMin = 26f;
+            _coins.fontSizeMax = 42f;
             _coinRich = new RichNumber(0.72f, _theme.Accent);
             _seedRich = new RichNumber(0.72f, _theme.Seed);
             var strip = UiKit.Gradient(top, "YearStrip", new Color(_theme.Accent.r, _theme.Accent.g, _theme.Accent.b, 0.16f), true);
@@ -644,7 +649,7 @@ namespace TillWinter.Unity
             UiKit.Box(_preserve.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(640f, 0f), new Vector2(210f, 96f));
             _respec = UiKit.Button(_barnStrip, "Respec", "", UiType.Caption, _theme.InkMuted, _theme.Paper, () =>
             {
-                if (_game.Sim.RespecAlmanac()) { Haptics.Play(HapticKind.Heavy); _barnKey = -1; _suggestKey = -1; }
+                if (_game.Sim.RespecAlmanac()) { Haptics.Play(HapticKind.Heavy); _barnKey = -1; _suggestKey = -1; RefreshAll(); }
             });
             UiKit.Box(_respec.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-24f, 0f), new Vector2(200f, 96f));
             _barnStrip.gameObject.SetActive(false);

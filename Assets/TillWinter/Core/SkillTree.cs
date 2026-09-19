@@ -100,7 +100,7 @@ namespace TillWinter.Core
             var node = GetNode(id);
             if (node == null) return true;
             if (node.MaxLevel < 0) return IsMaxedOverride == null || IsMaxedOverride(node);
-            return GetLevel(id) >= node.MaxLevel;
+            return GetLevel(id) >= node.MaxLevel || (IsMaxedOverride != null && IsMaxedOverride(node));
         }
 
         public bool CanBuy(string id)

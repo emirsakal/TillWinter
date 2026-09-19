@@ -108,13 +108,11 @@ namespace TillWinter.Unity
                     s.TapPosition = DebugTapScreen.Value;
                     DebugTapScreen = null;
                 }
+                bool fingerRing = false;
                 if (s.IsDown && TryScreenToPlot(s.Position, out var p))
-                    ring = new RingInput(p.x, p.y + RingOffsetPlots);
-                else if (SettingsStore.Current.HandsFree)
                 {
-                    // A tap on the field moves the ring's home; with no finger down the ring tends the plots near it.
-                    if (s.Tapped && TryScreenToPlot(s.TapPosition, out var home)) HandsFree.Place(home.x, home.y);
-                    ring = HandsFree.Step(State, dt);
+                    ring = new RingInput(p.x, p.y + RingOffsetPlots);
+                    fingerRing = true;
                 }
                 if (s.Tapped && CloudHitTest != null && CloudHitTest(s.TapPosition) && Sim.TapCloud())
                 {
@@ -140,15 +138,31 @@ namespace TillWinter.Unity
                         if (Sim.SetApprenticeRole(index, role)) ApprenticeRoleToggled?.Invoke(index);
                     }
                 }
+                bool homeTap = false;
+                GridPos home = default;
                 if (s.Tapped && TryScreenToPlot(s.TapPosition, out var tp))
                 {
                     var gp = new GridPos(Mathf.RoundToInt(tp.x), Mathf.RoundToInt(tp.y));
                     if (State.InBounds(gp))
                     {
                         bool pestHere = State.Pest.Kind != PestKind.None && State.Pest.Pos == gp;
-                        if (PlotTapOverride != null && !State.GetPlot(gp).HasCrow && !pestHere) PlotTapOverride(gp);
-                        else Sim.TapAt(gp);
+                        bool crowHere = State.GetPlot(gp).HasCrow;
+                        if (PlotTapOverride != null && !crowHere && !pestHere) PlotTapOverride(gp);
+                        else
+                        {
+                            Sim.TapAt(gp);
+                            homeTap = PlotTapOverride == null && !crowHere && !pestHere; // a tap that did nothing else
+                            home = gp;
+                        }
                     }
+                }
+                if (!fingerRing && SettingsStore.Current.HandsFree)
+                {
+                    // Hands-free (GDD §10.6 v2.5): a plain tap on a plot moves the ring's home; taps that planted a seed,
+                    // moved a scarecrow, chased a crow or pest or touched the cloud, dog or an apprentice leave it be.
+                    if (homeTap) HandsFree.Place(home.X, home.Y);
+                    HandsFree.KeepOnField(State.GridSize); // a smaller field after a retire or respec
+                    ring = HandsFree.Step(State, dt);
                 }
             }
 

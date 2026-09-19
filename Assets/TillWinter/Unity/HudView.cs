@@ -147,7 +147,11 @@ namespace TillWinter.Unity
             _seedGlow = UiKit.CircleImage(_seedChipFace.transform, "Glow", _theme.Seed, new Vector2(-104f, 0f), 96f);
             _seedGlow.sprite = GlowSprite;
             UiKit.CircleImage(_seedChipFace.transform, "Seed", _theme.Seed, new Vector2(-104f, 0f), 44f);
-            _goalLine = UiKit.Label(top, "Goal", "", UiType.Caption, _theme.TextMuted, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // Light text on a pale sky needs a plate behind it: the goal line sits on a soft dark pill sized to its text.
+            _goalPlate = UiKit.Panel(top, "GoalPlate", _theme.BarBackground, true, false);
+            _goalPlateRt = _goalPlate.rectTransform;
+            UiKit.Box(_goalPlateRt, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 332f), new Vector2(960f, 52f));
+            _goalLine = UiKit.Label(top, "Goal", "", UiType.Caption, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_goalLine.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 336f), new Vector2(960f, 44f));
             UiKit.Outline(_goalLine, 0.14f);
             _goalLine.gameObject.SetActive(false);
@@ -214,6 +218,7 @@ namespace TillWinter.Unity
             BuildEventUi();
             BuildStoreButton();
             BuildChecklist();
+            _star.transform.SetAsLastSibling(); // the star crosses over the checklist card, never behind it
 
             BuildEndYearConfirm(canvas);
 
@@ -412,7 +417,8 @@ namespace TillWinter.Unity
             }
 
             var t = state.Trader;
-            bool trader = year && t.Active;
+            // The trader's card covers the open seed bag; it waits (its clock still runs) until the bag closes.
+            bool trader = year && t.Active && !_bagRow.gameObject.activeSelf;
             if (_traderCard.activeSelf != trader) _traderCard.SetActive(trader);
             if (!trader) { _traderKey = -1; return; }
             _traderFill.anchorMax = new Vector2(Mathf.Clamp01(t.TimeLeft / Mathf.Max(0.01f, _game.Sim.Config.TraderSeconds)), 1f);
@@ -571,7 +577,8 @@ namespace TillWinter.Unity
                     _scarecrowButton.targetGraphic.color = _theme.SheetIdle;
                 }
             }
-            bool tractor = year && state.Tractor.Owned && !state.GoldenYearActive;
+            // The open seed bag's last chip sits where the tractor button is: the bag wins while it is open.
+            bool tractor = year && state.Tractor.Owned && !state.GoldenYearActive && !_bagRow.gameObject.activeSelf;
             if (_tractorButton.gameObject.activeSelf != tractor) _tractorButton.gameObject.SetActive(tractor);
             if (tractor)
             {
@@ -593,13 +600,19 @@ namespace TillWinter.Unity
         // ------------------------------------------------------------------ yearly goal line (GDD §3.3 v1.9)
 
         private TMP_Text _goalLine;
+        private Image _goalPlate;
+        private RectTransform _goalPlateRt;
         private long _goalKey = -1;
 
         private void RefreshGoalLine(FarmState state)
         {
             var goal = state.Goal;
             bool show = goal.Active && state.Phase == Phase.Year;
-            if (_goalLine.gameObject.activeSelf != show) _goalLine.gameObject.SetActive(show);
+            if (_goalLine.gameObject.activeSelf != show)
+            {
+                _goalLine.gameObject.SetActive(show);
+                _goalPlate.gameObject.SetActive(show);
+            }
             if (!show) { _goalKey = -1; return; }
             long key = (long)goal.Type * 1000000000L + (long)System.Math.Min(goal.Progress, 99999999) * 10 + (goal.Done ? 1 : 0);
             if (key == _goalKey) return;
@@ -621,7 +634,8 @@ namespace TillWinter.Unity
                 ? Strings.Get("goal.done")
                 : Strings.Format("goal.progress", ("progress", NumberFormat.Short(System.Math.Min(goal.Progress, goal.Target))), ("target", NumberFormat.Short(goal.Target)));
             _goalLine.text = what + "  ·  " + progress;
-            _goalLine.color = goal.Done ? _theme.Gold : _theme.TextMuted;
+            _goalLine.color = goal.Done ? _theme.Gold : _theme.Text;
+            _goalPlateRt.sizeDelta = new Vector2(Mathf.Min(1000f, _goalLine.preferredWidth + 48f), _goalPlateRt.sizeDelta.y);
         }
 
         /// <summary>Splits a localized template around its placeholders once, so the parts can be written into a char buffer.</summary>
@@ -811,9 +825,9 @@ namespace TillWinter.Unity
 
             _bagRow = UiKit.Rect("SeedRow", _safe);
             UiKit.Box(_bagRow, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 420f), new Vector2(1000f, 170f));
-            _bagHint = UiKit.Label(_bagRow, "Hint", Strings.Get("ui.seed_hint"), UiType.Caption, _theme.Text, TextAnchor.MiddleLeft);
+            // It sits on the pale bottom band, not on the sky: dark ink, like the cards there.
+            _bagHint = UiKit.Label(_bagRow, "Hint", Strings.Get("ui.seed_hint"), UiType.Caption, _theme.YearCardText, TextAnchor.MiddleLeft);
             UiKit.Box(_bagHint.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(4f, 0f), new Vector2(990f, 44f));
-            UiKit.Outline(_bagHint, 0.14f);
 
             int count = _game.Sim.Config.Crops.Length + 1; // "best" first, then every crop
             _seedChips = new Button[count];
@@ -1190,7 +1204,7 @@ namespace TillWinter.Unity
                 double perSecond = (lifetime - _rateCoins) / (Time.unscaledTime - _rateAt);
                 _rateCoins = lifetime;
                 _rateAt = Time.unscaledTime;
-                _rate.text = perSecond >= 0.5 && state.Phase == Phase.Year ? "+" + NumberFormat.Short(perSecond) + "/s" : "";
+                _rate.text = perSecond >= 0.5 && state.Phase == Phase.Year ? Strings.Format("ui.rate", ("coins", NumberFormat.Short(perSecond))) : "";
             }
             if (canRetire && _game.Sim.SeedsIfRetiredNow != _chipSeeds) { _chipSeeds = _game.Sim.SeedsIfRetiredNow; _seedChip.SetText(_retireFormat, _chipSeeds); }
 
