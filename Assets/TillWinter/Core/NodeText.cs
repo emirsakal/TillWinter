@@ -85,6 +85,7 @@ namespace TillWinter.Core
                 case EffectType.HelperWater:
                 case EffectType.FarmDog:
                 case EffectType.Beehive:
+                case EffectType.Hens:
                 case EffectType.UnlockRainCloud:
                 case EffectType.HeritageStartIrrigation:
                 case EffectType.HeritageStartSun: return level > 0 ? "on" : "off";

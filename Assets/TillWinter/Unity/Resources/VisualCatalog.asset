@@ -129,6 +129,10 @@ MonoBehaviour:
   FencePost: {fileID: 4958611071431761554, guid: 6a32d065cb1d4854789a18528ca4f1d2, type: 3}
   Flag: {fileID: 8852920479235949950, guid: d95ca497d67a2fe4885ed3fd7c4b74fe, type: 3}
   Scarecrow: {fileID: 2349963081503933352, guid: c00d7d99f34650249aa700983c7d6961, type: 3}
+  Mole: {fileID: 2684456984167134380, guid: 439422e58dc95184bbcddb7671057301, type: 3}
+  Rabbit: {fileID: 4114355607015148860, guid: 1de367fd39cc0f24a95fe6b6331be57b, type: 3}
+  Locust: {fileID: 2601880351404705709, guid: cd1deadeaf8b76648af9b2fd6763312e, type: 3}
+  Clover: {fileID: 2517535739351320692, guid: 5270b290afd2d424385de5ffc334d7d3, type: 3}
   Chicken: {fileID: 333530613313315121, guid: af03abe4ee8fad24099ba85f22c5d78a, type: 3}
   Cat: {fileID: 3251820082568620044, guid: 8e7ff7ca1561b424fa7e939b034278a4, type: 3}
   Channel: {fileID: 2718343414206706475, guid: fe604a818fd3f6e40a2871d3972842a2, type: 3}

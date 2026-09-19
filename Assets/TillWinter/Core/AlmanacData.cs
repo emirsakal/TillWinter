@@ -56,6 +56,7 @@ namespace TillWinter.Core
             { "helper_water", "share1" },
             { "farm_dog", "singleplayer" },
             { "beehive", "zoomIn" },
+            { "hens", "basket" },
             { "year_length", "scrollHorizontal" },
             { "frost_warning", "exclamation" },
             { "late_frost", "pause" },
@@ -105,6 +106,7 @@ namespace TillWinter.Core
             N("tractor", Branch.Helpers, new[] { "apprentice_yield" }, 3, 1000, EffectType.Tractor, 1),
             N("helper_water", Branch.Helpers, new[] { "apprentice_harvest_time" }, 1, 500, EffectType.HelperWater, 1),
             N("farm_dog", Branch.Helpers, new[] { "scarecrow" }, 1, 400, EffectType.FarmDog, 1),
+            N("hens", Branch.Helpers, new[] { "farm_dog" }, 1, 500, EffectType.Hens, 1),
 
             // Calendar
             N("year_length", Branch.Calendar, None, 6, 50, EffectType.YearLength, 15),

@@ -35,6 +35,38 @@ namespace TillWinter.Core
         }
     }
 
+    /// <summary>GDD §5.5 (v2.1): the pests that come from year 3.</summary>
+    public enum PestKind
+    {
+        None = 0,
+        /// <summary>Digs its plot back to Dry unless tapped (bonking it drops a crop's worth).</summary>
+        Mole = 1,
+        /// <summary>Eats a growing or ripe carrot unless tapped or the ring passes over it.</summary>
+        Rabbit = 2,
+        /// <summary>A swarm over a 3x3 patch: nothing grows there; the ring drives it off, or it strips the patch.</summary>
+        Locusts = 3,
+    }
+
+    /// <summary>GDD §5.6 (v2.1): rare lucky moments.</summary>
+    public enum LuckyKind
+    {
+        /// <summary>A four-leaf clover on a plot: sweep the ring over it for a handful of crop values.</summary>
+        Clover = 0,
+        /// <summary>The hens' golden egg, left after they eat a pest.</summary>
+        GoldenEgg = 1,
+        /// <summary>A shooting star at the frost warning: tap it and harvests pay double for a few seconds.</summary>
+        ShootingStar = 2,
+    }
+
+    /// <summary>GDD §5.7 (v2.1): what the travelling trader sells.</summary>
+    public enum TraderOffer
+    {
+        /// <summary>One Heritage Seed for coins.</summary>
+        Seed = 0,
+        /// <summary>Rare seed: a few plots turn golden now.</summary>
+        RareSeed = 1,
+    }
+
     /// <summary>GDD §4.2 (v2.0): what an apprentice does.</summary>
     public enum ApprenticeRole
     {
@@ -146,6 +178,8 @@ namespace TillWinter.Core
         FarmDog,
         /// <summary>Bees speed the Sun on the columns by the sunflowers (GDD §4.3 v2.0).</summary>
         Beehive,
+        /// <summary>Hens eat pests, and now and then lay a golden egg (GDD §4.3/§5.5 v2.1).</summary>
+        Hens,
         HelperWater,
         YearLength,
         FrostWarning,

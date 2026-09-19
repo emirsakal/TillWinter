@@ -103,6 +103,36 @@ namespace TillWinter.Core
         /// <summary>The tractor can be sent by hand once its timer is this far charged.</summary>
         public float TractorManualReady = 0.5f;
 
+        // Events and threats (GDD §5.5–§5.7 v2.1)
+        /// <summary>Pests come from this year of a generation: a check every so often, with this chance.</summary>
+        public int PestFirstYear = 3;
+        public float PestCheckSeconds = 15f;
+        public double PestChance = 0.35;
+        public float MoleDigSeconds = 5f, RabbitEatSeconds = 5f, LocustSeconds = 12f;
+        /// <summary>Seconds of ring over a swarm to drive it off; the swarm covers a square this many plots out from its centre.</summary>
+        public float LocustShooSeconds = 1.5f;
+        public int LocustRadius = 1;
+        /// <summary>A bonked mole drops this many crop values.</summary>
+        public double MoleBounty = 1;
+        /// <summary>The hens go for a pest that has been there this long, then rest; after a meal, a golden egg now and then.</summary>
+        public float HenReactSeconds = 2.5f, HenCooldownSeconds = 12f;
+        public double GoldenEggChance = 0.2, GoldenEggValue = 6;
+        /// <summary>Lucky moments from this year: a clover check every few seconds, the star at the frost warning.</summary>
+        public int LuckyFirstYear = 2;
+        public float LuckyCheckSeconds = 20f;
+        public double CloverChance = 0.12, CloverValue = 8;
+        public float CloverSeconds = 10f;
+        public double ShootingStarChance = 0.35;
+        public float ShootingStarSeconds = 4f, StarRushSeconds = 10f;
+        public double StarRushValue = 2;
+        /// <summary>The trader: from this year, with this chance a summer, for this long; prices scale from last year's coins.</summary>
+        public int TraderFirstYear = 2;
+        public double TraderChance = 0.5;
+        public float TraderSeconds = 25f;
+        public double TraderSeedPriceShare = 0.6, TraderSeedMinPrice = 60;
+        public double TraderRarePriceShare = 0.15, TraderRareMinPrice = 20;
+        public int TraderRarePlots = 2;
+
         // Ring (GDD §2.1)
         public float BaseRingRadius = 0.7f;
         public float MaxRingRadius = 2.5f;

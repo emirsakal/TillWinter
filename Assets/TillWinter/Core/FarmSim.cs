@@ -8,7 +8,7 @@ namespace TillWinter.Core
     /// <see cref="Tick"/> every frame, forwards input via <see cref="Tick"/>/<see cref="TapAt"/>/<see cref="TapCloud"/>,
     /// buys tree nodes with <see cref="TryBuy"/>, and renders <see cref="State"/>.
     /// </summary>
-    public sealed class FarmSim
+    public sealed partial class FarmSim
     {
         public FarmConfig Config { get; }
         public FarmState State { get; }
@@ -132,6 +132,9 @@ namespace TillWinter.Core
             UpdateApprentices(dt);
             UpdateTractor(dt);
             UpdateCrows(dt);
+            UpdatePests(dt);
+            UpdateLuck(dt);
+            UpdateTrader(dt);
             UpdateCloud(dt);
         }
 
@@ -145,6 +148,7 @@ namespace TillWinter.Core
                 ScareWithBounty(plot);
                 return true;
             }
+            if (TapPest(pos)) return true; // GDD §5.5 (v2.1): a mole is bonked, a rabbit shooed
             // GDD §2.1 (v1.6): with `tap_harvest`, a tap finishes one Ripe plot outright, on a cooldown.
             int level = State.Stats.TapHarvestLevel;
             if (level <= 0 || !plot.IsRipe || State.TapCooldown > 0f) return false;
@@ -375,6 +379,8 @@ namespace TillWinter.Core
             State.CropsLostThisYear = 0;
             PlanWeather();
             SetYearGoal();
+            ClearEvents();
+            PlanTrader();
             SeasonChanged?.Invoke(Season.Spring);
             YearStarted?.Invoke();
         }
@@ -472,6 +478,26 @@ namespace TillWinter.Core
                 d.ScarecrowY[i] = s.ScarecrowList[i].Y;
             }
             d.DogCooldown = s.DogCooldown;
+            d.PestKind = (int)s.Pest.Kind;
+            d.PestX = s.Pest.Pos.X;
+            d.PestY = s.Pest.Pos.Y;
+            d.PestTimer = s.Pest.Timer;
+            d.PestShoo = s.Pest.Shoo;
+            d.HenCooldown = s.HenCooldown;
+            d.CloverX = s.Luck.CloverPos.X;
+            d.CloverY = s.Luck.CloverPos.Y;
+            d.CloverLeft = s.Luck.CloverLeft;
+            d.StarLeft = s.Luck.StarLeft;
+            d.RushLeft = s.Luck.RushLeft;
+            d.TraderActive = s.Trader.Active;
+            d.TraderTimeLeft = s.Trader.TimeLeft;
+            d.TraderPlannedTime = s.Trader.PlannedTime;
+            d.TraderSeedPrice = s.Trader.SeedPrice;
+            d.TraderRarePrice = s.Trader.RarePrice;
+            d.TraderSeedSold = s.Trader.SeedSold;
+            d.TraderRareSold = s.Trader.RareSold;
+            d.PestCheckTimer = _pestCheckTimer;
+            d.LuckyCheckTimer = _luckyCheckTimer;
             return d;
         }
 
@@ -571,6 +597,28 @@ namespace TillWinter.Core
                 sim.SyncScarecrows(); // clamps, and fixes a count that does not match the levels
             }
             s.DogCooldown = Math.Max(0f, data.DogCooldown);
+            var pestPos = new GridPos(data.PestX, data.PestY);
+            bool pestOk = data.PestKind > 0 && data.PestKind <= (int)PestKind.Locusts && s.InBounds(pestPos);
+            s.Pest.Kind = pestOk ? (PestKind)data.PestKind : PestKind.None;
+            s.Pest.Pos = s.InBounds(pestPos) ? pestPos : new GridPos(0, 0);
+            s.Pest.Timer = pestOk ? data.PestTimer : 0f;
+            s.Pest.Shoo = pestOk ? data.PestShoo : 0f;
+            s.HenCooldown = Math.Max(0f, data.HenCooldown);
+            var cloverPos = new GridPos(data.CloverX, data.CloverY);
+            bool cloverOk = data.CloverLeft > 0f && s.InBounds(cloverPos);
+            s.Luck.CloverPos = s.InBounds(cloverPos) ? cloverPos : new GridPos(0, 0);
+            s.Luck.CloverLeft = cloverOk ? data.CloverLeft : 0f;
+            s.Luck.StarLeft = Math.Max(0f, data.StarLeft);
+            s.Luck.RushLeft = Math.Max(0f, data.RushLeft);
+            s.Trader.Active = data.TraderActive;
+            s.Trader.TimeLeft = data.TraderTimeLeft;
+            s.Trader.PlannedTime = data.TraderPlannedTime;
+            s.Trader.SeedPrice = data.TraderSeedPrice;
+            s.Trader.RarePrice = data.TraderRarePrice;
+            s.Trader.SeedSold = data.TraderSeedSold;
+            s.Trader.RareSold = data.TraderRareSold;
+            sim._pestCheckTimer = data.PestCheckTimer;
+            sim._luckyCheckTimer = data.LuckyCheckTimer;
             s.Cloud.Active = data.CloudActive;
             s.Cloud.X = data.CloudX;
             s.Cloud.TimeLeft = data.CloudTimeLeft;
@@ -786,6 +834,7 @@ namespace TillWinter.Core
             if (!State.GoldenYearActive && !State.FrostWarning && State.YearTime >= length - State.Stats.FrostWarningSeconds)
             {
                 State.FrostWarning = true;
+                MaybeShootingStar();
                 FrostWarningStarted?.Invoke();
             }
 
@@ -839,6 +888,7 @@ namespace TillWinter.Core
             State.Ring = null;
             State.Combo = 0;
             ClearCrows();
+            ClearEvents();
             foreach (var p in State.PlotArray) p.Reset();
             ResetApprentices();
             ResetTractor();
@@ -958,6 +1008,7 @@ namespace TillWinter.Core
                     }
                     case PlotState.Wet:
                     {
+                        if (InLocusts(plot.Pos)) break; // GDD §5.5 (v2.1): nothing grows under a swarm
                         float speed = (under ? st.RingGrowMult * FlowMult : PassiveSun * BeeBoost(plot)) * st.SoilMultiplier;
                         if (speed <= 0f)
                         {
@@ -1042,6 +1093,7 @@ namespace TillWinter.Core
             coins *= PlotValueMultiplier(plot);
             // GDD §3.1 (v1.9): the last rush before frost pays double; late frost's rescue keeps its own price.
             if (State.FrostWarning && source != HarvestSource.LateFrost) coins *= Config.FrostRushValue;
+            coins *= LuckMultiplier; // GDD §5.6 (v2.1): the shooting star's rush
             State.YearFreshSum += Freshness(plot);
             switch (source)
             {
@@ -1209,6 +1261,21 @@ namespace TillWinter.Core
         }
 
         // ------------------------------------------------------------------ goals, grade, weather (GDD §3/§5.4 v1.9)
+
+        /// <summary>Pests, clover, star, rush and a visiting trader all end with the year.</summary>
+        private void ClearEvents()
+        {
+            var pest = State.Pest;
+            pest.Kind = PestKind.None;
+            pest.Timer = pest.Shoo = 0f;
+            var luck = State.Luck;
+            luck.CloverLeft = luck.StarLeft = luck.RushLeft = 0f;
+            var t = State.Trader;
+            if (t.Active) TraderLeft?.Invoke();
+            t.Active = false;
+            t.TimeLeft = 0f;
+            t.PlannedTime = -1f;
+        }
 
         private void CheckGoal()
         {
@@ -1761,16 +1828,23 @@ namespace TillWinter.Core
             if (State.DogCooldown > 0f) State.DogCooldown = Math.Max(0f, State.DogCooldown - dt);
             if (State.Stats.FarmDog && State.DogCooldown <= 0f)
             {
+                // The crow that has sat longest (ties: lowest row, then column), so the choice does not hang on list order.
+                int pick = -1;
                 for (int i = 0; i < crows.Count; i++)
                 {
                     if (crows[i].Timer < Config.DogReactSeconds) continue;
-                    var pos = crows[i].Pos;
+                    if (pick < 0 || crows[i].Timer > crows[pick].Timer || (crows[i].Timer == crows[pick].Timer &&
+                        (crows[i].Pos.Y < crows[pick].Pos.Y || (crows[i].Pos.Y == crows[pick].Pos.Y && crows[i].Pos.X < crows[pick].Pos.X))))
+                        pick = i;
+                }
+                if (pick >= 0)
+                {
+                    var pos = crows[pick].Pos;
                     State.GetPlot(pos).HasCrow = false;
-                    crows.RemoveAt(i);
+                    crows.RemoveAt(pick);
                     State.DogCooldown = Config.DogCooldownSeconds;
                     DogChased?.Invoke(pos);
                     CrowScared?.Invoke(new CrowEvent(pos, 0));
-                    break;
                 }
             }
             for (int i = crows.Count - 1; i >= 0; i--)

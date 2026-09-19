@@ -211,6 +211,7 @@ namespace TillWinter.Unity
 
             BuildSeedBag();
             BuildHelperButtons();
+            BuildEventUi();
 
             BuildEndYearConfirm(canvas);
 
@@ -246,6 +247,12 @@ namespace TillWinter.Unity
             _game.Sim.GoalCompleted += OnGoalCompleted;
             _game.Sim.WeatherChanged += OnWeatherChanged;
             _game.ApprenticeRoleToggled += OnRoleToggled;
+            _game.Sim.PestArrived += OnPestArrived;
+            _game.Sim.PestStruck += OnPestStruck;
+            _game.Sim.HensAte += OnHensAte;
+            _game.Sim.LuckyAppeared += OnLuckyAppeared;
+            _game.Sim.LuckyFound += OnLuckyFound;
+            _game.Sim.TraderArrived += OnTraderArrived;
         }
 
         private void OnFrostWarning()
@@ -337,6 +344,123 @@ namespace TillWinter.Unity
         {
             if (_game.Sim.TriggerTractor()) Haptics.Play(HapticKind.Medium);
             else _audio?.Play(SfxId.Denied, 0.8f);
+        }
+
+        // ------------------------------------------------------------------ events and threats (GDD §5.5–§5.7 v2.1)
+
+        private Button _star;
+        private RectTransform _starRt;
+        private GameObject _traderCard;
+        private Button _traderSeed, _traderRare;
+        private RectTransform _traderFill;
+        private int _traderKey = -1;
+
+        private void BuildEventUi()
+        {
+            // The shooting star crosses the evening sky over the field; a tap catches it.
+            _star = UiKit.Button(_safe, "ShootingStar", "", UiType.Label, _theme.Gold, _theme.SheetButtonText, () =>
+            {
+                if (_game.Sim.TapStar()) Haptics.Play(HapticKind.Medium);
+            });
+            _starRt = _star.GetComponent<RectTransform>();
+            UiKit.Box(_starRt, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -_theme.TopPadding - 440f), new Vector2(120f, 120f));
+            UiKit.ButtonIcon(_star, "star");
+            _star.gameObject.SetActive(false);
+
+            // The trader's card: two offers and how long it stays.
+            var card = UiKit.Card(_safe, "TraderCard", _theme.YearCard, false);
+            _traderCard = card.gameObject;
+            UiKit.Box(card.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 345f), new Vector2(640f, 200f));
+            var title = UiKit.Label(card.transform, "Title", Strings.Get("trader.title"), UiType.Label, _theme.YearCardText, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(600f, 44f));
+            _traderSeed = UiKit.Button(card.transform, "TraderSeed", "", UiType.Caption, _theme.Seed, _theme.SheetButtonText, () => BuyFromTrader(TraderOffer.Seed));
+            UiKit.Box(_traderSeed.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-150f, 40f), new Vector2(280f, 96f));
+            _traderRare = UiKit.Button(card.transform, "TraderRare", "", UiType.Caption, _theme.SheetButton, _theme.SheetButtonText, () => BuyFromTrader(TraderOffer.RareSeed));
+            UiKit.Box(_traderRare.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(150f, 40f), new Vector2(280f, 96f));
+            var track = UiKit.Panel(card.transform, "Time", _theme.BarBackground, true, false);
+            UiKit.Box(track.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 14f), new Vector2(560f, 10f));
+            _traderFill = UiKit.Panel(track.transform, "Fill", _theme.Gold, true, false).rectTransform;
+            UiKit.Stretch(_traderFill, Vector2.zero, new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            _traderCard.SetActive(false);
+        }
+
+        private void BuyFromTrader(TraderOffer offer)
+        {
+            if (_game.Sim.TraderBuy(offer))
+            {
+                Haptics.Play(HapticKind.Medium);
+                _audio?.Play(SfxId.Purchase);
+                _traderKey = -1;
+            }
+            else _audio?.Play(SfxId.Denied, 0.8f);
+        }
+
+        private void RefreshEventUi(FarmState state, float dt)
+        {
+            bool year = state.Phase == Phase.Year;
+            var luck = state.Luck;
+            bool star = year && luck.StarLeft > 0f;
+            if (_star.gameObject.activeSelf != star) _star.gameObject.SetActive(star);
+            if (star)
+            {
+                float k = 1f - luck.StarLeft / Mathf.Max(0.01f, _game.Sim.Config.ShootingStarSeconds);
+                _starRt.anchoredPosition = new Vector2(Mathf.Lerp(-420f, 420f, k), -_theme.TopPadding - 440f + Mathf.Sin(k * Mathf.PI) * 60f);
+                _starRt.localRotation = Quaternion.Euler(0f, 0f, SettingsStore.MotionAllowed ? -k * 360f : 0f);
+            }
+
+            var t = state.Trader;
+            bool trader = year && t.Active;
+            if (_traderCard.activeSelf != trader) _traderCard.SetActive(trader);
+            if (!trader) { _traderKey = -1; return; }
+            _traderFill.anchorMax = new Vector2(Mathf.Clamp01(t.TimeLeft / Mathf.Max(0.01f, _game.Sim.Config.TraderSeconds)), 1f);
+            int key = (t.SeedSold ? 1 : 0) + (t.RareSold ? 2 : 0) + (int)System.Math.Min(t.SeedPrice, 1e8) * 4;
+            if (key == _traderKey) return;
+            _traderKey = key;
+            UiKit.ButtonLabel(_traderSeed).text = t.SeedSold ? Strings.Get("trader.sold") : Strings.Format("trader.seed", ("price", NumberFormat.Short(t.SeedPrice)));
+            UiKit.ButtonLabel(_traderRare).text = t.RareSold ? Strings.Get("trader.sold") : Strings.Format("trader.rare", ("price", NumberFormat.Short(t.RarePrice)));
+            _traderSeed.interactable = !t.SeedSold;
+            _traderRare.interactable = !t.RareSold;
+        }
+
+        private void OnPestArrived(PestKind kind, GridPos pos)
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            Banner(Strings.Get("pest." + kind));
+            Haptics.Play(HapticKind.Light);
+        }
+
+        private void OnPestStruck(PestKind kind, GridPos pos)
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            Banner(Strings.Get("pest.struck." + kind));
+            _audio?.Play(SfxId.Denied, 0.7f);
+        }
+
+        private void OnHensAte(GridPos pos)
+        {
+            if (!_game.Sim.IsSimulatingOffline) Banner(Strings.Get("ui.hens_ate"));
+        }
+
+        private void OnLuckyAppeared(LuckyKind kind)
+        {
+            if (_game.Sim.IsSimulatingOffline || kind == LuckyKind.GoldenEgg) return;
+            Banner(Strings.Get("lucky." + kind));
+            Haptics.Play(HapticKind.Light);
+        }
+
+        private void OnLuckyFound(LuckyKind kind, double coins)
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            Banner(kind == LuckyKind.ShootingStar ? Strings.Get("lucky.found.ShootingStar") : Strings.Format("lucky.found." + kind, ("coins", NumberFormat.Short(coins))));
+            Haptics.Play(HapticKind.Medium);
+            _audio?.Play(SfxId.GoldenHarvest, 0.7f);
+        }
+
+        private void OnTraderArrived()
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            Banner(Strings.Get("trader.arrived"));
+            Haptics.Play(HapticKind.Light);
         }
 
         private void OnRoleToggled(int index)
@@ -508,6 +632,12 @@ namespace TillWinter.Unity
             _game.Sim.GoalCompleted -= OnGoalCompleted;
             _game.Sim.WeatherChanged -= OnWeatherChanged;
             _game.ApprenticeRoleToggled -= OnRoleToggled;
+            _game.Sim.PestArrived -= OnPestArrived;
+            _game.Sim.PestStruck -= OnPestStruck;
+            _game.Sim.HensAte -= OnHensAte;
+            _game.Sim.LuckyAppeared -= OnLuckyAppeared;
+            _game.Sim.LuckyFound -= OnLuckyFound;
+            _game.Sim.TraderArrived -= OnTraderArrived;
             _game.Sim.CrowScared -= OnCrowScared;
             _game.Sim.YearStarted -= OnYearStarted;
             _game.Sim.WinterStarted -= OnWinter;
@@ -892,6 +1022,7 @@ namespace TillWinter.Unity
             if (_shapeButton.gameObject.activeSelf != shapes) _shapeButton.gameObject.SetActive(shapes);
             RefreshGoalLine(state);
             RefreshHelperButtons(state);
+            RefreshEventUi(state, dt);
             // The seed bag: once a second crop is unlocked, during the year, never on the Golden Year's field.
             bool bag = state.Stats.MaxTierUnlocked > 0 && !state.IsWinter && !state.GoldenYearActive;
             if (_bagButton.gameObject.activeSelf != bag)

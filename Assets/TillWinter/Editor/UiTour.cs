@@ -109,6 +109,11 @@ namespace TillWinter.EditorTools
             new Step("30-fog", 2.6f, () => Game?.Sim.DebugStartWeather(Weather.Fog)),
             new Step("31-scarecrow-mode", 0.6f, () => Click("Scarecrow")),
             new Step(null, 0.2f, () => Click("Scarecrow")),
+
+            // Events and threats (GDD §5.5–§5.7 v2.1): a locust swarm and a clover, a mole, the trader and a shooting star.
+            new Step("32-locusts-clover", 1.2f, () => { var g = Game; if (g == null) return; g.Sim.DebugSpawnPest(PestKind.Locusts, new GridPos(1, 1)); g.Sim.DebugSpawnLucky(LuckyKind.Clover, new GridPos(0, 0)); }),
+            new Step("33-mole-trader", 1.2f, () => { var g = Game; if (g == null) return; g.Sim.DebugSpawnPest(PestKind.Mole, new GridPos(2, 1)); g.Sim.DebugBringTrader(); }),
+            new Step("34-star", 1.4f, () => Game?.Sim.DebugSpawnLucky(LuckyKind.ShootingStar, new GridPos(0, 0))),
             new Step(null, 1.5f, () => Game?.Sim.DebugStartWeather(Weather.Clear)),
 
             // Weather and light the rest of the tour never meets: a rainbow after the rain cloud, then autumn at dusk.

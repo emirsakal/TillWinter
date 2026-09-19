@@ -933,3 +933,30 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   apprentice role should do that Irrigation doesn't already cover once bought. Chosen: a Waterer
   keeps mattering because it targets whichever Dry plot is nearest, not a fixed rate — it's useful
   from the first apprentice, not just as an Irrigation substitute.
+
+## Mechanics M.5: pests, hens, lucky moments and the travelling trader (2026-09-19)
+
+- **Pests start in year 3, not year 1.** Open: when pests should start pressuring the field. Chosen:
+  `PestFirstYear` = 3, so the first two years stay about learning the ring before a second kind of
+  demand on attention shows up.
+- **Only one pest at a time.** Open: whether pests could stack like crows do. Chosen: one at a time
+  — each pest is an event with a clear, single answer (tap the mole, sweep the clover-adjacent
+  ring over the locusts, wait for the hens), not a rising background hazard.
+- **Rabbits only appear when there's a carrot to eat.** Open: whether rabbits should be a flat
+  chance like crows. Chosen: gated on a Wet or Ripe carrot outside the ring, so the seed bag gets a
+  reason — carrots are the cheap crop that tempts rabbits, and planting one is a real trade-off.
+- **Trader prices scale with last year's coins.** Open: fixed prices or scaling ones. Chosen:
+  `max(floor, share of last year's coins or this year's if higher)` so a Heritage Seed always costs
+  about a season's worth of work and never becomes free late into a generation.
+- **The shooting star's rush never applies offline.** Open: whether an active rush should keep
+  paying out while simulating offline time. Chosen: no — the rush is excluded from
+  `SimulateOffline` like the ring and crows, so it can't be banked by leaving the app at the right
+  moment.
+- **`AutoPlayer` skips the trader.** Open: whether the balance bot should also spend on trader
+  offers. Chosen: it taps pests and steers the ring to a locust swarm like it already does for
+  crows, but never buys from the trader, so `BalanceTests` targets keep measuring the core loop
+  rather than an optional side purchase.
+- **Hens complete the M.4 item deferred for lack of pests.** Open: whether hens needed their own
+  mechanics session. Chosen: no — `hens` (prereq `farm_dog`) eats a pest and has a golden-egg
+  chance, closing the M.4 helpers backlog item in the same session pests were added, since the
+  dependency was pests existing, not additional design work.

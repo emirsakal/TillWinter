@@ -78,10 +78,11 @@ implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
 
 ### M.5 Events and threats
 
-- **Open.** [H] **More pests.** Moles dig a plot, rabbits eat carrots, a locust swarm driven off
-  with the ring.
-- **Open.** [M] **Travelling trader** once a year (harvest for seeds, rare seed).
-- **Open.** [L] **Rare lucky moments** (four-leaf clover, golden egg, shooting star multiplier).
+- **Done.** [H] **More pests.** Moles dig a plot, rabbits eat carrots, a locust swarm driven off
+  with the ring. Also completes the M.4 "hens eat pests" item, deferred there because pests didn't
+  exist yet — the `hens` Almanac node now eats a pest and has a chance at a golden egg.
+- **Done.** [M] **Travelling trader** once a year (harvest for seeds, rare seed).
+- **Done.** [L] **Rare lucky moments** (four-leaf clover, golden egg, shooting star multiplier).
 
 ### M.6 Winter
 
