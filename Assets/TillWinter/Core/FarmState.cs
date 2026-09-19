@@ -69,6 +69,42 @@ namespace TillWinter.Core
         }
     }
 
+    /// <summary>The one pest on the field, if any (GDD §5.5 v2.1).</summary>
+    public sealed class PestState
+    {
+        public PestKind Kind { get; internal set; }
+        public GridPos Pos { get; internal set; }
+        /// <summary>Seconds it has been there.</summary>
+        public float Timer { get; internal set; }
+        /// <summary>0..1: how far the ring has driven a locust swarm off.</summary>
+        public float Shoo { get; internal set; }
+    }
+
+    /// <summary>Lucky moments under way (GDD §5.6 v2.1).</summary>
+    public sealed class LuckState
+    {
+        public GridPos CloverPos { get; internal set; }
+        /// <summary>Seconds the clover has left; 0 = none.</summary>
+        public float CloverLeft { get; internal set; }
+        /// <summary>Seconds the shooting star is still in the sky; 0 = none.</summary>
+        public float StarLeft { get; internal set; }
+        /// <summary>Seconds of the star's double-pay rush left.</summary>
+        public float RushLeft { get; internal set; }
+    }
+
+    /// <summary>The travelling trader (GDD §5.7 v2.1).</summary>
+    public sealed class TraderState
+    {
+        public bool Active { get; internal set; }
+        public float TimeLeft { get; internal set; }
+        /// <summary>Year seconds it arrives this year, or -1.</summary>
+        public float PlannedTime { get; internal set; } = -1f;
+        public double SeedPrice { get; internal set; }
+        public double RarePrice { get; internal set; }
+        public bool SeedSold { get; internal set; }
+        public bool RareSold { get; internal set; }
+    }
+
     public sealed class Crow
     {
         public GridPos Pos { get; internal set; }
@@ -243,6 +279,11 @@ namespace TillWinter.Core
         public IReadOnlyList<GridPos> Scarecrows => ScarecrowList;
         /// <summary>Seconds until the farm dog can chase again (GDD §4.3 v2.0).</summary>
         public float DogCooldown { get; internal set; }
+        /// <summary>M.5 (GDD §5.5–§5.7 v2.1): the pest, lucky moments, the trader, and the hens' rest.</summary>
+        public PestState Pest { get; } = new PestState();
+        public LuckState Luck { get; } = new LuckState();
+        public TraderState Trader { get; } = new TraderState();
+        public float HenCooldown { get; internal set; }
         public IReadOnlyList<ApprenticeState> Apprentices => ApprenticeList;
 
         public CloudState Cloud { get; } = new CloudState();

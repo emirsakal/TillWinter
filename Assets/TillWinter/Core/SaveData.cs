@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 11;
+        public const int CurrentSchemaVersion = 12;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -103,6 +103,20 @@ namespace TillWinter.Core
         public int[] ScarecrowX = new int[0];
         public int[] ScarecrowY = new int[0];
         public float DogCooldown;
+
+        // v12: pests, lucky moments, the trader, their check timers (GDD §5.5–§5.7 v2.1)
+        public int PestKind;
+        public int PestX, PestY;
+        public float PestTimer, PestShoo;
+        public float HenCooldown;
+        public int CloverX, CloverY;
+        public float CloverLeft, StarLeft, RushLeft;
+        public bool TraderActive;
+        public float TraderTimeLeft;
+        public float TraderPlannedTime = -1f;
+        public double TraderSeedPrice, TraderRarePrice;
+        public bool TraderSeedSold, TraderRareSold;
+        public float PestCheckTimer, LuckyCheckTimer;
     }
 
     [Serializable]
@@ -163,6 +177,7 @@ namespace TillWinter.Core
                     case 8: data = V8ToV9(data); break;
                     case 9: data = V9ToV10(data); break;
                     case 10: data = V10ToV11(data); break;
+                    case 11: data = V11ToV12(data); break;
                     default: return null;
                 }
             }
@@ -287,6 +302,25 @@ namespace TillWinter.Core
             d.DogCooldown = 0f;
             if (d.Apprentices != null) foreach (var a in d.Apprentices) if (a != null) a.Role = 0;
             d.SchemaVersion = 11;
+            return d;
+        }
+
+        /// <summary>v11 → v12: no pest, no luck under way, no trader coming this year, fresh check timers.</summary>
+        private static SaveData V11ToV12(SaveData d)
+        {
+            d.PestKind = 0;
+            d.PestX = d.PestY = 0;
+            d.PestTimer = d.PestShoo = 0f;
+            d.HenCooldown = 0f;
+            d.CloverX = d.CloverY = 0;
+            d.CloverLeft = d.StarLeft = d.RushLeft = 0f;
+            d.TraderActive = false;
+            d.TraderTimeLeft = 0f;
+            d.TraderPlannedTime = -1f;
+            d.TraderSeedPrice = d.TraderRarePrice = 0;
+            d.TraderSeedSold = d.TraderRareSold = false;
+            d.PestCheckTimer = d.LuckyCheckTimer = 0f;
+            d.SchemaVersion = 12;
             return d;
         }
 

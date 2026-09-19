@@ -293,6 +293,69 @@ namespace TillWinter.EditorTools
             return root;
         }
 
+        /// <summary>A mole in its mound: the mound stays, "Body" rises out of it.</summary>
+        private static GameObject BuildMole()
+        {
+            var (root, b) = Root("Mole");
+            Prim(PrimitiveType.Sphere, root.transform, "Mound", new Vector3(0f, 0.02f, 0f), new Vector3(0.34f, 0.1f, 0.3f), b, PaletteSlot.SoilWet);
+            var body = new GameObject("Body").transform;
+            body.SetParent(root.transform, false);
+            Prim(PrimitiveType.Sphere, body, "Fur", new Vector3(0f, 0.1f, 0f), new Vector3(0.2f, 0.18f, 0.2f), b, PaletteSlot.Crow);
+            Prim(PrimitiveType.Sphere, body, "Snout", new Vector3(0f, 0.12f, 0.1f), new Vector3(0.07f, 0.05f, 0.07f), b, PaletteSlot.Flower);
+            Prim(PrimitiveType.Sphere, body, "EyeL", new Vector3(-0.04f, 0.16f, 0.08f), Vector3.one * 0.022f, b, PaletteSlot.Eye);
+            Prim(PrimitiveType.Sphere, body, "EyeR", new Vector3(0.04f, 0.16f, 0.08f), Vector3.one * 0.022f, b, PaletteSlot.Eye);
+            Prim(PrimitiveType.Cube, body, "PawL", new Vector3(-0.08f, 0.05f, 0.08f), new Vector3(0.06f, 0.02f, 0.05f), b, PaletteSlot.Flower);
+            Prim(PrimitiveType.Cube, body, "PawR", new Vector3(0.08f, 0.05f, 0.08f), new Vector3(0.06f, 0.02f, 0.05f), b, PaletteSlot.Flower);
+            return root;
+        }
+
+        /// <summary>A sitting rabbit with long ears; "Body" hops.</summary>
+        private static GameObject BuildRabbit()
+        {
+            var (root, b) = Root("Rabbit");
+            var body = new GameObject("Body").transform;
+            body.SetParent(root.transform, false);
+            Prim(PrimitiveType.Sphere, body, "Belly", new Vector3(0f, 0.1f, -0.02f), new Vector3(0.18f, 0.18f, 0.22f), b, PaletteSlot.Snow);
+            Prim(PrimitiveType.Sphere, body, "Head", new Vector3(0f, 0.2f, 0.08f), Vector3.one * 0.12f, b, PaletteSlot.Snow);
+            var earL = Prim(PrimitiveType.Capsule, body, "EarL", new Vector3(-0.03f, 0.3f, 0.06f), new Vector3(0.035f, 0.08f, 0.02f), b, PaletteSlot.Snow);
+            earL.transform.localRotation = Quaternion.Euler(-10f, 0f, 12f);
+            var earR = Prim(PrimitiveType.Capsule, body, "EarR", new Vector3(0.03f, 0.3f, 0.06f), new Vector3(0.035f, 0.08f, 0.02f), b, PaletteSlot.Snow);
+            earR.transform.localRotation = Quaternion.Euler(-10f, 0f, -12f);
+            Prim(PrimitiveType.Sphere, body, "Nose", new Vector3(0f, 0.2f, 0.14f), Vector3.one * 0.025f, b, PaletteSlot.Flower);
+            Prim(PrimitiveType.Sphere, body, "EyeL", new Vector3(-0.035f, 0.22f, 0.12f), Vector3.one * 0.02f, b, PaletteSlot.Eye);
+            Prim(PrimitiveType.Sphere, body, "EyeR", new Vector3(0.035f, 0.22f, 0.12f), Vector3.one * 0.02f, b, PaletteSlot.Eye);
+            Prim(PrimitiveType.Sphere, body, "Tail", new Vector3(0f, 0.1f, -0.13f), Vector3.one * 0.06f, b, PaletteSlot.Snow);
+            return root;
+        }
+
+        /// <summary>One locust of a swarm (the view flies a dozen): a green body with glassy wings.</summary>
+        private static GameObject BuildLocust()
+        {
+            var (root, b) = Root("Locust");
+            var body = new GameObject("Body").transform;
+            body.SetParent(root.transform, false);
+            var torso = Prim(PrimitiveType.Capsule, body, "Torso", Vector3.zero, new Vector3(0.035f, 0.06f, 0.035f), b, PaletteSlot.Leaf, null, null, false);
+            torso.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            Prim(PrimitiveType.Cube, body, "WingL", new Vector3(-0.04f, 0.015f, 0f), new Vector3(0.06f, 0.004f, 0.04f), b, PaletteSlot.Glass, null, null, false);
+            Prim(PrimitiveType.Cube, body, "WingR", new Vector3(0.04f, 0.015f, 0f), new Vector3(0.06f, 0.004f, 0.04f), b, PaletteSlot.Glass, null, null, false);
+            return root;
+        }
+
+        /// <summary>A four-leaf clover on a short stem; "Body" spins and bobs.</summary>
+        private static GameObject BuildClover()
+        {
+            var (root, b) = Root("Clover");
+            var body = new GameObject("Body").transform;
+            body.SetParent(root.transform, false);
+            Prim(PrimitiveType.Cylinder, body, "Stem", new Vector3(0f, 0.08f, 0f), new Vector3(0.015f, 0.08f, 0.015f), b, PaletteSlot.LeafDark);
+            for (int i = 0; i < 4; i++)
+            {
+                float a = i * Mathf.PI * 0.5f;
+                Prim(PrimitiveType.Sphere, body, "Leaf" + i, new Vector3(Mathf.Cos(a) * 0.055f, 0.17f, Mathf.Sin(a) * 0.055f), new Vector3(0.08f, 0.02f, 0.08f), b, PaletteSlot.Leaf);
+            }
+            return root;
+        }
+
         /// <summary>A pole and a cloth on a pivot ("Cloth") the flag view waves.</summary>
         private static GameObject BuildFlag()
         {
@@ -519,6 +582,10 @@ namespace TillWinter.EditorTools
             c.FencePost = Save("FencePost", BuildFencePost());
             c.Flag = Save("Flag", BuildFlag());
             c.Scarecrow = Save("Scarecrow", BuildScarecrow());
+            c.Mole = Save("Mole", BuildMole());
+            c.Rabbit = Save("Rabbit", BuildRabbit());
+            c.Locust = Save("Locust", BuildLocust());
+            c.Clover = Save("Clover", BuildClover());
             c.Chicken = Save("Chicken", BuildChicken());
             c.Cat = Save("Cat", BuildCat());
             c.Channel = Save("Channel", BuildChannel());

@@ -51,6 +51,10 @@ namespace TillWinter.Tests
             sim.DebugSetLevel("scarecrow", 2);
             Assert.IsTrue(sim.MoveScarecrow(1, new GridPos(0, 0)));
             Assert.IsTrue(sim.SetApprenticeRole(0, ApprenticeRole.Waterer));
+            // v12: a mole, a clover, the trader.
+            sim.DebugSpawnPest(PestKind.Mole, new GridPos(1, 1));
+            sim.DebugSpawnLucky(LuckyKind.Clover, new GridPos(0, 1));
+            sim.DebugBringTrader();
             return sim;
         }
 
@@ -93,10 +97,13 @@ namespace TillWinter.Tests
                 Assert.AreEqual(sa.Plots[i].DryTimer, sb.Plots[i].DryTimer, "dry timer " + i);
             }
             Assert.AreEqual(sa.Crows.Count, sb.Crows.Count);
-            for (int i = 0; i < sa.Crows.Count; i++)
+            // A save lists crows by plot, not by landing order: compare them as a set keyed by plot.
+            foreach (var ca in sa.Crows)
             {
-                Assert.AreEqual(sa.Crows[i].Pos, sb.Crows[i].Pos);
-                Assert.AreEqual(sa.Crows[i].Timer, sb.Crows[i].Timer);
+                Crow match = null;
+                foreach (var cb in sb.Crows) if (cb.Pos == ca.Pos) match = cb;
+                Assert.IsNotNull(match, "crow at " + ca.Pos);
+                Assert.AreEqual(ca.Timer, match.Timer);
             }
             Assert.AreEqual(sa.Apprentices.Count, sb.Apprentices.Count);
             for (int i = 0; i < sa.Apprentices.Count; i++)
@@ -111,6 +118,20 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.RingShape, sb.RingShape);
             CollectionAssert.AreEqual(sa.Scarecrows, sb.Scarecrows);
             Assert.AreEqual(sa.DogCooldown, sb.DogCooldown);
+            Assert.AreEqual(sa.Pest.Kind, sb.Pest.Kind);
+            Assert.AreEqual(sa.Pest.Pos, sb.Pest.Pos);
+            Assert.AreEqual(sa.Pest.Timer, sb.Pest.Timer);
+            Assert.AreEqual(sa.Pest.Shoo, sb.Pest.Shoo);
+            Assert.AreEqual(sa.HenCooldown, sb.HenCooldown);
+            Assert.AreEqual(sa.Luck.CloverPos, sb.Luck.CloverPos);
+            Assert.AreEqual(sa.Luck.CloverLeft, sb.Luck.CloverLeft);
+            Assert.AreEqual(sa.Luck.StarLeft, sb.Luck.StarLeft);
+            Assert.AreEqual(sa.Luck.RushLeft, sb.Luck.RushLeft);
+            Assert.AreEqual(sa.Trader.Active, sb.Trader.Active);
+            Assert.AreEqual(sa.Trader.TimeLeft, sb.Trader.TimeLeft);
+            Assert.AreEqual(sa.Trader.PlannedTime, sb.Trader.PlannedTime);
+            Assert.AreEqual(sa.Trader.SeedPrice, sb.Trader.SeedPrice);
+            Assert.AreEqual(sa.Trader.RarePrice, sb.Trader.RarePrice);
             for (int i = 0; i < sa.Apprentices.Count; i++) Assert.AreEqual(sa.Apprentices[i].Role, sb.Apprentices[i].Role, "role " + i);
             Assert.AreEqual(sa.Goal.Type, sb.Goal.Type);
             Assert.AreEqual(sa.Goal.Tier, sb.Goal.Tier);

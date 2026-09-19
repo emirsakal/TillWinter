@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.0 - September 2026 (through mechanics group M.4, helpers/animals — placeable scarecrows, apprentice roles, farm dog, beehive and manual tractor, marked *(v2.0)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.1 - September 2026 (through mechanics group M.5, events and threats — pests, hens, lucky moments and the travelling trader, marked *(v2.1)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -185,6 +185,7 @@ helps a Coins goal, §3.3). `LastGrade`, `LastGradeBonus` and `LastYearCoins` ar
 | Scarecrow | *(v2.0)* No longer a chance modifier. Each level places one scarecrow the player can move; crow spawn chance is a flat `FarmConfig.CrowSpawnChance` (25%), but a scarecrow guards every plot within `FarmConfig.ScarecrowRadius` (1.6 plots) of the field corner it stands on — 12 plots in open field, crow-free (§5.1). New scarecrows auto-place where they guard the most unguarded plots (ties: nearest field centre); `FarmSim.MoveScarecrow(index, corner)` moves one to any free corner, not in the Heritage phase. | 0–2 |
 | Farm dog *(v2.0)* | Almanac node, Helpers branch, prereq `scarecrow`, max 1, cost 400. Chases off a crow that has sat `FarmConfig.DogReactSeconds` (1.5 s) — no bounty, that stays the tap's — then rests `FarmConfig.DogCooldownSeconds` (10 s, saved as `State.DogCooldown`). Fires event `DogChased`. | 0–1 |
 | Beehive *(v2.0)* | Almanac node, Soil branch, prereq `sun`, max 1, cost 450. Sun grows the `FarmConfig.BeeColumns` (2) right-most columns, by the sunflowers, at `FarmConfig.BeeSunBoost` ×1.3. | 0–1 |
+| Hens *(v2.1)* | Almanac node, Helpers branch, prereq `farm_dog`, max 1, cost 500. Eats a pest (§5.5) that has been present `FarmConfig.HenEatSeconds` (2.5 s), then rests `FarmConfig.HenCooldownSeconds` (12 s, saved as `State.HenCooldown`); after a meal, `FarmConfig.GoldenEggChance` (20%) chance of a golden egg worth `FarmConfig.GoldenEggValue` (6) crop values (§5.6). Completes the M.4 "hens eat pests" item, deferred until pests existed. | 0–1 |
 | Greenhouse | during Winter, earns `X coins/s` based on field value *(tune)*. *(v1.3)* `level x 0.02 x field value` coins/s (field value = sum of the crop value of every plot), x2 with the Heritage node, at most 60 s per winter, only while the Winter phase is open (not in the Heritage phase, not offline). | 0–3 |
 
 Apprentices: each has its own position and target; they never target the same plot; they retarget if the ring or another helper takes their plot; they idle near the field edge when nothing is Ripe. Six apprentices running around is a deliberate visual goal. *(v2.0)* Each apprentice has a role, `ApprenticeRole` (`Harvester` or `Waterer`): a Harvester works as before; a Waterer walks to the nearest Dry, non-stony plot not already targeted and waters it to Wet in the harvest time. Tapping an apprentice switches its role (banner "Harvester: picks ripe crops" / "Waterer: waters dry plots") and drops its current job; a waterer's thought bubble shows water colour. Works offline like any apprentice.
@@ -221,6 +222,48 @@ Apprentices: each has its own position and target; they never target the same pl
   continuous effect built by `feel-setup.bat`); fog raises mist and washes the light pale; a heat
   wave warms the colour filter.
 
+### 5.5 Pests *(v2.1)*
+- From `FarmConfig.PestFirstYear` (year 3) of a generation, never in the Golden Year, never while
+  the app is closed (pests are not part of offline simulation, §9).
+- One pest at a time. A check every `FarmConfig.PestCheckSeconds` (15 s) rolls
+  `FarmConfig.PestChance` (35%); the kind is drawn with the sim RNG.
+- **Mole:** pops up on a non-stony plot; after 5 s digs it back to Dry — a ripe crop lost this way
+  counts against the year's grade (§3.4) like a crow's. A tap bonks it for `FarmConfig.MoleBounty`
+  (1 crop value) and it leaves.
+- **Rabbit:** appears only while a carrot plot is Wet or Ripe outside the ring; eats it after 5 s.
+  A tap, or the ring passing over it, sends it off with no coins.
+- **Locust swarm:** settles over the 3×3 patch around its plot (`FarmConfig.LocustRadius` 1);
+  nothing grows in the patch while it stays. Working the ring over any plot of the patch for
+  `FarmConfig.LocustShooSeconds` (1.5 s) drives it off; left alone 12 s it strips the patch (ripe
+  crops lost, Wet progress reset).
+- Events `PestArrived`, `PestScared`, `PestStruck`; the HUD shows a banner per kind. Unity-side: new
+  Mole/Rabbit/Locust prefabs (`ArtSetup`), `PestsView` (the mole rises from its mound and digs
+  faster as its time runs out, the rabbit hops, a swarm of 14 locusts circles the patch and
+  tightens as the ring drives it off). A tap on a pest never falls through to the seed bag
+  underneath it.
+
+### 5.6 Lucky moments *(v2.1)*
+- From `FarmConfig.LuckyFirstYear` (year 2).
+- **Four-leaf clover:** a check every 20 s, `FarmConfig.CloverChance` (12%) chance, appears on a
+  plot outside the ring for 10 s; sweeping the ring over it pays `FarmConfig.CloverValue`
+  (8 crop values).
+- **Golden egg:** from the hens (§4), worth `FarmConfig.GoldenEggValue` at
+  `FarmConfig.GoldenEggChance`.
+- **Shooting star:** rolled at the frost warning, `FarmConfig.StarChance` (35%); it crosses the sky
+  for 4 s (a HUD star button). A tap starts a 10 s rush where every harvest pays
+  ×`FarmConfig.StarRushValue` (2); the rush is never applied while simulating offline.
+- Events `LuckyAppeared`, `LuckyFound`; the HUD shows a banner per kind.
+
+### 5.7 Travelling trader *(v2.1)*
+- From `FarmConfig.TraderFirstYear` (year 2), `FarmConfig.TraderChance` (50%) of years. Planned at
+  Spring with the sim RNG to arrive in Summer; stays `FarmConfig.TraderSeconds` (25 s).
+- Two offers, each purchasable once a visit: a Heritage Seed for
+  `max(60, 60% of last year's coins, or this year's coins so far if higher)`; a rare seed for
+  `max(20, 15% of the same base)` that turns 2 random non-stony plots golden immediately.
+- HUD trader card: two buttons, a time bar, "Sold" once a purchase is made. Events
+  `TraderArrived`, `TraderLeft`, `TraderSold`.
+- Pests, the clover, the star, its rush and the trader all end with the year (Winter clears them).
+
 ---
 
 ## 6. Almanac (winter skill tree, bought with coins, reset on rebirth)
@@ -241,7 +284,7 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 - `expand_field` (3) · `upgrade_plot` (until all max) · `unlock_tomato` (1) · `unlock_corn` (1) · `unlock_pumpkin` (1) · `unlock_grapes` (1) · `unlock_golden_wheat` (1) · `bulk_upgrade` UpgradePlot raises 2 plots per purchase (1)
 
 **Helpers**
-- `apprentice_count` (6) · `apprentice_speed` (4) · `apprentice_harvest_time` (3) · `apprentice_yield` (4) · `tractor` (3) · `scarecrow` (2) · `helper_water` apprentices also water the plot they stand on (1) · `farm_dog` *(v2.0)* prereq `scarecrow`, chases off a crow after it lands, no bounty (1)
+- `apprentice_count` (6) · `apprentice_speed` (4) · `apprentice_harvest_time` (3) · `apprentice_yield` (4) · `tractor` (3) · `scarecrow` (2) · `helper_water` apprentices also water the plot they stand on (1) · `farm_dog` *(v2.0)* prereq `scarecrow`, chases off a crow after it lands, no bounty (1) · `hens` *(v2.1)* prereq `farm_dog`, eats a pest, chance of a golden egg (1)
 
 **Calendar**
 - `year_length` (6) · `frost_warning` +5 s per level (2) · `late_frost` at Winter, plots that are ≥80% grown are harvested at half value instead of lost (1) · `greenhouse` (3) · `crow_bounty` scared crows drop more (3) · `spring_head_start` year starts with all plots Wet (1)
@@ -251,6 +294,8 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 *(v1.6)* Combo milestones pay out on top of `ring_combo`'s stacking bonus: combo 10/25/50 pays 3x/8x/20x the harvested crop's value (`ComboMilestones`/`ComboMilestoneBonus`). A crow eating a crop now breaks the combo, same as it already breaks on a miss.
 
 *(v2.0)* `scarecrow` no longer changes crow spawn chance; each level places a scarecrow the player can move, guarding plots within `FarmConfig.ScarecrowRadius` (§4, §5.1) — replaces `CrowSpawnChanceByScarecrow`. `farm_dog`: prereq `scarecrow`, max 1, cost 400; chases a crow that has sat `FarmConfig.DogReactSeconds` (1.5 s), no bounty (stays the tap's), then rests `FarmConfig.DogCooldownSeconds` (10 s, saved as `State.DogCooldown`); event `DogChased`. `beehive`: prereq `sun`, max 1, cost 450; the Sun grows the `FarmConfig.BeeColumns` (2) right-most columns at `FarmConfig.BeeSunBoost` ×1.3. Hens eating pests is deferred to M.5 (pests don't exist yet).
+
+*(v2.1)* `hens`: prereq `farm_dog`, max 1, cost 500; eats a pest (§5.5) that has been present `FarmConfig.HenEatSeconds` (2.5 s), then rests `FarmConfig.HenCooldownSeconds` (12 s, saved as `State.HenCooldown`); after a meal, `FarmConfig.GoldenEggChance` (20%) chance of a golden egg worth `FarmConfig.GoldenEggValue` (6) crop values (§5.6). Completes the M.4 "hens eat pests" item above.
 
 Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `year_length`) have no prerequisites.
 
@@ -289,7 +334,7 @@ after, but nothing new unlocks.
 ## 9. Save and offline
 
 - JSON file in `Application.persistentDataPath`, versioned (`schemaVersion`), written on every winter, rebirth, purchase, and on app pause. Corrupt/unknown file → start fresh, never crash. *(v1.2)* Also written on Next Year, on starting a new generation, and every 30 s during a year. Atomic write with one `.bak`; a corrupt file is renamed `.corrupt-<timestamp>`.
-- Offline progress: on resume, simulate passive systems only (irrigation → sun → apprentices/tractor) for `min(elapsed, 8 h)` at a fixed dt in the pure core; the year timer does **not** advance offline (you never come back to a lost year). Show a "while you were away" card with coins earned. *(v1.2)* Simulated at a 1 s step; the ring, crows and seasons are frozen. A clock that went backwards counts as 0 elapsed. *(v1.3)* The tractor also runs offline; the greenhouse does not (phase is not Year).
+- Offline progress: on resume, simulate passive systems only (irrigation → sun → apprentices/tractor) for `min(elapsed, 8 h)` at a fixed dt in the pure core; the year timer does **not** advance offline (you never come back to a lost year). Show a "while you were away" card with coins earned. *(v1.2)* Simulated at a 1 s step; the ring, crows and seasons are frozen. A clock that went backwards counts as 0 elapsed. *(v1.3)* The tractor also runs offline; the greenhouse does not (phase is not Year). *(v2.1)* Schema 11 → 12 adds `PestKind`/`X`/`Y`/`Timer`/`Shoo`, `HenCooldown`, `CloverX`/`Y`/`Left`, `StarLeft`, `RushLeft`, `Trader*` fields, `PestCheckTimer` and `LuckyCheckTimer` to `SaveData`. `SaveMigrations.V11ToV12` starts a loaded save with no pest, no lucky moment and no trader due (`PlannedTime` −1). Pests, lucky moments and the trader are Year-phase state only, never part of offline simulation (§5.5–§5.7).
 - *(v1.6)* Schema is now **7**: adds each plot's `RipeAge` and the player's chosen ring shape. Migration `V6ToV7` is a no-op with safe defaults (age 0, circle shape).
 - *(v1.7)* Schema is now **8**: adds each plot's `Choice` (default **-1**); `Tier` now means the bed's quality, not the crop growing. Migration `V7ToV8` sets `Choice = -1` on every plot. Fixture-tested in `SaveV8Tests` against a hand-written v7 JSON.
 - *(v1.8)* Schema is now **9**: adds each plot's `Kind` (int) and `LastYearTier` (default **-1**). Migration `V8ToV9` sets every plot to plain ground with no rotation memory. Fixture-tested in `SaveV9Tests` against a hand-written v8 JSON.
@@ -496,3 +541,16 @@ timings.
 Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 10 seeds at
 first retire, 6 generations to max Heritage, 5.19 h to the ending, ring share 100% / 56% / 30%
 (year 1 / first retire / generation 4) — unchanged from M.3. No tuning needed; 258 tests green.
+
+**2026-09-19 — M.5 events and threats pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer`, seed 1).
+
+What changed: pests — moles, rabbits, locust swarms (§5.5); the `hens` Almanac node completing the
+M.4 helpers item (§4, §6); lucky moments — four-leaf clover, golden egg, shooting star rush (§5.6);
+the travelling trader (§5.7). `AutoPlayer` now taps moles and rabbits after its reaction delay like
+a crow and steers the ring to a locust swarm first, but does not buy from the trader, so balance
+targets keep measuring the core loop.
+
+Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 11 seeds at
+first retire, 6 generations to max Heritage, 5.27 h to the ending, ring share 100% / 54% / 29%
+(year 1 / first retire / generation 4). No tuning needed; 270 tests green.

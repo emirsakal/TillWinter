@@ -58,7 +58,7 @@ namespace TillWinter.Core.Balance
         {
             ["irrigation"] = 3, ["sun"] = 3, ["ring_radius"] = 2.5, ["apprentice_count"] = 2.5, ["expand_field"] = 2,
             ["unlock_tomato"] = 2, ["upgrade_plot"] = 1.5, ["soil_quality"] = 1.5, ["ring_water_speed"] = 1.2, ["ring_grow_speed"] = 1.2,
-            ["year_length"] = 1.5, ["scarecrow"] = 0.8, ["farm_dog"] = 0.6, ["beehive"] = 0.6, ["tractor"] = 1.2, ["greenhouse"] = 0.8, ["crow_bounty"] = 0.4,
+            ["year_length"] = 1.5, ["scarecrow"] = 0.8, ["farm_dog"] = 0.6, ["beehive"] = 0.6, ["hens"] = 0.5, ["tractor"] = 1.2, ["greenhouse"] = 0.8, ["crow_bounty"] = 0.4,
             ["ring_combo"] = 0.5, ["ring_shape"] = 0.6, ["tap_harvest"] = 0.6, ["late_frost"] = 0.6, ["frost_warning"] = 0.3, ["helper_water"] = 0.7, ["spring_head_start"] = 0.7,
             ["h_start_field"] = 3, ["h_free_apprentice"] = 3, ["h_start_irrigation"] = 2.5, ["h_start_sun"] = 2.5, ["h_start_radius"] = 2,
             ["h_global_growth"] = 1.5, ["h_almanac_discount"] = 1.2, ["h_ring_speeds"] = 1.2, ["h_unlock_rain_cloud"] = 1, ["h_golden_crop"] = 1,
@@ -161,6 +161,13 @@ namespace TillWinter.Core.Balance
                         if (!s.InBounds(pos) || !s.GetPlot(pos).HasCrow) _crowSeen.Remove(pos);
                     }
                 }
+                var pest = s.Pest;
+                if (pest.Kind == PestKind.Mole || pest.Kind == PestKind.Rabbit)
+                {
+                    _pestSeen += ReactionDelay;
+                    if (_pestSeen >= ReactionDelay) Sim.TapAt(pest.Pos);
+                }
+                else _pestSeen = 0f;
                 if (s.Cloud.Active)
                 {
                     _cloudSeen += ReactionDelay;
@@ -183,10 +190,13 @@ namespace TillWinter.Core.Balance
             if (s.Phase == Phase.Winter) FinishRow();
         }
 
-        /// <summary>Urgency: Ripe first, then highest Wet progress, then Dry (nearest wins ties).</summary>
+        private float _pestSeen;
+
+        /// <summary>Urgency: a locust swarm first, then Ripe, then highest Wet progress, then Dry (nearest wins ties).</summary>
         private GridPos? PickTarget()
         {
             var s = Sim.State;
+            if (s.Pest.Kind == PestKind.Locusts) return s.Pest.Pos;
             Plot best = null;
             double bestScore = double.NegativeInfinity;
             foreach (var p in s.Plots)

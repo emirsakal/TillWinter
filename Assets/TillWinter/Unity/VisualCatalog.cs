@@ -77,6 +77,11 @@ namespace TillWinter.Unity
         public GameObject Flag;
         /// <summary>A placeable scarecrow (GDD §5.1 v2.0); "Body" sways in the view.</summary>
         public GameObject Scarecrow;
+        /// <summary>M.5 (GDD §5.5/§5.6 v2.1): pests and the lucky clover; each has a "Body" the view animates.</summary>
+        public GameObject Mole;
+        public GameObject Rabbit;
+        public GameObject Locust;
+        public GameObject Clover;
         public GameObject Chicken;
         public GameObject Cat;
         /// <summary>One unit of irrigation channel (shown once Irrigation is bought).</summary>

@@ -30,6 +30,10 @@ namespace TillWinter.Tests
             cfg.GradeBonusByStars = new double[] { 0, 0, 0, 0 };
             cfg.GoalFirstYear = int.MaxValue;
             cfg.WeatherFirstYear = int.MaxValue;
+            // Events and threats (M.5) off: no pests, luck or trader, and no RNG drawn for them.
+            cfg.PestFirstYear = int.MaxValue;
+            cfg.LuckyFirstYear = int.MaxValue;
+            cfg.TraderFirstYear = int.MaxValue;
             return cfg;
         }
     }

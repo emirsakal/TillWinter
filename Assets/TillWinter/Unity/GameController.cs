@@ -137,7 +137,8 @@ namespace TillWinter.Unity
                     var gp = new GridPos(Mathf.RoundToInt(tp.x), Mathf.RoundToInt(tp.y));
                     if (State.InBounds(gp))
                     {
-                        if (PlotTapOverride != null && !State.GetPlot(gp).HasCrow) PlotTapOverride(gp);
+                        bool pestHere = State.Pest.Kind != PestKind.None && State.Pest.Pos == gp;
+                        if (PlotTapOverride != null && !State.GetPlot(gp).HasCrow && !pestHere) PlotTapOverride(gp);
                         else Sim.TapAt(gp);
                     }
                 }
