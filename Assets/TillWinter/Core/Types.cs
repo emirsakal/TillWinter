@@ -35,6 +35,15 @@ namespace TillWinter.Core
         }
     }
 
+    /// <summary>GDD §4.2 (v2.0): what an apprentice does.</summary>
+    public enum ApprenticeRole
+    {
+        /// <summary>Walks to Ripe plots and harvests them.</summary>
+        Harvester = 0,
+        /// <summary>Walks to Dry plots and waters them.</summary>
+        Waterer = 1,
+    }
+
     /// <summary>GDD §3.3 (v1.9): the one goal a year sets.</summary>
     public enum GoalType
     {
@@ -133,6 +142,10 @@ namespace TillWinter.Core
         ApprenticeYield,
         Tractor,
         Scarecrow,
+        /// <summary>The dog chases off a crow that settles (GDD §4.3 v2.0).</summary>
+        FarmDog,
+        /// <summary>Bees speed the Sun on the columns by the sunflowers (GDD §4.3 v2.0).</summary>
+        Beehive,
         HelperWater,
         YearLength,
         FrostWarning,

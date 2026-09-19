@@ -500,11 +500,12 @@ namespace TillWinter.Tests
             var only = StatResolver.Resolve(cfg, new Dictionary<string, int>(), new Dictionary<string, int> { ["h_scarecrow_immunity"] = 1 });
             Assert.AreEqual(0.25f, only.CrowSpawnChance, "node alone does nothing");
             var one = StatResolver.Resolve(cfg, new Dictionary<string, int> { ["scarecrow"] = 1 }, new Dictionary<string, int> { ["h_scarecrow_immunity"] = 1 });
-            Assert.AreEqual(0.15f, one.CrowSpawnChance);
+            Assert.AreEqual(0.25f, one.CrowSpawnChance, "a scarecrow guards an area; it does not lower the chance (v2.0)");
+            Assert.AreEqual(1, one.ScarecrowCount);
             var both = StatResolver.Resolve(cfg, new Dictionary<string, int> { ["scarecrow"] = 2 }, new Dictionary<string, int> { ["h_scarecrow_immunity"] = 1 });
             Assert.AreEqual(0f, both.CrowSpawnChance);
 
-            var sim = NewSim(c => c.CrowSpawnChanceByScarecrow = new[] { 1f, 1f, 1f });
+            var sim = NewSim(c => c.CrowSpawnChance = 1f);
             sim.DebugSetLevel("scarecrow", 2);
             sim.DebugSetLevel("h_scarecrow_immunity", 1);
             sim.DebugSkipToWinter();
@@ -532,7 +533,7 @@ namespace TillWinter.Tests
             ["unlock_tomato"] = "stat", ["unlock_corn"] = "stat", ["unlock_pumpkin"] = "stat", ["unlock_grapes"] = "stat",
             ["unlock_golden_wheat"] = "stat", ["bulk_upgrade"] = "stat", ["apprentice_count"] = "stat", ["apprentice_speed"] = "stat",
             ["apprentice_harvest_time"] = "stat", ["apprentice_yield"] = "stat", ["tractor"] = "stat", ["scarecrow"] = "stat",
-            ["helper_water"] = "stat", ["year_length"] = "stat", ["frost_warning"] = "stat", ["late_frost"] = "stat",
+            ["helper_water"] = "stat", ["farm_dog"] = "stat", ["beehive"] = "stat", ["year_length"] = "stat", ["frost_warning"] = "stat", ["late_frost"] = "stat",
             ["greenhouse"] = "stat", ["crow_bounty"] = "stat", ["spring_head_start"] = "stat",
             // Heritage
             ["h_start_radius"] = "stat", ["h_ring_speeds"] = "stat", ["h_ring_coins"] = "stat", ["h_start_irrigation"] = "stat",

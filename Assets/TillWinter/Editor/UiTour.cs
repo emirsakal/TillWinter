@@ -107,6 +107,8 @@ namespace TillWinter.EditorTools
             // A yearly goal on the HUD and weather over the field (GDD §3.3/§5.4 v1.9), then clear skies again.
             new Step("29-goal-storm", 2.4f, () => { var g = Game; if (g == null) return; g.Sim.DebugSetGoal(GoalType.HarvestCrop, 18, 1, 20); g.Sim.DebugStartWeather(Weather.Storm); }),
             new Step("30-fog", 2.6f, () => Game?.Sim.DebugStartWeather(Weather.Fog)),
+            new Step("31-scarecrow-mode", 0.6f, () => Click("Scarecrow")),
+            new Step(null, 0.2f, () => Click("Scarecrow")),
             new Step(null, 1.5f, () => Game?.Sim.DebugStartWeather(Weather.Clear)),
 
             // Weather and light the rest of the tour never meets: a rainbow after the rain cloud, then autumn at dusk.
@@ -336,6 +338,10 @@ namespace TillWinter.EditorTools
             // Special ground (GDD §2.4 v1.8), so the later shots show a stony and a fertile plot.
             game.Sim.DebugSetPlotKind(new GridPos(0, 2), PlotKind.Stony);
             game.Sim.DebugSetPlotKind(new GridPos(2, 0), PlotKind.Fertile);
+            game.Sim.DebugSetLevel("scarecrow", 2); // two scarecrows on the field and the button to move them
+            game.Sim.DebugSetLevel("tractor", 1);
+            game.Sim.DebugSetLevel("farm_dog", 1);
+            game.Sim.DebugSetLevel("beehive", 1);
         }
 
         /// <summary>

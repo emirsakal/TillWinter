@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 1.9 - September 2026 (through mechanics group M.3, seasons/year/weather — season rules, yearly goals, weather and the year's grade, marked *(v1.9)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.0 - September 2026 (through mechanics group M.4, helpers/animals — placeable scarecrows, apprentice roles, farm dog, beehive and manual tractor, marked *(v2.0)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -181,18 +181,20 @@ helps a Coins goal, §3.3). `LastGrade`, `LastGradeBonus` and `LastYearCoins` ar
 | Apprentice speed | walk speed `1.5 + 0.5 × L` plots/s | 0–4 |
 | Apprentice harvest time | `1.0 → 0.4 s` | 0–3 |
 | Apprentice yield | coin multiplier on apprentice harvests: `0.5 → 0.75 → 1.0 → 1.15 → 1.3` | 0–4 |
-| Tractor | every N s harvests one full row of Ripe plots (single unit, level = shorter interval). *(v1.3)* Intervals 30/20/12 s, 0.15 s per plot, sweeps the row with the most Ripe plots (ties: lowest row), full value, no ring bonus or apprentice yield; plots ripening mid-sweep are taken; crows on the row are scared with the bounty. | 0–3 |
-| Scarecrow | crow spawn chance `25% → 15% → 8%`; never 0% in the Almanac | 0–2 |
+| Tractor | every N s harvests one full row of Ripe plots (single unit, level = shorter interval). *(v1.3)* Intervals 30/20/12 s, 0.15 s per plot, sweeps the row with the most Ripe plots (ties: lowest row), full value, no ring bonus or apprentice yield; plots ripening mid-sweep are taken; crows on the row are scared with the bounty. *(v2.0)* `FarmSim.TriggerTractor` sends it immediately once its timer is ≥50% charged (`TractorManualReady`); `TractorCharge` exposes 0..1 for the HUD's gold charge bar. Row choice stays automatic — the best row is almost always what the player wants, so picking the row by hand is out of scope. | 0–3 |
+| Scarecrow | *(v2.0)* No longer a chance modifier. Each level places one scarecrow the player can move; crow spawn chance is a flat `FarmConfig.CrowSpawnChance` (25%), but a scarecrow guards every plot within `FarmConfig.ScarecrowRadius` (1.6 plots) of the field corner it stands on — 12 plots in open field, crow-free (§5.1). New scarecrows auto-place where they guard the most unguarded plots (ties: nearest field centre); `FarmSim.MoveScarecrow(index, corner)` moves one to any free corner, not in the Heritage phase. | 0–2 |
+| Farm dog *(v2.0)* | Almanac node, Helpers branch, prereq `scarecrow`, max 1, cost 400. Chases off a crow that has sat `FarmConfig.DogReactSeconds` (1.5 s) — no bounty, that stays the tap's — then rests `FarmConfig.DogCooldownSeconds` (10 s, saved as `State.DogCooldown`). Fires event `DogChased`. | 0–1 |
+| Beehive *(v2.0)* | Almanac node, Soil branch, prereq `sun`, max 1, cost 450. Sun grows the `FarmConfig.BeeColumns` (2) right-most columns, by the sunflowers, at `FarmConfig.BeeSunBoost` ×1.3. | 0–1 |
 | Greenhouse | during Winter, earns `X coins/s` based on field value *(tune)*. *(v1.3)* `level x 0.02 x field value` coins/s (field value = sum of the crop value of every plot), x2 with the Heritage node, at most 60 s per winter, only while the Winter phase is open (not in the Heritage phase, not offline). | 0–3 |
 
-Apprentices: each has its own position and target; they never target the same plot; they retarget if the ring or another helper takes their plot; they idle near the field edge when nothing is Ripe. Six apprentices running around is a deliberate visual goal.
+Apprentices: each has its own position and target; they never target the same plot; they retarget if the ring or another helper takes their plot; they idle near the field edge when nothing is Ripe. Six apprentices running around is a deliberate visual goal. *(v2.0)* Each apprentice has a role, `ApprenticeRole` (`Harvester` or `Waterer`): a Harvester works as before; a Waterer walks to the nearest Dry, non-stony plot not already targeted and waters it to Wet in the harvest time. Tapping an apprentice switches its role (banner "Harvester: picks ripe crops" / "Waterer: waters dry plots") and drops its current job; a waterer's thought bubble shows water colour. Works offline like any apprentice.
 
 ---
 
 ## 5. Events
 
 ### 5.1 Crows
-- From year 2. Spawn check every 4 s; roll at the Scarecrow-modified chance only when a Ripe, unprotected, crow-free plot exists outside the ring. Max 2 at once.
+- From year 2. Spawn check every 4 s; roll at `FarmConfig.CrowSpawnChance` (flat 25%) only when a Ripe, crow-free plot exists outside the ring and outside every scarecrow's guarded radius. Max 2 at once. *(v2.0)* Scarecrows guard an area instead of lowering the spawn chance (§4).
 - A crow eats the crop after 4 s. Tap scares it: the crop stays and the crow drops **coins = 2 × crop value** *(tune)*. Being harvested also scares it *(v1.1: no coins dropped)*.
 - Eaten crop → plot to Dry, progress 0.
 
@@ -233,13 +235,13 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 - `ring_radius` (5) · `ring_water_speed` (5) · `ring_grow_speed` (5) · `ring_harvest_speed` (3) · `ring_bonus_coins` +10%/lvl on ring harvests (4) · `ring_combo` consecutive ring harvests within 1 s add a small stacking bonus (3) · *(v1.6)* `ring_shape` unlocks Rake and Cross footprints (2) · *(v1.6)* `tap_harvest` a tap finishes one Ripe plot on a cooldown (2)
 
 **Soil**
-- `irrigation` (5) · `sun` (5) · `soil_quality` (6) · `crop_value` +10%/lvl all harvests (5) · `fertile_start` new plots start Wet (1)
+- `irrigation` (5) · `sun` (5) · `soil_quality` (6) · `crop_value` +10%/lvl all harvests (5) · `fertile_start` new plots start Wet (1) · `beehive` *(v2.0)* prereq `sun`, Sun grows the two right-most columns ×1.3 (1)
 
 **Field**
 - `expand_field` (3) · `upgrade_plot` (until all max) · `unlock_tomato` (1) · `unlock_corn` (1) · `unlock_pumpkin` (1) · `unlock_grapes` (1) · `unlock_golden_wheat` (1) · `bulk_upgrade` UpgradePlot raises 2 plots per purchase (1)
 
 **Helpers**
-- `apprentice_count` (6) · `apprentice_speed` (4) · `apprentice_harvest_time` (3) · `apprentice_yield` (4) · `tractor` (3) · `scarecrow` (2) · `helper_water` apprentices also water the plot they stand on (1)
+- `apprentice_count` (6) · `apprentice_speed` (4) · `apprentice_harvest_time` (3) · `apprentice_yield` (4) · `tractor` (3) · `scarecrow` (2) · `helper_water` apprentices also water the plot they stand on (1) · `farm_dog` *(v2.0)* prereq `scarecrow`, chases off a crow after it lands, no bounty (1)
 
 **Calendar**
 - `year_length` (6) · `frost_warning` +5 s per level (2) · `late_frost` at Winter, plots that are ≥80% grown are harvested at half value instead of lost (1) · `greenhouse` (3) · `crow_bounty` scared crows drop more (3) · `spring_head_start` year starts with all plots Wet (1)
@@ -247,6 +249,8 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 *(v1.3)* `ring_combo`: consecutive ring harvests within 1 s stack, `1 + level x 0.01 x min(combo, 10)` on ring harvests. `late_frost`: at Winter, Ripe plots and Wet plots at >= 80 % are harvested at half value. `crow_bounty`: scare drop = `(2 + level) x value`. `bulk_upgrade`: two lowest plots per purchase. `fertile_start`: expansion plots start Wet. `spring_head_start`: all plots Wet at Spring. `helper_water`: apprentice replants Wet.
 
 *(v1.6)* Combo milestones pay out on top of `ring_combo`'s stacking bonus: combo 10/25/50 pays 3x/8x/20x the harvested crop's value (`ComboMilestones`/`ComboMilestoneBonus`). A crow eating a crop now breaks the combo, same as it already breaks on a miss.
+
+*(v2.0)* `scarecrow` no longer changes crow spawn chance; each level places a scarecrow the player can move, guarding plots within `FarmConfig.ScarecrowRadius` (§4, §5.1) — replaces `CrowSpawnChanceByScarecrow`. `farm_dog`: prereq `scarecrow`, max 1, cost 400; chases a crow that has sat `FarmConfig.DogReactSeconds` (1.5 s), no bounty (stays the tap's), then rests `FarmConfig.DogCooldownSeconds` (10 s, saved as `State.DogCooldown`); event `DogChased`. `beehive`: prereq `sun`, max 1, cost 450; the Sun grows the `FarmConfig.BeeColumns` (2) right-most columns at `FarmConfig.BeeSunBoost` ×1.3. Hens eating pests is deferred to M.5 (pests don't exist yet).
 
 Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `year_length`) have no prerequisites.
 
@@ -262,7 +266,7 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
   - Hand: starting radius +0.25 (3) · all ring speeds +10% (5) · ring harvests +5% coins (4)
   - Soil: start with Irrigation 1 / Sun 1 (1 each) · global growth +5% (5) · **unlock rain cloud** (1)
   - Field: start 4×4 (1) · start with Tomato unlocked (1) · **golden crop chance** 1%/lvl (5)
-  - Helpers: first apprentice free (1) · apprentice yield +5% (4) · **scarecrow level 3 = no crows** (1) *(v1.3)* = Almanac scarecrow 2 + this node -> crow chance 0.
+  - Helpers: first apprentice free (1) · apprentice yield +5% (4) · **scarecrow level 3 = no crows** (1) *(v1.3)* = Almanac scarecrow 2 + this node -> crow chance 0. *(v2.0)* Scarecrow spawn chance is now flat (§4); at Almanac scarecrow 2 the two placed scarecrows already guard every plot on a 3×3 field, so this node keeps its meaning (no crows can land) unchanged.
   - Calendar: starting year length +10 s (4) · greenhouse ×2 (2) · Almanac costs −5% (4)
 - Each generation adds a visible change to the farm (bigger house, a tree, a fence, a well). Story is exactly this: a farm handed down.
 - *(v1.2)* The Heritage table has the 16 nodes listed above (edges in `DECISIONS.md`, Session 2). 'Start with Irrigation 1 / Sun 1' acts as a floor on the Almanac level, not an addition. Heritage effects are base modifiers applied before Almanac effects. Nodes whose feature does not exist yet are purchasable and stored as flags.
@@ -290,6 +294,7 @@ after, but nothing new unlocks.
 - *(v1.7)* Schema is now **8**: adds each plot's `Choice` (default **-1**); `Tier` now means the bed's quality, not the crop growing. Migration `V7ToV8` sets `Choice = -1` on every plot. Fixture-tested in `SaveV8Tests` against a hand-written v7 JSON.
 - *(v1.8)* Schema is now **9**: adds each plot's `Kind` (int) and `LastYearTier` (default **-1**). Migration `V8ToV9` sets every plot to plain ground with no rotation memory. Fixture-tested in `SaveV9Tests` against a hand-written v8 JSON.
 - *(v1.9)* Schema is now **10**: adds `YearFreshSum`, `CropsLostThisYear`, `LastGrade`, `LastGradeBonus`, `LastYearCoins`, `GoalType`/`GoalTier`/`GoalTarget`/`GoalProgress`/`GoalDone`/`GoalReward`, `Weather`, `WeatherLeft`, `PlannedWeather`, `PlannedWeatherTime` to `SaveData`, and each plot's `DryTimer` to `PlotSave`. Migration `V9ToV10` starts with no active goal, no grade recorded, and clears any in-progress weather. Fixture-tested in `SaveV10Tests` against a hand-written v9 JSON.
+- *(v2.0)* Schema is now **11**: adds `ScarecrowX`/`ScarecrowY` (int arrays) and `DogCooldown` to `SaveData`, and `Role` to `ApprenticeSave`. Migration `V10ToV11` starts with no scarecrows remembered (they are placed fresh on load), a rested dog, and every apprentice as a Harvester. Fixture-tested in `SaveV11Tests` against a hand-written v10 JSON.
 
 ---
 
@@ -480,3 +485,14 @@ end-of-year grade (§3.4). The new income sources pushed year 1 to 83 coins and 
 Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 10 seeds at
 first retire, 6 generations to max Heritage, 5.21 h to the ending, ring share 100% / 56% / 30%
 (year 1 / first retire / generation 4). 249 tests green.
+
+**2026-09-19 — M.4 helpers and animals pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer`, seed 1).
+
+What changed: placeable scarecrows (§4, §5.1), apprentice roles (§4), the `farm_dog` and `beehive`
+Almanac nodes (§6), and the manual tractor trigger (§4). None of these touch cost curves or crop
+timings.
+
+Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 10 seeds at
+first retire, 6 generations to max Heritage, 5.19 h to the ending, ring share 100% / 56% / 30%
+(year 1 / first retire / generation 4) — unchanged from M.3. No tuning needed; 258 tests green.

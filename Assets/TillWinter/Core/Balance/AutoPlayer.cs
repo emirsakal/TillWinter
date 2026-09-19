@@ -58,7 +58,7 @@ namespace TillWinter.Core.Balance
         {
             ["irrigation"] = 3, ["sun"] = 3, ["ring_radius"] = 2.5, ["apprentice_count"] = 2.5, ["expand_field"] = 2,
             ["unlock_tomato"] = 2, ["upgrade_plot"] = 1.5, ["soil_quality"] = 1.5, ["ring_water_speed"] = 1.2, ["ring_grow_speed"] = 1.2,
-            ["year_length"] = 1.5, ["scarecrow"] = 0.8, ["tractor"] = 1.2, ["greenhouse"] = 0.8, ["crow_bounty"] = 0.4,
+            ["year_length"] = 1.5, ["scarecrow"] = 0.8, ["farm_dog"] = 0.6, ["beehive"] = 0.6, ["tractor"] = 1.2, ["greenhouse"] = 0.8, ["crow_bounty"] = 0.4,
             ["ring_combo"] = 0.5, ["ring_shape"] = 0.6, ["tap_harvest"] = 0.6, ["late_frost"] = 0.6, ["frost_warning"] = 0.3, ["helper_water"] = 0.7, ["spring_head_start"] = 0.7,
             ["h_start_field"] = 3, ["h_free_apprentice"] = 3, ["h_start_irrigation"] = 2.5, ["h_start_sun"] = 2.5, ["h_start_radius"] = 2,
             ["h_global_growth"] = 1.5, ["h_almanac_discount"] = 1.2, ["h_ring_speeds"] = 1.2, ["h_unlock_rain_cloud"] = 1, ["h_golden_crop"] = 1,

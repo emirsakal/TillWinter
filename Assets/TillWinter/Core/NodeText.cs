@@ -65,7 +65,7 @@ namespace TillWinter.Core
                 case EffectType.ApprenticeYield: return Pct(s.ApprenticeYield);
                 case EffectType.HeritageApprenticeYield: return "+" + Pct(node.ValuePerLevel * level);
                 case EffectType.Tractor: return level > 0 && level < cfg.TractorIntervalByLevel.Length ? F(cfg.TractorIntervalByLevel[level], "0") + " s" : "-";
-                case EffectType.Scarecrow: return Pct(s.CrowSpawnChance);
+                case EffectType.Scarecrow: return s.ScarecrowCount.ToString(CultureInfo.InvariantCulture);
                 case EffectType.ScarecrowImmunity: return level > 0 ? "owned" : "-";
                 case EffectType.YearLength:
                 case EffectType.HeritageStartYearLength: return F(s.YearLength, "0") + " s";
@@ -83,6 +83,8 @@ namespace TillWinter.Core
                 case EffectType.SpringHeadStart:
                 case EffectType.LateFrost:
                 case EffectType.HelperWater:
+                case EffectType.FarmDog:
+                case EffectType.Beehive:
                 case EffectType.UnlockRainCloud:
                 case EffectType.HeritageStartIrrigation:
                 case EffectType.HeritageStartSun: return level > 0 ? "on" : "off";

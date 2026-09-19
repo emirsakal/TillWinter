@@ -903,3 +903,33 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **In-season growth speed stays out of scope again.** Same call as the M.2 session (season
   preference is value-only): the tuning rule still forbids changing crop timings with season, so
   M.3's spring/summer/autumn rules touch rates and windows on passive systems, never the crop table.
+
+## Mechanics M.4: placeable scarecrows, helper roles, farm dog, beehive and tractor by hand (2026-09-19)
+
+- **Scarecrows guard an area instead of rolling a better chance.** Open: how to make the
+  `scarecrow` node a decision instead of a passive stat (backlog M.4). Chosen: a fixed spawn
+  chance plus a placeable guard radius per scarecrow — it's a choice the player makes (where to
+  stand it) and a rule that reads at a glance (this plot is guarded, that one isn't), instead of a
+  percentage the player can't see working.
+- **New scarecrows auto-place on the corner that guards the most unguarded plots.** Open: whether
+  placement should always be manual. Chosen: auto-place on purchase, manual `MoveScarecrow` after
+  — so idle play and `AutoPlayer` still benefit from a scarecrow the moment it's bought, and a
+  player who wants to reposition one still can.
+- **The dog scares crows without a bounty.** Open: whether the dog's chase should pay like a tap
+  does. Chosen: no coins from the dog — the crow-bounty tap stays the only paid way to deal with a
+  crow, so a farm dog doesn't quietly replace the player's own attention to the field.
+- **Beehive is tied to the sunflower side of the field, not a random pair of columns.** Open:
+  which plots the beehive should boost. Chosen: the two right-most columns, by the sunflowers, so
+  the bonus has a place on the field you can see and associate with the node, not an invisible
+  global multiplier.
+- **Tractor triggers by hand at half charge, not any charge.** Open: how early a manual trigger
+  should be allowed. Chosen: `TractorManualReady` at ≥50% — early enough to be a real choice
+  between triggering now and waiting for the full timer, late enough that it isn't a spam button
+  that trivialises the timer.
+- **Tractor row choice stays automatic.** Open: whether the manual trigger should let the player
+  pick the row. Chosen: no — the row with the most Ripe plots is almost always the row the player
+  would pick anyway, so hand-picking would add a decision without adding a real choice.
+- **Waterer role gives early farms a use for helpers before Irrigation.** Open: what a second
+  apprentice role should do that Irrigation doesn't already cover once bought. Chosen: a Waterer
+  keeps mattering because it targets whichever Dry plot is nearest, not a fixed rate — it's useful
+  from the first apprentice, not just as an Irrigation substitute.

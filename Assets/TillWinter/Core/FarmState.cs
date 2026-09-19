@@ -93,6 +93,8 @@ namespace TillWinter.Core
         public float HarvestProgress { get; internal set; }
         /// <summary>True while moving (toward a target or back to the idle spot).</summary>
         public bool IsWalking { get; internal set; }
+        /// <summary>Harvester or waterer (GDD §4.2 v2.0); the player switches it by tapping the apprentice.</summary>
+        public ApprenticeRole Role { get; internal set; }
     }
 
     /// <summary>Rain cloud (GDD §5.2): drifts across the top of the field once per Summer when unlocked.</summary>
@@ -233,6 +235,14 @@ namespace TillWinter.Core
         public IReadOnlyList<Crow> Crows => CrowList;
 
         internal readonly List<ApprenticeState> ApprenticeList = new List<ApprenticeState>();
+        /// <summary>
+        /// Placed scarecrows (GDD §5.1 v2.0), one per `scarecrow` level, each on a plot corner: corner (cx, cy) is the
+        /// point (cx - 0.5, cy - 0.5) in plot space, so 0..GridSize on both axes.
+        /// </summary>
+        internal readonly List<GridPos> ScarecrowList = new List<GridPos>();
+        public IReadOnlyList<GridPos> Scarecrows => ScarecrowList;
+        /// <summary>Seconds until the farm dog can chase again (GDD §4.3 v2.0).</summary>
+        public float DogCooldown { get; internal set; }
         public IReadOnlyList<ApprenticeState> Apprentices => ApprenticeList;
 
         public CloudState Cloud { get; } = new CloudState();

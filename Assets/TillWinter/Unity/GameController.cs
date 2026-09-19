@@ -38,6 +38,12 @@ namespace TillWinter.Unity
         public System.Func<Vector2, bool> DogHitTest;
         /// <summary>Set by the HUD while a seed is picked from the bag: plants on the tapped plot. A crow still takes the tap first.</summary>
         public System.Func<GridPos, bool> PlotTapOverride;
+        /// <summary>Set by the HUD while a scarecrow is being placed: gets the tap in plot space (corners between beds count).</summary>
+        public System.Func<Vector2, bool> FieldTapOverride;
+        /// <summary>Set by ApprenticesView: which apprentice is under this screen point, or -1.</summary>
+        public System.Func<Vector2, int> ApprenticeHitTest;
+        /// <summary>A tapped apprentice switched role (GDD §4.2 v2.0): its index.</summary>
+        public event System.Action<int> ApprenticeRoleToggled;
 
         /// <summary>Sim seconds elapsed (respects TimeScale). Use for animation that should follow the sim.</summary>
         public float SimTime { get; private set; }
@@ -110,6 +116,21 @@ namespace TillWinter.Unity
                 if (s.Tapped && DogHitTest != null && DogHitTest(s.TapPosition))
                 {
                     s.Tapped = false;
+                }
+                if (s.Tapped && FieldTapOverride != null && TryScreenToPlot(s.TapPosition, out var fp) && FieldTapOverride(new Vector2(fp.x, fp.y)))
+                {
+                    s.Tapped = false;
+                }
+                // Tapping an apprentice switches it between harvesting and watering.
+                if (s.Tapped && ApprenticeHitTest != null)
+                {
+                    int index = ApprenticeHitTest(s.TapPosition);
+                    if (index >= 0)
+                    {
+                        s.Tapped = false;
+                        var role = State.Apprentices[index].Role == ApprenticeRole.Waterer ? ApprenticeRole.Harvester : ApprenticeRole.Waterer;
+                        if (Sim.SetApprenticeRole(index, role)) ApprenticeRoleToggled?.Invoke(index);
+                    }
                 }
                 if (s.Tapped && TryScreenToPlot(s.TapPosition, out var tp))
                 {

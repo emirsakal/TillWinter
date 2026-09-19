@@ -47,6 +47,10 @@ namespace TillWinter.Tests
             sim.DebugSetGoal(GoalType.HarvestCrop, 500, 0, 40);
             sim.DebugStartWeather(Weather.HeatWave);
             Run(sim, 0.4f, null);
+            // v11: two scarecrows, one moved; a waterer (switched last, so it carries no half-done work into the save).
+            sim.DebugSetLevel("scarecrow", 2);
+            Assert.IsTrue(sim.MoveScarecrow(1, new GridPos(0, 0)));
+            Assert.IsTrue(sim.SetApprenticeRole(0, ApprenticeRole.Waterer));
             return sim;
         }
 
@@ -105,6 +109,9 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.Stats.ApprenticeCount, sb.Stats.ApprenticeCount);
             Assert.AreEqual(sa.Stats.TargetGridSize, sb.Stats.TargetGridSize);
             Assert.AreEqual(sa.RingShape, sb.RingShape);
+            CollectionAssert.AreEqual(sa.Scarecrows, sb.Scarecrows);
+            Assert.AreEqual(sa.DogCooldown, sb.DogCooldown);
+            for (int i = 0; i < sa.Apprentices.Count; i++) Assert.AreEqual(sa.Apprentices[i].Role, sb.Apprentices[i].Role, "role " + i);
             Assert.AreEqual(sa.Goal.Type, sb.Goal.Type);
             Assert.AreEqual(sa.Goal.Tier, sb.Goal.Tier);
             Assert.AreEqual(sa.Goal.Target, sb.Goal.Target);

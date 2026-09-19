@@ -128,6 +128,7 @@ MonoBehaviour:
   Frog: {fileID: 895513762185150082, guid: b1231de7348fdbb4197de06ec4b4bb2c, type: 3}
   FencePost: {fileID: 4958611071431761554, guid: 6a32d065cb1d4854789a18528ca4f1d2, type: 3}
   Flag: {fileID: 8852920479235949950, guid: d95ca497d67a2fe4885ed3fd7c4b74fe, type: 3}
+  Scarecrow: {fileID: 2349963081503933352, guid: c00d7d99f34650249aa700983c7d6961, type: 3}
   Chicken: {fileID: 333530613313315121, guid: af03abe4ee8fad24099ba85f22c5d78a, type: 3}
   Cat: {fileID: 3251820082568620044, guid: 8e7ff7ca1561b424fa7e939b034278a4, type: 3}
   Channel: {fileID: 2718343414206706475, guid: fe604a818fd3f6e40a2871d3972842a2, type: 3}

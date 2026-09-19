@@ -33,6 +33,10 @@ namespace TillWinter.Core
         public event Action<int, double> YearGraded;
         /// <summary>Weather began (a spell) or ended (Clear) (GDD §5.4 v1.9).</summary>
         public event Action<Weather> WeatherChanged;
+        /// <summary>The farm dog chased a crow off this plot (GDD §4.3 v2.0).</summary>
+        public event Action<GridPos> DogChased;
+        /// <summary>A scarecrow was placed or moved (index).</summary>
+        public event Action<int> ScarecrowMoved;
         public event Action<CrowEvent> CrowLanded;
         public event Action<CrowEvent> CrowScared;
         public event Action<CrowEvent> CrowAte;
@@ -459,7 +463,15 @@ namespace TillWinter.Core
                 d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.BedTier, Choice = p.Choice, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge, Kind = (int)p.Kind, LastYearTier = p.LastYearTier, DryTimer = p.DryTimer };
             }
             for (int i = 0; i < s.ApprenticeList.Count; i++)
-                d.Apprentices[i] = new ApprenticeSave { X = s.ApprenticeList[i].X, Y = s.ApprenticeList[i].Y };
+                d.Apprentices[i] = new ApprenticeSave { X = s.ApprenticeList[i].X, Y = s.ApprenticeList[i].Y, Role = (int)s.ApprenticeList[i].Role };
+            d.ScarecrowX = new int[s.ScarecrowList.Count];
+            d.ScarecrowY = new int[s.ScarecrowList.Count];
+            for (int i = 0; i < s.ScarecrowList.Count; i++)
+            {
+                d.ScarecrowX[i] = s.ScarecrowList[i].X;
+                d.ScarecrowY[i] = s.ScarecrowList[i].Y;
+            }
+            d.DogCooldown = s.DogCooldown;
             return d;
         }
 
@@ -550,7 +562,15 @@ namespace TillWinter.Core
             {
                 s.ApprenticeList[i].X = saved[i].X;
                 s.ApprenticeList[i].Y = saved[i].Y;
+                s.ApprenticeList[i].Role = saved[i].Role == (int)ApprenticeRole.Waterer ? ApprenticeRole.Waterer : ApprenticeRole.Harvester;
             }
+            if (data.ScarecrowX != null && data.ScarecrowY != null && data.ScarecrowX.Length == data.ScarecrowY.Length && data.ScarecrowX.Length > 0)
+            {
+                s.ScarecrowList.Clear();
+                for (int i = 0; i < data.ScarecrowX.Length; i++) s.ScarecrowList.Add(new GridPos(data.ScarecrowX[i], data.ScarecrowY[i]));
+                sim.SyncScarecrows(); // clamps, and fixes a count that does not match the levels
+            }
+            s.DogCooldown = Math.Max(0f, data.DogCooldown);
             s.Cloud.Active = data.CloudActive;
             s.Cloud.X = data.CloudX;
             s.Cloud.TimeLeft = data.CloudTimeLeft;
@@ -938,7 +958,7 @@ namespace TillWinter.Core
                     }
                     case PlotState.Wet:
                     {
-                        float speed = (under ? st.RingGrowMult * FlowMult : PassiveSun) * st.SoilMultiplier;
+                        float speed = (under ? st.RingGrowMult * FlowMult : PassiveSun * BeeBoost(plot)) * st.SoilMultiplier;
                         if (speed <= 0f)
                         {
                             // GDD §3.2 (v1.9): in a drought a Wet plot nothing is growing dries back out.
@@ -1373,7 +1393,7 @@ namespace TillWinter.Core
             var st = State.Stats;
             foreach (var a in State.ApprenticeList)
             {
-                if (a.HasTarget && !State.GetPlot(a.Target).IsRipe)
+                if (a.HasTarget && !Wants(a, State.GetPlot(a.Target)))
                 {
                     a.HasTarget = false;
                     a.IsHarvesting = false;
@@ -1386,7 +1406,7 @@ namespace TillWinter.Core
                     float bestDist = float.MaxValue;
                     foreach (var p in State.PlotArray)
                     {
-                        if (!p.IsRipe || IsTargetedByOther(p.Pos, a)) continue;
+                        if (!Wants(a, p) || IsTargetedByOther(p.Pos, a)) continue;
                         float dx = p.Pos.X - a.X, dy = p.Pos.Y - a.Y;
                         float d = dx * dx + dy * dy;
                         if (d < bestDist)
@@ -1409,7 +1429,15 @@ namespace TillWinter.Core
                     a.IsWalking = false;
                     if (a.HarvestProgress >= 1f)
                     {
-                        Harvest(State.GetPlot(a.Target), HarvestSource.Apprentice, a.Index);
+                        var worked = State.GetPlot(a.Target);
+                        if (a.Role == ApprenticeRole.Waterer)
+                        {
+                            worked.State = PlotState.Wet;
+                            worked.Progress = 0f;
+                            worked.DryTimer = 0f;
+                            PlotWatered?.Invoke(worked.Pos);
+                        }
+                        else Harvest(worked, HarvestSource.Apprentice, a.Index);
                         a.IsHarvesting = false;
                         a.HasTarget = false;
                         a.HarvestProgress = 0f;
@@ -1443,6 +1471,125 @@ namespace TillWinter.Core
         }
 
         // ------------------------------------------------------------------ tractor (GDD §4)
+
+        /// <summary>A harvester wants Ripe plots; a waterer wants Dry ones it can water (GDD §4.2 v2.0).</summary>
+        private static bool Wants(ApprenticeState a, Plot p) =>
+            a.Role == ApprenticeRole.Waterer ? p.State == PlotState.Dry && !p.IsStony : p.IsRipe;
+
+        /// <summary>Switches an apprentice between harvesting and watering; it drops whatever it was doing.</summary>
+        public bool SetApprenticeRole(int index, ApprenticeRole role)
+        {
+            if (index < 0 || index >= State.ApprenticeList.Count) return false;
+            var a = State.ApprenticeList[index];
+            if (a.Role == role) return false;
+            a.Role = role;
+            a.HasTarget = false;
+            a.IsHarvesting = false;
+            a.HarvestProgress = 0f;
+            return true;
+        }
+
+        // ------------------------------------------------------------------ scarecrows and bees (GDD §4.3/§5.1 v2.0)
+
+        /// <summary>True when a placed scarecrow keeps crows off this plot.</summary>
+        public bool IsGuarded(GridPos plot)
+        {
+            float r2 = Config.ScarecrowRadius * Config.ScarecrowRadius;
+            foreach (var c in State.ScarecrowList)
+            {
+                float dx = plot.X - (c.X - 0.5f), dy = plot.Y - (c.Y - 0.5f);
+                if (dx * dx + dy * dy <= r2) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Moves a scarecrow to a plot corner (0..GridSize on both axes); not onto another one, not in the Heritage phase.</summary>
+        public bool MoveScarecrow(int index, GridPos corner)
+        {
+            var list = State.ScarecrowList;
+            if (State.Phase == Phase.Heritage || index < 0 || index >= list.Count) return false;
+            int g = State.GridSize;
+            if (corner.X < 0 || corner.Y < 0 || corner.X > g || corner.Y > g) return false;
+            for (int i = 0; i < list.Count; i++) if (i != index && list[i] == corner) return false;
+            if (list[index] == corner) return false;
+            list[index] = corner;
+            ScarecrowMoved?.Invoke(index);
+            return true;
+        }
+
+        /// <summary>One scarecrow per level: new ones stand where they guard the most plots nothing guards yet.</summary>
+        private void SyncScarecrows()
+        {
+            var list = State.ScarecrowList;
+            int want = Math.Max(0, State.Stats.ScarecrowCount);
+            int g = State.GridSize;
+            for (int i = 0; i < list.Count; i++)
+                list[i] = new GridPos(Math.Max(0, Math.Min(g, list[i].X)), Math.Max(0, Math.Min(g, list[i].Y)));
+            while (list.Count > want) list.RemoveAt(list.Count - 1);
+            while (list.Count < want)
+            {
+                list.Add(BestScarecrowCorner());
+                ScarecrowMoved?.Invoke(list.Count - 1);
+            }
+        }
+
+        private GridPos BestScarecrowCorner()
+        {
+            int g = State.GridSize;
+            float r2 = Config.ScarecrowRadius * Config.ScarecrowRadius, mid = g / 2f;
+            var best = new GridPos(g / 2, g / 2);
+            int bestGain = -1;
+            float bestDist = float.MaxValue;
+            for (int cy = 0; cy <= g; cy++)
+            for (int cx = 0; cx <= g; cx++)
+            {
+                var c = new GridPos(cx, cy);
+                if (State.ScarecrowList.Contains(c)) continue;
+                int gain = 0;
+                foreach (var p in State.PlotArray)
+                {
+                    float dx = p.Pos.X - (cx - 0.5f), dy = p.Pos.Y - (cy - 0.5f);
+                    if (dx * dx + dy * dy <= r2 && !IsGuarded(p.Pos)) gain++;
+                }
+                float d = (cx - mid) * (cx - mid) + (cy - mid) * (cy - mid);
+                if (gain > bestGain || (gain == bestGain && d < bestDist))
+                {
+                    best = c;
+                    bestGain = gain;
+                    bestDist = d;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>The beehive speeds the Sun on the right-most columns, by the sunflowers.</summary>
+        private float BeeBoost(Plot p) =>
+            State.Stats.Beehive && p.Pos.X >= State.GridSize - Config.BeeColumns ? Config.BeeSunBoost : 1f;
+
+        /// <summary>Is this plot one the bees work?</summary>
+        public bool IsBeePlot(GridPos pos) => State.Stats.Beehive && pos.X >= State.GridSize - Config.BeeColumns;
+
+        // ------------------------------------------------------------------ tractor by hand (GDD §4.4 v2.0)
+
+        /// <summary>0..1: how far the tractor's timer has run (0 while sweeping or not owned).</summary>
+        public float TractorCharge
+        {
+            get
+            {
+                var t = State.Tractor;
+                if (!t.Owned || t.Sweeping) return 0f;
+                float interval = TractorInterval();
+                return interval <= 0f ? 1f : Math.Max(0f, Math.Min(1f, 1f - t.TimeToNextSweep / interval));
+            }
+        }
+
+        /// <summary>Sends the tractor now, down the row with the most Ripe plots, once it is at least half charged.</summary>
+        public bool TriggerTractor()
+        {
+            var t = State.Tractor;
+            if (State.Phase != Phase.Year || !t.Owned || t.Sweeping || TractorCharge < Config.TractorManualReady) return false;
+            return TryStartSweep();
+        }
 
         private float TractorInterval()
         {
@@ -1610,6 +1757,22 @@ namespace TillWinter.Core
         private void UpdateCrows(float dt)
         {
             var crows = State.CrowList;
+            // GDD §4.3 (v2.0): the farm dog goes for a crow that has settled, then rests. No bounty: that is the tap's.
+            if (State.DogCooldown > 0f) State.DogCooldown = Math.Max(0f, State.DogCooldown - dt);
+            if (State.Stats.FarmDog && State.DogCooldown <= 0f)
+            {
+                for (int i = 0; i < crows.Count; i++)
+                {
+                    if (crows[i].Timer < Config.DogReactSeconds) continue;
+                    var pos = crows[i].Pos;
+                    State.GetPlot(pos).HasCrow = false;
+                    crows.RemoveAt(i);
+                    State.DogCooldown = Config.DogCooldownSeconds;
+                    DogChased?.Invoke(pos);
+                    CrowScared?.Invoke(new CrowEvent(pos, 0));
+                    break;
+                }
+            }
             for (int i = crows.Count - 1; i >= 0; i--)
             {
                 var crow = crows[i];
@@ -1643,7 +1806,7 @@ namespace TillWinter.Core
             if (State.Stats.CrowSpawnChance <= 0f) return;
             _scratch.Clear();
             foreach (var p in State.PlotArray)
-                if (p.IsRipe && !p.HasCrow && !State.IsUnderRing(p.Pos)) _scratch.Add(p);
+                if (p.IsRipe && !p.HasCrow && !State.IsUnderRing(p.Pos) && !IsGuarded(p.Pos)) _scratch.Add(p);
             if (_scratch.Count == 0) return;
             if (_rng.NextDouble() >= State.Stats.CrowSpawnChance) return;
             SpawnCrowAt(_scratch[_rng.Next(_scratch.Count)].Pos);
@@ -1780,6 +1943,7 @@ namespace TillWinter.Core
             {
                 SyncApprenticeCount();
                 UpdateGreenhouseRate();
+                SyncScarecrows();
             }
         }
     }

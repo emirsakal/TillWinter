@@ -94,6 +94,15 @@ namespace TillWinter.Core
         /// <summary>A heat wave multiplies the Sun by this.</summary>
         public float HeatWaveSun = 1.5f;
 
+        // Helpers and animals (GDD §4 v2.0)
+        /// <summary>The farm dog goes for a crow that has sat this long, then rests for the cooldown.</summary>
+        public float DogReactSeconds = 1.5f, DogCooldownSeconds = 10f;
+        /// <summary>The beehive speeds the Sun by this much on the right-most columns (by the sunflowers).</summary>
+        public float BeeSunBoost = 1.3f;
+        public int BeeColumns = 2;
+        /// <summary>The tractor can be sent by hand once its timer is this far charged.</summary>
+        public float TractorManualReady = 0.5f;
+
         // Ring (GDD §2.1)
         public float BaseRingRadius = 0.7f;
         public float MaxRingRadius = 2.5f;
@@ -106,8 +115,10 @@ namespace TillWinter.Core
         // Crows (GDD §5.1)
         public int CrowFirstYear = 2;
         public float CrowSpawnInterval = 4f;
-        /// <summary>Indexed by scarecrow level. Never 0 in the Almanac.</summary>
-        public float[] CrowSpawnChanceByScarecrow = { 0.25f, 0.15f, 0.08f };
+        /// <summary>Chance per spawn tick that a crow comes (GDD §5.1). Scarecrows guard an area rather than lowering it (v2.0).</summary>
+        public float CrowSpawnChance = 0.25f;
+        /// <summary>A scarecrow keeps crows off every plot whose centre is this close to its corner (12 plots at 1.6).</summary>
+        public float ScarecrowRadius = 1.6f;
         public int MaxCrows = 2;
         public float CrowEatTime = 4f;
         /// <summary>A tap-scared crow drops this × crop value.</summary>
