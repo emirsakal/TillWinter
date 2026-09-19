@@ -11,7 +11,7 @@ namespace TillWinter.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentSchemaVersion = 10;
+        public const int CurrentSchemaVersion = 11;
 
         public int SchemaVersion = CurrentSchemaVersion;
         public long SavedAtUnixSeconds;
@@ -98,6 +98,11 @@ namespace TillWinter.Core
         public float WeatherLeft;
         public int PlannedWeather;
         public float PlannedWeatherTime;
+
+        // v11: placed scarecrows (plot corners) and the farm dog's rest (GDD §4/§5.1 v2.0)
+        public int[] ScarecrowX = new int[0];
+        public int[] ScarecrowY = new int[0];
+        public float DogCooldown;
     }
 
     [Serializable]
@@ -125,6 +130,8 @@ namespace TillWinter.Core
     public sealed class ApprenticeSave
     {
         public float X, Y;
+        /// <summary>v11: <see cref="ApprenticeRole"/>.</summary>
+        public int Role;
     }
 
     [Serializable]
@@ -155,6 +162,7 @@ namespace TillWinter.Core
                     case 7: data = V7ToV8(data); break;
                     case 8: data = V8ToV9(data); break;
                     case 9: data = V9ToV10(data); break;
+                    case 10: data = V10ToV11(data); break;
                     default: return null;
                 }
             }
@@ -268,6 +276,17 @@ namespace TillWinter.Core
             d.PlannedWeatherTime = 0f;
             if (d.Plots != null) foreach (var p in d.Plots) if (p != null) p.DryTimer = 0f;
             d.SchemaVersion = 10;
+            return d;
+        }
+
+        /// <summary>v10 → v11: scarecrows get placed on load (none remembered), the dog is rested, every apprentice harvests.</summary>
+        private static SaveData V10ToV11(SaveData d)
+        {
+            d.ScarecrowX = new int[0];
+            d.ScarecrowY = new int[0];
+            d.DogCooldown = 0f;
+            if (d.Apprentices != null) foreach (var a in d.Apprentices) if (a != null) a.Role = 0;
+            d.SchemaVersion = 11;
             return d;
         }
 

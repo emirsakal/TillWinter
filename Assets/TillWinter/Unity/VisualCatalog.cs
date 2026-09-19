@@ -75,6 +75,8 @@ namespace TillWinter.Unity
         public GameObject Frog;
         public GameObject FencePost;
         public GameObject Flag;
+        /// <summary>A placeable scarecrow (GDD §5.1 v2.0); "Body" sways in the view.</summary>
+        public GameObject Scarecrow;
         public GameObject Chicken;
         public GameObject Cat;
         /// <summary>One unit of irrigation channel (shown once Irrigation is bought).</summary>

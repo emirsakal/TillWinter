@@ -54,6 +54,8 @@ namespace TillWinter.Core
             { "scarecrow", "warning" },
             { "tractor", "gear" },
             { "helper_water", "share1" },
+            { "farm_dog", "singleplayer" },
+            { "beehive", "zoomIn" },
             { "year_length", "scrollHorizontal" },
             { "frost_warning", "exclamation" },
             { "late_frost", "pause" },
@@ -82,6 +84,7 @@ namespace TillWinter.Core
             N("soil_quality", Branch.Soil, new[] { "sun" }, 6, 250, EffectType.SoilQuality, 0.25),
             N("crop_value", Branch.Soil, new[] { "soil_quality" }, 5, 500, EffectType.CropValue, 0.1),
             N("fertile_start", Branch.Soil, new[] { "soil_quality" }, 1, 600, EffectType.FertileStart, 1),
+            N("beehive", Branch.Soil, new[] { "sun" }, 1, 450, EffectType.Beehive, 1),
 
             // Field
             N("expand_field", Branch.Field, None, 3, 60, EffectType.ExpandField, 1),
@@ -101,6 +104,7 @@ namespace TillWinter.Core
             N("scarecrow", Branch.Helpers, new[] { "apprentice_count" }, 2, 100, EffectType.Scarecrow, 0),
             N("tractor", Branch.Helpers, new[] { "apprentice_yield" }, 3, 1000, EffectType.Tractor, 1),
             N("helper_water", Branch.Helpers, new[] { "apprentice_harvest_time" }, 1, 500, EffectType.HelperWater, 1),
+            N("farm_dog", Branch.Helpers, new[] { "scarecrow" }, 1, 400, EffectType.FarmDog, 1),
 
             // Calendar
             N("year_length", Branch.Calendar, None, 6, 50, EffectType.YearLength, 15),

@@ -64,11 +64,17 @@ implementation gets marked `*(vX.Y)*` inline, per `CLAUDE.md`.
 
 ### M.4 Helpers and animals
 
-- **Open.** [H] **Placeable scarecrows** protecting an area instead of a global chance.
-- **Open.** [M] **Helper roles** (waterer/harvester) or dragging a helper to an area.
-- **Open.** [M] **Animals with jobs.** The dog chases crows, bees speed neighbouring plots, hens
-  eat pests.
-- **Open.** [L] **Tractor control.** Trigger by hand or pick the row.
+- **Done.** [H] **Placeable scarecrows** protecting an area instead of a global chance. Each
+  scarecrow level places one the player can move to any plot corner; it guards every plot within
+  a fixed radius (12 plots on open ground) and the crow spawn chance goes flat.
+- **Done.** [M] **Helper roles** (waterer/harvester). Tap an apprentice to switch; a Waterer walks
+  to the nearest Dry, non-stony, untargeted plot and waters it. Dragging a helper to an area is
+  left out.
+- **Done.** [M] **Animals with jobs.** The dog chases off a crow that's sat a moment, no bounty,
+  then rests; bees speed the Sun on the two columns by the sunflowers. Hens eating pests is moved
+  to M.5 — pests don't exist yet.
+- **Done.** [L] **Tractor control.** Trigger by hand once the charge bar is at least half full.
+  Picking the row is left out — the busiest row is almost always the right one.
 
 ### M.5 Events and threats
 

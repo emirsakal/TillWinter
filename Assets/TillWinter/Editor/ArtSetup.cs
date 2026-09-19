@@ -271,6 +271,28 @@ namespace TillWinter.EditorTools
             return root;
         }
 
+        /// <summary>A post with a straw-stuffed shirt, arms out, a round head and a hat; "Body" sways in the view.</summary>
+        private static GameObject BuildScarecrow()
+        {
+            var (root, b) = Root("Scarecrow");
+            Prim(PrimitiveType.Cylinder, root.transform, "Post", new Vector3(0f, 0.36f, 0f), new Vector3(0.05f, 0.36f, 0.05f), b, PaletteSlot.Wood);
+            var body = new GameObject("Body").transform;
+            body.SetParent(root.transform, false);
+            body.localPosition = new Vector3(0f, 0.5f, 0f);
+            Prim(PrimitiveType.Cube, body, "Arms", new Vector3(0f, 0.12f, 0f), new Vector3(0.62f, 0.05f, 0.05f), b, PaletteSlot.Wood);
+            Prim(PrimitiveType.Cube, body, "Shirt", new Vector3(0f, 0.08f, 0f), new Vector3(0.26f, 0.26f, 0.14f), b, PaletteSlot.Roof);
+            Prim(PrimitiveType.Cube, body, "SleeveL", new Vector3(-0.2f, 0.12f, 0f), new Vector3(0.16f, 0.09f, 0.09f), b, PaletteSlot.Roof);
+            Prim(PrimitiveType.Cube, body, "SleeveR", new Vector3(0.2f, 0.12f, 0f), new Vector3(0.16f, 0.09f, 0.09f), b, PaletteSlot.Roof);
+            Prim(PrimitiveType.Cube, body, "StrawL", new Vector3(-0.31f, 0.1f, 0f), new Vector3(0.05f, 0.07f, 0.06f), b, PaletteSlot.Golden);
+            Prim(PrimitiveType.Cube, body, "StrawR", new Vector3(0.31f, 0.1f, 0f), new Vector3(0.05f, 0.07f, 0.06f), b, PaletteSlot.Golden);
+            Prim(PrimitiveType.Sphere, body, "Head", new Vector3(0f, 0.32f, 0f), Vector3.one * 0.17f, b, PaletteSlot.Golden);
+            Prim(PrimitiveType.Cylinder, body, "Brim", new Vector3(0f, 0.4f, 0f), new Vector3(0.28f, 0.012f, 0.28f), b, PaletteSlot.Hat);
+            ConeObj(body, "Crown", new Vector3(0f, 0.46f, 0f), new Vector3(0.14f, 0.12f, 0.14f), b, PaletteSlot.Hat);
+            Prim(PrimitiveType.Sphere, body, "EyeL", new Vector3(-0.035f, 0.34f, 0.075f), Vector3.one * 0.022f, b, PaletteSlot.Eye);
+            Prim(PrimitiveType.Sphere, body, "EyeR", new Vector3(0.035f, 0.34f, 0.075f), Vector3.one * 0.022f, b, PaletteSlot.Eye);
+            return root;
+        }
+
         /// <summary>A pole and a cloth on a pivot ("Cloth") the flag view waves.</summary>
         private static GameObject BuildFlag()
         {
@@ -496,6 +518,7 @@ namespace TillWinter.EditorTools
             c.Kennel = Save("Kennel", BuildKennel());
             c.FencePost = Save("FencePost", BuildFencePost());
             c.Flag = Save("Flag", BuildFlag());
+            c.Scarecrow = Save("Scarecrow", BuildScarecrow());
             c.Chicken = Save("Chicken", BuildChicken());
             c.Cat = Save("Cat", BuildCat());
             c.Channel = Save("Channel", BuildChannel());

@@ -20,6 +20,10 @@ namespace TillWinter.Core
         public double ApprenticeYield;
 
         public float CrowSpawnChance;
+        /// <summary>Scarecrows the player can place (GDD §5.1 v2.0).</summary>
+        public int ScarecrowCount;
+        /// <summary>GDD §4.3 (v2.0): the farm dog and the beehive.</summary>
+        public bool FarmDog, Beehive;
         public float YearLength, FrostWarningSeconds;
 
         /// <summary>Highest crop tier plots may be upgraded to.</summary>
@@ -57,7 +61,7 @@ namespace TillWinter.Core
                 ApprenticeSpeed = cfg.ApprenticeBaseSpeed,
                 ApprenticeHarvestTime = cfg.ApprenticeBaseHarvestTime,
                 ApprenticeYield = cfg.ApprenticeYieldByLevel[0],
-                CrowSpawnChance = cfg.CrowSpawnChanceByScarecrow[0],
+                CrowSpawnChance = cfg.CrowSpawnChance,
                 YearLength = cfg.BaseYearLength,
                 FrostWarningSeconds = cfg.BaseFrostWarningSeconds,
                 MaxTierUnlocked = 0,
@@ -119,7 +123,9 @@ namespace TillWinter.Core
                     case EffectType.ApprenticeSpeed: s.ApprenticeSpeed += (float)v; break;
                     case EffectType.ApprenticeHarvestTime: s.ApprenticeHarvestTime -= (float)v; break;
                     case EffectType.ApprenticeYield: s.ApprenticeYield = Index(cfg.ApprenticeYieldByLevel, level); break;
-                    case EffectType.Scarecrow: s.CrowSpawnChance = Index(cfg.CrowSpawnChanceByScarecrow, level); break;
+                    case EffectType.Scarecrow: s.ScarecrowCount = level; break;
+                    case EffectType.FarmDog: s.FarmDog = true; break;
+                    case EffectType.Beehive: s.Beehive = true; break;
                     case EffectType.YearLength: s.YearLength += (float)v; break;
                     case EffectType.FrostWarning: s.FrostWarningSeconds += (float)v; break;
                     case EffectType.RingCombo: s.RingComboLevel = level; break;

@@ -658,7 +658,7 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void Scarecrow_LevelsReduceSpawnChance_Level2StillSpawns()
+        public void Scarecrows_GuardAnArea_WithoutChangingTheChance()
         {
             int l0 = 0, l1 = 0, l2 = 0;
             for (int seed = 1; seed <= 5; seed++)
@@ -667,13 +667,11 @@ namespace TillWinter.Tests
                 l1 += CountSpawns(1, seed);
                 l2 += CountSpawns(2, seed);
             }
-            // 550 checks each at 25% / 15% / 8%: expect ≈137 / 82 / 44.
+            // GDD §5.1 (v2.0): 550 checks at 25% ≈ 137 with no scarecrow. One scarecrow leaves one plot of the 3x3
+            // field open, which still draws every crow; two guard the whole field.
             Assert.That(l0, Is.InRange(100, 180));
-            Assert.That(l1, Is.InRange(55, 115));
-            Assert.That(l2, Is.InRange(22, 70));
-            Assert.That(l2, Is.GreaterThan(0), "scarecrow 2 never gives immunity");
-            Assert.That(l1, Is.LessThan(l0));
-            Assert.That(l2, Is.LessThan(l1));
+            Assert.That(l1, Is.InRange(100, 180), "the chance is unchanged: the crows all go to the open plot");
+            Assert.AreEqual(0, l2, "a fully guarded field draws no crow");
         }
 
         [Test]
@@ -686,14 +684,14 @@ namespace TillWinter.Tests
             Run(y1, 60f, null);
             Assert.AreEqual(0, landed, "year 1");
 
-            var y2 = NewSim(c => { c.CrowSpawnChanceByScarecrow = new[] { 1f, 1f, 1f }; c.CrowEatTime = 100f; });
+            var y2 = NewSim(c => { c.CrowSpawnChance = 1f; c.CrowEatTime = 100f; });
             y2.DebugSkipToWinter();
             y2.StartNextYear();
             y2.DebugForceRipeAll();
             Run(y2, 12f, null);
             Assert.AreEqual(2, y2.State.Crows.Count);
 
-            var ring = NewSim(c => c.CrowSpawnChanceByScarecrow = new[] { 1f, 1f, 1f });
+            var ring = NewSim(c => c.CrowSpawnChance = 1f);
             ring.DebugSkipToWinter();
             ring.StartNextYear();
             ring.DebugSetRingRadiusOverride(10f);

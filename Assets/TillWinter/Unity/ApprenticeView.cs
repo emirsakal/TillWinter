@@ -14,6 +14,27 @@ namespace TillWinter.Unity
         {
             _game = game;
             _catalog = catalog;
+            game.ApprenticeHitTest = HitTest;
+        }
+
+        /// <summary>The apprentice drawn under a screen point, or -1 (a generous finger-sized radius).</summary>
+        private int HitTest(Vector2 screen)
+        {
+            if (_game.Cam == null) return -1;
+            int best = -1;
+            float bestD = 90f * 90f * (Screen.height / 2340f) * (Screen.height / 2340f);
+            for (int i = 0; i < _views.Count; i++)
+            {
+                var p = _game.Cam.WorldToScreenPoint(_views[i].transform.position + Vector3.up * 0.3f);
+                if (p.z < 0f) continue;
+                float d = ((Vector2)p - screen).sqrMagnitude;
+                if (d < bestD)
+                {
+                    bestD = d;
+                    best = i;
+                }
+            }
+            return best;
         }
 
         private void LateUpdate()
@@ -123,11 +144,13 @@ namespace TillWinter.Unity
                 if (show)
                 {
                     var gp = new TillWinter.Core.GridPos(Mathf.RoundToInt(a.X), Mathf.RoundToInt(a.Y));
-                    int tier = game.State.InBounds(gp) ? game.State.GetPlot(gp).Tier : 0;
+                    // A waterer thinks of water (GDD §4.2 v2.0); a harvester of the crop it is picking.
+                    bool waterer = a.Role == TillWinter.Core.ApprenticeRole.Waterer;
+                    int tier = waterer ? -1 : game.State.InBounds(gp) ? game.State.GetPlot(gp).Tier : 0;
                     if (tier != _bubbleTier && _bubbleBinder != null)
                     {
                         _bubbleTier = tier;
-                        _bubbleBinder.Override(PaletteSlot.Golden, Palette.Load().Crop(tier));
+                        _bubbleBinder.Override(PaletteSlot.Golden, waterer ? Palette.Load().Water : Palette.Load().Crop(tier));
                     }
                     float bob = SettingsStore.MotionAllowed ? Mathf.Sin(Time.time * 4f) * 0.02f : 0f;
                     _bubble.localPosition = new Vector3(0.12f, 0.8f + bob, 0f);

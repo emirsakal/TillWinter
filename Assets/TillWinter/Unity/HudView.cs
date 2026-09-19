@@ -210,6 +210,7 @@ namespace TillWinter.Unity
             _shapeButton.gameObject.SetActive(false);
 
             BuildSeedBag();
+            BuildHelperButtons();
 
             BuildEndYearConfirm(canvas);
 
@@ -244,6 +245,7 @@ namespace TillWinter.Unity
             _game.Sim.FrostWarningStarted += OnFrostWarning;
             _game.Sim.GoalCompleted += OnGoalCompleted;
             _game.Sim.WeatherChanged += OnWeatherChanged;
+            _game.ApprenticeRoleToggled += OnRoleToggled;
         }
 
         private void OnFrostWarning()
@@ -269,6 +271,105 @@ namespace TillWinter.Unity
             if (weather == Weather.Clear || _game.Sim.IsSimulatingOffline) return;
             Banner(Strings.Get("weather." + weather));
             Haptics.Play(HapticKind.Light);
+        }
+
+        // ------------------------------------------------------------------ scarecrows, tractor, roles (GDD §4/§5.1 v2.0)
+
+        private Button _scarecrowButton, _tractorButton;
+        private RectTransform _tractorFill;
+        private bool _placingScarecrow;
+
+        private void BuildHelperButtons()
+        {
+            _scarecrowButton = UiKit.Button(_safe, "Scarecrow", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleScarecrowMode);
+            UiKit.Box(_scarecrowButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 300f), new Vector2(130f, 110f));
+            UiKit.ButtonIcon(_scarecrowButton, "warning");
+            _scarecrowButton.gameObject.SetActive(false);
+
+            _tractorButton = UiKit.Button(_safe, "TractorGo", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, SendTractor);
+            UiKit.Box(_tractorButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 420f), new Vector2(130f, 110f));
+            UiKit.ButtonIcon(_tractorButton, "gear");
+            var face = _tractorButton.targetGraphic.transform;
+            var track = UiKit.Panel(face, "Charge", _theme.BarBackground, true, false);
+            UiKit.Box(track.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 12f), new Vector2(96f, 10f));
+            _tractorFill = UiKit.Panel(track.transform, "Fill", _theme.Gold, true, false).rectTransform;
+            UiKit.Stretch(_tractorFill, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
+            _tractorButton.gameObject.SetActive(false);
+        }
+
+        private void ToggleScarecrowMode()
+        {
+            _placingScarecrow = !_placingScarecrow;
+            _game.FieldTapOverride = _placingScarecrow ? (System.Func<Vector2, bool>)PlaceScarecrow : null;
+            _scarecrowButton.targetGraphic.color = _placingScarecrow ? _theme.SheetButton : _theme.SheetIdle;
+            if (_placingScarecrow)
+            {
+                CloseSeedBag();
+                Banner(Strings.Get("ui.scarecrow_move"));
+            }
+            Haptics.Play(HapticKind.Selection);
+        }
+
+        /// <summary>The tap's nearest plot corner takes the nearest scarecrow; one move, then the mode ends.</summary>
+        private bool PlaceScarecrow(Vector2 plot)
+        {
+            var corner = new GridPos(Mathf.RoundToInt(plot.x + 0.5f), Mathf.RoundToInt(plot.y + 0.5f));
+            var list = _game.State.Scarecrows;
+            int nearest = -1;
+            float best = float.MaxValue;
+            for (int i = 0; i < list.Count; i++)
+            {
+                float dx = list[i].X - corner.X, dy = list[i].Y - corner.Y, d = dx * dx + dy * dy;
+                if (d < best) { best = d; nearest = i; }
+            }
+            if (nearest >= 0 && _game.Sim.MoveScarecrow(nearest, corner))
+            {
+                Haptics.Play(HapticKind.Light);
+                _audio?.Play(SfxId.Purchase, 0.6f);
+            }
+            _placingScarecrow = false;
+            _game.FieldTapOverride = null;
+            _scarecrowButton.targetGraphic.color = _theme.SheetIdle;
+            return true;
+        }
+
+        private void SendTractor()
+        {
+            if (_game.Sim.TriggerTractor()) Haptics.Play(HapticKind.Medium);
+            else _audio?.Play(SfxId.Denied, 0.8f);
+        }
+
+        private void OnRoleToggled(int index)
+        {
+            var role = _game.State.Apprentices[index].Role;
+            Banner(Strings.Get(role == ApprenticeRole.Waterer ? "ui.role_Waterer" : "ui.role_Harvester"));
+            Haptics.Play(HapticKind.Selection);
+        }
+
+        private void RefreshHelperButtons(FarmState state)
+        {
+            bool year = state.Phase == Phase.Year;
+            bool scare = year && state.Scarecrows.Count > 0;
+            if (_scarecrowButton.gameObject.activeSelf != scare)
+            {
+                _scarecrowButton.gameObject.SetActive(scare);
+                if (!scare && _placingScarecrow)
+                {
+                    _placingScarecrow = false;
+                    _game.FieldTapOverride = null;
+                    _scarecrowButton.targetGraphic.color = _theme.SheetIdle;
+                }
+            }
+            bool tractor = year && state.Tractor.Owned && !state.GoldenYearActive;
+            if (_tractorButton.gameObject.activeSelf != tractor) _tractorButton.gameObject.SetActive(tractor);
+            if (tractor)
+            {
+                float charge = _game.Sim.TractorCharge;
+                _tractorFill.anchorMax = new Vector2(charge, 1f);
+                bool ready = charge >= _game.Sim.Config.TractorManualReady;
+                var face = ready ? _theme.SheetButton : _theme.SheetIdle;
+                if (_tractorButton.targetGraphic.color != face) _tractorButton.targetGraphic.color = face;
+            }
         }
 
         /// <summary>The centre banner (combo milestones, goals, weather, the frost rush): one line that rises and fades.</summary>
@@ -406,6 +507,7 @@ namespace TillWinter.Unity
             _game.Sim.ComboMilestone -= OnComboMilestone;
             _game.Sim.GoalCompleted -= OnGoalCompleted;
             _game.Sim.WeatherChanged -= OnWeatherChanged;
+            _game.ApprenticeRoleToggled -= OnRoleToggled;
             _game.Sim.CrowScared -= OnCrowScared;
             _game.Sim.YearStarted -= OnYearStarted;
             _game.Sim.WinterStarted -= OnWinter;
@@ -789,6 +891,7 @@ namespace TillWinter.Unity
             bool shapes = state.Stats.RingShapeLevel > 0 && !state.IsWinter;
             if (_shapeButton.gameObject.activeSelf != shapes) _shapeButton.gameObject.SetActive(shapes);
             RefreshGoalLine(state);
+            RefreshHelperButtons(state);
             // The seed bag: once a second crop is unlocked, during the year, never on the Golden Year's field.
             bool bag = state.Stats.MaxTierUnlocked > 0 && !state.IsWinter && !state.GoldenYearActive;
             if (_bagButton.gameObject.activeSelf != bag)

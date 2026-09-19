@@ -116,6 +116,8 @@ namespace TillWinter.Unity
             var clouds = new GameObject("SkyClouds").AddComponent<SkyClouds>();
             clouds.transform.SetParent(root.transform, false);
             clouds.Init(catalog);
+            var scarecrows = new GameObject("Scarecrows").AddComponent<ScarecrowsView>();
+            scarecrows.Init(game, catalog);
             var critters = new GameObject("Critters").AddComponent<CrittersView>();
             critters.transform.SetParent(root.transform, false);
             critters.Init(game, catalog);
