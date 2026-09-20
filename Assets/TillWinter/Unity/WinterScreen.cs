@@ -152,6 +152,11 @@ namespace TillWinter.Unity
             _title = UiKit.Label(top, "Title", "", UiType.Title, _theme.Ink, TextAnchor.UpperLeft, FontStyle.Bold);
             UiKit.Stretch(_title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.58f, 1f), Vector2.zero, Vector2.zero);
             _title.fontSize = 44;
+            // One line, always: wrapped, "Winter - Year 2 . Generation 3" fell onto the grade stars and the year summary.
+            _title.enableWordWrapping = false;
+            _title.enableAutoSizing = true;
+            _title.fontSizeMin = 26f;
+            _title.fontSizeMax = 44f;
             _coins = UiKit.Label(top, "Coins", "0", UiType.Title, _theme.Ink, TextAnchor.UpperRight, FontStyle.Bold);
             _coinsRt = _coins.rectTransform;
             UiKit.Stretch(_coinsRt, new Vector2(0.58f, 0.5f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-200f, 0f));

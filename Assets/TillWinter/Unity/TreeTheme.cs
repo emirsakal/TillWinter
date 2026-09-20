@@ -11,7 +11,7 @@ namespace TillWinter.Unity
     public sealed class TreeTheme : ScriptableObject
     {
         /// <summary>Bumped when the page look changes; UiSetup restyles an older asset in place (S9: dark page, opaque overlay).</summary>
-        public const int CurrentStyle = 6;
+        public const int CurrentStyle = 7;
         public int StyleVersion;
 
         [Header("Almanac page")]
@@ -36,7 +36,8 @@ namespace TillWinter.Unity
         [Header("Nodes")]
         public float NodeSize = 112f;
         public float UnitPixels = 108f;
-        public float LockedSaturation = 0.25f;
+        /// <summary>How much of its branch colour a locked node keeps: at 0.25 an unexplored tree read as one grey cloud.</summary>
+        public float LockedSaturation = 0.5f;
         public float LockedAlpha = 0.75f;
         public float EdgeWidth = 6f;
         public Color EdgeDim = new Color(0.74f, 0.68f, 0.58f, 0.55f);

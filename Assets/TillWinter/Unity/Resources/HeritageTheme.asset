@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c52b02ea12d1ad4478f33e0ad9945aae, type: 3}
   m_Name: HeritageTheme
   m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.TreeTheme
-  StyleVersion: 6
+  StyleVersion: 7
   Paper: {r: 0.09, g: 0.2, b: 0.14, a: 0.97}
   PaperVignette: {r: 0, g: 0.05, b: 0.02, a: 0.5}
   Ink: {r: 0.96, g: 0.9, b: 0.72, a: 1}
@@ -30,10 +30,20 @@ MonoBehaviour:
   Calendar: {r: 0.46, g: 0.3, b: 0.62, a: 1}
   NodeSize: 112
   UnitPixels: 108
-  LockedSaturation: 0.25
+  LockedSaturation: 0.5
   LockedAlpha: 0.75
   EdgeWidth: 6
   EdgeDim: {r: 0.7, g: 0.76, b: 0.66, a: 0.55}
+  Trunk: {r: 0.55, g: 0.42, b: 0.3, a: 1}
+  DetailZoom: 0.55
+  Snowfall: {r: 0.95, g: 0.96, b: 1, a: 0.14}
+  Lamp: {r: 0.91, g: 0.66, b: 0.24, a: 0.14}
+  Stars: {r: 1, g: 0.96, b: 0.85, a: 0.55}
+  Frost: {r: 0.86, g: 0.93, b: 1, a: 0.5}
+  Dim: {r: 0, g: 0, b: 0, a: 0.6}
+  DimLight: {r: 0, g: 0, b: 0, a: 0.5}
+  Highlight: {r: 1, g: 1, b: 1, a: 1}
+  Aged: {r: 0.95, g: 0.78, b: 0.25, a: 0.025}
   PulseAmplitude: 0.05
   ZoomMin: 0.3
   ZoomMax: 1.6

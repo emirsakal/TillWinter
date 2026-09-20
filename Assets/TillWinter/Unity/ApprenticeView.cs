@@ -83,6 +83,9 @@ namespace TillWinter.Unity
             _bubble = transform.Find("Bubble");
             _bubbleBinder = _bubble != null ? _bubble.GetComponent<PaletteBinder>() : null;
             foreach (var c in children) c.SetParent(_body, false);
+            // The kit's rig, if the prefab has one: idle and walk live in a blend tree ArtSetup built.
+            _animator = GetComponentInChildren<Animator>(true);
+            if (_animator != null && !HasSpeedParameter(_animator)) _animator = null;
             // The contact shadow stays on the root, so it does not bob with the body.
             var shadow = catalog != null ? catalog.Spawn(catalog.BlobShadow, transform, "Shadow") : null;
             if (shadow != null)
@@ -91,6 +94,21 @@ namespace TillWinter.Unity
                 shadow.transform.localScale = Vector3.one * 0.5f;
             }
             return this;
+        }
+
+        /// <summary>Plots per second a walking apprentice covers at full stride; the blend tree reads 1 at this speed.</summary>
+        private const float WalkSpeedReference = 1.6f;
+        private const string SpeedParameter = "Speed";
+        /// <summary>Hashed once: Animator.SetFloat(string) allocates every call, and this runs per apprentice per frame.</summary>
+        private static readonly int SpeedHash = Animator.StringToHash(SpeedParameter);
+        private Animator _animator;
+        private float _animSpeed;
+
+        private static bool HasSpeedParameter(Animator animator)
+        {
+            if (animator.runtimeAnimatorController == null) return false;
+            foreach (var p in animator.parameters) if (p.name == SpeedParameter) return true;
+            return false;
         }
 
         public void Tick(GameController game, TillWinter.Core.ApprenticeState a, float dt)
@@ -124,7 +142,14 @@ namespace TillWinter.Unity
                 }
                 _facing = Mathf.LerpAngle(_facing, Mathf.Atan2(delta.x, delta.z) * Mathf.Rad2Deg, 1f - Mathf.Exp(-dt * 14f));
             }
-            float bobY = walking ? Mathf.Abs(Mathf.Sin(_bob)) * 0.07f : 0f;
+            // With the kit's walk clip bound (ArtSetup), the legs carry the walk and the bob only tops it off.
+            if (_animator != null)
+            {
+                float speed = walking ? Mathf.Clamp01(delta.magnitude / Mathf.Max(0.0001f, dt) / WalkSpeedReference) : 0f;
+                _animSpeed = Mathf.MoveTowards(_animSpeed, speed, dt * 4f);
+                _animator.SetFloat(SpeedHash, _animSpeed);
+            }
+            float bobY = walking ? Mathf.Abs(Mathf.Sin(_bob)) * (_animator != null ? 0.025f : 0.07f) : 0f;
             // Picking: bend down to the bed and straighten with a little hop as the crop comes up.
             float pick = a.IsHarvesting ? Mathf.Sin(a.HarvestProgress * Mathf.PI) : 0f;
             float lift = a.IsHarvesting && a.HarvestProgress > 0.8f ? Mathf.Sin((a.HarvestProgress - 0.8f) / 0.2f * Mathf.PI) * 0.05f : 0f;

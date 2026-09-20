@@ -325,15 +325,22 @@ namespace TillWinter.Unity
                 var e = pages[pages.Count - 1 - i];
                 var r = UiKit.Rect("Page " + e.Generation, _albumRows);
                 UiKit.Box(r, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -i * row), new Vector2(820f, row));
+                // A stamped seal per page, like the generation card's: the album read as a list of numbers.
+                var seal = UiKit.CircleImage(r, "Seal", new Color(_theme.Gold.r, _theme.Gold.g, _theme.Gold.b, 0.18f), Vector2.zero, 92f);
+                UiKit.Box(seal.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(8f, -12f), new Vector2(92f, 92f));
+                var sealNumber = UiKit.Label(seal.transform, "Number", NumberFormat.Whole(e.Generation), UiType.Heading, _theme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.Stretch(sealNumber.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                var rule = UiKit.Panel(r, "Rule", new Color(_theme.SheetMuted.r, _theme.SheetMuted.g, _theme.SheetMuted.b, 0.25f), false, false);
+                UiKit.Box(rule.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 12f), new Vector2(780f, 2f));
                 string heir = e.Trait > 0 ? "  ·  " + Strings.Get("heir." + (TillWinter.Core.HeirTrait)e.Trait) : "";
                 string round = e.NgPlus > 0 ? "  ·  " + Strings.Format("album.ng_plus", ("n", e.NgPlus)) : "";
                 var title = UiKit.Label(r, "Title", Strings.Format("album.generation", ("n", e.Generation)) + heir + round, UiType.Heading, _theme.SheetInk, TextAnchor.UpperLeft, FontStyle.Bold);
-                UiKit.Stretch(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -64f), new Vector2(-150f, -8f));
+                UiKit.Stretch(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -64f), new Vector2(-150f, -8f));
                 var line = UiKit.Label(r, "Line", Strings.Format("album.line", ("years", e.Years), ("coins", NumberFormat.Short(e.Coins)), ("seeds", e.Seeds), ("harvests", e.Harvests)), UiType.Body, _theme.SheetInk, TextAnchor.UpperLeft);
-                UiKit.Stretch(line.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -116f), new Vector2(0f, -66f));
+                UiKit.Stretch(line.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -116f), new Vector2(0f, -66f));
                 string storyKey = e.Challenge > 0 ? "album.story.challenge" : e.Trait > 0 ? "album.story." + (TillWinter.Core.HeirTrait)e.Trait : "album.story.first";
                 var story = UiKit.Label(r, "Story", Strings.Get(storyKey), UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft);
-                UiKit.Stretch(story.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -176f), new Vector2(0f, -118f));
+                UiKit.Stretch(story.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -176f), new Vector2(0f, -118f));
                 for (int s = 0; s < 3; s++)
                 {
                     var star = NodeIcons.Image(r, "star", s < e.BestGrade ? _theme.Gold : new Color(_theme.SheetMuted.r, _theme.SheetMuted.g, _theme.SheetMuted.b, 0.3f));

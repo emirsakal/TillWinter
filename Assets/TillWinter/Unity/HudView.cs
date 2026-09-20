@@ -652,7 +652,10 @@ namespace TillWinter.Unity
                 : Strings.Format("goal.progress", ("progress", NumberFormat.Short(System.Math.Min(goal.Progress, goal.Target))), ("target", NumberFormat.Short(goal.Target)));
             _goalLine.text = what + "  ·  " + progress;
             _goalLine.color = goal.Done ? _theme.Gold : _theme.Text;
-            _goalPlateRt.sizeDelta = new Vector2(Mathf.Min(1000f, _goalLine.preferredWidth + 48f), _goalPlateRt.sizeDelta.y);
+            // Sized from the character count, not TMP's preferredWidth: that forces a text generation (and an
+            // allocation) every time the goal's progress ticks.
+            float width = Mathf.Min(1000f, _goalLine.text.Length * _goalLine.fontSize * 0.52f + 48f);
+            _goalPlateRt.sizeDelta = new Vector2(width, _goalPlateRt.sizeDelta.y);
         }
 
         /// <summary>Splits a localized template around its placeholders once, so the parts can be written into a char buffer.</summary>

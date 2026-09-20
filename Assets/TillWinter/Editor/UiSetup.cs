@@ -289,6 +289,14 @@ namespace TillWinter.EditorTools
                 UnityEngine.Object.DestroyImmediate(d);
             }
             else TreeTheme.ApplyAlmanacPage(theme);
+            // Style 7: a locked node keeps more of its branch colour, so an unexplored tree reads as five branches
+            // rather than one grey constellation.
+            if (theme.StyleVersion < 7)
+            {
+                var defaults = ScriptableObject.CreateInstance<TreeTheme>();
+                theme.LockedSaturation = defaults.LockedSaturation;
+                UnityEngine.Object.DestroyImmediate(defaults);
+            }
             theme.StyleVersion = TreeTheme.CurrentStyle;
             EditorUtility.SetDirty(theme);
             Debug.Log("[UiSetup] " + theme.name + " restyled to style " + TreeTheme.CurrentStyle);
