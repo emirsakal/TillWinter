@@ -69,6 +69,7 @@ namespace TillWinter.Unity
             BuildSettings(canvas);
             BuildCredits(canvas);
             BuildStats(canvas);
+            BuildHelp(canvas);
             BuildAlbum(canvas);
         }
 
@@ -76,7 +77,7 @@ namespace TillWinter.Unity
 
         private void BuildPause(RectTransform canvas)
         {
-            _pause = Sheet(canvas, "PauseSheet", "pause.title", 1060f, out var p);
+            _pause = Sheet(canvas, "PauseSheet", "pause.title", 1164f, out var p);
             // Where the farm stands, so the sheet says more than "Paused".
             _pauseSummary = Text(p, "Summary", "", -150f, UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter, 56f);
             float y = -230f;
@@ -84,11 +85,12 @@ namespace TillWinter.Unity
             UiKit.ButtonIcon(Btn(p, "pause.settings", () => Show(_settings), y - RowHeight), "gear");
             UiKit.ButtonIcon(Btn(p, "pause.stats", () => ShowStats(() => Show(_pause)), y - 2f * RowHeight), "leaderboardsSimple");
             UiKit.ButtonIcon(Btn(p, "pause.album", ShowAlbum, y - 3f * RowHeight), "singleplayer");
-            _ngPlus = Btn(p, "pause.new_game_plus", NewGamePlus, y - 4f * RowHeight);
+            UiKit.ButtonIcon(Btn(p, "pause.help", ShowHelp, y - 4f * RowHeight), "exclamation");
+            _ngPlus = Btn(p, "pause.new_game_plus", NewGamePlus, y - 5f * RowHeight);
             UiKit.ButtonIcon(_ngPlus, "star");
-            _away = Btn(p, "pause.away", CycleAwayPlan, y - 5f * RowHeight);
+            _away = Btn(p, "pause.away", CycleAwayPlan, y - 6f * RowHeight);
             UiKit.ButtonIcon(_away, "multiplayer");
-            var mainMenu = Btn(p, "pause.main_menu", ToMainMenu, y - 6f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle);
+            var mainMenu = Btn(p, "pause.main_menu", ToMainMenu, y - 7f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle);
             UiKit.ButtonIcon(mainMenu, "home");
             _tailRows = new[] { (RectTransform)_ngPlus.transform, (RectTransform)_away.transform, (RectTransform)mainMenu.transform };
             _tailSlots = new float[_tailRows.Length];
@@ -297,6 +299,66 @@ namespace TillWinter.Unity
         {
             UiKit.ButtonLabel(_ngPlus).text = Strings.Get("pause.new_game_plus");
             _ngPlusArmed = 0f;
+        }
+
+        // ------------------------------------------------------------------ help (the manual the game never had)
+
+        private GameObject _help;
+        private RectTransform _helpRows;
+
+        /// <summary>
+        /// Everything the game teaches once, in one place: the hints fire in the first minutes and the systems that
+        /// arrive later (ground, rotation, freshness, the grade, the barn, heirs) were never explained anywhere.
+        /// The text is data — a heading key and its lines — so a new system is a row here, not a new screen.
+        /// </summary>
+        private static readonly (string Heading, string[] Lines)[] HelpSections =
+        {
+            ("help.ring", new[] { "help.ring.1", "help.ring.2", "help.ring.3" }),
+            ("help.crops", new[] { "help.crops.1", "help.crops.2", "help.crops.3", "help.crops.4" }),
+            ("help.year", new[] { "help.year.1", "help.year.2", "help.year.3" }),
+            ("help.winter", new[] { "help.winter.1", "help.winter.2", "help.winter.3" }),
+            ("help.heritage", new[] { "help.heritage.1", "help.heritage.2", "help.heritage.3" }),
+            ("help.events", new[] { "help.events.1", "help.events.2", "help.events.3" }),
+            ("help.away", new[] { "help.away.1", "help.away.2" }),
+        };
+
+        private void BuildHelp(RectTransform canvas)
+        {
+            _help = Sheet(canvas, "HelpSheet", "help.title", 1300f, out var page);
+            UiKit.ScrollView(page, "Scroll", out _helpRows);
+            UiKit.Stretch((RectTransform)_helpRows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -150f));
+            Btn(page, "stats.continue", () => { _help.SetActive(false); Show(_pause); }, -1180f);
+
+            // Paragraph heights come from the layout system, not from a guess: a Turkish entry runs two lines longer
+            // than its English twin, and a fixed step stacked them on top of each other.
+            var layout = _helpRows.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.spacing = 14f;
+            layout.padding = new RectOffset(12, 12, 8, 28);
+            var fitter = _helpRows.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            foreach (var section in HelpSections)
+            {
+                var head = UiKit.Label(_helpRows, section.Heading, Strings.Get(section.Heading), UiType.Heading, _theme.SheetInk, TextAnchor.UpperLeft, FontStyle.Bold);
+                head.enableAutoSizing = false;
+                head.margin = new Vector4(0f, 18f, 0f, 2f); // air above a heading, so sections read apart
+                foreach (var line in section.Lines)
+                {
+                    var text = UiKit.Label(_helpRows, line, Strings.Get(line), UiType.Body, _theme.SheetMuted, TextAnchor.UpperLeft);
+                    text.enableAutoSizing = false;
+                    text.enableWordWrapping = true;
+                }
+            }
+        }
+
+        private void ShowHelp()
+        {
+            _pause.SetActive(false);
+            _help.SetActive(true);
         }
 
         private void BuildAlbum(RectTransform canvas)

@@ -218,6 +218,7 @@ namespace TillWinter.Unity
             BuildHelperButtons();
             BuildEventUi();
             BuildStoreButton();
+            BuildInspect();
             BuildChecklist();
             _star.transform.SetAsLastSibling(); // the star crosses over the checklist card, never behind it
 
@@ -432,6 +433,119 @@ namespace TillWinter.Unity
             UiKit.ButtonLabel(_traderRare).text = t.RareSold ? Strings.Get("trader.sold") : Strings.Format("trader.rare", ("price", NumberFormat.Short(t.RarePrice)));
             _traderSeed.interactable = !t.SeedSold;
             _traderRare.interactable = !t.RareSold;
+        }
+
+        // ------------------------------------------------------------------ plot card (what a bed is worth, and why)
+
+        private Button _inspectButton;
+        private GameObject _inspectCard;
+        private TMP_Text _inspectTitle, _inspectState, _inspectGround, _inspectValue;
+        private TMP_Text[] _inspectBonus;
+        private bool _inspecting;
+
+        /// <summary>
+        /// Five multipliers decide what a bed pays (GDD §2.3-§3.1) and none of them were ever visible. The magnifier
+        /// arms one tap: the plot it lands on says what it grows, how far along it is, what ground it stands on, what
+        /// it pays right now, and which bonuses are stacked on it.
+        /// </summary>
+        private void BuildInspect()
+        {
+            _inspectButton = UiKit.Button(_safe, "Inspect", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleInspect);
+            UiKit.Box(_inspectButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 420f), new Vector2(130f, 110f));
+            UiKit.ButtonIcon(_inspectButton, "zoomIn");
+
+            var card = UiKit.Card(_safe, "PlotCard", _theme.YearCard, false);
+            _inspectCard = card.gameObject;
+            UiKit.Box(card.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 600f), new Vector2(720f, 420f));
+            _inspectTitle = UiKit.Label(card.transform, "Title", "", UiType.Heading, _theme.YearCardText, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Box(_inspectTitle.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -14f), new Vector2(664f, 56f));
+            // One line: "Carrot . likes Spring" wrapped onto the state line underneath it.
+            _inspectTitle.enableWordWrapping = false;
+            _inspectTitle.enableAutoSizing = true;
+            _inspectTitle.fontSizeMin = 26f;
+            _inspectState = UiKit.Label(card.transform, "State", "", UiType.Label, _theme.YearCardMuted, TextAnchor.MiddleLeft);
+            UiKit.Box(_inspectState.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -66f), new Vector2(640f, 44f));
+            _inspectGround = UiKit.Label(card.transform, "Ground", "", UiType.Label, _theme.YearCardMuted, TextAnchor.MiddleLeft);
+            UiKit.Box(_inspectGround.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -110f), new Vector2(640f, 44f));
+            _inspectValue = UiKit.Label(card.transform, "Value", "", UiType.Body, _theme.YearCardText, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Box(_inspectValue.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -158f), new Vector2(640f, 48f));
+            _inspectBonus = new TMP_Text[5];
+            for (int i = 0; i < _inspectBonus.Length; i++)
+            {
+                _inspectBonus[i] = UiKit.Label(card.transform, "Bonus" + i, "", UiType.Caption, _theme.YearCardText, TextAnchor.MiddleLeft);
+                UiKit.Box(_inspectBonus[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -212f - i * 38f), new Vector2(640f, 36f));
+            }
+            var close = UiKit.Button(card.transform, "Close", Strings.Get("ui.close"), UiType.Caption, _theme.SheetIdle, _theme.SheetButtonText, CloseInspect);
+            UiKit.Box(close.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-24f, 20f), new Vector2(200f, 72f));
+            _inspectCard.SetActive(false);
+        }
+
+        private void ToggleInspect()
+        {
+            _inspecting = !_inspecting;
+            CloseSeedBag();
+            _game.PlotTapOverride = _inspecting ? (System.Func<GridPos, bool>)InspectAt : null;
+            _inspectButton.targetGraphic.color = _inspecting ? _theme.SheetButton : _theme.SheetIdle;
+            if (_inspecting) Banner(Strings.Get("plot.pick"));
+            Haptics.Play(HapticKind.Selection);
+        }
+
+        private void CloseInspect()
+        {
+            if (_inspectCard.activeSelf) _inspectCard.SetActive(false);
+            _inspecting = false;
+            _inspectButton.targetGraphic.color = _theme.SheetIdle;
+            if (_game.PlotTapOverride == (System.Func<GridPos, bool>)InspectAt) _game.PlotTapOverride = null;
+        }
+
+        /// <summary>Fills the card for one plot. Read-only: looking at a bed never changes it.</summary>
+        private bool InspectAt(GridPos pos)
+        {
+            var sim = _game.Sim;
+            var state = _game.State;
+            if (!state.InBounds(pos)) return false;
+            var plot = state.GetPlot(pos);
+            var cfg = sim.Config;
+            var crop = cfg.Crops[Mathf.Clamp(plot.Tier, 0, cfg.Crops.Length - 1)];
+
+            _inspectTitle.text = Strings.Format("plot.title",
+                ("crop", Strings.Get(crop.Key)), ("season", Strings.Get("season." + crop.Likes)));
+            if (plot.IsStony)
+                _inspectState.text = Strings.Get("plot.state_stony");
+            else if (plot.IsRipe)
+                _inspectState.text = Strings.Format("plot.state_ripe", ("percent", Mathf.RoundToInt((float)sim.Freshness(plot) * 100f)));
+            else
+                _inspectState.text = Strings.Format(plot.State == PlotState.Dry ? "plot.state_dry" : "plot.state_wet",
+                    ("percent", Mathf.RoundToInt(plot.Progress * 100f)));
+            _inspectGround.text = Strings.Get(plot.Kind == PlotKind.Fertile ? "plot.ground_fertile"
+                : plot.IsStony ? "plot.ground_stony" : "plot.ground_normal");
+
+            double value = crop.Value * state.Stats.CropValueMult * sim.PlotValueMultiplier(plot) * sim.Freshness(plot);
+            if (state.FrostWarning) value *= cfg.FrostRushValue;
+            _inspectValue.text = Strings.Format("plot.value", ("coins", NumberFormat.Short(value)));
+
+            int line = 0;
+            void Bonus(string key, double mult)
+            {
+                if (line >= _inspectBonus.Length) return;
+                _inspectBonus[line++].text = Strings.Format(key, ("percent", Mathf.RoundToInt((float)(mult - 1) * 100f)));
+            }
+            if (sim.InSeason(plot.Tier)) Bonus("plot.bonus_season", cfg.InSeasonValue);
+            if (plot.Kind == PlotKind.Fertile) Bonus("plot.bonus_fertile", cfg.FertileValue);
+            if (plot.IsRotated) Bonus("plot.bonus_rotation", cfg.RotationBonus);
+            int variety = sim.DifferentNeighbours(plot);
+            if (variety > 0) Bonus("plot.bonus_neighbours", 1 + cfg.NeighbourVarietyBonus * variety);
+            if (state.FrostWarning) Bonus("plot.bonus_frost", cfg.FrostRushValue);
+            if (line == 0 && !plot.IsStony) _inspectBonus[line++].text = Strings.Get("plot.bonus_none");
+            for (int i = line; i < _inspectBonus.Length; i++) _inspectBonus[i].text = "";
+
+            _inspectCard.SetActive(true);
+            _inspectCard.transform.SetAsLastSibling();
+            _inspecting = false;
+            _inspectButton.targetGraphic.color = _theme.SheetIdle;
+            _game.PlotTapOverride = null;
+            Haptics.Play(HapticKind.Light);
+            return true;
         }
 
         // ------------------------------------------------------------------ barn share (GDD §3.5 v2.2)
@@ -1146,6 +1260,10 @@ namespace TillWinter.Unity
             RefreshHelperButtons(state);
             RefreshEventUi(state, dt);
             RefreshStoreButton(state);
+            // The magnifier and its card belong to the running year; winter closes them.
+            bool year = state.Phase == Phase.Year;
+            if (_inspectButton.gameObject.activeSelf != year) _inspectButton.gameObject.SetActive(year);
+            if (!year && _inspectCard.activeSelf) CloseInspect();
             RefreshChecklist(state);
             // The seed bag: once a second crop is unlocked, during the year, never on the Golden Year's field.
             bool bag = state.Stats.MaxTierUnlocked > 0 && !state.IsWinter && !state.GoldenYearActive;

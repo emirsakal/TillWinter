@@ -122,6 +122,23 @@ namespace TillWinter.EditorTools
             new Step("39-checklist", 0.8f, () => { HudView.DebugPreviewChecklist = true; }),
             new Step(null, 0.2f, () => { HudView.DebugPreviewChecklist = false; }),
 
+            // What a bed is worth and why: the magnifier arms one tap, and the tap lands on the middle of the field.
+            new Step(null, 0.4f, () => Click("Inspect")),
+            new Step("40-plot-card", 0.9f, () =>
+            {
+                var g = Game;
+                if (g == null || g.Cam == null) return;
+                var world = g.PlotToWorld(1f, 1f, 0.1f);
+                g.DebugTapScreen = g.Cam.WorldToScreenPoint(world);
+            }),
+            new Step(null, 0.3f, () => Click("Close", "PlotCard")),
+
+            // The manual the game never had, opened from the pause menu.
+            new Step(null, 0.5f, () => Click("PauseButton")),
+            new Step("41-help", 0.9f, () => Click("pause.help", "PauseSheet")),
+            new Step(null, 0.4f, () => Click("stats.continue", "HelpSheet")),
+            new Step(null, 0.4f, () => Click("pause.resume", "PauseSheet")),
+
             // The ring's shapes, cycled from the HUD button.
             new Step("25-ring-rake", 0.6f, () => Click("RingShape")),
             new Step("26-ring-cross", 0.6f, () => Click("RingShape")),
