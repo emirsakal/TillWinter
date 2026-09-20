@@ -15,6 +15,8 @@ namespace TillWinter.Unity
         public float MasterVolume = 1f;
         public float SfxVolume = 1f;
         public float AmbienceVolume = 1f;
+        /// <summary>The music bed (GDD §12): its own channel, because players turn music off and keep the farm's sounds.</summary>
+        public float MusicVolume = 1f;
         /// <summary>"" follows the system language (Turkish -> tr, anything else -> en); "en" / "tr" once chosen in Settings.</summary>
         public string Language = "";
         /// <summary>Disables camera shake and the screen flash only (S9).</summary>
@@ -103,6 +105,7 @@ namespace TillWinter.Unity
                 data.MasterVolume = Mathf.Clamp01(data.MasterVolume);
                 data.SfxVolume = Mathf.Clamp01(data.SfxVolume);
                 data.AmbienceVolume = Mathf.Clamp01(data.AmbienceVolume);
+                data.MusicVolume = Mathf.Clamp01(data.MusicVolume);
                 if (data.Language != GameLanguage.English && data.Language != GameLanguage.Turkish) data.Language = "";
                 UiType.Scale = data.LargeText ? UiType.LargeScale : 1f;
                 return data;

@@ -1,0 +1,11 @@
+Music by Komiku, dedicated to the public domain under CC0 1.0 Universal.
+
+  https://creativecommons.org/publicdomain/zero/1.0/
+
+Sources (fetched 2026-09-20), both marked CC0 1.0 Universal in their Internet Archive metadata:
+
+  https://archive.org/details/Komikuitstimeforadventure
+  https://archive.org/details/komiku-a-tale-is-never-forgotten
+
+CC0 means the work is free for any use, including commercial, with no attribution required and no
+conditions attached. See Assets/Audio/LICENSES.md for which track backs which file.

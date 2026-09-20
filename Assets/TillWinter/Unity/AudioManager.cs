@@ -16,6 +16,11 @@ namespace TillWinter.Unity
         Purchase, Denied,
         RetireSwell, NewGeneration, Expansion,
         UiClick,
+        // The moments the v2.x systems added, which used to pass in silence or borrow another moment's sound.
+        GoalMet, Achievement, EndingSting, ComboMilestone,
+        MarketSale, TraderArrive,
+        PestArrive, PestStruck, ScarecrowPlace,
+        DogBark, HensFlutter,
     }
 
     /// <summary>Which Kenney clips back each <see cref="SfxId"/> (Resources/Kenney). Tests assert every id resolves; no generated fallback exists.</summary>
@@ -27,7 +32,12 @@ namespace TillWinter.Unity
             public float Volume;
             public float PitchJitter;
             public int MaxPerSecond;
-            public Row(float volume, float jitter, int maxPerSecond, params string[] clips) { Volume = volume; PitchJitter = jitter; MaxPerSecond = maxPerSecond; Clips = clips; }
+            /// <summary>Resources folder the clips live in; the Kenney packs are the default, other CC0 sets have their own.</summary>
+            public string Folder;
+            public Row(float volume, float jitter, int maxPerSecond, params string[] clips)
+                : this("Kenney", volume, jitter, maxPerSecond, clips) { }
+            public Row(string folder, float volume, float jitter, int maxPerSecond, params string[] clips)
+            { Folder = folder; Volume = volume; PitchJitter = jitter; MaxPerSecond = maxPerSecond; Clips = clips; }
         }
 
         public static readonly Dictionary<SfxId, Row> Rows = new Dictionary<SfxId, Row>
@@ -51,6 +61,17 @@ namespace TillWinter.Unity
             { SfxId.NewGeneration, new Row(0.8f, 0.0f, 1, "open_001", "confirmation_003") },
             { SfxId.Expansion, new Row(0.6f, 0.05f, 4, "impactWood_medium_000", "impactPlank_medium_001") },
             { SfxId.UiClick, new Row(0.5f, 0.05f, 12, "click1", "click2", "click3") },
+            { SfxId.GoalMet, new Row(0.8f, 0.0f, 2, "jingle_goal") },
+            { SfxId.Achievement, new Row(0.8f, 0.0f, 2, "jingle_achievement") },
+            { SfxId.EndingSting, new Row(0.9f, 0.0f, 1, "jingle_ending") },
+            { SfxId.ComboMilestone, new Row(0.6f, 0.02f, 3, "jingle_combo") },
+            { SfxId.MarketSale, new Row(0.7f, 0.04f, 4, "handleCoins") },
+            { SfxId.TraderArrive, new Row(0.6f, 0.04f, 2, "handleSmallLeather") },
+            { SfxId.PestStruck, new Row(0.55f, 0.08f, 4, "chop") },
+            { SfxId.ScarecrowPlace, new Row(0.5f, 0.08f, 4, "cloth3") },
+            { SfxId.HensFlutter, new Row(0.45f, 0.12f, 4, "cloth4") },
+            { SfxId.PestArrive, new Row("Creatures", 0.5f, 0.08f, 3, "bug_01") },
+            { SfxId.DogBark, new Row("Creatures", 0.45f, 0.1f, 3, "barking_01", "barking_02") },
         };
 
         /// <summary>Ids whose clips did not all load (empty when the audio folder is complete).</summary>
@@ -59,7 +80,7 @@ namespace TillWinter.Unity
             var missing = new List<string>();
             foreach (var kv in Rows)
                 foreach (var clip in kv.Value.Clips)
-                    if (Resources.Load<AudioClip>("Kenney/" + clip) == null) missing.Add(kv.Key + ":" + clip);
+                    if (Resources.Load<AudioClip>(kv.Value.Folder + "/" + clip) == null) missing.Add(kv.Key + ":" + clip);
             return missing;
         }
     }
@@ -88,7 +109,11 @@ namespace TillWinter.Unity
         private AudioSource[] _sources;
         private float[] _busyUntil;
         private AudioMixer _mixer;
-        private AudioMixerGroup _sfxGroup, _ambienceGroup;
+        private AudioMixerGroup _sfxGroup, _ambienceGroup, _musicGroup;
+
+        /// <summary>Buses the music and ambience players attach their own looping sources to.</summary>
+        public AudioMixerGroup MusicGroup => _musicGroup;
+        public AudioMixerGroup AmbienceGroup => _ambienceGroup;
         private float _duckUntil;
         private float _sfxDb;
         private System.Random _rng = new System.Random(7);
@@ -119,8 +144,10 @@ namespace TillWinter.Unity
             {
                 var sfx = _mixer.FindMatchingGroups("SFX");
                 var amb = _mixer.FindMatchingGroups("Ambience");
+                var mus = _mixer.FindMatchingGroups("Music");
                 if (sfx.Length > 0) _sfxGroup = sfx[0];
                 if (amb.Length > 0) _ambienceGroup = amb[0];
+                if (mus.Length > 0) _musicGroup = mus[0];
             }
             _sources = new AudioSource[Voices];
             _busyUntil = new float[Voices];
@@ -139,9 +166,9 @@ namespace TillWinter.Unity
                 foreach (var n in kv.Value.Clips)
                 {
                     expected++;
-                    var c = Resources.Load<AudioClip>("Kenney/" + n);
+                    var c = Resources.Load<AudioClip>(kv.Value.Folder + "/" + n);
                     if (c != null) { clips.Add(c); loaded++; }
-                    else Debug.LogWarning("[TillWinter] Audio clip missing: Kenney/" + n + " for " + kv.Key);
+                    else Debug.LogWarning("[TillWinter] Audio clip missing: " + kv.Value.Folder + "/" + n + " for " + kv.Key);
                 }
                 var e = new Entry { Clips = clips.ToArray(), Row = kv.Value, Limiter = new RateLimiter(kv.Value.MaxPerSecond, 0.15f, 1.6f) };
                 _table[kv.Key] = e;
@@ -162,6 +189,7 @@ namespace TillWinter.Unity
                 _sfxDb = ToDb(s.SfxVolume);
                 _mixer.SetFloat("SfxVolume", _sfxDb);
                 _mixer.SetFloat("AmbienceVolume", ToDb(s.AmbienceVolume));
+                _mixer.SetFloat("MusicVolume", ToDb(s.MusicVolume));
             }
             else
                 foreach (var src in _sources) src.volume = s.MasterVolume * s.SfxVolume;

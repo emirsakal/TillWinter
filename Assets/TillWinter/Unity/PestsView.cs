@@ -57,6 +57,7 @@ namespace TillWinter.Unity
             _show = 0f;
             if (_game.Sim.IsSimulatingOffline) return;
             _fx.Play(VfxId.SoilPuff, _game.PlotToWorld(pos, 0.1f), kind == PestKind.Locusts ? 1.6f : 1f);
+            AudioManager.Instance?.Play(SfxId.PestArrive, kind == PestKind.Locusts ? 1.2f : 0.9f);
         }
 
         private void OnScared(PestKind kind, GridPos pos, double coins)
@@ -69,6 +70,7 @@ namespace TillWinter.Unity
         {
             if (_game.Sim.IsSimulatingOffline) return;
             _fx.Play(VfxId.SoilPuff, _game.PlotToWorld(pos, 0.15f), kind == PestKind.Locusts ? 2.4f : 1.6f);
+            AudioManager.Instance?.Play(SfxId.PestStruck);
         }
 
         private void OnLucky(LuckyKind kind, double coins)

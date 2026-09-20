@@ -1,0 +1,15 @@
+Ambience loops, each dedicated to the public domain (CC0 or an explicit public-domain release).
+No attribution is required for any of them; the sources are recorded for provenance only.
+
+  amb_wind.wav          "wind1" by Luke.RUSTLTD, CC0
+                        https://opengameart.org/content/wind1
+  amb_birds.mp3         "Forest Ambience" by TinyWorlds, CC0
+                        https://opengameart.org/content/forest-ambience
+  amb_insects.mp3       "cricket sounds" by syncopika, CC0
+                        https://opengameart.org/content/cricket-sounds
+  amb_rain.ogg          rain.ogg from "30 CC0 SFX loops" by rubberduck, CC0
+                        https://opengameart.org/content/30-cc0-sfx-loops
+  amb_winter_wind.ogg   "Vento fisterra.ogg" by Escoitar.org, released into the public domain
+                        https://commons.wikimedia.org/wiki/File:Vento_fisterra.ogg
+
+Fetched 2026-09-20. CC0: https://creativecommons.org/publicdomain/zero/1.0/

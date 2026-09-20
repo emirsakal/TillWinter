@@ -244,7 +244,12 @@ namespace TillWinter.EditorTools
 
         private static void CreateMixer()
         {
-            if (AssetDatabase.LoadAssetAtPath<AudioMixer>(MixerPath) != null) { Debug.Log("[FeelSetup] mixer already present"); return; }
+            var existing = AssetDatabase.LoadAssetAtPath<AudioMixer>(MixerPath);
+            if (existing != null)
+            {
+                if (existing.FindMatchingGroups("Music").Length > 0) { Debug.Log("[FeelSetup] mixer already present"); return; }
+                AssetDatabase.DeleteAsset(MixerPath); // older mixer from before the music bus
+            }
             var asm = typeof(Editor).Assembly;
             var ctrlType = asm.GetType("UnityEditor.Audio.AudioMixerController");
             var groupType = asm.GetType("UnityEditor.Audio.AudioMixerGroupController");
@@ -258,11 +263,13 @@ namespace TillWinter.EditorTools
             var addChild = ctrlType.GetMethod("AddChildToParent", any);
             var sfx = newGroup.Invoke(controller, new object[] { "SFX", false });
             var ambience = newGroup.Invoke(controller, new object[] { "Ambience", false });
+            var music = newGroup.Invoke(controller, new object[] { "Music", false });
             addChild.Invoke(controller, new[] { sfx, master });
             addChild.Invoke(controller, new[] { ambience, master });
+            addChild.Invoke(controller, new[] { music, master });
 
             var getVolumeGuid = groupType.GetMethod("GetGUIDForVolume", any);
-            var exposed = Array.CreateInstance(expType, 3);
+            var exposed = Array.CreateInstance(expType, 4);
             void Expose(int i, object group, string name)
             {
                 var p = Activator.CreateInstance(expType);
@@ -273,10 +280,11 @@ namespace TillWinter.EditorTools
             Expose(0, master, "MasterVolume");
             Expose(1, sfx, "SfxVolume");
             Expose(2, ambience, "AmbienceVolume");
+            Expose(3, music, "MusicVolume");
             ctrlType.GetProperty("exposedParameters", any).SetValue(controller, exposed);
             EditorUtility.SetDirty((Object)controller);
             AssetDatabase.SaveAssets();
-            Debug.Log("[FeelSetup] mixer created with Master/SFX/Ambience and exposed volumes");
+            Debug.Log("[FeelSetup] mixer created with Master/SFX/Ambience/Music and exposed volumes");
         }
     }
 }

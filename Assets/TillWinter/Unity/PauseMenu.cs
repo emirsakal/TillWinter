@@ -17,7 +17,7 @@ namespace TillWinter.Unity
     {
         public const float ResetHoldSeconds = 3f;
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
-        private const float SettingsHeight = 1900f; // four section headings since round three; hands-free (v2.5)
+        private const float SettingsHeight = 2010f; // four section headings since round three; hands-free (v2.5)
         private const float SectionHeight = 64f;
         private const float BandHeight = 128f;
         private const float LabelX = -230f, LabelWidth = 380f, ControlX = 225f, ControlWidth = 410f;
@@ -36,7 +36,7 @@ namespace TillWinter.Unity
         private Button _langEn, _langTr;
         private UiSwitch _hapticsSwitch, _motionSwitch, _largeTextSwitch;
         private Image _applying;
-        private TMP_Text _sfxValue, _ambienceValue;
+        private TMP_Text _sfxValue, _ambienceValue, _musicValue;
         private TMP_Text[] _statValues;
         private float _sampleAt;
         private readonly Button[] _quality = new Button[3];
@@ -131,6 +131,9 @@ namespace TillWinter.Unity
             y -= 60f;
 
             Section(p, "settings.section.sound", ref y);
+            RowLabel(p, "settings.music", y);
+            _musicValue = SliderRow(p, "Music", s.MusicVolume, v => { SettingsStore.Current.MusicVolume = v; _audio.ApplyVolumes(); }, y);
+            y -= RowHeight;
             RowLabel(p, "settings.sfx", y);
             _sfxValue = SliderRow(p, "Sfx", s.SfxVolume, v => { SettingsStore.Current.SfxVolume = v; _audio.ApplyVolumes(); Sample(); }, y);
             y -= RowHeight;
@@ -537,6 +540,7 @@ namespace TillWinter.Unity
             _motionSwitch.Set(s.ReduceMotion);
             _handsFreeSwitch.Set(s.HandsFree);
             _largeTextSwitch.Set(s.LargeText);
+            _musicValue.text = Mathf.RoundToInt(s.MusicVolume * 100f) + "%";
             _sfxValue.text = Mathf.RoundToInt(s.SfxVolume * 100f) + "%";
             _ambienceValue.text = Mathf.RoundToInt(s.AmbienceVolume * 100f) + "%";
             Tint(_langEn, GameLanguage.Current == GameLanguage.English);

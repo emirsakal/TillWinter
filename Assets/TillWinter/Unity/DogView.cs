@@ -17,6 +17,7 @@ namespace TillWinter.Unity
 
         private GameController _game;
         private AudioManager _audio;
+        private float _nextBark;
         private Transform _tail;
         private readonly Transform[] _legs = new Transform[4];
         private GameObject _bubble;
@@ -140,6 +141,11 @@ namespace TillWinter.Unity
                     // At the fence: face the field and bounce.
                     _facing = Mathf.LerpAngle(_facing, 180f, 1f - Mathf.Exp(-dt * 10f));
                     bark = Mathf.Abs(Mathf.Sin(t * 9f));
+                    if (Time.time >= _nextBark)
+                    {
+                        _nextBark = Time.time + 1.1f; // a bark, not a stream of them
+                        _audio?.Play(SfxId.DogBark);
+                    }
                 }
                 float hop = moving > 0f ? Mathf.Abs(Mathf.Sin(_stride)) * 0.04f * moving : bark * 0.09f;
                 transform.localRotation = Quaternion.Euler(moving > 0f ? Mathf.Sin(_stride) * 3f : -bark * 12f, _facing, 0f);

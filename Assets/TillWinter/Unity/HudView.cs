@@ -280,7 +280,7 @@ namespace TillWinter.Unity
             if (_game.Sim.IsSimulatingOffline) return;
             Banner(Strings.Format("goal.met", ("coins", NumberFormat.Short(goal.Reward))));
             Haptics.Play(HapticKind.Medium);
-            _audio?.Play(SfxId.Purchase, 0.8f);
+            _audio?.Play(SfxId.GoalMet);
             _goalKey = -1;
         }
 
@@ -343,7 +343,7 @@ namespace TillWinter.Unity
             if (nearest >= 0 && _game.Sim.MoveScarecrow(nearest, corner))
             {
                 Haptics.Play(HapticKind.Light);
-                _audio?.Play(SfxId.Purchase, 0.6f);
+                _audio?.Play(SfxId.ScarecrowPlace);
             }
             _placingScarecrow = false;
             _game.FieldTapOverride = null;
@@ -487,7 +487,9 @@ namespace TillWinter.Unity
 
         private void OnHensAte(GridPos pos)
         {
-            if (!_game.Sim.IsSimulatingOffline) Banner(Strings.Get("ui.hens_ate"));
+            if (_game.Sim.IsSimulatingOffline) return;
+            Banner(Strings.Get("ui.hens_ate"));
+            _audio?.Play(SfxId.HensFlutter);
         }
 
         private void OnLuckyAppeared(LuckyKind kind)
@@ -495,6 +497,7 @@ namespace TillWinter.Unity
             if (_game.Sim.IsSimulatingOffline || kind == LuckyKind.GoldenEgg) return;
             Banner(Strings.Get("lucky." + kind));
             Haptics.Play(HapticKind.Light);
+            _audio?.Play(SfxId.Sprout, 0.9f, 1.25f); // a small bright twinkle, not the find itself
         }
 
         private void OnLuckyFound(LuckyKind kind, double coins)
@@ -559,6 +562,7 @@ namespace TillWinter.Unity
             if (_game.Sim.IsSimulatingOffline) return;
             Banner(Strings.Format("ach.unlocked", ("name", Strings.Get("ach." + id))));
             Haptics.Play(HapticKind.Medium);
+            _audio?.Play(SfxId.Achievement);
         }
 
         private void OnTraderArrived()
@@ -566,6 +570,7 @@ namespace TillWinter.Unity
             if (_game.Sim.IsSimulatingOffline) return;
             Banner(Strings.Get("trader.arrived"));
             Haptics.Play(HapticKind.Light);
+            _audio?.Play(SfxId.TraderArrive);
         }
 
         private void OnRoleToggled(int index)
@@ -937,7 +942,7 @@ namespace TillWinter.Unity
             if (_game.Sim.IsSimulatingOffline) return;
             Banner(Strings.Format("ui.combo_milestone", ("combo", combo), ("coins", NumberFormat.Short(coins))));
             Haptics.Play(HapticKind.Medium);
-            _audio?.Play(SfxId.GoldenHarvest, 0.7f);
+            _audio?.Play(SfxId.ComboMilestone);
         }
 
         /// <summary>Ending the year early throws away the standing crop, so it asks first (the sim pauses meanwhile).</summary>

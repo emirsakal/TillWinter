@@ -51,6 +51,7 @@ namespace TillWinter.Unity
         private void Begin(RectTransform canvas, Sprite sprite)
         {
             _cover = UiKit.Panel(canvas, "StudioSplash", Cover, false, true); // raycast on: it swallows the skip tap
+            AudioManager.Instance?.Play(SfxId.WinterChime, 0.35f); // the first second of the app makes a sound
             UiKit.Stretch(_cover.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _cover.rectTransform.SetAsLastSibling();
 

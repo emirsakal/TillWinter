@@ -71,6 +71,17 @@ namespace TillWinter.Tests.Unity
         }
 
         [Test]
+        public void EveryMusicPiece_AndEveryAmbienceLayer_HasItsClip()
+        {
+            var missingMusic = MusicTable.Missing();
+            Assert.IsEmpty(missingMusic, "music without a clip: " + string.Join(", ", missingMusic));
+            var missingAmbience = new List<string>();
+            foreach (var clip in AmbiencePlayer.Clips)
+                if (Resources.Load<AudioClip>("Ambience/" + clip) == null) missingAmbience.Add(clip);
+            Assert.IsEmpty(missingAmbience, "ambience without a clip: " + string.Join(", ", missingAmbience));
+        }
+
+        [Test]
         public void Mixer_HasMasterSfxAmbience_WithExposedVolumes()
         {
             var mixer = Resources.Load<AudioMixer>(AudioManager.MixerName);
@@ -78,7 +89,8 @@ namespace TillWinter.Tests.Unity
             Assert.That(mixer.FindMatchingGroups("Master").Length, Is.GreaterThan(0));
             Assert.That(mixer.FindMatchingGroups("SFX").Length, Is.GreaterThan(0));
             Assert.That(mixer.FindMatchingGroups("Ambience").Length, Is.GreaterThan(0));
-            foreach (var p in new[] { "MasterVolume", "SfxVolume", "AmbienceVolume" })
+            Assert.That(mixer.FindMatchingGroups("Music").Length, Is.GreaterThan(0));
+            foreach (var p in new[] { "MasterVolume", "SfxVolume", "AmbienceVolume", "MusicVolume" })
                 Assert.IsTrue(mixer.GetFloat(p, out _), p + " exposed");
         }
 
