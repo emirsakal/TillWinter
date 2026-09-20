@@ -50,6 +50,8 @@ namespace TillWinter.Unity
         private const float RainbowSeconds = 9f;
         private float _rainbow;
         private float _dusk;
+        /// <summary>0 at the year's first morning, 1 at the frost: the day's own arc under the season's light.</summary>
+        private float _dayArc;
 
         /// <summary>Morning mist at the start of each year, burnt off over a few seconds.</summary>
         private const float MistSeconds = 7f;
@@ -243,8 +245,12 @@ namespace TillWinter.Unity
             _fog = Prims.Damp(_fog, weather == Weather.Fog ? 1f : 0f, 1.4f, dtSky);
             _clouds = Mathf.Max(_clouds, _storm * 0.9f);
             _rebirth = Mathf.Max(0f, _rebirth - dtSky / 2.2f);
-            // Evening falls as the frost nears: the sun sinks and a moon rises.
-            _dusk = Prims.Damp(_dusk, frost, 2f, dtSky);
+            // A day across the year: the light climbs through spring and summer and leans over in autumn, and evening
+            // falls for real as the frost nears. Without this the sun stood still until the last ten seconds.
+            float dayT = state.Stats.YearLength > 0f && state.Phase == Phase.Year
+                ? Mathf.Clamp01(state.YearTime / state.Stats.YearLength) : 1f;
+            _dayArc = Prims.Damp(_dayArc, dayT, 1.5f, dtSky);
+            _dusk = Prims.Damp(_dusk, Mathf.Max(frost, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.72f, 1f, dayT)) * 0.45f), 2f, dtSky);
             // Autumn wind comes in gusts.
             float gust = _toSeason == Season.Autumn && state.Phase == Phase.Year ? Mathf.Pow(Mathf.Max(0f, Mathf.Sin(Time.time * 0.5f)), 6f) * 2.5f : 0f;
             Shader.SetGlobalFloat(GustId, gust);
@@ -280,7 +286,11 @@ namespace TillWinter.Unity
             var cold = _palette.FrostCold;
             _sun.color = Color.Lerp(look.Light, cold, frost * 0.8f);
             _sun.intensity = look.Intensity * (1f - frost * 0.25f) * (1f - 0.55f * _storm) * (1f - 0.3f * _fog) * (1f + 0.12f * _heat);
-            _sun.transform.rotation = Quaternion.Euler(look.Angle);
+            // The sun rises through the morning and leans west by the evening; the season sets how high it gets.
+            var angle = look.Angle;
+            angle.x -= Mathf.Lerp(7f, -9f, _dayArc);
+            angle.y += Mathf.Lerp(-14f, 16f, _dayArc);
+            _sun.transform.rotation = Quaternion.Euler(angle);
             RenderSettings.ambientSkyColor = Color.Lerp(look.AmbientSky, cold, frost * 0.4f);
             RenderSettings.ambientEquatorColor = look.AmbientEquator;
             RenderSettings.ambientGroundColor = look.AmbientGround;
