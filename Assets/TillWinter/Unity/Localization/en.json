@@ -147,6 +147,7 @@
   "ui.maxed": "Maxed",
   "ui.needs": "Needs {prereqs}",
   "ui.not_enough": "Not enough {currency}",
+  "ui.nothing_affordable": "Nothing to buy yet — start the next year",
   "ui.short_by": "{amount} more {currency} needed",
   "ui.coins": "coins",
   "ui.rate": "+{coins}/s",

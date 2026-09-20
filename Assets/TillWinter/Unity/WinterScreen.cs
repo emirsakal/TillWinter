@@ -653,6 +653,7 @@ namespace TillWinter.Unity
         private Button _sell, _preserve, _respec;
         private long _barnKey = -1;
         private long _suggestKey = -1;
+        private string _suggestedId;
 
         private void BuildBarnStrip()
         {
@@ -761,7 +762,8 @@ namespace TillWinter.Unity
             long key = s.Phase == Phase.Winter ? (long)System.Math.Min(s.Coins, 1e15) * 64 + _game.Sim.Almanac.Levels.Count : -2;
             if (key == _suggestKey) return;
             _suggestKey = key;
-            _almanac.SetSuggested(AlmanacAdvisor.Suggest(_game.Sim));
+            _suggestedId = AlmanacAdvisor.Suggest(_game.Sim);
+            _almanac.SetSuggested(_suggestedId);
         }
 
         private Image[] _gradeStars;
@@ -929,7 +931,9 @@ namespace TillWinter.Unity
             // The same line is empty in the Heritage phase, so there it says how far the tree is from the ending:
             // "finish Heritage" is the whole goal and nothing else counted it out loud.
             int heritageDone = s.Phase == Phase.Heritage ? _game.Sim.HeritageDone : -1;
-            int hintKey = (retireSeeds + 2) * 1000 + heritageDone + 2;
+            // Nothing affordable is its own state: the tree says "locked" everywhere and never says what to do about it.
+            bool broke = s.Phase == Phase.Winter && retireSeeds < 0 && _suggestedId == null;
+            int hintKey = ((retireSeeds + 2) * 1000 + heritageDone + 2) * 2 + (broke ? 1 : 0);
             if (hintKey != _retireSeedsKey)
             {
                 _retireSeedsKey = hintKey;
@@ -937,7 +941,9 @@ namespace TillWinter.Unity
                     ? Strings.Format("ui.retire_now", ("seeds", retireSeeds))
                     : heritageDone >= 0
                         ? Strings.Format("heritage.progress", ("done", heritageDone), ("total", _game.Sim.HeritageTotal))
-                        : "";
+                        : broke
+                            ? Strings.Get("ui.nothing_affordable")
+                            : "";
             }
 
             // Bottom sheet slide.

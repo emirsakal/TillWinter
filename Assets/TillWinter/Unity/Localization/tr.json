@@ -146,6 +146,7 @@
   "ui.locked": "Kilitli",
   "ui.maxed": "Tamamlandı",
   "ui.needs": "Gerekli: {prereqs}",
+  "ui.nothing_affordable": "Şimdilik alınacak bir şey yok — sonraki yıla geç",
   "ui.short_by": "{amount} {currency} daha gerek",
   "ui.not_enough": "Yetersiz: {currency}",
   "ui.coins": "jeton",
