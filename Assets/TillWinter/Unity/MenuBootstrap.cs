@@ -257,6 +257,11 @@ namespace TillWinter.Unity
             UiKit.Box(glow.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -330f), new Vector2(900f, 900f));
             var title = UiKit.Label(safe, "Name", TwoToneTitle(Strings.Get("menu.title")), UiType.Display, _theme.MenuTitle, TextAnchor.MiddleCenter, FontStyle.Bold);
             title.richText = true; // the two-tone title is a colour tag
+            // The name is one line at any text size: at the large-text setting it wrapped across the subtitle.
+            title.enableWordWrapping = false;
+            title.enableAutoSizing = true;
+            title.fontSizeMax = title.fontSize;
+            title.fontSizeMin = title.fontSize * 0.55f;
             _title = title.rectTransform;
             UiKit.Box(_title, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -230f), new Vector2(1040f, 200f));
             UiKit.Outline(title, 0.24f);
@@ -285,17 +290,24 @@ namespace TillWinter.Unity
                     UiKit.OutlineStrong(progress, 0.22f);
                 }
             }
-            var entries = new List<(string key, UnityAction action, bool primary)> { (hasSave ? "menu.continue" : "menu.play", StartGame, true) };
-            if (hasSave) entries.Add(("menu.new_game", () => _confirm.SetActive(true), false));
-            entries.Add(("menu.daily", StartDaily, false));
-            entries.Add(("menu.settings", () => _sheets.OpenSettingsFrom(null), false));
-            entries.Add(("menu.credits", () => _sheets.OpenCreditsFrom(null), false));
-            if (Application.platform != RuntimePlatform.IPhonePlayer) entries.Add(("menu.quit", Application.Quit, false)); // iOS apps never quit themselves
+            var entries = new List<(string key, UnityAction action, bool primary, string sub)> { (hasSave ? "menu.continue" : "menu.play", StartGame, true, null) };
+            if (hasSave) entries.Add(("menu.new_game", () => _confirm.SetActive(true), false, null));
+            // The daily farm was a name with nothing behind it: say what it is, or how today went if it has been played.
+            var st = SettingsStore.Current;
+            string dailySub = st.DailyBestDate == GameSession.Today() && st.DailyBestCoins > 0
+                ? Strings.Format("menu.daily_best", ("coins", NumberFormat.Short(st.DailyBestCoins)))
+                : Strings.Get("menu.daily_sub");
+            entries.Add(("menu.daily", StartDaily, false, dailySub));
+            entries.Add(("menu.settings", () => _sheets.OpenSettingsFrom(null), false, null));
+            entries.Add(("menu.credits", () => _sheets.OpenCreditsFrom(null), false, null));
+            if (Application.platform != RuntimePlatform.IPhonePlayer) entries.Add(("menu.quit", Application.Quit, false, null)); // iOS apps never quit themselves
             for (int i = 0; i < entries.Count; i++)
             {
-                var (key, action, primary) = entries[i];
-                var b = UiKit.Button(safe, key, Strings.Get(key), primary ? UiType.Title : UiType.Heading, primary ? _theme.MenuPrimary : _theme.MenuSecondary, _theme.MenuButtonText, action);
+                var (key, action, primary, sub) = entries[i];
+                string text = Strings.Get(key) + (sub != null ? "\n<size=62%>" + sub + "</size>" : "");
+                var b = UiKit.Button(safe, key, text, primary ? UiType.Title : UiType.Heading, primary ? _theme.MenuPrimary : _theme.MenuSecondary, _theme.MenuButtonText, action);
                 if (primary) UiKit.ButtonLabel(b).fontStyle = FontStyles.Bold;
+                if (sub != null) UiKit.ButtonLabel(b).richText = true; // the second line is set smaller with a size tag
                 var rt = b.GetComponent<RectTransform>();
                 float y = BottomMargin + (entries.Count - 1 - i) * (ButtonHeight + ButtonGap) + (primary ? ButtonGap : 0f);
                 UiKit.Box(rt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, y), new Vector2(primary ? ButtonWidth + 60f : ButtonWidth, primary ? ButtonHeight + 20f : ButtonHeight));

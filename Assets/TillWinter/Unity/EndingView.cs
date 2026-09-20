@@ -59,7 +59,7 @@ namespace TillWinter.Unity
             UiKit.CircleImage(seal.transform, "SealInner", _theme.CreditsOverlay, Vector2.zero, 556f);
             Line(third, "menu.title", UiType.Display, _theme.Gold, FontStyles.Bold, 60f);
             Line(third, "credits.thanks", UiType.Heading, _theme.Text, FontStyles.Normal, -90f);
-            Line(third, "ending.after", UiType.Label, _theme.TextMuted, FontStyles.Normal, -260f);
+            Line(third, "ending.after", UiType.Label, _theme.TextMuted, FontStyles.Normal, -280f, 2.6f);
 
             _skip = UiKit.Label(overlay.transform, "Skip", Strings.Get("credits.skip"), UiType.Label, _theme.TextMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_skip.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(800f, 60f));
@@ -84,11 +84,11 @@ namespace TillWinter.Unity
             return group;
         }
 
-        private void Line(CanvasGroup group, string key, int size, Color color, FontStyles style, float y)
+        private void Line(CanvasGroup group, string key, int size, Color color, FontStyles style, float y, float lines = 1f)
         {
             var t = UiKit.Label(group.transform, key, Strings.Get(key), size, color, TextAnchor.MiddleCenter);
             t.fontStyle = style;
-            UiKit.Box(t.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, y), new Vector2(940f, size * 2.4f));
+            UiKit.Box(t.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, y), new Vector2(940f, size * 2.4f * lines));
             UiKit.Outline(t, 0.14f);
         }
 

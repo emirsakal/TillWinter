@@ -265,6 +265,8 @@
   "menu.new_game_body": "Your farm, seeds and statistics will be erased. Settings stay.",
   "menu.new_game_yes": "Erase and start",
   "menu.progress": "Generation {gen} · Year {year}",
+  "menu.daily_sub": "The same field for everyone, one year",
+  "menu.daily_best": "Today's best: {coins}",
   "menu.settings": "Settings",
   "menu.stats": "Statistics",
   "menu.credits": "Credits",
@@ -335,7 +337,7 @@
 
   "ending.title": "The Golden Year",
   "ending.caption": "Every seed has been sown. One year of gold.",
-  "ending.after": "The farm goes on. Nothing new will unlock.",
+  "ending.after": "The farm goes on, and nothing new unlocks.\nNew Game+ waits in the pause menu, and a fresh daily farm arrives every day.",
   "heritage.progress": "Heritage {done}/{total}",
   "heritage.complete": "Complete",
 

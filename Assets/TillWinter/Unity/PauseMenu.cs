@@ -17,7 +17,11 @@ namespace TillWinter.Unity
     {
         public const float ResetHoldSeconds = 3f;
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
-        private const float SettingsHeight = 2010f; // four section headings since round three; hands-free (v2.5)
+        // Four section headings since round three; hands-free (v2.5). The large-text setting wraps both hint lines,
+        // so the sheet and the two hint rows grow with it instead of letting a second line fall into the next section.
+        private static float SettingsHeight => 2010f + (UiType.Scale > 1f ? 80f : 0f);
+        private static float HintHeight => UiType.Scale > 1f ? 78f : 44f;
+        private static float HintGap => UiType.Scale > 1f ? 100f : 60f;
         private const float SectionHeight = 64f;
         private const float BandHeight = 128f;
         private const float LabelX = -230f, LabelWidth = 380f, ControlX = 225f, ControlWidth = 410f;
@@ -129,8 +133,8 @@ namespace TillWinter.Unity
             RowLabel(p, "settings.hands_free", y);
             _handsFreeSwitch = SwitchRow(p, "HandsFree", s.HandsFree, on => { SettingsStore.Current.HandsFree = on; if (!on && _game != null) _game.HandsFree.Clear(); }, y);
             y -= RowHeight - 10f;
-            Text(p, "HandsFreeHint", Strings.Get("settings.hands_free_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleLeft, 44f);
-            y -= 60f;
+            Text(p, "HandsFreeHint", Strings.Get("settings.hands_free_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
+            y -= HintGap;
 
             Section(p, "settings.section.sound", ref y);
             RowLabel(p, "settings.music", y);
@@ -147,8 +151,8 @@ namespace TillWinter.Unity
             RowLabel(p, "settings.reduce_motion", y);
             _motionSwitch = SwitchRow(p, "ReduceMotion", s.ReduceMotion, on => SettingsStore.Current.ReduceMotion = on, y);
             y -= RowHeight - 10f;
-            Text(p, "MotionHint", Strings.Get("settings.reduce_motion_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleLeft, 44f);
-            y -= 60f;
+            Text(p, "MotionHint", Strings.Get("settings.reduce_motion_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
+            y -= HintGap;
 
             RowLabel(p, "settings.large_text", y);
             _largeTextSwitch = SwitchRow(p, "LargeText", s.LargeText, on =>

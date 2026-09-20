@@ -265,6 +265,8 @@
   "menu.new_game_body": "Çiftliğin, tohumların ve istatistiklerin silinir. Ayarlar kalır.",
   "menu.new_game_yes": "Sil ve başla",
   "menu.progress": "Nesil {gen} · Yıl {year}",
+  "menu.daily_sub": "Herkese aynı tarla, tek yıl",
+  "menu.daily_best": "Bugünkü en iyin: {coins}",
   "menu.settings": "Ayarlar",
   "menu.stats": "İstatistikler",
   "menu.credits": "Emeği geçenler",
@@ -335,7 +337,7 @@
 
   "ending.title": "Altın Yıl",
   "ending.caption": "Her tohum ekildi. Bir yıl boyunca altın.",
-  "ending.after": "Çiftlik devam ediyor. Artık yeni bir şey açılmayacak.",
+  "ending.after": "Çiftlik devam ediyor, artık yeni bir şey açılmıyor.\nDuraklat menüsünde Yeni Oyun+ seni bekliyor, her gün yeni bir günün çiftliği geliyor.",
   "heritage.progress": "Miras {done}/{total}",
   "heritage.complete": "Tamamlandı",
 
