@@ -112,6 +112,11 @@ namespace TillWinter.Unity
             lamp.sprite = Sprite.Create(Prims.RadialGradient(128, 0f, 1f), new Rect(0, 0, 128, 128), new Vector2(0.5f, 0.5f), 100f);
             lamp.type = Image.Type.Simple;
             UiKit.Box(lamp.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(1500f, 1100f));
+            // The Almanac is paper too: a faint grain keeps the page from reading as flat dark space.
+            var grain = UiKit.Panel(page.transform, "Grain", new Color(_theme.Ink.r, _theme.Ink.g, _theme.Ink.b, 0.05f), false, false);
+            grain.sprite = UiKit.Grain;
+            grain.type = Image.Type.Tiled;
+            UiKit.Stretch(grain.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _aged = UiKit.Panel(page.transform, "Aged", _heritageTheme.Aged, false, false);
             _aged.sprite = UiKit.Grain;
             _aged.type = Image.Type.Tiled;

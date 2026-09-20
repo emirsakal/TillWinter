@@ -1044,8 +1044,15 @@ namespace TillWinter.EditorTools
             var hat = new GameObject("Hat").transform;
             hat.SetParent(root.transform, false);
             hat.localPosition = new Vector3(0f, 0.505f, 0f);
-            Prim(PrimitiveType.Cylinder, hat, "Brim", Vector3.zero, new Vector3(0.26f, 0.011f, 0.26f), b, slot);
-            Prim(PrimitiveType.Cylinder, hat, "Crown", new Vector3(0f, 0.036f, 0f), new Vector3(0.123f, 0.036f, 0.123f), b, slot);
+            // Six helpers at 6x6 are thirty pixels tall: colour alone did not tell them apart, so each hat has its own
+            // brim and crown, and each helper its own height. The silhouette is what reads at that size.
+            float brim = 0.2f + (index % 3) * 0.045f;
+            float crown = 0.026f + (index % 2) * 0.03f;
+            Prim(PrimitiveType.Cylinder, hat, "Brim", Vector3.zero, new Vector3(brim, 0.011f, brim), b, slot);
+            Prim(PrimitiveType.Cylinder, hat, "Crown", new Vector3(0f, crown, 0f), new Vector3(0.123f, crown, 0.123f), b, slot);
+            if (index % 3 == 2) // one in three wears a band, which breaks the crown's outline
+                Prim(PrimitiveType.Cylinder, hat, "Band", new Vector3(0f, crown * 0.55f, 0f), new Vector3(0.132f, 0.008f, 0.132f), b, PaletteSlot.Hat);
+            root.transform.localScale = Vector3.one * (0.95f + (index % 4) * 0.035f);
             // "Picking this": a thought puff with the crop's colour in it, shown while harvesting. Its own binder, so the
             // view can tint the crop dot without touching the character.
             var (bubble, bb) = Root("Bubble");
