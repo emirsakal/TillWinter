@@ -26,7 +26,13 @@ namespace TillWinter.Tests.Unity
                 Assert.IsNotNull(e.Prefab.GetComponent<ParticleSystem>(), id + " particle system");
                 Assert.That(e.MaxPerSecond, Is.GreaterThan(0), id + " limiter");
                 var r = e.Prefab.GetComponent<ParticleSystemRenderer>();
-                Assert.IsTrue(r.sharedMaterial != null && r.sharedMaterial.shader.name == "TillWinter/TW_Toon", id + " uses the toon material");
+                // Flakes (petals, leaves, feathers) are solid meshes on the toon material; everything round is a soft
+                // billboard on TW_Particle. Either way it is one of the project's own shaders, never a stock one.
+                bool ours = r.sharedMaterial != null && (r.sharedMaterial.shader.name == "TillWinter/TW_Toon"
+                    || r.sharedMaterial.shader.name == "TillWinter/TW_Particle");
+                Assert.IsTrue(ours, id + " uses one of the project's particle materials");
+                bool billboard = r.renderMode == ParticleSystemRenderMode.Billboard;
+                Assert.AreEqual(billboard, r.sharedMaterial.shader.name == "TillWinter/TW_Particle", id + " material matches its render mode");
             }
             Assert.AreEqual(12, catalog.Get(VfxId.Harvest).MaxPerSecond, "harvest pop budget");
             Assert.AreEqual(10, catalog.Get(VfxId.WaterSplash).MaxPerSecond, "water splash budget");

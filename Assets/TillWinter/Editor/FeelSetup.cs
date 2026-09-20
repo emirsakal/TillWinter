@@ -22,7 +22,7 @@ namespace TillWinter.EditorTools
         private const string ResourcesDir = "Assets/TillWinter/Unity/Resources/";
         private const string MixerPath = ResourcesDir + AudioManager.MixerName + ".mixer";
 
-        private static Material _particleMaterial;
+        private static Material _particleMaterial, _softMaterial;
 
         public static void Run()
         {
@@ -41,6 +41,8 @@ namespace TillWinter.EditorTools
             var visuals = AssetDatabase.LoadAssetAtPath<VisualCatalog>(ResourcesDir + "VisualCatalog.asset");
             _particleMaterial = visuals != null ? visuals.SlotMaterial(PaletteSlot.White) : null;
             if (_particleMaterial == null) throw new Exception("VisualCatalog / TW_White material missing: run art-setup.bat first");
+            _softMaterial = visuals.ParticleSoft;
+            if (_softMaterial == null) throw new Exception("VisualCatalog.ParticleSoft missing: run art-setup.bat first");
             var catalog = AssetDatabase.LoadAssetAtPath<VfxCatalog>(ResourcesDir + "VfxCatalog.asset");
             if (catalog == null)
             {
@@ -162,12 +164,24 @@ namespace TillWinter.EditorTools
                 rot.z = new ParticleSystem.MinMaxCurve(-2f, 2f);
             }
             var r = ps.GetComponent<ParticleSystemRenderer>();
-            r.renderMode = ParticleSystemRenderMode.Mesh;
-            r.mesh = BuiltinMesh(s.Mesh);
-            r.sharedMaterial = _particleMaterial;
+            // Cubes stay solid: petals, leaves and feathers are flakes and want an edge. Everything round becomes a
+            // soft billboard, which is what a sparkle, a splash or a puff of dust actually looks like.
+            bool flake = s.Mesh == PrimitiveType.Cube;
+            if (flake)
+            {
+                r.renderMode = ParticleSystemRenderMode.Mesh;
+                r.mesh = BuiltinMesh(s.Mesh);
+                r.sharedMaterial = _particleMaterial;
+            }
+            else
+            {
+                r.renderMode = ParticleSystemRenderMode.Billboard;
+                r.mesh = null;
+                r.sharedMaterial = _softMaterial;
+            }
             r.shadowCastingMode = ShadowCastingMode.Off;
             r.receiveShadows = false;
-            r.alignment = s.Flat ? ParticleSystemRenderSpace.Local : ParticleSystemRenderSpace.View;
+            r.alignment = s.Flat && flake ? ParticleSystemRenderSpace.Local : ParticleSystemRenderSpace.View;
             string path = VfxDir + go.name + ".prefab";
             var prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
             Object.DestroyImmediate(go);

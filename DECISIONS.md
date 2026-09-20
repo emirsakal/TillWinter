@@ -1311,3 +1311,13 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   `Animator.SetFloat` could stay string-keyed now that it runs every frame per apprentice. Chosen: no
   — `Animator.SetFloat(string)` allocates per call, so the parameter is hashed once
   (`Animator.StringToHash`) and cached instead.
+- **A fourth hand-written shader, not a stock particle shader or `TW_Shadow` reused.** Open: how
+  round effects (sparkles, splashes, dust, motes, rain, snow) should stop reading as flat opaque
+  primitives. Chosen: a new `TW_Particle` shader (unlit, alpha-blended, soft radial mask x colour
+  with a small core boost) rather than putting a stock particle shader on a material under
+  `Assets/Art` (against the project's shader allow-list) or reusing `TW_Toon`/`TW_Shadow` —
+  `TW_Shadow` carries no vertex colour, so every particle on it would have come out one colour.
+  Flakes that want an edge (petals, leaves, feathers) stay solid meshes on the toon material
+  instead of going soft too, since a flake reads as a flake and a spark reads better soft; `ArtTests`'
+  shader allow-list and `FeelTests`' material assertion (now also checking render mode and material
+  agree) were updated to match.
