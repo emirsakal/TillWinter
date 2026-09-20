@@ -139,5 +139,6 @@ MonoBehaviour:
   Sunflower: {fileID: 294354487028210728, guid: a4b7e7dc278562c4f89ab6d14bd47084, type: 3}
   SteppingStone: {fileID: 2025375361661140737, guid: 901d32a2e34313d44bbacc8acb3d1555, type: 3}
   BlobShadow: {fileID: 5479554026680035742, guid: 22c24bf89efddc940b841c82f1c4dbae, type: 3}
+  ParticleSoft: {fileID: 2100000, guid: fdc65f84273f52f43bca9f1cb3f37c11, type: 2}
   SkyQuad: {fileID: 4664378917402885126, guid: b8aa540e3258f674481be45860899fe2, type: 3}
   RingDisc: {fileID: 5510365696329082838, guid: bfd27ce718c9cbf4584ae5e6301a1aa3, type: 3}

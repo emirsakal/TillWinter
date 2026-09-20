@@ -91,6 +91,8 @@ namespace TillWinter.Unity
         public GameObject SteppingStone;
         /// <summary>Soft dark disc parented under characters and props so they sit on the ground when shadows are off.</summary>
         public GameObject BlobShadow;
+        /// <summary>Soft round mask on TW_Particle: sparkles, splashes and dust, tinted by each particle's own colour.</summary>
+        public Material ParticleSoft;
         /// <summary>A bare quad for the camera's sky backdrop (the view gives it the TW_Sky material).</summary>
         public GameObject SkyQuad;
         /// <summary>A bare flat quad for the ring when decals are unavailable (the view gives it its material).</summary>

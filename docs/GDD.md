@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.8 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline; an art pass reworked apprentice locomotion, crop-stage easing, frost/storm readability, skill-tree branch colour and layout, coin iconography and the generation card, marked *(v2.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.9 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline; an art pass reworked apprentice locomotion, crop-stage easing, frost/storm readability, skill-tree branch colour and layout, coin iconography and the generation card, marked *(v2.8)* inline; round particles moved from opaque primitives to soft billboards on a fourth shader, `TW_Particle`, marked *(v2.9)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -599,6 +599,14 @@ album page of the generation that just ended (years, coins, seeds, harvests) and
 album rows carry a stamped seal with the generation number and a rule under each entry. The field
 sits lower on screen (`CameraRig.FieldScreenY` 0.49 -> 0.46) so the bottom of the screen isn't
 empty sky.
+
+*(v2.9)* Particles are no longer all opaque primitives. A fourth project shader, `TW_Particle`
+(unlit, alpha-blended, multiplies a soft radial mask by the particle's own colour, with a small
+core boost), backs a `TW_Particle` material built by `ArtSetup` from a generated 64px mask
+(`Assets/Art/Textures/Particle.png`) and exposed on `VisualCatalog` as `ParticleSoft`. `FeelSetup`
+now builds round effects (sparkles, splashes, dust, motes, rain, snow) as soft billboards on that
+material, while flakes that want an edge (petals, leaves, feathers — the specs whose mesh is a
+cube) stay solid meshes on the toon material.
 
 ---
 

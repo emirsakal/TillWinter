@@ -263,6 +263,49 @@ namespace TillWinter.EditorTools
             return root;
         }
 
+        /// <summary>
+        /// The soft dot every sparkle, splash and puff is drawn with: a radial mask with a bright core, on TW_Particle,
+        /// which multiplies it by the particle's own colour. The feel pass drew all of them as opaque primitives.
+        /// </summary>
+        private static Material CreateParticleMaterial()
+        {
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[size * size];
+            float half = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float d = Mathf.Sqrt((x + 0.5f - half) * (x + 0.5f - half) + (y + 0.5f - half) * (y + 0.5f - half)) / half;
+                float a = 1f - Mathf.SmoothStep(0.15f, 1f, d);      // soft edge
+                float core = 1f - Mathf.SmoothStep(0f, 0.55f, d);    // brighter middle
+                byte v = (byte)(Mathf.Clamp01(0.75f + core * 0.25f) * 255f);
+                px[y * size + x] = new Color32(v, v, v, (byte)(Mathf.Clamp01(a) * 255f));
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            string texPath = TexturesDir + "Particle.png";
+            File.WriteAllBytes(texPath, tex.EncodeToPNG());
+            Object.DestroyImmediate(tex);
+            AssetDatabase.ImportAsset(texPath);
+            var ti = AssetImporter.GetAtPath(texPath) as TextureImporter;
+            if (ti != null && (ti.mipmapEnabled || !ti.alphaIsTransparency))
+            {
+                ti.mipmapEnabled = false;
+                ti.wrapMode = TextureWrapMode.Clamp;
+                ti.alphaIsTransparency = true;
+                ti.SaveAndReimport();
+            }
+            var texAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+            var particleShader = Shader.Find("TillWinter/TW_Particle");
+            if (particleShader == null) throw new Exception("TillWinter/TW_Particle shader not found (compile error?)");
+            return Material("TW_Particle", particleShader, m =>
+            {
+                m.SetTexture("_BaseMap", texAsset);
+                m.SetColor("_BaseColor", Color.white);
+            });
+        }
+
         private static GameObject BuildBlobShadow()
         {
             var root = new GameObject("BlobShadow");
@@ -618,6 +661,7 @@ namespace TillWinter.EditorTools
             c.Bee = Save("Bee", BuildBee());
             c.Frog = Save("Frog", BuildFrog());
             c.BlobShadow = Save("BlobShadow", BuildBlobShadow());
+            c.ParticleSoft = CreateParticleMaterial();
             c.SkyQuad = Save("SkyQuad", BuildBareQuad("SkyQuad", false));
             c.RingDisc = Save("RingDisc", BuildBareQuad("RingDisc", true));
         }
