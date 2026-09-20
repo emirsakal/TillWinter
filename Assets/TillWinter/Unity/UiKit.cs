@@ -260,6 +260,26 @@ namespace TillWinter.Unity
             return icon;
         }
 
+        /// <summary>
+        /// An icon button that says what it does: the icon rides high on the face and a word sits under it. A row of
+        /// bare pictograms is a quiz; the word costs a few pixels and answers it.
+        /// </summary>
+        public static Image ButtonCaption(Button button, string iconKey, string caption)
+        {
+            var icon = ButtonIcon(button, iconKey);
+            Box(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -36f), Vector2.one * 40f);
+            var label = ButtonLabel(button);
+            label.gameObject.SetActive(false); // a captioned button speaks through its caption
+            var text = Label(icon.transform.parent, "Caption", caption, 22, label.color, TextAnchor.LowerCenter);
+            Box(text.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(150f, 30f));
+            text.raycastTarget = false;
+            text.enableWordWrapping = false;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 14f;
+            text.fontSizeMax = 22f;
+            return icon;
+        }
+
         public static Button Button(Transform parent, string name, string text, int fontSize, Color bg, Color fg, UnityAction onClick)
         {
             // A flat rounded rectangle read as a placeholder. The button is now a face sitting on a darker lip, so it
@@ -288,7 +308,14 @@ namespace TillWinter.Unity
             return btn;
         }
 
-        public static TMP_Text ButtonLabel(Button b) => b.GetComponentInChildren<TMP_Text>();
+        public static TMP_Text ButtonLabel(Button b) => b.GetComponentInChildren<TMP_Text>(true);
+
+        /// <summary>The word under a <see cref="ButtonCaption"/> icon, for buttons whose caption carries a value.</summary>
+        public static TMP_Text CaptionLabel(Button b)
+        {
+            var t = b.transform.Find("Face/Caption");
+            return t != null ? t.GetComponent<TMP_Text>() : null;
+        }
 
         /// <summary>A soft drop shadow behind a card: the same rounded shape, offset down and darkened.</summary>
         public static Image Shadow(RectTransform card, Color color, float offset = 8f, float spread = 6f)

@@ -632,7 +632,14 @@ namespace TillWinter.Unity
             string reason = "";
             if (maxed) reason = Strings.Get("ui.maxed");
             else if (!available) reason = Strings.Format("ui.needs", ("prereqs", string.Join(" / ", Strings.Names(Prereqs(node)))));
-            else if (!can) reason = Strings.Format("ui.not_enough", ("currency", Strings.Get(heritage ? "ui.seeds" : "ui.coins")));
+            else if (!can)
+            {
+                // "Not enough coins" leaves the player counting. Say how many are missing.
+                double missing = sim.CostOf(_selectedId) - (heritage ? _game.State.Seeds : _game.State.Coins);
+                reason = Strings.Format("ui.short_by",
+                    ("amount", NumberFormat.Short(System.Math.Max(1d, System.Math.Ceiling(missing)))),
+                    ("currency", Strings.Get(heritage ? "ui.seeds" : "ui.coins")));
+            }
             _sheetReason.text = reason;
             UiKit.ButtonLabel(_buy).text = maxed ? Strings.Get("ui.maxed") : !available ? Strings.Get("ui.locked") : Strings.Get("ui.buy");
         }
@@ -919,10 +926,18 @@ namespace TillWinter.Unity
                     : "";
             }
             int retireSeeds = s.Phase == Phase.Winter && _game.Sim.CanRetire ? _game.Sim.SeedsIfRetiredNow : -1;
-            if (retireSeeds != _retireSeedsKey)
+            // The same line is empty in the Heritage phase, so there it says how far the tree is from the ending:
+            // "finish Heritage" is the whole goal and nothing else counted it out loud.
+            int heritageDone = s.Phase == Phase.Heritage ? _game.Sim.HeritageDone : -1;
+            int hintKey = (retireSeeds + 2) * 1000 + heritageDone + 2;
+            if (hintKey != _retireSeedsKey)
             {
-                _retireSeedsKey = retireSeeds;
-                _retireHint.text = retireSeeds >= 0 ? Strings.Format("ui.retire_now", ("seeds", retireSeeds)) : "";
+                _retireSeedsKey = hintKey;
+                _retireHint.text = retireSeeds >= 0
+                    ? Strings.Format("ui.retire_now", ("seeds", retireSeeds))
+                    : heritageDone >= 0
+                        ? Strings.Format("heritage.progress", ("done", heritageDone), ("total", _game.Sim.HeritageTotal))
+                        : "";
             }
 
             // Bottom sheet slide.

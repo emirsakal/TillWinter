@@ -147,6 +147,7 @@
   "ui.maxed": "Maxed",
   "ui.needs": "Needs {prereqs}",
   "ui.not_enough": "Not enough {currency}",
+  "ui.short_by": "{amount} more {currency} needed",
   "ui.coins": "coins",
   "ui.rate": "+{coins}/s",
   "ui.seeds": "seeds",
@@ -194,6 +195,12 @@
   "away.capped": "Capped at 8 hours.",
   "away.nothing": "Nothing grew on its own yet.",
 
+  "hud.cap_shape": "Shape",
+  "hud.cap_seeds": "Seeds",
+  "hud.cap_scarecrow": "Scarecrow",
+  "hud.cap_tractor": "Tractor",
+  "hud.cap_inspect": "Inspect",
+  "hud.cap_barn": "Barn {percent}%",
   "hud.next_generation": "Next generation {percent}%",
   "hud.year_gen": "Year {0}  ·  Gen {1}",
   "hud.retire_chip": "Retire: {0}",
@@ -329,6 +336,7 @@
   "ending.title": "The Golden Year",
   "ending.caption": "Every seed has been sown. One year of gold.",
   "ending.after": "The farm goes on. Nothing new will unlock.",
+  "heritage.progress": "Heritage {done}/{total}",
   "heritage.complete": "Complete",
 
   "branch.Hand": "Hand",

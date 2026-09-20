@@ -315,6 +315,21 @@ namespace TillWinter.Core
             }
         }
 
+        /// <summary>Heritage nodes finished, counted by the same rule as <see cref="HeritageComplete"/> (a path not
+        /// taken counts as done once its rival is maxed). The pair says how far the ending is.</summary>
+        public int HeritageDone
+        {
+            get
+            {
+                int done = 0;
+                foreach (var n in Heritage.Nodes)
+                    if (Heritage.IsMaxed(n.Id) || (n.Excludes != null && Heritage.IsMaxed(n.Excludes))) done++;
+                return done;
+            }
+        }
+
+        public int HeritageTotal => Heritage.Nodes.Count;
+
         /// <summary>Real play time for the stats screen (the presentation layer feeds unpaused, unscaled seconds).</summary>
         public void AddPlayTime(double seconds)
         {

@@ -146,6 +146,7 @@
   "ui.locked": "Kilitli",
   "ui.maxed": "Tamamlandı",
   "ui.needs": "Gerekli: {prereqs}",
+  "ui.short_by": "{amount} {currency} daha gerek",
   "ui.not_enough": "Yetersiz: {currency}",
   "ui.coins": "jeton",
   "ui.rate": "+{coins}/sn",
@@ -194,6 +195,12 @@
   "away.capped": "En fazla 8 saat sayılır.",
   "away.nothing": "Henüz kendiliğinden bir şey yetişmedi.",
 
+  "hud.cap_shape": "Biçim",
+  "hud.cap_seeds": "Tohum",
+  "hud.cap_scarecrow": "Korkuluk",
+  "hud.cap_tractor": "Traktör",
+  "hud.cap_inspect": "İncele",
+  "hud.cap_barn": "Ambar %{percent}",
   "hud.next_generation": "Sonraki nesil %{percent}",
   "hud.year_gen": "Yıl {0}  ·  Nesil {1}",
   "hud.retire_chip": "Devret: {0}",
@@ -329,6 +336,7 @@
   "ending.title": "Altın Yıl",
   "ending.caption": "Her tohum ekildi. Bir yıl boyunca altın.",
   "ending.after": "Çiftlik devam ediyor. Artık yeni bir şey açılmayacak.",
+  "heritage.progress": "Miras {done}/{total}",
   "heritage.complete": "Tamamlandı",
 
   "branch.Hand": "El",

@@ -31,6 +31,24 @@ namespace TillWinter.Tests
             return ticks;
         }
 
+        /// <summary>The counter the Heritage screen signposts the ending with agrees with the ending itself.</summary>
+        [Test]
+        public void HeritageProgress_CountsDoneNodes_AndIsFullOnlyWhenComplete()
+        {
+            var fresh = new FarmSim(new FarmConfig(), 5);
+            Assert.AreEqual(fresh.Heritage.Nodes.Count, fresh.HeritageTotal);
+            Assert.AreEqual(0, fresh.HeritageDone);
+            Assert.IsFalse(fresh.HeritageComplete);
+
+            var sim = InHeritage();
+            Assert.IsTrue(sim.HeritageComplete);
+            Assert.AreEqual(sim.HeritageTotal, sim.HeritageDone, "a complete tree counts every node");
+
+            sim.DebugSetLevel("h_golden_crop", 4); // one node short of max
+            Assert.IsFalse(sim.HeritageComplete);
+            Assert.AreEqual(sim.HeritageTotal - 1, sim.HeritageDone);
+        }
+
         [Test]
         public void NotTriggered_UnlessEveryHeritageNodeIsMaxed()
         {
