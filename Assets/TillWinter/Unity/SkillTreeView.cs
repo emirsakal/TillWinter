@@ -127,6 +127,9 @@ namespace TillWinter.Unity
             BuildBranchRegions();
             BuildNodes();
             BuildEdges();
+            // The name plates are built first (so the tree grows over them) but must stay readable: a node that lands
+            // on one would otherwise cut the branch's name in half.
+            foreach (var plate in _plates) plate.SetAsLastSibling();
             ComputeBounds();
             Refresh(true);
             CenterOnRoots();
@@ -166,13 +169,17 @@ namespace TillWinter.Unity
                 var branch = kv.Key;
                 var colour = _theme.BranchColor(branch);
                 var dir = kv.Value.sqrMagnitude > 0.01f ? kv.Value.normalized : Vector2.up;
-                var plate = UiKit.Panel(_content, "Branch " + branch, new Color(colour.r, colour.g, colour.b, 0.85f), true, false);
+                // Opaque: at 0.85 a node behind the plate showed through and read as a smudge under the branch's name.
+                var plate = UiKit.Panel(_content, "Branch " + branch, new Color(colour.r, colour.g, colour.b, 1f), true, false);
                 var plateRt = plate.rectTransform;
                 plateRt.anchorMin = plateRt.anchorMax = new Vector2(0.5f, 0.5f);
                 plateRt.pivot = new Vector2(0.5f, 0.5f);
                 plateRt.sizeDelta = new Vector2(PlateWidth, PlateHeight);
-                // Far enough out that the plate's own half-size clears the node, whichever way the branch points.
-                plateRt.anchoredPosition = kv.Value + dir * (_theme.NodeSize * 0.6f + Mathf.Abs(dir.x) * PlateWidth * 0.5f + Mathf.Abs(dir.y) * PlateHeight * 0.55f);
+                // Above (or below) the branch's last node rather than out to its side: a sideways plate on a wide branch
+                // hung off the screen edge and read as clipped text.
+                float away = dir.y >= 0f ? 1f : -1f;
+                plateRt.anchoredPosition = kv.Value + dir * (_theme.NodeSize * 1.15f) + new Vector2(0f, away * PlateHeight * 1.15f);
+                _plates.Add(plateRt);
                 var icon = NodeIcons.Image(plate.transform, BranchIcon(branch), _theme.Paper);
                 UiKit.Box(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(22f, 0f), Vector2.one * 48f);
                 var name = UiKit.Label(plate.transform, "Name", Strings.Branch(branch), UiType.Heading, _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -180,6 +187,7 @@ namespace TillWinter.Unity
             }
         }
 
+        private readonly List<RectTransform> _plates = new List<RectTransform>();
         private const float PlateWidth = 380f;
         private const float PlateHeight = 80f;
 
@@ -397,9 +405,61 @@ namespace TillWinter.Unity
         /// <summary>Purchase feedback: burst on the node, pips fill one by one, children edges flow.</summary>
         public void OnPurchased(string id)
         {
-            if (_nodes.TryGetValue(id, out var nv)) nv.Punch = 1f;
+            if (_nodes.TryGetValue(id, out var nv)) { nv.Punch = 1f; Sparkle(nv); }
             if (_waves.TryGetValue(id, out var wave)) { wave.gameObject.SetActive(true); _waveT[id] = 0f; }
             Refresh(false);
+        }
+
+        // ------------------------------------------------------------------ purchase sparkle
+
+        private const int SparkCount = 10;
+        private const float SparkSeconds = 0.55f;
+        private readonly RectTransform[] _sparks = new RectTransform[SparkCount];
+        private readonly Image[] _sparkImages = new Image[SparkCount];
+        private readonly Vector2[] _sparkDir = new Vector2[SparkCount];
+        private readonly Vector2[] _sparkHome = new Vector2[SparkCount];
+        private float _sparkT = 1f;
+        private Color _sparkColor;
+
+        /// <summary>A handful of dots thrown out of a node that was just bought; the wave alone read as a flat ripple.</summary>
+        private void Sparkle(NodeView nv)
+        {
+            _sparkColor = nv.State == NodeState.Maxed ? _theme.Gold : nv.BranchColor;
+            for (int i = 0; i < SparkCount; i++)
+            {
+                if (_sparks[i] == null)
+                {
+                    var dot = UiKit.CircleImage(_content, "Spark", _sparkColor, Vector2.zero, _theme.NodeSize * 0.13f);
+                    dot.raycastTarget = false;
+                    _sparkImages[i] = dot;
+                    _sparks[i] = dot.rectTransform;
+                    _sparks[i].anchorMin = _sparks[i].anchorMax = new Vector2(0.5f, 0.5f);
+                }
+                float angle = (i / (float)SparkCount) * Mathf.PI * 2f + UnityEngine.Random.value * 0.3f;
+                _sparkDir[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (_theme.NodeSize * (0.75f + UnityEngine.Random.value * 0.5f));
+                _sparkHome[i] = nv.Rt.anchoredPosition;
+                _sparks[i].anchoredPosition = _sparkHome[i];
+                _sparkImages[i].color = _sparkColor;
+                _sparks[i].gameObject.SetActive(true);
+            }
+            _sparkT = 0f;
+        }
+
+        private void TickSparks(float dt)
+        {
+            if (_sparkT >= 1f) return;
+            _sparkT = Mathf.Min(1f, _sparkT + dt / SparkSeconds);
+            float eased = Prims.EaseOutQuad(_sparkT);
+            var colour = _sparkColor;
+            colour.a = 1f - _sparkT;
+            for (int i = 0; i < SparkCount; i++)
+            {
+                if (_sparks[i] == null) continue;
+                _sparks[i].anchoredPosition = _sparkHome[i] + _sparkDir[i] * eased;
+                _sparks[i].localScale = Vector3.one * (1f - 0.6f * _sparkT);
+                _sparkImages[i].color = colour;
+                if (_sparkT >= 1f) _sparks[i].gameObject.SetActive(false);
+            }
         }
 
         // ------------------------------------------------------------------ camera
@@ -626,6 +686,8 @@ namespace TillWinter.Unity
                     nv.Lock.gameObject.SetActive(detail && nv.State == NodeState.Locked);
                 }
             }
+
+            TickSparks(dt);
 
             // Node animation: affordable pulse, selection scale, purchase punch, pip fill.
             float pulse = 1f + _theme.PulseAmplitude * Mathf.Sin(Time.unscaledTime * 4f);

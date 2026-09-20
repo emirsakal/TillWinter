@@ -173,6 +173,23 @@ namespace TillWinter.Unity
             _mist = 1f;
         }
 
+        private float _rainRipple;
+
+        /// <summary>
+        /// Rain has to land somewhere: while a storm runs, drops ripple on random plots (the same soil ripple the pond
+        /// uses), so the weather reads on the field and not only in the sky.
+        /// </summary>
+        private void RainOnTheField(FarmState state, float storm)
+        {
+            if (storm < 0.25f || state.GridSize <= 0) return;
+            _rainRipple -= Time.deltaTime * storm;
+            if (_rainRipple > 0f) return;
+            _rainRipple = 0.12f;
+            int n = state.GridSize;
+            var pos = _game.PlotToWorld(UnityEngine.Random.Range(0, n), UnityEngine.Random.Range(0, n), 0.06f);
+            _fx.Play(VfxId.SoilRipple, pos, 0.7f + UnityEngine.Random.value * 0.5f);
+        }
+
         /// <summary>Rim light per season: warm in autumn and the Golden Year, cool in winter, soft gold in summer.</summary>
         private Color RimFor(Season s, bool golden)
         {
@@ -248,6 +265,7 @@ namespace TillWinter.Unity
             // into Spring for the whole blend. Outside Winter only the frost warning brings a few flakes.
             _fx.SetRate(VfxId.Snow, state.IsWinter ? 70f : frost * 12f);
             _fx.SetRate(VfxId.StormRain, year ? 160f * _storm : 0f);
+            RainOnTheField(state, year ? _storm : 0f);
 
             if (_sky != null)
             {
@@ -275,7 +293,9 @@ namespace TillWinter.Unity
             filter = Color.Lerp(filter, _palette.FogFilter, _fog * 0.3f); // fog washes it pale
             filter = Color.Lerp(filter, _palette.HeatFilter, _heat * 0.3f); // a heat wave bakes it
             _color.colorFilter.value = Color.Lerp(filter, Color.black, Mathf.SmoothStep(0f, 1f, _rebirth) * 0.75f);
-            _vignette.intensity.value = frost * 0.35f + (_game.State.IsWinter ? 0.25f : 0f);
+            _vignette.intensity.value = frost * 0.5f + (_game.State.IsWinter ? 0.25f : 0f);
+            // The frost warning drains the field's colour as it closes in, so the last seconds look as cold as they pay.
+            _color.saturation.value = Mathf.Lerp(6f, -28f, frost) * (1f - 0.25f * _storm);
             if (_skyMaterial != null)
             {
                 // Dusk: the top of the sky deepens toward evening blue as the frost nears.

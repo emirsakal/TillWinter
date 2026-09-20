@@ -232,6 +232,7 @@ namespace TillWinter.Unity
     public sealed class PlotView : MonoBehaviour
     {
         private const float PopSeconds = 0.24f;
+        private const float StageSwapSeconds = 0.2f;
         private const float VanishSeconds = 0.18f;
 
         private VisualCatalog _catalog;
@@ -246,6 +247,7 @@ namespace TillWinter.Unity
         private float _stale;
         private Transform _rocks;
         private float _rockShow;
+        private float _stageSwap = 1f;
         private readonly GameObject[] _stages = new GameObject[3];
         private readonly PaletteBinder[] _stageBinders = new PaletteBinder[3];
         private int _builtTier = -1;
@@ -352,6 +354,7 @@ namespace TillWinter.Unity
             bool sprouted = _stage == 0 && stage == 1;
             _stage = stage;
             for (int i = 0; i < 3; i++) _stages[i].SetActive(i == stage);
+            _stageSwap = 0f; // the new model comes up out of the old one instead of appearing at full size
             if (sprouted && _game != null && !_game.Sim.IsSimulatingOffline)
             {
                 VfxPlayer.Fire(VfxId.Sprout, transform.position + Vector3.up * 0.25f);
@@ -437,8 +440,11 @@ namespace TillWinter.Unity
             _ripePunch = Mathf.Max(0f, _ripePunch - dt * 4f);
             float punch = 1f + 0.18f * Mathf.Sin(_ripePunch * Mathf.PI);
             float squash = ripe && underRing ? 1f - 0.2f * plot.Progress : 1f;
-            float xz = Mathf.Lerp(0.7f, 1f, scale) * punch / Mathf.Sqrt(squash);
-            _cropRoot.localScale = new Vector3(xz, Mathf.Max(0.0001f, scale * punch * squash), xz);
+            // A stage swap eases in over a fifth of a second: sprout to stalk used to jump in one frame.
+            _stageSwap = Mathf.Min(1f, _stageSwap + dt / StageSwapSeconds);
+            float swap = Mathf.Lerp(0.62f, 1f, Prims.EaseOutBack(_stageSwap));
+            float xz = Mathf.Lerp(0.7f, 1f, scale) * punch * swap / Mathf.Sqrt(squash);
+            _cropRoot.localScale = new Vector3(xz, Mathf.Max(0.0001f, scale * punch * squash * swap), xz);
 
             // Over-ripening (GDD §2.5 v1.6): the longer a crop stands, the duller it looks and the lower it hangs.
             float fresh = ripe && _game != null ? (float)_game.Sim.Freshness(plot) : 1f;

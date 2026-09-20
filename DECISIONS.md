@@ -1287,3 +1287,27 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **A missing clip stays silent and fails a test, never a generated fallback.** Open: what happens if
   a `MusicId` or ambience layer ships without a clip. Chosen: same rule as SFX — it's a bug caught by
   a test, not a runtime fallback; nothing in the pack is synthesised.
+
+## Follow-up: art pass — apprentices walk, the frost bites and the tree reads by branch (2026-09-20)
+
+- **The idle-only controller was rebuilt in place, not doubled up.** Open: whether adding a walk clip
+  meant a second controller swapped in at runtime or reworking the existing one. Chosen: rebuilt
+  `ApprenticeIdle` into a single `ApprenticeLocomotion` controller with a one-parameter (`Speed`)
+  blend tree between idle and walk — one controller keeps the blend continuous and `ArtSetup` only
+  ever binds one asset per apprentice.
+- **Locked nodes keep half their branch colour instead of reading as plain grey.** Open: how an
+  unexplored skill tree should read before any purchases. Chosen: raised
+  `TreeTheme.LockedSaturation` from 0.25 to 0.5 (style version 7) so locked nodes still carry enough
+  of their branch's hue — the tree reads as five branches from the first frame, not one
+  undifferentiated field.
+- **Branch name plates moved rather than shrank.** Open: the plates were overlapping their branch's
+  last node. Chosen: moved them to sit above that node, opaque and drawn on top, instead of shrinking
+  the text — shrinking would have fought the same legibility the plates exist for.
+- **The goal line's plate is sized from character count, not TMP's `preferredWidth`.** Open: how to
+  size the plate under the yearly goal text as it changes. Chosen: a character-count estimate —
+  `preferredWidth` forces a text generation pass and was allocating every time the goal ticked, which
+  the smoke test's per-frame allocation check caught.
+- **The animator's `Speed` parameter is hashed, not passed as a string.** Open: whether
+  `Animator.SetFloat` could stay string-keyed now that it runs every frame per apprentice. Chosen: no
+  — `Animator.SetFloat(string)` allocates per call, so the parameter is hashed once
+  (`Animator.StringToHash`) and cached instead.

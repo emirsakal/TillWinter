@@ -29,6 +29,7 @@ namespace TillWinter.Unity
             _game = game;
             _audio = audio;
             var theme = TreeTheme.Load("HeritageTheme");
+            _theme = theme;
             var bg = UiKit.Panel(canvas, "GenerationCard", theme.Overlay, false, true);
             _panel = bg.gameObject;
             _group = _panel.AddComponent<CanvasGroup>();
@@ -49,6 +50,18 @@ namespace TillWinter.Unity
             _seeds = UiKit.Label(bg.transform, "Seeds", "", UiType.Big, theme.Seed, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Box(_seeds.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40f, -60f), new Vector2(760f, 80f));
             _seeds.enableWordWrapping = false;
+            // What the generation that just ended did: the album page it wrote, on the card that marks its passing.
+            _summary = UiKit.Label(bg.transform, "Summary", "", UiType.Label, theme.InkMuted, TextAnchor.MiddleCenter);
+            UiKit.Box(_summary.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -170f), new Vector2(900f, 50f));
+            _summary.enableWordWrapping = false;
+            _summary.enableAutoSizing = true;
+            _summary.fontSizeMin = 22f;
+            _stars = new Image[3];
+            for (int i = 0; i < 3; i++)
+            {
+                _stars[i] = NodeIcons.Image(bg.transform, "star", theme.Gold);
+                UiKit.Box(_stars[i].rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2((i - 1) * 54f, -240f), Vector2.one * 42f);
+            }
             _tap = UiKit.Label(bg.transform, "Tap", Strings.Get("gen.tap_to_continue"), UiType.Label, theme.InkMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_tap.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(600f, 40f));
             // Cinematic bars slide in: passing on the farm is the biggest moment in the game.
@@ -61,6 +74,9 @@ namespace TillWinter.Unity
             _panel.SetActive(false);
         }
 
+        private TreeTheme _theme;
+        private TMP_Text _summary;
+        private Image[] _stars;
         private const float BarHeight = 150f;
         private RectTransform _barTop, _barBottom;
 
@@ -75,6 +91,17 @@ namespace TillWinter.Unity
             string key = "gen.flavour." + e.Generation;
             string flavour = Strings.Get(key);
             _flavour.text = flavour == key ? Strings.Get("gen.flavour.default") : flavour;
+            var album = _game.State.Album;
+            var page = album.Count > 0 ? album[album.Count - 1] : null;
+            _summary.text = page == null ? "" : Strings.Format("album.line",
+                ("years", page.Years), ("coins", NumberFormat.Short(page.Coins)),
+                ("seeds", page.Seeds), ("harvests", NumberFormat.Whole(page.Harvests)));
+            for (int i = 0; i < _stars.Length; i++)
+            {
+                bool earned = page != null && i < page.BestGrade;
+                var c = earned ? _theme.Gold : new Color(_theme.InkMuted.r, _theme.InkMuted.g, _theme.InkMuted.b, 0.3f);
+                _stars[i].color = c;
+            }
             _shownSeeds = 0;
             SplitSeedsTemplate();
             WriteSeeds(0);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using TillWinter.Unity;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEditor.U2D;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -1038,7 +1039,7 @@ namespace TillWinter.EditorTools
             var root = Kit("mini-characters", model, 0.52f); // 0.72 hid the whole plot the helper stood on
             root.name = "Apprentice" + index;
             var b = root.GetComponent<PaletteBinder>();
-            AddIdleAnimator(root.transform.Find("Model").gameObject, Kenney + "mini-characters/Models/" + model + ".fbx");
+            AddLocomotionAnimator(root.transform.Find("Model").gameObject, Kenney + "mini-characters/Models/" + model + ".fbx");
             var slot = (PaletteSlot)((int)PaletteSlot.Cloth0 + index);
             var hat = new GameObject("Hat").transform;
             hat.SetParent(root.transform, false);
@@ -1058,28 +1059,56 @@ namespace TillWinter.EditorTools
             return root;
         }
 
-        /// <summary>Kenney's rigged characters rest in a T-pose; play the kit's idle clip so they stand naturally (walk = bob, S6 scope).</summary>
-        private static void AddIdleAnimator(GameObject model, string fbxPath)
+        /// <summary>
+        /// Kenney's rigged characters rest in a T-pose and their kit ships an idle and a walk clip. Both are bound here
+        /// into a one-parameter blend tree ("Speed", 0 standing, 1 walking), so an apprentice crossing the field actually
+        /// walks instead of gliding in its idle pose. With no walk clip in the kit it falls back to idle alone.
+        /// </summary>
+        private static void AddLocomotionAnimator(GameObject model, string fbxPath)
         {
-            AnimationClip idle = null;
+            AnimationClip idle = null, walk = null;
             var names = new List<string>();
             foreach (var o in AssetDatabase.LoadAllAssetsAtPath(fbxPath))
-                if (o is AnimationClip clip && !clip.name.StartsWith("__"))
-                {
-                    names.Add(clip.name);
-                    if (idle == null || clip.name.ToLowerInvariant().Contains("idle")) idle = clip;
-                }
+            {
+                if (!(o is AnimationClip clip) || clip.name.StartsWith("__")) continue;
+                string n = clip.name.ToLowerInvariant();
+                names.Add(clip.name);
+                if (idle == null || n.Contains("idle")) idle = clip;
+                if (n.Contains("walk")) walk = clip;
+                else if (walk == null && (n.Contains("run") || n.Contains("sprint"))) walk = clip;
+            }
             if (idle == null) { Debug.LogWarning("[ArtSetup] no animation clips in " + fbxPath); return; }
-            _log.Add(Path.GetFileName(fbxPath) + " clips: " + string.Join(", ", names) + " -> " + idle.name);
-            string ctrlPath = PrefabsDir + "ApprenticeIdle.controller";
-            var ctrl = AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(ctrlPath);
-            if (ctrl == null) ctrl = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPathWithClip(ctrlPath, idle);
+            _log.Add(Path.GetFileName(fbxPath) + " clips: " + string.Join(", ", names)
+                + " -> idle " + idle.name + ", walk " + (walk != null ? walk.name : "(none)"));
+
+            string ctrlPath = PrefabsDir + "ApprenticeLocomotion.controller";
+            var ctrl = AssetDatabase.LoadAssetAtPath<AnimatorController>(ctrlPath);
+            if (ctrl == null)
+            {
+                if (walk == null) ctrl = AnimatorController.CreateAnimatorControllerAtPathWithClip(ctrlPath, idle);
+                else
+                {
+                    ctrl = AnimatorController.CreateAnimatorControllerAtPath(ctrlPath);
+                    ctrl.AddParameter(ApprenticeSpeedParameter, AnimatorControllerParameterType.Float);
+                    ctrl.CreateBlendTreeInController("Locomotion", out var tree, 0);
+                    tree.blendType = BlendTreeType.Simple1D;
+                    tree.blendParameter = ApprenticeSpeedParameter;
+                    tree.useAutomaticThresholds = false;
+                    tree.AddChild(idle, 0f);
+                    tree.AddChild(walk, 1f);
+                    EditorUtility.SetDirty(tree);
+                    EditorUtility.SetDirty(ctrl);
+                }
+            }
             var animator = model.GetComponent<Animator>();
             if (animator == null) animator = model.AddComponent<Animator>();
             animator.runtimeAnimatorController = ctrl;
             animator.applyRootMotion = false;
             animator.cullingMode = AnimatorCullingMode.CullCompletely;
         }
+
+        /// <summary>The blend parameter ApprenticeView drives; kept here because ArtSetup is what names it.</summary>
+        public const string ApprenticeSpeedParameter = "Speed";
 
         private static GameObject BuildTractor()
         {

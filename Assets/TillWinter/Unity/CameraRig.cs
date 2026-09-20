@@ -18,7 +18,9 @@ namespace TillWinter.Unity
         /// <summary>World units added to the framed width so the diorama block edges stay on screen.</summary>
         public float ExtraWidth = 2.7f; // the island grew (DioramaView.Margin); without this its edges crop
         /// <summary>Where the field centre sits vertically (0 = bottom, 1 = top). Play band is 18%..80%.</summary>
-        public float FieldScreenY = 0.49f;
+        /// <summary>Where the field's centre sits up the screen. Lowered in the art pass: at 0.49 the diorama hugged the
+        /// HUD and left the bottom third of the screen as empty sky.</summary>
+        public float FieldScreenY = 0.46f;
 
         /// <summary>0..1 combo excitement: a millimetric push-in (set by FieldView).</summary>
         public float Excitement;

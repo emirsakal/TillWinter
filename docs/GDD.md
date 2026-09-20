@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.8 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.8 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline; an art pass reworked apprentice locomotion, crop-stage easing, frost/storm readability, skill-tree branch colour and layout, coin iconography and the generation card, marked *(v2.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -582,6 +582,23 @@ batches / 67 draw calls / 4.7k triangles; 6x6 generation 3 with seven apprentice
 is 106 batches / 142 draw calls / 27.8k triangles. The smoke test's 6x6 generation-3 scene (with
 particles and rim dressing) measures ~210 batches / ~210k triangles with shadows, against a
 smoke-test budget of <=240 batches / <=250k triangles *(v2.6)*.
+
+*(v2.8)* Apprentices now use the Kenney kit's walk clip instead of gliding in an idle pose:
+`ArtSetup` rebuilt the one-state `ApprenticeIdle` controller into `ApprenticeLocomotion`, a
+one-parameter (`Speed`) blend tree between idle and walk, and `ApprenticeView` drives it from how
+fast the helper is actually moving — the old manual bob is now only a small top-up on the blend,
+not the whole motion. Crop stage swaps ease in over 0.2 s instead of popping to full size. The
+frost warning drains the field's colour (colour-adjust saturation falls as frost closes in) and a
+storm drops ripples on random plots, so weather reads on the field and not only in the sky. On the
+Almanac/Heritage trees, locked nodes keep more of their branch colour (`TreeTheme.LockedSaturation`
+0.25 -> 0.5, style version 7) so an unexplored tree still reads as five branches; branch name
+plates sit above their branch's last node, opaque and drawn on top, instead of overlapping it; and
+buying a node throws a short sparkle alongside the existing wave. Coins are one idea everywhere:
+the stats rows draw a gold disc instead of the atlas star. The generation card now carries the
+album page of the generation that just ended (years, coins, seeds, harvests) and its grade stars;
+album rows carry a stamped seal with the generation number and a rule under each entry. The field
+sits lower on screen (`CameraRig.FieldScreenY` 0.49 -> 0.46) so the bottom of the screen isn't
+empty sky.
 
 ---
 

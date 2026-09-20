@@ -24,7 +24,11 @@ namespace TillWinter.Unity
         /// <summary>An icon image sized to <paramref name="size"/>, anchored left-middle at <paramref name="x"/>.</summary>
         public static Image Row(Transform parent, string icon, Color color, float x, float size)
         {
-            var img = NodeIcons.Image(parent, icon, color);
+            // Coins are a gold disc everywhere else in the game (the HUD counter, the coin flight); the atlas has no
+            // coin, and a star here made the same idea read as two different things.
+            var img = icon == Coin
+                ? UiKit.CircleImage(parent, "Coin", color, Vector2.zero, size)
+                : NodeIcons.Image(parent, icon, color);
             UiKit.Box(img.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(size, size));
             return img;
         }
