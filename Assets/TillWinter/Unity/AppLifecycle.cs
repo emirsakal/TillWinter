@@ -52,6 +52,14 @@ namespace TillWinter.Unity
             if (Application.targetFrameRate != fps) Application.targetFrameRate = fps;
         }
 
+        /// <summary>Desktop and the editor never pause: losing focus should still quiet the game.</summary>
+        private void OnApplicationFocus(bool focused)
+        {
+            if (Application.isMobilePlatform) return; // mobile uses OnApplicationPause, which also simulates the time away
+            AudioListener.pause = !focused;
+            if (!focused) SettingsStore.Save();
+        }
+
         private void OnApplicationPause(bool paused)
         {
             if (paused)

@@ -63,7 +63,7 @@ namespace TillWinter.Unity
             _card.SetActive(true);
             _card.transform.SetAsLastSibling();
             Haptics.Play(HapticKind.Medium);
-            _audio?.Play(SfxId.WinterChime);
+            _audio?.Play(SfxId.GoalMet);
         }
 
         private void BackToMenu()

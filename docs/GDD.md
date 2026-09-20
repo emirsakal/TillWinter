@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.7 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.8 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -602,6 +602,27 @@ or golden); `Duck()` lowers SFX under a chime/swell. Routing is
 `AmbienceVolume`), built by `FeelSetup` through the editor's internal `AudioMixerController` API
 via reflection (no public API creates mixer groups from code). Volumes and the haptics toggle live
 in `SettingsData`/`SettingsStore` (`settings.json`), independent of the save schema.
+
+*(v2.8)* The season ambience loop marked "not implemented" above now exists, and music is a real
+channel rather than SFX-only. `Resources/TillWinterMixer` gained a **Music** group with an exposed
+`MusicVolume`, driven from `SettingsData.MusicVolume` (`settings.json`) with its own Settings
+slider. `MusicPlayer` (Unity layer) crossfades two sources over 1.8 s; `MusicTable` maps a
+`MusicId` to a clip in `Resources/Music` — Title, Spring, Summer, Autumn, Winter, Golden, Ending.
+The bed follows the farm's season and phase (`MusicPlayer.ForState`), the Golden Year has its own
+piece, and the ending holds the bed until it finishes rather than ducking under it.
+`AmbiencePlayer` plays five looping layers from `Resources/Ambience` (wind, birds, insects, rain,
+winter wind) whose volumes are a pure function of season, weather and phase
+(`AmbiencePlayer.Mix`), crossfading over ~2 s — this is what the Ambience slider has always meant;
+until now every voice went to the SFX group and the slider did nothing. New `SfxId`s cover moments
+that used to pass in silence or borrow another sound: GoalMet, Achievement, EndingSting,
+ComboMilestone, MarketSale, TraderArrive, PestArrive, PestStruck, ScarecrowPlace, DogBark,
+HensFlutter; `SfxTable.Row` now carries the Resources folder, since the non-Kenney creature clips
+live in their own folder. All new clips are CC0 (music by Komiku via the Internet Archive, ambience
+from OpenGameArt CC0 items and one public-domain Wikimedia recording), listed in
+`Assets/Audio/LICENSES.md`. Import settings are set in code by an `AssetPostprocessor`
+(`AudioImportSettings`): music streams, ambience is compressed in memory and forced to mono. The
+studio splash now plays a soft chime, and losing focus on desktop quiets the game
+(`AppLifecycle.OnApplicationFocus`).
 
 ---
 

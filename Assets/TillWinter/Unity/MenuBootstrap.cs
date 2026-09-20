@@ -82,6 +82,9 @@ namespace TillWinter.Unity
             var audio = new GameObject("Audio").AddComponent<AudioManager>();
             audio.transform.SetParent(transform, false);
             audio.Init();
+            var music = audio.gameObject.AddComponent<MusicPlayer>();
+            music.Init(audio.MusicGroup);
+            music.Play(MusicId.Title, 0f); // the title screen opens on its own theme
             _fx = new GameObject("Vfx").AddComponent<VfxPlayer>();
             _fx.transform.SetParent(transform, false);
             _fx.Init(VfxCatalog.Load());

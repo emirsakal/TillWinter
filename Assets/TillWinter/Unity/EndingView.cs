@@ -18,6 +18,7 @@ namespace TillWinter.Unity
 
         private GameController _game;
         private PauseMenu _pause;
+        private MusicPlayer _music;
         private HudTheme _theme;
         private GameObject _root;
         private TMP_Text _skip;
@@ -26,10 +27,11 @@ namespace TillWinter.Unity
 
         public bool Active { get; private set; }
 
-        public void Init(GameController game, RectTransform canvas, PauseMenu pause)
+        public void Init(GameController game, RectTransform canvas, PauseMenu pause, MusicPlayer music = null)
         {
             _game = game;
             _pause = pause;
+            _music = music;
             _theme = HudTheme.Load();
 
             var overlay = UiKit.Panel(canvas, "EndingCredits", _theme.CreditsOverlay, false, true);
@@ -99,6 +101,8 @@ namespace TillWinter.Unity
             _skip.enabled = false;
             foreach (var g in _groups) g.alpha = 0f;
             _pause.SetButtonVisible(false);
+            AudioManager.Instance?.Play(SfxId.EndingSting);
+            _music?.Hold(MusicId.Ending); // the ending has its own piece; the seasons wait
         }
 
         private void Update()
@@ -133,6 +137,7 @@ namespace TillWinter.Unity
         {
             Active = false;
             _root.SetActive(false);
+            _music?.Release();
             _pause.ShowStats(null); // Continue resumes; the Winter screen is already open underneath
         }
     }

@@ -1262,3 +1262,28 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **Small compliance fixes bundled with the rest.** GenerationCard's count-up now writes into a char
   buffer instead of building a string per frame; stats values use `NumberFormat.Whole`; the daily
   date reads from a `daily.date` template (`{m}/{d}/{y}` in English, `{d}.{m}.{y}` in Turkish).
+
+## Follow-up: music, ambience and the sounds that were missing (2026-09-20)
+
+- **Only CC0 sources went into the pack.** Open: which licence tiers were acceptable for music and
+  ambience. Chosen: CC0 only — the developer wants zero cost, zero attribution duty and no future
+  obligation even if the game later carries ads, so CC-BY libraries and "royalty-free with
+  conditions" bundles (Pixabay, the Sonniss GDC bundle) were rejected outright rather than tracked
+  as a debt to pay later.
+- **Music is seasonal, not one loop.** Open: whether a single music bed was enough once a Music
+  channel existed. Chosen: separate pieces for Title, Spring, Summer, Autumn, Winter, Golden and
+  Ending, crossfaded on season/phase change, so the Golden Year and the ending both get their own
+  moment instead of sharing the year's loop.
+- **Ambience is a five-layer mix, not one bed per season.** Open: whether ambience should switch
+  between a handful of pre-mixed loops like music does. Chosen: five independent layers (wind,
+  birds, insects, rain, winter wind) mixed continuously from season, weather and phase, so a storm
+  or a frost changes the air without a hard cut between beds.
+- **The Ambience slider is now real.** Open: the slider has existed in Settings since v1.5 but every
+  voice was routed to the SFX group underneath it. Chosen: it now drives its own mixer group, so the
+  control finally does what its label always claimed.
+- **The ending holds the music instead of ducking it.** Open: whether the ending sting should duck
+  under the season bed like other one-shots do. Chosen: no — the ending piece holds until it
+  finishes; it's the one moment the bed is allowed to stop rather than dip.
+- **A missing clip stays silent and fails a test, never a generated fallback.** Open: what happens if
+  a `MusicId` or ambience layer ships without a clip. Chosen: same rule as SFX — it's a bug caught by
+  a test, not a runtime fallback; nothing in the pack is synthesised.

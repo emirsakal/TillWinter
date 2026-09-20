@@ -643,7 +643,7 @@ namespace TillWinter.Unity
             UiKit.Stretch(_barnStrip, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 176f), new Vector2(0f, 316f));
             _barnLine = UiKit.Label(_barnStrip, "Barn", "", UiType.Caption, _theme.Ink, TextAnchor.MiddleLeft);
             UiKit.Box(_barnLine.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f, 0f), new Vector2(400f, 130f));
-            _sell = UiKit.Button(_barnStrip, "SellBarn", "", UiType.Caption, _theme.Accent, _theme.Ink, () => { if (_game.Sim.SellBarn()) { Haptics.Play(HapticKind.Medium); _barnKey = -1; } });
+            _sell = UiKit.Button(_barnStrip, "SellBarn", "", UiType.Caption, _theme.Accent, _theme.Ink, () => { if (_game.Sim.SellBarn()) { Haptics.Play(HapticKind.Medium); _audio?.Play(SfxId.MarketSale); _barnKey = -1; } });
             UiKit.Box(_sell.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(430f, 0f), new Vector2(200f, 96f));
             _preserve = UiKit.Button(_barnStrip, "Preserves", "", UiType.Caption, _theme.Seed, _theme.Paper, () => { if (_game.Sim.MakePreserves()) { Haptics.Play(HapticKind.Medium); _barnKey = -1; } });
             UiKit.Box(_preserve.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(640f, 0f), new Vector2(210f, 96f));

@@ -79,6 +79,11 @@ namespace TillWinter.Unity
             var audio = new GameObject("Audio").AddComponent<AudioManager>();
             audio.transform.SetParent(root.transform, false);
             audio.Init();
+            var music = audio.gameObject.AddComponent<MusicPlayer>();
+            music.Init(audio.MusicGroup);
+            music.Follow = game; // the bed follows the season from here on
+            var ambience = audio.gameObject.AddComponent<AmbiencePlayer>();
+            ambience.Init(audio.AmbienceGroup, game);
 
             var fx = new GameObject("Vfx").AddComponent<VfxPlayer>();
             fx.transform.SetParent(root.transform, false);
@@ -147,7 +152,7 @@ namespace TillWinter.Unity
             pause.Init(game, audio, canvas, save);
             if (daily) canvas.gameObject.AddComponent<DailyResult>().Init(game, audio, canvas);
             var ending = canvas.gameObject.AddComponent<EndingView>();
-            ending.Init(game, canvas, pause);
+            ending.Init(game, canvas, pause, music);
 #if TW_DEBUG || UNITY_EDITOR
             var debug = canvas.gameObject.AddComponent<DebugPanel>();
             debug.Init(game, audio, canvas, save, away);
