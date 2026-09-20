@@ -19,7 +19,7 @@ namespace TillWinter.Unity
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
         // Four section headings since round three; hands-free (v2.5). The large-text setting wraps both hint lines,
         // so the sheet and the two hint rows grow with it instead of letting a second line fall into the next section.
-        private static float SettingsHeight => 2010f + (UiType.Scale > 1f ? 80f : 0f);
+        private static float SettingsHeight => 2260f + (UiType.Scale > 1f ? 80f : 0f);
         private static float HintHeight => UiType.Scale > 1f ? 78f : 44f;
         private static float HintGap => UiType.Scale > 1f ? 100f : 60f;
         private const float SectionHeight = 64f;
@@ -44,6 +44,9 @@ namespace TillWinter.Unity
         private TMP_Text[] _statValues;
         private float _sampleAt;
         private readonly Button[] _quality = new Button[3];
+        private Button _pasteSave;
+        private TMP_Text _transferStatus;
+        private float _pasteArmed;
         private HoldButton _reset;
         private RectTransform _resetFill;
         private float _resetHeld;
@@ -177,6 +180,14 @@ namespace TillWinter.Unity
             Section(p, "settings.section.data", ref y);
             Btn(p, "settings.credits", () => { _creditsFromSettings = true; Show(_credits); }, y);
             y -= RowHeight + 16f;
+
+            // A farm as text (there is no cloud save): copy it out, paste it in on the new phone.
+            Btn(p, "settings.copy_save", CopySave, y);
+            y -= RowHeight;
+            _pasteSave = Btn(p, "settings.paste_save", PasteSave, y);
+            y -= RowHeight - 14f;
+            _transferStatus = Text(p, "TransferStatus", Strings.Get("settings.transfer_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperCenter, HintHeight);
+            y -= HintGap + 8f;
 
             // Reset save: hold for three seconds; the fill shows the progress.
             // Same face-on-a-lip shape as every other button, so the one dangerous button does not look like a different kind of thing.
@@ -534,6 +545,7 @@ namespace TillWinter.Unity
         {
             // The New Game+ confirmation runs out: the button says so instead of waiting for a tap that only re-arms it.
             if (_ngPlusArmed > 0f && Time.unscaledTime > _ngPlusArmed) ResetNgPlusLabel();
+            if (_pasteArmed > 0f && Time.unscaledTime > _pasteArmed) ResetPasteLabel();
             if (_resetDone || !_settings.activeSelf) return;
             _resetHeld = _reset.Held ? _resetHeld + Time.unscaledDeltaTime : 0f;
             _resetFill.anchorMax = new Vector2(Mathf.Clamp01(_resetHeld / ResetHoldSeconds), 1f);
@@ -541,6 +553,68 @@ namespace TillWinter.Unity
         }
 
         // ------------------------------------------------------------------ settings actions
+
+        // ------------------------------------------------------------------ farm codes (settings, data section)
+
+        private void CopySave()
+        {
+            // Always the file, never the running farm: on the daily farm the farm on screen is not the family's.
+            string json = SaveController.ReadRaw();
+            if (SaveController.Parse(json) == null)
+            {
+                Status("settings.transfer_none");
+                return;
+            }
+            GUIUtility.systemCopyBuffer = SaveTransfer.Encode(json);
+            Status("settings.transfer_copied");
+            Haptics.Play(HapticKind.Light);
+        }
+
+        /// <summary>First tap reads the clipboard and says what is in it; the second one overwrites this farm.</summary>
+        private void PasteSave()
+        {
+            if (!SaveTransfer.TryDecode(GUIUtility.systemCopyBuffer, out var json))
+            {
+                ResetPasteLabel();
+                Status("settings.transfer_bad");
+                return;
+            }
+            var data = SaveController.Parse(json);
+            if (data == null)
+            {
+                ResetPasteLabel();
+                Status("settings.transfer_bad");
+                return;
+            }
+            if (_pasteArmed <= 0f || Time.unscaledTime > _pasteArmed)
+            {
+                _pasteArmed = Time.unscaledTime + 4f; // same window as the New Game+ confirmation
+                UiKit.ButtonLabel(_pasteSave).text = Strings.Get("settings.paste_confirm");
+                _transferStatus.text = Strings.Format("settings.transfer_ready", ("gen", data.Generation), ("year", data.Year));
+                return;
+            }
+            ResetPasteLabel();
+            if (_save != null && !_save.WriteRaw(json))
+            {
+                Status("settings.transfer_failed");
+                return;
+            }
+            if (_save == null && !SaveController.WriteFile(json))
+            {
+                Status("settings.transfer_failed");
+                return;
+            }
+            Haptics.Play(HapticKind.Heavy);
+            Reload(false); // the farm on screen is not this one any more
+        }
+
+        private void ResetPasteLabel()
+        {
+            _pasteArmed = 0f;
+            if (_pasteSave != null) UiKit.ButtonLabel(_pasteSave).text = Strings.Get("settings.paste_save");
+        }
+
+        private void Status(string key) => _transferStatus.text = Strings.Get(key);
 
         private void SetLanguage(string lang)
         {
