@@ -27,7 +27,7 @@ namespace TillWinter.Tests
         [Test]
         public void Tile_StartsHard_BreaksToGrowing_RipensToRipe_ReapsToHarderGround()
         {
-            var sim = New(c => { c.BaseHp = 6; c.Damage = 3; c.StrikeCooldown = 0f; c.SpringSoftness = 1f; });
+            var sim = New(c => { c.BaseHp = 6; c.Damage = 3; c.StrikeCooldown = 0f; c.SpringSoftness = 1f; c.BaseCritChance = 0; });
             var t = sim.Tiles[0];
             Assert.AreEqual(TileState.Hard, t.State);
             Assert.AreEqual(0, t.Layer);
@@ -51,7 +51,7 @@ namespace TillWinter.Tests
         [Test]
         public void Strike_OnTheBeat_IsACrit()
         {
-            var sim = New(c => { c.BaseHp = 100; c.Damage = 4; c.CritMult = 2.5; c.StrikeCooldown = 0f; });
+            var sim = New(c => { c.BaseHp = 100; c.Damage = 4; c.CritMult = 2.5; c.StrikeCooldown = 0f; c.BaseCritChance = 0; });
             var t = sim.Tiles[0];
             TickToBeat(sim, true);
             sim.Strike(t);
@@ -64,17 +64,61 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void Stamina_IsABudget_NotAClock()
+        public void Stamina_IsAMultiplier_NotAGate_TiredSwingsLandWeak()
         {
-            var sim = New(c => { c.StaminaMax = 10; c.StrikeCost = 4; c.StaminaRegen = 1; c.StrikeCooldown = 0f; c.BaseHp = 1000; });
+            var sim = New(c => { c.StaminaMax = 10; c.StrikeCost = 4; c.StaminaRegen = 1; c.StrikeCooldown = 0f; c.BaseHp = 1000; c.Damage = 10; c.SpringSoftness = 1f; c.BaseCritChance = 1; c.TiredDamage = 0.4; });
             var t = sim.Tiles[0];
+            TickToBeat(sim, false);
             Assert.IsTrue(sim.Strike(t));
             Assert.IsTrue(sim.Strike(t));
-            Assert.IsFalse(sim.Strike(t), "2 stamina left: no third strike");
-            Assert.IsFalse(sim.Winter, "and the year did not end");
+            Assert.AreEqual(2f, sim.Stamina, 1e-5f);
+            Assert.AreEqual(1000 - 2 * 25, t.Hp, 1e-6, "rested swings, both crits by chance (100%)");
+            Assert.IsTrue(sim.Tired);
+            Assert.IsTrue(sim.Strike(t), "the finger never waits");
+            Assert.AreEqual(1000 - 50 - 4, t.Hp, 1e-6, "a tired swing: 40% of the damage, no crit even at 100% chance");
+            Assert.AreEqual(2f, sim.Stamina, 1e-5f, "and it costs nothing");
+            Assert.AreEqual(1, sim.TiredStrikes);
+            Assert.IsFalse(sim.Winter, "the year did not end");
             sim.Tick(2f);
-            Assert.IsTrue(sim.Strike(t), "regen refilled a strike");
+            Assert.IsFalse(sim.Tired, "regen refilled a rested swing");
             Assert.IsTrue(sim.Reap(new List<DigTile>()) == 0, "reaping is free");
+        }
+
+        [Test]
+        public void Reaping_GivesStaminaBack()
+        {
+            var sim = New(c => { c.ReapStamina = 8; c.StaminaMax = 100; c.StrikeCooldown = 0f; c.StrikeCost = 3; c.BaseHp = 1e9; });
+            sim.Tiles[0].State = TileState.Ripe;
+            sim.Tiles[1].State = TileState.Ripe;
+            for (int i = 0; i < 20; i++) sim.Strike(sim.Tiles[2]); // spend 60
+            float before = sim.Stamina;
+            Assert.AreEqual(40f, before, 1e-4f);
+            sim.Reap(new[] { sim.Tiles[0], sim.Tiles[1] });
+            Assert.AreEqual(before + 16, sim.Stamina, 1e-4f, "two crops, sixteen stamina: the ground gives back");
+        }
+
+        [Test]
+        public void CritChance_LandsCritsOffTheBeat_AndIsCappedByTheShop()
+        {
+            var sim = New(c => { c.BaseHp = 1e9; c.Damage = 4; c.StrikeCooldown = 0f; c.SpringSoftness = 1f; c.BaseCritChance = 0.5; c.StaminaMax = 10000; c.StaminaRegen = 0; c.StrikeCost = 1; });
+            var t = sim.Tiles[0];
+            int crits = 0;
+            for (int i = 0; i < 400; i++)
+            {
+                TickToBeat(sim, false);
+                int before = sim.Crits;
+                sim.Strike(t);
+                if (sim.Crits > before) crits++;
+            }
+            Assert.That(crits, Is.InRange(140, 260), "about half the off-beat swings crit by chance");
+            var shop = New(c => { c.BaseCritChance = 0.48; c.MaxCritChance = 0.5; c.UpgradeCritChance = 0.03; });
+            shop.Tiles[0].State = TileState.Ripe;
+            for (int i = 0; i < 400 && !shop.Winter; i++) shop.Tick(0.5f);
+            Assert.IsTrue(shop.Winter);
+            typeof(DigSim).GetProperty("Coins").SetValue(shop, 1e9);
+            Assert.IsTrue(shop.Buy(DigSim.Upgrade.CritChance));
+            Assert.AreEqual(0.5, shop.CritChance, 1e-9, "capped");
+            Assert.IsFalse(shop.Buy(DigSim.Upgrade.CritChance), "nothing left to buy");
         }
 
         [Test]

@@ -26,10 +26,11 @@ namespace TillWinter.Core.Dig
         {
             public int Year;
             public double Coins, FromBreaks, FromCrops;
-            public int Strikes, Crits, Breaks, Reaped, Swipes, CrowsEaten, MaxLayer;
+            public int Strikes, Crits, Tired, Breaks, Reaped, Swipes, CrowsEaten, MaxLayer;
             public float StaminaEmpty;
             public double Damage;
             public float CritWindow, StaminaMax;
+            public double CritChance;
             public int Tier;
         }
 
@@ -61,7 +62,7 @@ namespace TillWinter.Core.Dig
 
         // Running totals at the last snapshot, so each row is one year's worth.
         private double _cumBreaks, _cumCrops;
-        private int _cumStrikes, _cumCrits, _cumBreakCount, _cumReaped, _cumSwipes, _cumCrowsEaten;
+        private int _cumStrikes, _cumCrits, _cumTired, _cumBreakCount, _cumReaped, _cumSwipes, _cumCrowsEaten;
         private float _cumEmpty;
 
         private YearRow Snapshot()
@@ -76,6 +77,7 @@ namespace TillWinter.Core.Dig
                 FromCrops = Sim.CoinsFromCrops - _cumCrops,
                 Strikes = Sim.Strikes - _cumStrikes,
                 Crits = Sim.Crits - _cumCrits,
+                Tired = Sim.TiredStrikes - _cumTired,
                 Breaks = Sim.Breaks - _cumBreakCount,
                 Reaped = Sim.Reaped - _cumReaped,
                 Swipes = Sim.Swipes - _cumSwipes,
@@ -84,11 +86,12 @@ namespace TillWinter.Core.Dig
                 StaminaEmpty = Sim.SecondsStaminaEmpty - _cumEmpty,
                 Damage = Sim.Damage,
                 CritWindow = Sim.CritWindow,
+                CritChance = Sim.CritChance,
                 StaminaMax = Sim.StaminaMax,
                 Tier = Sim.MaxTier,
             };
             _cumBreaks = Sim.CoinsFromBreaks; _cumCrops = Sim.CoinsFromCrops;
-            _cumStrikes = Sim.Strikes; _cumCrits = Sim.Crits; _cumBreakCount = Sim.Breaks; _cumReaped = Sim.Reaped;
+            _cumStrikes = Sim.Strikes; _cumCrits = Sim.Crits; _cumTired = Sim.TiredStrikes; _cumBreakCount = Sim.Breaks; _cumReaped = Sim.Reaped;
             _cumSwipes = Sim.Swipes; _cumCrowsEaten = Sim.CrowsEaten; _cumEmpty = Sim.SecondsStaminaEmpty;
             return row;
         }
@@ -106,7 +109,7 @@ namespace TillWinter.Core.Dig
 
             if (!Smart)
             {
-                if (!sim.CanStrike) return;
+                if (!sim.CanStrike) return; // tired or not, it swings
                 var t = sim.Tiles[_rng.Next(sim.Tiles.Length)];
                 if (t.State == TileState.Hard) sim.Strike(t);
                 else if (t.State == TileState.Ripe) sim.Reap(new[] { t });
@@ -135,6 +138,8 @@ namespace TillWinter.Core.Dig
 
             if (best != null && sim.CanStrike)
             {
+                // Tired swings are 40% and never crit: worth it only to finish a tile; otherwise let the depot refill.
+                if (sim.Tired && best.Hp > sim.Damage * sim.Config.TiredDamage * 1.3) { WaterWhileWaiting(sim); return; }
                 if (_nextStrikeOffBeat || sim.OnBeat)
                 {
                     sim.Strike(best);
@@ -143,7 +148,14 @@ namespace TillWinter.Core.Dig
                 return;
             }
 
-            // Nothing to strike (or no stamina): water the crop closest to ripe while the depot is more than half full.
+            WaterWhileWaiting(sim);
+        }
+
+        /// <summary>Nothing to strike, or no stamina to strike well: water the crop closest to ripe while the depot is more than half full.</summary>
+        private void WaterWhileWaiting(DigSim sim)
+        {
+            DigTile best = null;
+            foreach (var t in sim.Tiles) if (t.State == TileState.Hard) { best = t; break; }
             DigTile grow = null;
             foreach (var t in sim.Tiles)
             {
@@ -172,15 +184,16 @@ namespace TillWinter.Core.Dig
         public string ToTable()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("year   coins  breaks%  strikes crit%  breaks reaped swipes crows maxL  dmg  crit  stam tier  empty s");
+            sb.AppendLine("year   coins  breaks%  strikes crit% tired%  breaks reaped swipes crows maxL  dmg  crit  cc%  stam tier");
             foreach (var r in _rows)
             {
                 double breakShare = r.Coins > 0 ? (r.FromBreaks / r.Coins) : 0;
                 double critRate = r.Strikes > 0 ? (double)r.Crits / r.Strikes : 0;
+                double tiredRate = r.Strikes > 0 ? (double)r.Tired / r.Strikes : 0;
                 sb.AppendLine(string.Format(CultureInfo.InvariantCulture,
-                    "{0,4} {1,7:0} {2,7:0%} {3,8} {4,5:0%} {5,7} {6,6} {7,6} {8,5} {9,4} {10,4:0} {11,5:0.00} {12,5:0} {13,4} {14,7:0.0}",
-                    r.Year, r.Coins, breakShare, r.Strikes, critRate, r.Breaks, r.Reaped, r.Swipes, r.CrowsEaten, r.MaxLayer,
-                    r.Damage, r.CritWindow, r.StaminaMax, r.Tier, r.StaminaEmpty));
+                    "{0,4} {1,7:0} {2,7:0%} {3,8} {4,5:0%} {5,6:0%} {6,7} {7,6} {8,6} {9,5} {10,4} {11,4:0} {12,5:0.00} {13,4:0%} {14,5:0} {15,4}",
+                    r.Year, r.Coins, breakShare, r.Strikes, critRate, tiredRate, r.Breaks, r.Reaped, r.Swipes, r.CrowsEaten, r.MaxLayer,
+                    r.Damage, r.CritWindow, r.CritChance, r.StaminaMax, r.Tier));
             }
             return sb.ToString();
         }

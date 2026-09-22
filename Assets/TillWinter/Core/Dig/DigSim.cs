@@ -44,18 +44,21 @@ namespace TillWinter.Core.Dig
         public int Year { get; private set; } = 1;
         public bool Winter { get; private set; }
         public float StrikeCooldownLeft { get; private set; }
+        /// <summary>Whether the strike that just raised <see cref="Struck"/> was a tired one (presentation reads it in the handler).</summary>
+        public bool LastStrikeTired { get; private set; }
 
         // Upgradable stats (winter purchases)
         public double Damage;
         public float CritWindow;
+        public double CritChance;
         public float StaminaMax;
         public float StaminaRegen;
         public float GrowthMult = 1f;
         public int MaxTier;
-        public int DamageLevel, CritLevel, StaminaLevel, RegenLevel, GrowthLevel;
+        public int DamageLevel, CritLevel, CritChanceLevel, StaminaLevel, RegenLevel, GrowthLevel;
 
         // Counters for the tables
-        public int Strikes, Crits, Breaks, Reaped, CrowsEaten, CrowsScared, Chests, Golds;
+        public int Strikes, Crits, TiredStrikes, Breaks, Reaped, CrowsEaten, CrowsScared, Chests, Golds;
         public double CoinsThisYear, CoinsFromBreaks, CoinsFromCrops;
         public float SecondsStaminaEmpty;
         public int Swipes;
@@ -73,6 +76,7 @@ namespace TillWinter.Core.Dig
             Rng = new Rng(seed);
             Damage = config.Damage;
             CritWindow = config.CritWindow;
+            CritChance = config.BaseCritChance;
             StaminaMax = config.StaminaMax;
             StaminaRegen = config.StaminaRegen;
             MaxTier = config.MaxTier;
@@ -89,7 +93,9 @@ namespace TillWinter.Core.Dig
         /// <summary>0..1 through the pulse; the beat is at 0.5 (GDD §2v3.4).</summary>
         public float Pulse => (YearTime % Config.PulseSeconds) / Config.PulseSeconds;
         public bool OnBeat => Math.Abs(Pulse - 0.5f) <= CritWindow * 0.5f;
-        public bool CanStrike => !Winter && StrikeCooldownLeft <= 0f && Stamina >= Config.StrikeCost;
+        /// <summary>Stamina no longer gates a strike: without it the swing is tired (GDD §2v3.5), it still lands.</summary>
+        public bool CanStrike => !Winter && StrikeCooldownLeft <= 0f;
+        public bool Tired => Stamina < Config.StrikeCost;
         public int CrowCount { get { int n = 0; foreach (var t in Tiles) if (t.Crow) n++; return n; } }
         public DigCrop CropOf(DigTile t) => Config.Crops[Math.Min(t.Crop, Config.Crops.Length - 1)];
         public double CropValue(DigTile t) => CropOf(t).Value * (1 + Config.DepthValue * t.Layer);
@@ -121,16 +127,22 @@ namespace TillWinter.Core.Dig
 
         // ------------------------------------------------------------------ actions
 
-        /// <summary>A short press on a hard tile. Crit if the strike lands on the beat. False if nothing happened.</summary>
+        /// <summary>
+        /// A short press on a hard tile. A rested swing crits on the beat for certain and off the beat by chance; a tired
+        /// swing (no stamina) lands at <see cref="DigConfig.TiredDamage"/> and never crits. False if nothing happened.
+        /// </summary>
         public bool Strike(DigTile t)
         {
             if (t.State != TileState.Hard || !CanStrike) return false;
-            Stamina -= Config.StrikeCost;
+            bool tired = Tired;
+            if (!tired) Stamina -= Config.StrikeCost;
             StrikeCooldownLeft = Config.StrikeCooldown;
-            bool crit = OnBeat;
-            double dmg = Damage * SeasonDamage() * (crit ? Config.CritMult : 1);
+            bool crit = !tired && (OnBeat || Rng.NextDouble() < CritChance);
+            double dmg = Damage * SeasonDamage() * (crit ? Config.CritMult : 1) * (tired ? Config.TiredDamage : 1);
             Strikes++;
             if (crit) Crits++;
+            if (tired) TiredStrikes++;
+            LastStrikeTired = tired;
             t.Hp -= dmg;
             Struck?.Invoke(t, dmg, crit);
             if (t.Hp <= 0) Break(t);
@@ -281,7 +293,7 @@ namespace TillWinter.Core.Dig
 
         // ------------------------------------------------------------------ winter shop (the same for every bot)
 
-        public enum Upgrade { Damage, Crit, Stamina, Regen, Growth, Tier }
+        public enum Upgrade { Damage, Crit, CritChance, Stamina, Regen, Growth, Tier }
 
         public double CostOf(Upgrade u)
         {
@@ -290,6 +302,7 @@ namespace TillWinter.Core.Dig
             {
                 case Upgrade.Damage: return c.UpgradeDamageCost * Math.Pow(c.UpgradeDamageGrowth, DamageLevel);
                 case Upgrade.Crit: return CritWindow >= c.MaxCritWindow ? double.PositiveInfinity : c.UpgradeCritCost * Math.Pow(c.UpgradeCritGrowth, CritLevel);
+                case Upgrade.CritChance: return CritChance >= c.MaxCritChance ? double.PositiveInfinity : c.UpgradeCritChanceCost * Math.Pow(c.UpgradeCritChanceGrowth, CritChanceLevel);
                 case Upgrade.Stamina: return c.UpgradeStaminaCost * Math.Pow(c.UpgradeStaminaGrowth, StaminaLevel);
                 case Upgrade.Regen: return c.UpgradeRegenCost * Math.Pow(c.UpgradeRegenGrowth, RegenLevel);
                 case Upgrade.Growth: return c.UpgradeGrowthCost * Math.Pow(c.UpgradeGrowthGrowth, GrowthLevel);
@@ -308,6 +321,7 @@ namespace TillWinter.Core.Dig
             {
                 case Upgrade.Damage: Damage += c.UpgradeDamage; DamageLevel++; break;
                 case Upgrade.Crit: CritWindow = Math.Min(c.MaxCritWindow, CritWindow + c.UpgradeCritWindow); CritLevel++; break;
+                case Upgrade.CritChance: CritChance = Math.Min(c.MaxCritChance, CritChance + c.UpgradeCritChance); CritChanceLevel++; break;
                 case Upgrade.Stamina: StaminaMax += c.UpgradeStamina; StaminaLevel++; break;
                 case Upgrade.Regen: StaminaRegen += c.UpgradeRegen; RegenLevel++; break;
                 case Upgrade.Growth: GrowthMult += c.UpgradeGrowth; GrowthLevel++; break;

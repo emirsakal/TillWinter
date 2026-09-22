@@ -43,17 +43,25 @@ namespace TillWinter.Core.Dig
 
         // Striking (§2v3.4)
         public double Damage = 3;
-        public float PulseSeconds = 1f;
-        public float CritWindow = 0.25f;
+        /// <summary>The field's beat, 100 bpm: a player on the beat swings ~1.5 times a second, which is also why
+        /// timing beats tap-spam (the cooldown allows ~2.9/s at 40% damage once the depot is empty).</summary>
+        public float PulseSeconds = 0.6f;
+        public float CritWindow = 0.3f;
         public double CritMult = 2.5;
         public float StrikeCooldown = 0.35f;
+        /// <summary>Hybrid crit: on the beat it is certain; off the beat this chance still applies (Almanac and tools raise it).</summary>
+        public double BaseCritChance = 0.10;
+        public double MaxCritChance = 0.5;
+        /// <summary>A strike with no stamina still lands, at this share of the damage and never a crit: the finger never waits.</summary>
+        public double TiredDamage = 0.4;
 
         // Stamina (§2v3.5)
         public float StaminaMax = 100f;
-        public float StrikeCost = 5f;
-        public float WaterCostPerSecond = 8f;
-        public float StaminaRegen = 1.5f;
-        public float ReapStamina = 3f;
+        public float StrikeCost = 3f;
+        public float WaterCostPerSecond = 6f;
+        public float StaminaRegen = 2f;
+        /// <summary>The ground gives back: each crop reaped refills this much, so reaping feeds the next strikes.</summary>
+        public float ReapStamina = 8f;
 
         // Seeds and growth (§2v3.6–7)
         public float WaterBoost = 3f;
@@ -80,6 +88,7 @@ namespace TillWinter.Core.Dig
         // Winter upgrades the bots buy the same way, so the tables compare play, not shopping (§2v3.13)
         public double UpgradeDamage = 1, UpgradeDamageCost = 20, UpgradeDamageGrowth = 1.6;
         public float UpgradeCritWindow = 0.03f; public double UpgradeCritCost = 30, UpgradeCritGrowth = 1.7;
+        public double UpgradeCritChance = 0.03, UpgradeCritChanceCost = 30, UpgradeCritChanceGrowth = 1.7;
         public float UpgradeStamina = 15f; public double UpgradeStaminaCost = 25, UpgradeStaminaGrowth = 1.6;
         public float UpgradeRegen = 0.25f; public double UpgradeRegenCost = 30, UpgradeRegenGrowth = 1.7;
         public float UpgradeGrowth = 0.1f; public double UpgradeGrowthCost = 20, UpgradeGrowthGrowth = 1.6;

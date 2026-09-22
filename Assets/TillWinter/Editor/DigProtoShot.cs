@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using TillWinter.Core.Dig;
 using TillWinter.Unity.Proto;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -18,7 +19,7 @@ namespace TillWinter.EditorTools
     public static class DigProtoShot
     {
         private const string ActiveKey = "TillWinter.ProtoShot.Active", OutKey = "TillWinter.ProtoShot.Out", StepKey = "TillWinter.ProtoShot.Step",
-            TimeKey = "TillWinter.ProtoShot.Time", TotalKey = "TillWinter.ProtoShot.Total";
+            TimeKey = "TillWinter.ProtoShot.Time", TotalKey = "TillWinter.ProtoShot.Total", TapsKey = "TillWinter.ProtoShot.Taps";
         private const string ScenePath = "Assets/TillWinter/Scenes/Proto.unity";
 
         static DigProtoShot()
@@ -36,6 +37,7 @@ namespace TillWinter.EditorTools
             SessionState.SetInt(StepKey, -1);
             SessionState.SetFloat(TimeKey, 0f);
             SessionState.SetFloat(TotalKey, 0f);
+            SessionState.SetInt(TapsKey, 0);
             SessionState.SetBool(ActiveKey, true);
             Log("Run: waiting for the editor to settle");
             EditorApplication.update += Tick;
@@ -45,7 +47,7 @@ namespace TillWinter.EditorTools
         {
             float total = SessionState.GetFloat(TotalKey, 0f) + Mathf.Min(0.1f, Time.unscaledDeltaTime);
             SessionState.SetFloat(TotalKey, total);
-            if (total > 120f) { Log("FAIL watchdog: nothing finished in 120 s"); Finish(1); return; }
+            if (total > 240f) { Log("FAIL watchdog: nothing finished in 240 s"); Finish(1); return; }
             if (EditorApplication.isCompiling || EditorApplication.isUpdating) return;
 
             int step = SessionState.GetInt(StepKey, -1);
@@ -82,13 +84,58 @@ namespace TillWinter.EditorTools
             float t = SessionState.GetFloat(TimeKey, 0f) + Time.unscaledDeltaTime;
             SessionState.SetFloat(TimeKey, t);
             string dir = SessionState.GetString(OutKey, "");
+            // Taps go through the real pointer path (press one frame, release the next), like a finger would.
+            int taps = SessionState.GetInt(TapsKey, 0);
             switch (step)
             {
                 case 0: if (t > 1.5f) { Shoot(dir, "00-start"); Next(); } break;
-                case 1: if (t > 0.3f) { proto.DebugStrike(4); Next(); } break;
-                case 2: if (t > 0.4f) { proto.DebugStrike(4); Shoot(dir, "01-struck"); Next(); } break;
-                case 3: if (t > 0.5f) { proto.DebugStrike(4); proto.DebugStrike(4); proto.DebugStrike(4); Next(); } break;
-                case 4: if (t > 0.6f) { Shoot(dir, "02-broken-growing"); Next(); } break;
+                case 1: // the reproduction runs inside the game loop; wait for it and copy its log
+                    if (taps == 0) { proto.StartCoroutine(proto.DebugTapScript()); SessionState.SetInt(TapsKey, 1); break; }
+                    if (proto.DebugScriptDone)
+                    {
+                        foreach (var line in proto.DebugLog.ToString().Split('\n')) if (line.Trim().Length > 0) Log(line.Trim());
+                        bool ok = proto.DebugLog.ToString().Contains("OK top-left");
+                        Shoot(dir, "01-after-taps");
+                        if (!ok) { Finish(1); return; }
+                        SessionState.SetInt(StepKey, 4); SessionState.SetFloat(TimeKey, 0f);
+                    }
+                    else if (t > 150f)
+                    {
+                        foreach (var line in proto.DebugLog.ToString().Split('\n')) if (line.Trim().Length > 0) Log(line.Trim());
+                        Log("FAIL tap script never finished (frames " + proto.DebugFrames + ")");
+                        Finish(1);
+                    }
+                    break;
+                case 11: // (unused: kept the old per-tick tapping below for reference)
+                    if (proto.DebugTileState(4) != TileState.Hard) { Log("centre broke after " + taps + " taps, hp check " + proto.DebugTileHp(4)); proto.DebugPointer(false, proto.DebugTileScreenPos(4)); Next(); break; }
+                    if (t > 0.2f)
+                    {
+                        bool press = taps % 2 == 0;
+                        var at = proto.DebugTileScreenPos(4);
+                        Log("tap " + taps + (press ? " press" : " release") + " at " + at + "  strikes=" + proto.DebugStrikes + " hp=" + proto.DebugTileHp(4).ToString("0.0") + "  " + proto.DebugInput
+                            + "  frames=" + proto.DebugFrames + " timeScale=" + Time.timeScale + " paused=" + EditorApplication.isPaused);
+                        proto.DebugPointer(press, at);
+                        SessionState.SetInt(TapsKey, taps + 1);
+                        SessionState.SetFloat(TimeKey, 0f);
+                        if (taps == 3) Shoot(dir, "01-struck");
+                    }
+                    if (taps > 60) { Log("FAIL the centre never broke"); Finish(1); }
+                    break;
+                case 2: if (t > 0.6f) { Shoot(dir, "02-broken-growing"); SessionState.SetInt(TapsKey, 0); Next(); } break;
+                case 3: // now tap the top-left tile twice through the same pointer path: its HP must drop
+                {
+                    double hp = proto.DebugTileHp(0);
+                    if (t > 0.2f && taps < 4) { bool press = taps % 2 == 0; proto.DebugPointer(press, proto.DebugTileScreenPos(0)); SessionState.SetInt(TapsKey, taps + 1); SessionState.SetFloat(TimeKey, 0f); }
+                    else if (taps >= 4 && t > 0.3f)
+                    {
+                        Log((hp < 10 ? "OK" : "FAIL") + " top-left tile after two taps: hp " + hp);
+                        Shoot(dir, "02b-second-tile");
+                        if (hp >= 10) { Finish(1); return; }
+                        Next();
+                    }
+                    break;
+                }
+                case 4: if (t > 0.6f) { Next(); } break;
                 case 5: if (t > 4f) { Shoot(dir, "03-ripe"); Next(); } break;
                 case 6: if (t > 0.3f) { proto.DebugReapAll(); Next(); } break;
                 case 7: if (t > 0.4f) { Shoot(dir, "04-reaped"); Next(); } break;

@@ -44,6 +44,7 @@ namespace TillWinter.Unity.Proto
 
         private void Awake()
         {
+            Time.timeScale = 1f; // the pause menu leaves 0 behind in the editor; the prototype's clock would never move
             Application.targetFrameRate = 60;
             var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
             camGo.transform.SetParent(transform, false);
@@ -158,6 +159,7 @@ namespace TillWinter.Unity.Proto
             var rows = new (DigSim.Upgrade u, string name)[]
             {
                 (DigSim.Upgrade.Damage, "Hoe damage +1"), (DigSim.Upgrade.Crit, "Steady hand: crit window +0.03"),
+                (DigSim.Upgrade.CritChance, "Lucky hoe: crit chance +3%"),
                 (DigSim.Upgrade.Stamina, "Stamina depot +15"), (DigSim.Upgrade.Regen, "Stamina regen +0.25/s"),
                 (DigSim.Upgrade.Growth, "Growth +10%"), (DigSim.Upgrade.Tier, "Next crop tier"),
             };
@@ -165,7 +167,7 @@ namespace TillWinter.Unity.Proto
             {
                 var u = rows[i].u;
                 var b = UiKit.Button(overlay.transform, "Buy" + u, rows[i].name, UiType.Body, UiPalette.Sage, UiPalette.Cream, () => { if (_sim.Buy(u)) { _audio.Play(SfxId.Purchase); RefreshWinter(); } else _audio.Play(SfxId.Denied); });
-                UiKit.Box(b.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -540f - i * 120f), new Vector2(860f, 100f));
+                UiKit.Box(b.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -540f - i * 112f), new Vector2(860f, 96f));
                 var cost = UiKit.Label(b.transform, "Cost", "", UiType.Body, UiPalette.Honey, TextAnchor.MiddleRight, FontStyle.Bold);
                 UiKit.Stretch(cost.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 0f), new Vector2(-24f, 0f));
                 _shop.Add((b, u, cost));
@@ -192,10 +194,12 @@ namespace TillWinter.Unity.Proto
 
         private void OnStruck(DigTile t, double dmg, bool crit)
         {
-            SpawnNumber(TilePos(t), (crit ? "CRIT " : "") + dmg.ToString("0"), crit ? UiPalette.Honey : UiPalette.Cream, crit ? 1.6f : 1f);
-            _shake[Index(t)] = crit ? 1f : 0.45f;
-            _audio.Play(crit ? SfxId.PestStruck : SfxId.Step, crit ? 1f : 0.8f, crit ? 1.1f : 1f);
-            if (crit) Haptics.Play(HapticKind.Medium); else Haptics.Play(HapticKind.Light);
+            bool tired = _sim.LastStrikeTired;
+            SpawnNumber(TilePos(t) + new Vector2(0f, 90f), (crit ? "CRIT " : tired ? "tired " : "") + dmg.ToString("0"),
+                crit ? UiPalette.Honey : tired ? UiPalette.WithAlpha(UiPalette.Cream, 0.45f) : UiPalette.Cream, crit ? 1.6f : tired ? 0.8f : 1f);
+            _shake[Index(t)] = crit ? 1f : tired ? 0.2f : 0.45f;
+            _audio.Play(crit ? SfxId.PestStruck : SfxId.Step, crit ? 1f : tired ? 0.5f : 0.8f, crit ? 1.1f : tired ? 0.85f : 1f);
+            if (crit) Haptics.Play(HapticKind.Medium); else if (!tired) Haptics.Play(HapticKind.Light);
         }
 
         private void OnBroke(DigTile t, double coins)
@@ -248,9 +252,12 @@ namespace TillWinter.Unity.Proto
 
         // ------------------------------------------------------------------ frame
 
+        public int DebugFrames { get; private set; }
+
         private void Update()
         {
-            float dt = Time.deltaTime;
+            DebugFrames++;
+            float dt = Time.unscaledDeltaTime; // the prototype never pauses; unscaled keeps it honest whatever the editor left behind
             if (!_winter.activeSelf)
             {
                 ReadInput();
@@ -259,16 +266,95 @@ namespace TillWinter.Unity.Proto
             Refresh(dt);
         }
 
+        private bool _debugPointerActive, _debugPointerDown;
+        private Vector2 _debugPointerPos;
+
+        /// <summary>A scripted finger for proto-shot.bat: the next frames read this instead of the device pointer.</summary>
+        public void DebugPointer(bool down, Vector2 screenPos)
+        {
+            _debugPointerActive = true;
+            _debugPointerDown = down;
+            _debugPointerPos = screenPos;
+        }
+
+        public Vector2 DebugTileScreenPos(int index)
+        {
+            var world = _board.TransformPoint(TilePos(_sim.Tiles[index]));
+            return RectTransformUtility.WorldToScreenPoint(null, world);
+        }
+
+        public double DebugTileHp(int index) => _sim.Tiles[index].Hp;
+        public System.Text.StringBuilder DebugLog { get; } = new System.Text.StringBuilder();
+        public bool DebugScriptDone { get; private set; }
+
+        /// <summary>
+        /// The reproduction that runs at the game's own frame cadence: tap the centre tile through the real pointer path
+        /// until it breaks, then tap the top-left tile twice and report whether its HP moved. Each tap is a press on one
+        /// frame and a release on the next, with a few frames between taps for the cooldown.
+        /// </summary>
+        public System.Collections.IEnumerator DebugTapScript()
+        {
+            DebugScriptDone = false;
+            int taps = 0;
+            while (_sim.Tiles[4].State == TileState.Hard && taps < 40)
+            {
+                yield return TapFrames(4);
+                taps++;
+                DebugLog.AppendLine("centre tap " + taps + ": strikes=" + _sim.Strikes + " hp=" + _sim.Tiles[4].Hp.ToString("0.0") + " state=" + _sim.Tiles[4].State + " " + DebugInput);
+            }
+            DebugLog.AppendLine("centre " + (_sim.Tiles[4].State == TileState.Hard ? "NEVER BROKE" : "broke") + " after " + taps + " taps");
+            double before = _sim.Tiles[0].Hp;
+            for (int i = 0; i < 3; i++)
+            {
+                yield return TapFrames(0);
+                DebugLog.AppendLine("top-left tap " + (i + 1) + ": strikes=" + _sim.Strikes + " hp=" + _sim.Tiles[0].Hp.ToString("0.0") + " " + DebugInput);
+            }
+            DebugLog.AppendLine((_sim.Tiles[0].Hp < before ? "OK" : "FAIL") + " top-left after the centre broke: hp " + before.ToString("0.0") + " -> " + _sim.Tiles[0].Hp.ToString("0.0"));
+            DebugScriptDone = true;
+        }
+
+        private System.Collections.IEnumerator TapFrames(int index)
+        {
+            var at = DebugTileScreenPos(index);
+            DebugPointer(true, at);
+            yield return null;
+            DebugPointer(false, at);
+            yield return null;
+            // let the cooldown pass whatever the frame rate: the sim ticks with unscaled time each Update
+            float until = Time.unscaledTime + 0.45f;
+            int frames = 0;
+            while (Time.unscaledTime < until || frames < 2) { frames++; yield return null; }
+            DebugLog.AppendLine("  (waited " + frames + " frames, dt " + Time.unscaledDeltaTime.ToString("0.00") + ")");
+        }
+        public int DebugStrikes => _sim.Strikes;
+        public string DebugInput => "down=" + _wasDown + " drag=" + _dragging + " water=" + _watering + " downTile=" + (_downTile == null ? "none" : _downTile.X + "," + _downTile.Y) + " cooldown=" + _sim.StrikeCooldownLeft.ToString("0.00") + " tired=" + _sim.Tired;
+        public TileState DebugTileState(int index) => _sim.Tiles[index].State;
+
         private void ReadInput()
         {
-            var pointer = Pointer.current;
-            if (pointer == null) return;
-            bool down = pointer.press.isPressed;
-            Vector2 pos = pointer.position.ReadValue();
+            bool down;
+            Vector2 pos;
+            if (_debugPointerActive)
+            {
+                down = _debugPointerDown;
+                pos = _debugPointerPos;
+            }
+            else
+            {
+                var pointer = Pointer.current;
+                if (pointer == null) return;
+                down = pointer.press.isPressed;
+                pos = pointer.position.ReadValue();
+            }
+            HandlePointer(down, pos);
+        }
+
+        private void HandlePointer(bool down, Vector2 pos)
+        {
             var tile = TileUnder(pos);
             if (down && !_wasDown)
             {
-                _downTime = Time.time;
+                _downTime = Time.unscaledTime;
                 _downPos = pos;
                 _downTile = tile;
                 _dragging = false;
@@ -280,7 +366,7 @@ namespace TillWinter.Unity.Proto
             {
                 if (!_dragging && (pos - _downPos).magnitude > DragPixels) { _dragging = true; StopWatering(); }
                 if (_dragging && tile != null && !_path.Contains(tile)) _path.Add(tile);
-                if (!_dragging && !_watering && _downTile != null && _downTile.State == TileState.Growing && Time.time - _downTime >= HoldSeconds)
+                if (!_dragging && !_watering && _downTile != null && _downTile.State == TileState.Growing && Time.unscaledTime - _downTime >= HoldSeconds)
                 {
                     _watering = true;
                     _sim.SetWatering(_downTile, true);
@@ -336,8 +422,10 @@ namespace TillWinter.Unity.Proto
             _coins.text = sim.Coins.ToString("0");
             _year.text = "Year " + sim.Year + "  ·  " + sim.Season + "  ·  " + Mathf.CeilToInt(sim.Config.YearLength - sim.YearTime) + " s to frost";
             _staminaFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(sim.Stamina / sim.StaminaMax), 1f);
-            _stamina.text = Mathf.FloorToInt(sim.Stamina) + " / " + Mathf.FloorToInt(sim.StaminaMax);
-            _stats.text = "strikes " + sim.Strikes + "  crits " + sim.Crits + "  breaks " + sim.Breaks + "  reaped " + sim.Reaped + "  dmg " + sim.Damage.ToString("0") + "  crit window " + sim.CritWindow.ToString("0.00");
+            _stats.text = "strikes " + sim.Strikes + "  crits " + sim.Crits + "  tired " + sim.TiredStrikes + "  breaks " + sim.Breaks + "  reaped " + sim.Reaped
+                + "  dmg " + sim.Damage.ToString("0") + "  window " + sim.CritWindow.ToString("0.00") + "  crit " + (sim.CritChance * 100).ToString("0") + "%";
+            _staminaFill.color = sim.Tired ? UiPalette.Brick : UiPalette.Sage;
+            _stamina.text = Mathf.FloorToInt(sim.Stamina) + " / " + Mathf.FloorToInt(sim.StaminaMax) + (sim.Tired ? "   TIRED: swings at 40%, no crits" : "");
 
             // The pulse: a ring closing on the selected tile once a second; on the beat it snaps tight and lights up.
             float phase = sim.Pulse;
@@ -350,6 +438,8 @@ namespace TillWinter.Unity.Proto
             _pulseCore.color = UiPalette.WithAlpha(UiPalette.Cream, onBeat ? 0.9f : 0f);
             _pulse.gameObject.SetActive(_selected.State == TileState.Hard);
             _pulseCore.gameObject.SetActive(_selected.State == TileState.Hard);
+            // The beat is the field's, not the tile's: the whole board breathes with it, so the timing reads anywhere.
+            _board.localScale = Vector3.one * (1f + 0.02f * tri * tri);
 
             for (int i = 0; i < sim.Tiles.Length; i++)
             {
