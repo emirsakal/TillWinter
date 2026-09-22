@@ -823,6 +823,7 @@ namespace TillWinter.Core
 
             double coinsBefore = State.Coins;
             int harvestsBefore = State.Generation.Harvests;
+            int achievementsBefore = State.Generation.Achievements;
             int apprentice = 0, tractor = 0;
             Action<HarvestEvent> count = e => { if (e.Source == HarvestSource.Apprentice) apprentice++; else if (e.Source == HarvestSource.Tractor) tractor++; };
             Harvested += count;
@@ -848,7 +849,9 @@ namespace TillWinter.Core
                 Harvested -= count;
                 State.Ring = ringBefore;
             }
-            return new OfflineReport(steps * (double)step, State.Coins - coinsBefore, State.Generation.Harvests - harvestsBefore, capped, apprentice, tractor);
+            int found = 0;
+            for (int bits = State.Generation.Achievements & ~achievementsBefore; bits != 0; bits &= bits - 1) found++;
+            return new OfflineReport(steps * (double)step, State.Coins - coinsBefore, State.Generation.Harvests - harvestsBefore, capped, apprentice, tractor, found);
         }
 
         // ------------------------------------------------------------------ debug hooks

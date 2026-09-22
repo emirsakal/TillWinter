@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.9 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline; an art pass reworked apprentice locomotion, crop-stage easing, frost/storm readability, skill-tree branch colour and layout, coin iconography and the generation card, marked *(v2.8)* inline; round particles moved from opaque primitives to soft billboards on a fourth shader, `TW_Particle`, marked *(v2.9)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 2.10 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline; an art pass reworked apprentice locomotion, crop-stage easing, frost/storm readability, skill-tree branch colour and layout, coin iconography and the generation card, marked *(v2.8)* inline; round particles moved from opaque primitives to soft billboards on a fourth shader, `TW_Particle`, marked *(v2.9)* inline; a balance/content pass fixed the greenhouse winter cap, the Heritage `h_ring_master`/`h_long_summer` pair, crow immunity, `fertile_start`/`spring_head_start`, the ring radius ceiling, Almanac advisor weights, offline heirloom counting, family-album story parity and the statistics/how-to-play/loading-tip screens, marked *(v2.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -28,7 +28,7 @@ A short, finite, mobile incremental farming game. You drag a ring over a field; 
 - The player holds/drags anywhere on the field. A ring (radius in plot units) follows the pointer, offset **0.8 plots toward the top of the screen** (tested in the demo; keep).
 - Every plot whose centre is inside the ring is processed **independently and in parallel** according to its own state (see 2.2). There is no "mode"; the ring does whatever each plot needs. *(v1.4)* Watering and growing stay parallel, but the ring **harvests one Ripe plot at a time** (the one furthest along, ties to the plot nearest the ring centre); other Ripe plots under the ring wait or go to the helpers. A big ring stays a big watering can while the late-game harvest shifts to apprentices and the tractor.
 - Tapping (down+up < 0.2 s, < 20 px) targets the plot under the finger with no offset: scares a crow, and counts as a one-frame ring.
-- Ring radius: starts **0.7** (covers one plot, barely touches neighbours), **+0.25** per Almanac level, max **2.5**.
+- Ring radius: starts **0.7** (covers one plot, barely touches neighbours), **+0.25** per Almanac level, max **2.7** *(v2.8)* (was 2.5) — exactly base 0.7 + Almanac `ring_radius` 5×0.25 + Heritage `h_start_radius` 3×0.25, so no bought level is wasted.
 - *(v1.6)* A moving ring works `FarmConfig.FlowBonus` (**15%**) faster than a still one; `State.Flow` eases in when the ring starts moving and eases back out when it stops, rather than switching instantly.
 - *(v1.6)* `ring_shape` unlocks two more footprints beyond the circle, chosen by the player on the play screen and saved: **Rake**, a wide thin ellipse (1.7 × 0.5 radii), and **Cross**, two crossed ellipses (1.5 × 0.42 radii).
 - *(v1.6)* With `tap_harvest`, a tap finishes one Ripe plot outright on a cooldown (**6 s**, **3 s** at level 2) instead of doing nothing.
@@ -206,7 +206,7 @@ helps a Coins goal, §3.3). `LastGrade`, `LastGradeBonus` and `LastYearCoins` ar
 | Farm dog *(v2.0)* | Almanac node, Helpers branch, prereq `scarecrow`, max 1, cost 400. Chases off a crow that has sat `FarmConfig.DogReactSeconds` (1.5 s) — no bounty, that stays the tap's — then rests `FarmConfig.DogCooldownSeconds` (10 s, saved as `State.DogCooldown`). Fires event `DogChased`. | 0–1 |
 | Beehive *(v2.0)* | Almanac node, Soil branch, prereq `sun`, max 1, cost 450. Sun grows the `FarmConfig.BeeColumns` (2) right-most columns, by the sunflowers, at `FarmConfig.BeeSunBoost` ×1.3. | 0–1 |
 | Hens *(v2.1)* | Almanac node, Helpers branch, prereq `farm_dog`, max 1, cost 500. Eats a pest (§5.5) that has been present `FarmConfig.HenEatSeconds` (2.5 s), then rests `FarmConfig.HenCooldownSeconds` (12 s, saved as `State.HenCooldown`); after a meal, `FarmConfig.GoldenEggChance` (20%) chance of a golden egg worth `FarmConfig.GoldenEggValue` (6) crop values (§5.6). Completes the M.4 "hens eat pests" item, deferred until pests existed. | 0–1 |
-| Greenhouse | during Winter, earns `X coins/s` based on field value *(tune)*. *(v1.3)* `level x 0.02 x field value` coins/s (field value = sum of the crop value of every plot), x2 with the Heritage node, at most 60 s per winter, only while the Winter phase is open (not in the Heritage phase, not offline). | 0–3 |
+| Greenhouse | during Winter, earns `X coins/s` based on field value *(tune)*. *(v1.3)* `level x 0.02 x field value` coins/s (field value = sum of the crop value of every plot), x2 with the Heritage node, at most 60 s per winter, only while the Winter phase is open (not in the Heritage phase, not offline). *(v2.8)* A winter's greenhouse income is capped at `FarmConfig.GreenhouseWinterCapShare` (25%) of the year that just ended (`CoinsThisYear`); once the cap is reached the greenhouse is done for that winter (`SecondsLeftThisWinter` = 0). A year that paid nothing earns nothing in its winter. | 0–3 |
 
 Apprentices: each has its own position and target; they never target the same plot; they retarget if the ring or another helper takes their plot; they idle near the field edge when nothing is Ripe. Six apprentices running around is a deliberate visual goal. *(v2.0)* Each apprentice has a role, `ApprenticeRole` (`Harvester` or `Waterer`): a Harvester works as before; a Waterer walks to the nearest Dry, non-stony plot not already targeted and waters it to Wet in the harvest time. Tapping an apprentice switches its role (banner "Harvester: picks ripe crops" / "Waterer: waters dry plots") and drops its current job; a waterer's thought bubble shows water colour. Works offline like any apprentice.
 
@@ -298,7 +298,7 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 - `ring_radius` (5) · `ring_water_speed` (5) · `ring_grow_speed` (5) · `ring_harvest_speed` (3) · `ring_bonus_coins` +10%/lvl on ring harvests (4) · `ring_combo` consecutive ring harvests within 1 s add a small stacking bonus (3) · *(v1.6)* `ring_shape` unlocks Rake and Cross footprints (2) · *(v1.6)* `tap_harvest` a tap finishes one Ripe plot on a cooldown (2)
 
 **Soil**
-- `irrigation` (5) · `sun` (5) · `soil_quality` (6) · `crop_value` +10%/lvl all harvests (5) · `fertile_start` new plots start Wet (1) · `beehive` *(v2.0)* prereq `sun`, Sun grows the two right-most columns ×1.3 (1)
+- `irrigation` (5) · `sun` (5) · `soil_quality` (6) · `crop_value` +10%/lvl all harvests (5) · `fertile_start` *(v2.8)* every plot begins spring Wet (and new plots from an expansion still arrive Wet); stony plots excluded (1) · `beehive` *(v2.0)* prereq `sun`, Sun grows the two right-most columns ×1.3 (1)
 
 **Field**
 - `expand_field` (3) · `upgrade_plot` (until all max) · `unlock_tomato` (1) · `unlock_corn` (1) · `unlock_pumpkin` (1) · `unlock_grapes` (1) · `unlock_golden_wheat` (1) · `bulk_upgrade` UpgradePlot raises 2 plots per purchase (1) · `barn` *(v2.2)* prereq `expand_field`, storage and market (3)
@@ -307,9 +307,9 @@ Branches and initial node set (32 nodes in v1.1; edges are listed in `DECISIONS.
 - `apprentice_count` (6) · `apprentice_speed` (4) · `apprentice_harvest_time` (3) · `apprentice_yield` (4) · `tractor` (3) · `scarecrow` (2) · `helper_water` apprentices also water the plot they stand on (1) · `farm_dog` *(v2.0)* prereq `scarecrow`, chases off a crow after it lands, no bounty (1) · `hens` *(v2.1)* prereq `farm_dog`, eats a pest, chance of a golden egg (1)
 
 **Calendar**
-- `year_length` (6) · `frost_warning` +5 s per level (2) · `late_frost` at Winter, plots that are ≥80% grown are harvested at half value instead of lost (1) · `greenhouse` (3) · `crow_bounty` scared crows drop more (3) · `spring_head_start` year starts with all plots Wet (1)
+- `year_length` (6) · `frost_warning` +5 s per level (2) · `late_frost` at Winter, plots that are ≥80% grown are harvested at half value instead of lost (1) · `greenhouse` (3) · `crow_bounty` scared crows drop more (3) · `spring_head_start` *(v2.8)* every plot begins spring Wet with Progress = `FarmConfig.SpringHeadStartProgress` (0.5); stony plots excluded (1)
 
-*(v1.3)* `ring_combo`: consecutive ring harvests within 1 s stack, `1 + level x 0.01 x min(combo, 10)` on ring harvests. `late_frost`: at Winter, Ripe plots and Wet plots at >= 80 % are harvested at half value. `crow_bounty`: scare drop = `(2 + level) x value`. `bulk_upgrade`: two lowest plots per purchase. *(v2.6)* Raises two **different** plots per purchase (never the same plot twice), preferring a non-stony plot at the same bed level. `fertile_start`: expansion plots start Wet. `spring_head_start`: all plots Wet at Spring. `helper_water`: apprentice replants Wet.
+*(v1.3)* `ring_combo`: consecutive ring harvests within 1 s stack, `1 + level x 0.01 x min(combo, 10)` on ring harvests. `late_frost`: at Winter, Ripe plots and Wet plots at >= 80 % are harvested at half value. `crow_bounty`: scare drop = `(2 + level) x value`. `bulk_upgrade`: two lowest plots per purchase. *(v2.6)* Raises two **different** plots per purchase (never the same plot twice), preferring a non-stony plot at the same bed level. `fertile_start` *(v2.8)*: every plot starts spring Wet (and new plots from an expansion still arrive Wet), excluding stony plots. `spring_head_start` *(v2.8)*: every plot starts spring Wet with Progress = `FarmConfig.SpringHeadStartProgress` (0.5), excluding stony plots. `helper_water`: apprentice replants Wet.
 
 *(v1.6)* Combo milestones pay out on top of `ring_combo`'s stacking bonus: combo 10/25/50 pays 3x/8x/20x the harvested crop's value (`ComboMilestones`/`ComboMilestoneBonus`). A crow eating a crop now breaks the combo, same as it already breaks on a miss.
 
@@ -327,10 +327,11 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
 - The node detail card's effect preview (current » next) already existed.
 - **Suggested marker.** `AlmanacAdvisor` (Core) holds the node weight table, moved out of
   `AutoPlayer` — `AutoPlayer` now builds its weights from `AlmanacAdvisor.CreateWeights()` (weight
-  for `barn` 0.3). `AlmanacAdvisor.Suggest(sim)` returns the affordable Almanac node with the best
+  for `barn` 0.3 *(v2.8)* now 0.8). `AlmanacAdvisor.Suggest(sim)` returns the affordable Almanac node with the best
   weight per coin in Winter, or null if nothing is affordable; `SkillTreeView.SetSuggested` draws a
   small gold star badge on it. The same weights drive the balance `AutoPlayer`, so the marker and
-  measured play agree.
+  measured play agree. *(v2.8)* Advisor weights for `barn`, `hens`, `farm_dog`, `beehive` raised
+  (0.3/0.5/0.6/0.6 → 0.8/0.9/0.9/1.0); a test now insists every node in both tables has a weight.
 - **Free respec.** Once per generation, in Winter, if something was bought and paid for this
   generation (`Generation.AlmanacSpent > 0`): `RespecAlmanac` resets the Almanac and refunds
   exactly what it cost this generation (`TryBuy` now adds every Almanac cost to
@@ -350,7 +351,7 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
   - Hand: starting radius +0.25 (3) · all ring speeds +10% (5) · ring harvests +5% coins (4)
   - Soil: start with Irrigation 1 / Sun 1 (1 each) · global growth +5% (5) · **unlock rain cloud** (1)
   - Field: start 4×4 (1) · start with Tomato unlocked (1) · **golden crop chance** 1%/lvl (5)
-  - Helpers: first apprentice free (1) · apprentice yield +5% (4) · **scarecrow level 3 = no crows** (1) *(v1.3)* = Almanac scarecrow 2 + this node -> crow chance 0. *(v2.0)* Scarecrow spawn chance is now flat (§4); at Almanac scarecrow 2 the two placed scarecrows already guard every plot on a 3×3 field, so this node keeps its meaning (no crows can land) unchanged.
+  - Helpers: first apprentice free (1) · apprentice yield +5% (4) · **scarecrow level 3 = no crows** (1) *(v1.3)* = Almanac scarecrow 2 + this node -> crow chance 0. *(v2.0)* Scarecrow spawn chance is now flat (§4); at Almanac scarecrow 2 the two placed scarecrows already guard every plot on a 3×3 field, so this node keeps its meaning (no crows can land) unchanged. *(v2.8)* With Almanac Scarecrow 2, crow spawn chance is now multiplied by `FarmConfig.ScarecrowImmunityCrowFactor` (0.25) instead of set to 0, so the crow bounty and the Watchful heir still have crows to act on.
   - Calendar: starting year length +10 s (4) · greenhouse ×2 (2) · Almanac costs −5% (4)
 - Each generation adds a visible change to the farm (bigger house, a tree, a fence, a well). Story is exactly this: a farm handed down.
 - *(v1.2)* The Heritage table has the 16 nodes listed above (edges in `DECISIONS.md`, Session 2). 'Start with Irrigation 1 / Sun 1' acts as a floor on the Almanac level, not an addition. Heritage effects are base modifiers applied before Almanac effects. Nodes whose feature does not exist yet are purchasable and stored as flags.
@@ -362,11 +363,17 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
   the node it excludes has any level, so the two are a single either/or choice.
 - Four new Heritage nodes in two exclusive pairs:
   - Hand: `h_ring_master` (prereq `h_ring_coins`, max 2, 6 seeds/level, ring speeds +8%/level)
-    excludes Helpers' `h_steward`.
+    excludes Helpers' `h_steward`. *(v2.8)* Now `EffectType.HeritageRingMaster`: ring speeds
+    +8%/level AND the ring's coin bonus +`FarmConfig.RingMasterCoinsPerLevel` (10%)/level — the
+    pair is a real fork between the active hand and idle helpers (before, the Steward won from
+    generation 2 because apprentices do most late picking).
   - Helpers: `h_steward` (prereq `h_apprentice_yield`, max 2, 6 seeds/level, apprentice yield
     +10%/level) excludes Hand's `h_ring_master`.
   - Calendar: `h_long_summer` (prereq `h_start_year_length`, max 1, 8 seeds, years +15 s) excludes
-    Soil's `h_rich_soil`.
+    Soil's `h_rich_soil`. *(v2.8)* Now `EffectType.LongSummer`: years +15 s AND the year-length
+    ceiling (`MaxYearLength` 180) lifted by the same 15 s — before, it added to a number already at
+    the ceiling once the Almanac's `year_length` was maxed, so it did nothing. `h_start_year_length`
+    still stops at the ceiling (it is a head start, not a longer year).
   - Soil: `h_rich_soil` (prereq `h_global_growth`, max 1, 8 seeds, growth +8%) excludes Calendar's
     `h_long_summer`.
 - The ending (§8) counts an exclusive node as done once either it or the node it excludes is
@@ -420,8 +427,9 @@ When every Heritage node is maxed, starting the next generation begins the **Gol
 (`FarmConfig.GoldenYearSeconds`), golden season look. At its Winter the field returns to the
 normal starting size and `EndingSeen` is set once; the ending does not repeat on later
 generations. Credits roll next (skippable after 3 s, 24 s total), then a statistics sheet
-(generations, years, coins, per-source harvests, crows scared, best combo, time played), then the
-normal Winter screen underneath. The Heritage tree title shows "Complete". The game continues
+(generations, years, coins, per-source harvests, crows scared, best combo, time played, *(v2.8)*
+yearly goals met, pests stopped, harvests saved from the frost, best year grade this generation,
+and seeds earned), then the normal Winter screen underneath. The Heritage tree title shows "Complete". The game continues
 after, but nothing new unlocks. *(v2.3)* "Every Heritage node is maxed" counts an exclusive node
 (§7.3) as done once it or the node it excludes is maxed.
 
@@ -433,7 +441,8 @@ most 64 pages are kept (`AlbumPages`); the oldest is dropped once full. The paus
 album" sheet lists pages newest first: "Generation N · heir · NG+n", "{years} years · {coins}
 coins · {seeds} seeds · {harvests} harvests", a one-line story (by challenge, else by the heir's
 trait, else a first-generation line) and three stars. The house is not shown — the diorama already
-grows with the generation.
+grows with the generation. *(v2.8)* Each story has two tellings, chosen by the generation's parity
+(`album.story.<key>.2` on even generations), so pages stop repeating a sentence.
 
 ### 8.3 New Game+ *(v2.4)*
 
@@ -461,7 +470,7 @@ local only) and returns to the title. Offline, no online services, no live-ops.
 ## 9. Save and offline
 
 - JSON file in `Application.persistentDataPath`, versioned (`schemaVersion`), written on every winter, rebirth, purchase, and on app pause. Corrupt/unknown file → start fresh, never crash. *(v1.2)* Also written on Next Year, on starting a new generation, and every 30 s during a year. Atomic write with one `.bak`; a corrupt file is renamed `.corrupt-<timestamp>`.
-- Offline progress: on resume, simulate passive systems only (irrigation → sun → apprentices/tractor) for `min(elapsed, 8 h)` at a fixed dt in the pure core; the year timer does **not** advance offline (you never come back to a lost year). Show a "while you were away" card with coins earned. *(v1.2)* Simulated at a 1 s step; the ring, crows and seasons are frozen. A clock that went backwards counts as 0 elapsed. *(v1.3)* The tractor also runs offline; the greenhouse does not (phase is not Year). *(v2.1)* Schema 11 → 12 adds `PestKind`/`X`/`Y`/`Timer`/`Shoo`, `HenCooldown`, `CloverX`/`Y`/`Left`, `StarLeft`, `RushLeft`, `Trader*` fields, `PestCheckTimer` and `LuckyCheckTimer` to `SaveData`. `SaveMigrations.V11ToV12` starts a loaded save with no pest, no lucky moment and no trader due (`PlannedTime` −1). Pests, lucky moments and the trader are Year-phase state only, never part of offline simulation (§5.5–§5.7).
+- Offline progress: on resume, simulate passive systems only (irrigation → sun → apprentices/tractor) for `min(elapsed, 8 h)` at a fixed dt in the pure core; the year timer does **not** advance offline (you never come back to a lost year). Show a "while you were away" card with coins earned. *(v1.2)* Simulated at a 1 s step; the ring, crows and seasons are frozen. A clock that went backwards counts as 0 elapsed. *(v1.3)* The tractor also runs offline; the greenhouse does not (phase is not Year). *(v2.1)* Schema 11 → 12 adds `PestKind`/`X`/`Y`/`Timer`/`Shoo`, `HenCooldown`, `CloverX`/`Y`/`Left`, `StarLeft`, `RushLeft`, `Trader*` fields, `PestCheckTimer` and `LuckyCheckTimer` to `SaveData`. `SaveMigrations.V11ToV12` starts a loaded save with no pest, no lucky moment and no trader due (`PlannedTime` −1). Pests, lucky moments and the trader are Year-phase state only, never part of offline simulation (§5.5–§5.7). *(v2.8)* `OfflineReport.HeirloomsFound` — achievements earned while away are counted, and the away card lists "Heirlooms found: N".
 - *(v1.6)* Schema is now **7**: adds each plot's `RipeAge` and the player's chosen ring shape. Migration `V6ToV7` is a no-op with safe defaults (age 0, circle shape).
 - *(v1.7)* Schema is now **8**: adds each plot's `Choice` (default **-1**); `Tier` now means the bed's quality, not the crop growing. Migration `V7ToV8` sets `Choice = -1` on every plot. Fixture-tested in `SaveV8Tests` against a hand-written v7 JSON.
 - *(v1.8)* Schema is now **9**: adds each plot's `Kind` (int) and `LastYearTier` (default **-1**). Migration `V8ToV9` sets every plot to plain ground with no rotation memory. Fixture-tested in `SaveV9Tests` against a hand-written v8 JSON.
@@ -496,7 +505,7 @@ local only) and returns to the title. Offline, no online services, no live-ops.
 2. **Almanac** (Winter) — tree canvas (`SkillTreeView` + `TreeTheme`), node detail card, "Next Year" and "Pass on the farm" buttons. A "Heritage" tab in the Winter top bar opens the Heritage tree without leaving Winter.
 3. **Heritage** — *(v1.3, Session 5)* the same `SkillTreeView` shown full screen, themed by a second asset (`HeritageTheme`: deep green paper, gold accents, seed currency, darker branch colours, tighter initial zoom so all five branches fit). Reached after rebirth (Retire on the farm -> confirm dialog -> `Retire()` -> a full-screen **Generation card**: "Generation N", one flavour line, seeds counting up, skip after 0.5 s / auto-continue at 6 s -> Heritage screen), before Spring of the new generation; also reachable as the Winter tab above. Starting the new generation reveals plots one by one bottom-left to top-right, clears snow, and pops in generation-appropriate decor (`FarmDecorSet`/`FarmDecorView`, data-driven, `MinGeneration`-gated). Pan/zoom is remembered per tree (Almanac and Heritage separately) across sessions.
 4. **Pause / Settings** — language, sound, haptics, reset save, credits. Last.
-5. **Onboarding** — no tutorial screen; a `Hint` enum + `OnboardingFlags` in Core make every hint fire once and only once, saved. *(v1.3, Session 5)* Shipped hints: first touch on a Dry plot (pulsing hand + hold caption), first Ripe plot outside the ring, first frost warning, first crow; first Winter (the tree centres on `ring_radius`/`irrigation` with a pulse and caption until the first purchase); the first time `CanRetire` (a one-time explanatory sheet); first entry to Heritage ("Seeds never reset."). Hints never block input. **While-you-were-away card** (`AwayCard`, shown on resume when offline sim earned coins): duration in h/min, total coins, a line per source (apprentices, tractor), a note when capped at the 8 h offline cap; the HUD coin counter withholds the earned coins (`HudView.HeldCoins`) until the card is dismissed.
+5. **Onboarding** — no tutorial screen; a `Hint` enum + `OnboardingFlags` in Core make every hint fire once and only once, saved. *(v1.3, Session 5)* Shipped hints: first touch on a Dry plot (pulsing hand + hold caption), first Ripe plot outside the ring, first frost warning, first crow; first Winter (the tree centres on `ring_radius`/`irrigation` with a pulse and caption until the first purchase); the first time `CanRetire` (a one-time explanatory sheet); first entry to Heritage ("Seeds never reset."). Hints never block input. **While-you-were-away card** (`AwayCard`, shown on resume when offline sim earned coins): duration in h/min, total coins, a line per source (apprentices, tractor), a note when capped at the 8 h offline cap; the HUD coin counter withholds the earned coins (`HudView.HeldCoins`) until the card is dismissed. *(v2.8)* The "How to play" sheet (Settings) ends with a crop table (name, tier, liked season, seconds dry→ripe at ring level one, value); loading tips grew from 6 to 14.
 
 ### 10.5 Getting-started checklist *(v2.5)*
 
@@ -818,3 +827,16 @@ plan, and the checklist is presentation-only, so balance targets keep measuring 
 Results (seed 1): year 1 = 67 coins, first apprentice year 3, first `CanRetire` year 7, 10 seeds at
 first retire, 6 generations to max Heritage, 5.07 h to the ending, unchanged from M.8. No tuning
 needed; 302 tests green.
+
+**2026-09-22 — v2.8 balance/content pass.** Measured with `balance-sim.bat` / `BalanceTests`
+(`AutoPlayer`, seeds 1–3).
+
+What changed: the greenhouse winter income cap (§4), the `h_ring_master`/`h_long_summer` Heritage
+fixes (§7.3), crow immunity as a factor instead of zero (§7), `fertile_start`/`spring_head_start`
+covering every plot (§6), the ring radius ceiling matched to bought levels (§2.1), and raised
+Almanac advisor weights (§6.3).
+
+Results: 5.06 / 5.07 / 5.03 h over seeds 1–3 before the pass; 4.98 h after the content fixes but
+before the divisor change. Tuned: `SeedDivisor` 37 → 38 to bring it back; measured ending
+5.12 / 5.14 / 5.12 h over seeds 1–3. 6 generations to max Heritage, 10 seeds at first retire, ring
+share at first retire 54–56%, generation 4 30–31%.

@@ -1321,3 +1321,33 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   instead of going soft too, since a flake reads as a flake and a spark reads better soft; `ArtTests`'
   shader allow-list and `FeelTests`' material assertion (now also checking render mode and material
   agree) were updated to match.
+
+# Session 11 — store-readiness stages 3–4 (2026-09-22)
+
+- **Stage 3 (UI/teaching).** Plot inspect card; "How to play" sheet laid out by a
+  `VerticalLayoutGroup` + `ContentSizeFitter` because measuring TMP heights at build time was
+  unreliable (paragraphs overlapped); HUD icon buttons got captions through one `UiKit` helper
+  (`ButtonCaption`), the barn share moved into its caption; the Almanac suggestion star got the
+  word "Suggested" and the suggested node is fronted (`SetAsLastSibling`) while it wears it —
+  on-canvas node names were rejected because siblings sit 92 px apart at the layout's minimum, so
+  labels would collide; larger tap targets rejected for the same reason; "N more coins needed"
+  replaces "not enough coins"; Heritage progress "Heritage N/M" lives on the retire-hint line (the
+  title had no room; the two never show together); "nothing to buy — start the next year" on the
+  same line when the advisor has no suggestion; daily-farm subtitle on the title button (mode
+  description, or today's best); ending text points at NG+ and the daily; large text checked by eye
+  for the first time — title kept to one line with autosize, settings hint rows and the sheet grow
+  with `UiType.Scale`; farm code export/import (`SaveTransfer` in Core: base64 + FNV-1a checksum,
+  two taps to overwrite) instead of cloud save.
+- **Studio splash.** Cover is `HudTheme.MenuPrimary` (menu green), no glow, no scale settle —
+  matches PuttSeed's opening on its felt, per the developer.
+- **Stage 4 (balance/content).** The ten changes listed above, all measured with balance-sim; the
+  greenhouse cap is relative to the year (not an absolute) so it scales with the field; Ring Master
+  gained coins rather than more speed so the fork is active-vs-idle; Long Summer lifts the ceiling
+  rather than the ceiling being raised for everyone; crow immunity became a quarter rather than
+  deleting the node; Fertile Start absorbed the old Head Start and Head Start gained half a growth;
+  radius ceiling matched to the sum of levels rather than removing a level (which would change the
+  ending's seed cost).
+- **Deliberately not done in stage 4** (each is a multi-session feature, out of scope for a
+  store-readiness pass): ice-fishing/winter mini-game, endless/free mode, cosmetics, photo mode,
+  naming heirs/farm/animals, crops with trade-offs, generation-keyed events, NG+ variants,
+  multi-year market, colour-blind palette mode.

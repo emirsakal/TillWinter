@@ -68,7 +68,8 @@ namespace TillWinter.Unity
             if (_open)
                 report = new OfflineReport(_shown.SecondsSimulated + report.SecondsSimulated, _shown.CoinsEarned + report.CoinsEarned,
                     _shown.Harvests + report.Harvests, _shown.Capped || report.Capped,
-                    _shown.HarvestsApprentice + report.HarvestsApprentice, _shown.HarvestsTractor + report.HarvestsTractor);
+                    _shown.HarvestsApprentice + report.HarvestsApprentice, _shown.HarvestsTractor + report.HarvestsTractor,
+                    _shown.HeirloomsFound + report.HeirloomsFound);
             _shown = report;
             int minutes = Mathf.RoundToInt((float)report.SecondsSimulated / 60f);
             _duration.text = Strings.Format("away.duration", ("hours", minutes / 60), ("minutes", minutes % 60));
@@ -76,6 +77,7 @@ namespace TillWinter.Unity
             _sourceCount = 0;
             if (report.HarvestsApprentice > 0) SetSource(Strings.Format("away.apprentices", ("count", report.HarvestsApprentice)));
             if (report.HarvestsTractor > 0) SetSource(Strings.Format("away.tractor", ("count", report.HarvestsTractor)));
+            if (report.HeirloomsFound > 0) SetSource(Strings.Format("away.heirlooms", ("count", report.HeirloomsFound)));
             if (_sourceCount == 0) SetSource(Strings.Get("away.nothing"));
             for (int i = _sourceCount; i < _sourceLines.Length; i++) _sourceLines[i].text = "";
             _reveal = 0f;

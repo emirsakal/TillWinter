@@ -81,6 +81,7 @@ namespace TillWinter.EditorTools
             new Step("12-settings-again", 0.6f, () => Click("settings.back", "CreditsSheet")),
             new Step("13-pause-again", 0.6f, () => Click("settings.back", "SettingsSheet")),
             new Step("14-stats", 0.7f, () => Click("pause.stats", "PauseSheet")),
+            new Step("14a-stats-end", 0.5f, () => ScrollToEnd("StatsSheet")), // the rows added in v2.8 sit below the fold
             new Step(null, 0.5f, () => Click("stats.continue", "StatsSheet")),
             new Step(null, 0.5f, () => Click("pause.resume", "PauseSheet")),
 
@@ -136,6 +137,7 @@ namespace TillWinter.EditorTools
             // The manual the game never had, opened from the pause menu.
             new Step(null, 0.5f, () => Click("PauseButton")),
             new Step("41-help", 0.9f, () => Click("pause.help", "PauseSheet")),
+            new Step("41b-help-end", 0.5f, () => ScrollToEnd("HelpSheet")), // the crop table closes the sheet
             new Step(null, 0.4f, () => Click("stats.continue", "HelpSheet")),
             new Step(null, 0.4f, () => Click("pause.resume", "PauseSheet")),
 
@@ -339,6 +341,18 @@ namespace TillWinter.EditorTools
             string what = "button '" + name + "'" + (scope != null ? " in '" + scope + "'" : "");
             if (optional) Log("SKIP no " + what);
             else Error("MISSING " + what);
+        }
+
+        /// <summary>Scrolls the one ScrollRect inside a sheet to its end, for what a sheet keeps below its fold.</summary>
+        private static void ScrollToEnd(string scope)
+        {
+            foreach (var r in UnityEngine.Object.FindObjectsByType<ScrollRect>(FindObjectsSortMode.None))
+            {
+                if (!r.isActiveAndEnabled || !HasAncestor(r.transform, scope)) continue;
+                r.verticalNormalizedPosition = 0f;
+                return;
+            }
+            Error("MISSING scroll view in '" + scope + "'");
         }
 
         private static bool HasAncestor(Transform t, string name)

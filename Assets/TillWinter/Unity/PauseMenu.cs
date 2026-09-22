@@ -368,6 +368,25 @@ namespace TillWinter.Unity
                     text.enableWordWrapping = true;
                 }
             }
+
+            // The crop table (v2.8): timings, value and the liked season were in the config and nowhere a player looks.
+            var cropsHead = UiKit.Label(_helpRows, "help.crop_table", Strings.Get("help.crop_table"), UiType.Heading, _theme.SheetInk, TextAnchor.UpperLeft, FontStyle.Bold);
+            cropsHead.enableAutoSizing = false;
+            cropsHead.margin = new Vector4(0f, 18f, 0f, 2f);
+            var cfg = _game != null && _game.Sim != null ? _game.Sim.Config : new TillWinter.Core.FarmConfig();
+            for (int i = 0; i < cfg.Crops.Length; i++)
+            {
+                var c = cfg.Crops[i];
+                var line = UiKit.Label(_helpRows, "Crop " + i, Strings.Format("help.crop_line",
+                    ("name", Strings.Crop(c)), ("tier", i + 1), ("season", Strings.Get("season." + c.Likes)),
+                    ("seconds", NumberFormat.Whole(Mathf.RoundToInt(c.Water + c.Grow + c.Harvest))), ("value", NumberFormat.Short(c.Value))),
+                    UiType.Body, _theme.SheetMuted, TextAnchor.UpperLeft);
+                line.enableAutoSizing = false;
+                line.enableWordWrapping = true;
+            }
+            var note = UiKit.Label(_helpRows, "help.crop_note", Strings.Get("help.crop_note"), UiType.Body, _theme.SheetMuted, TextAnchor.UpperLeft);
+            note.enableAutoSizing = false;
+            note.enableWordWrapping = true;
         }
 
         private void ShowHelp()
@@ -415,7 +434,9 @@ namespace TillWinter.Unity
                 UiKit.Stretch(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -64f), new Vector2(-150f, -8f));
                 var line = UiKit.Label(r, "Line", Strings.Format("album.line", ("years", e.Years), ("coins", NumberFormat.Short(e.Coins)), ("seeds", e.Seeds), ("harvests", e.Harvests)), UiType.Body, _theme.SheetInk, TextAnchor.UpperLeft);
                 UiKit.Stretch(line.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -116f), new Vector2(0f, -66f));
-                string storyKey = e.Challenge > 0 ? "album.story.challenge" : e.Trait > 0 ? "album.story." + (TillWinter.Core.HeirTrait)e.Trait : "album.story.first";
+                // Two tellings per story, by the generation's parity: with six traits the sixth page repeated the first.
+                string storyKey = (e.Challenge > 0 ? "album.story.challenge" : e.Trait > 0 ? "album.story." + (TillWinter.Core.HeirTrait)e.Trait : "album.story.first")
+                    + (e.Generation % 2 == 0 ? ".2" : "");
                 var story = UiKit.Label(r, "Story", Strings.Get(storyKey), UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft);
                 UiKit.Stretch(story.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -176f), new Vector2(0f, -118f));
                 for (int s = 0; s < 3; s++)
@@ -711,6 +732,8 @@ namespace TillWinter.Unity
             "stats.generations", "stats.years", "stats.coins", "stats.harvests", "stats.by_ring", "stats.by_apprentice",
             "stats.by_tractor", "stats.crows", "stats.golden", "stats.best_combo", "stats.time",
             "stats.heirlooms", "stats.heir",
+            // v2.8: counters the game kept and never showed.
+            "stats.goals", "stats.pests", "stats.late_frost", "stats.best_grade", "stats.seeds",
         };
 
         private static readonly string[] StatIcons =
@@ -718,6 +741,7 @@ namespace TillWinter.Unity
             UiIcons.Generation, UiIcons.Year, UiIcons.Coin, UiIcons.Harvest, UiIcons.Ring, UiIcons.Apprentice,
             UiIcons.Tractor, UiIcons.Crow, UiIcons.Golden, UiIcons.Combo, UiIcons.Time,
             UiIcons.Golden, UiIcons.Generation,
+            UiIcons.Ring, UiIcons.Crow, UiIcons.Year, UiIcons.Coin, UiIcons.Generation,
         };
 
         private static int HeirloomCount(int bits)
@@ -739,6 +763,8 @@ namespace TillWinter.Unity
                 NumberFormat.Whole(g.BestCombo), Strings.Format("stats.time_value", ("hours", minutes / 60), ("minutes", minutes % 60)),
                 HeirloomCount(g.Achievements) + " / " + TillWinter.Core.Legacy.AchievementCount,
                 Strings.Get("heir." + g.Trait),
+                NumberFormat.Whole(g.GoalsMet), NumberFormat.Whole(g.PestsStopped), NumberFormat.Whole(g.HarvestsLateFrost),
+                NumberFormat.Whole(g.BestGradeThisGeneration) + " / 3", NumberFormat.Whole(g.SeedsEarnedTotal),
             };
             for (int i = 0; i < _statValues.Length && i < values.Length; i++) _statValues[i].text = values[i];
         }

@@ -303,9 +303,12 @@ namespace TillWinter.Core
         public readonly int HarvestsApprentice;
         public readonly int HarvestsTractor;
         public readonly bool Capped;
+        /// <summary>Heirlooms (achievements) earned while away (v2.8): they applied from then on, and the card says so.</summary>
+        public readonly int HeirloomsFound;
 
-        public OfflineReport(double secondsSimulated, double coinsEarned, int harvests, bool capped, int harvestsApprentice = 0, int harvestsTractor = 0)
+        public OfflineReport(double secondsSimulated, double coinsEarned, int harvests, bool capped, int harvestsApprentice = 0, int harvestsTractor = 0, int heirloomsFound = 0)
         {
+            HeirloomsFound = heirloomsFound;
             SecondsSimulated = secondsSimulated;
             CoinsEarned = coinsEarned;
             Harvests = harvests;
