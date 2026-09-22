@@ -1322,7 +1322,7 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   shader allow-list and `FeelTests`' material assertion (now also checking render mode and material
   agree) were updated to match.
 
-# Session 11 — store-readiness stages 3–4 (2026-09-22)
+# Session 11 — store-readiness stages 3–6 (2026-09-22)
 
 - **Stage 3 (UI/teaching).** Plot inspect card; "How to play" sheet laid out by a
   `VerticalLayoutGroup` + `ContentSizeFitter` because measuring TMP heights at build time was
@@ -1351,3 +1351,44 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   store-readiness pass): ice-fishing/winter mini-game, endless/free mode, cosmetics, photo mode,
   naming heirs/farm/animals, crops with trade-offs, generation-keyed events, NG+ variants,
   multi-year market, colour-blind palette mode.
+- **Stage 5 (Android/iOS platform hygiene).** Target API pinned at 35 (`BuildPipeline.AndroidTargetSdk`,
+  held by BuildTests) instead of Auto, so a future Unity/Android SDK bump can't silently move the
+  target; INTERNET permission forced off, matching the no-network design; `renderOutsideSafeArea` on
+  for Android 15 edge-to-edge since the HUD already lays out inside `Screen.safeArea`; the engine
+  splash switched off (Unity 6 allows it on every licence) so the studio mark is the first frame;
+  `-dev` builds reuse the current version code / build number and only release builds bump, so dev
+  builds stop burning through version codes; `symbols.zip` written next to the .aab
+  (`androidCreateSymbols = Public`, reset after the build); `muteOtherAudioSources` off so the
+  player's own music continues.
+- **iOS privacy manifest.** `IosPostProcess` writes the app's `PrivacyInfo.xcprivacy` (no tracking,
+  no collected data, UserDefaults CA92.1, file timestamps C617.1) and adds it to the main target;
+  Unity's own engine manifest covers the engine, so nothing further was needed there.
+- **Package cleanup.** 20 unused packages/modules removed from `Packages/manifest.json`
+  (ai.navigation, collab-proxy, multiplayer.center, timeline, visualscripting, and the
+  ai/cloth/director/physics2d/terrainphysics/tilemap/vehicles/video/vr/xr/wind/unitywebrequest*
+  modules); `com.unity.modules.terrain` and `physics` stay because URP core depends on them.
+- **Back button.** `PauseMenu.HandleBack` on Escape (Android back) closes sheets in reverse order,
+  resumes from pause, and opens pause from play; `WinterScreen` handles its own back only while the
+  game is not paused, so the two never both react to the same press.
+- **Low memory.** `Application.lowMemory` triggers a save followed by
+  `Resources.UnloadUnusedAssets`, rather than doing nothing and risking a silent kill.
+- **Credits links.** The credits sheet links the privacy policy (GitHub PRIVACY.md) and support
+  (GitHub issues) through a single `Links` constant class, so a hosted page can replace the URL
+  later without touching the sheet. The contact email for the store trader forms is the developer's
+  to enter in the consoles, never committed to the repo.
+- **Stage 6 (local reminders).** `com.unity.mobile.notifications` 2.4.1 chosen over a repeating
+  schedule so the game never nags; opt-in switch in Settings, off by default; permission requested
+  only when the switch is turned on; one notification booked on pause for `OfflineCapSeconds` ahead,
+  only in a year with something passive running (irrigation, sun, apprentices, tractor), cancelled
+  on resume and on launch; never scheduled on the daily farm.
+- **Store rating prompt.** iOS only (`UnityEngine.iOS.Device.RequestStoreReview`, built in), fired
+  once, at the third generation's hand-over, and remembered in `settings.json` so a reset farm does
+  not ask again; Android was left out because it needs Google's Play In-App Review package.
+- **Store assets and docs.** New tour preset `1320x2868 (iPhone 6.9)` for App Store Connect shots;
+  `docs/STORE.md` and `docs/RELEASE.md` hold the listing texts, store-form answers and the release
+  steps; `docs/store/` holds the Play feature graphics (EN/TR, composed from the icon layers and the
+  two fonts).
+- **Deliberately left out of stage 6:** Game Center / Play Games achievements and leaderboards (each
+  needs a platform SDK and an account setup), iOS 18 dark/tinted icon variants, a promo video,
+  Android in-app review. Real-device testing (`docs/DEVICE-CHECKLIST.md`) and the keystore itself
+  are the developer's steps before submission, not something a session can do.
