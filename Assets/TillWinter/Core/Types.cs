@@ -207,6 +207,10 @@ namespace TillWinter.Core
         HeritageApprenticeYield,
         ScarecrowImmunity,
         HeritageStartYearLength,
+        /// <summary>Ring speeds and the ring's coin bonus together: the active-play path (GDD §7.3 v2.8).</summary>
+        HeritageRingMaster,
+        /// <summary>Years longer, and the year-length ceiling raised by the same amount (GDD §7.3 v2.8).</summary>
+        LongSummer,
         GreenhouseX2,
         AlmanacDiscount,
     }
@@ -299,9 +303,12 @@ namespace TillWinter.Core
         public readonly int HarvestsApprentice;
         public readonly int HarvestsTractor;
         public readonly bool Capped;
+        /// <summary>Heirlooms (achievements) earned while away (v2.8): they applied from then on, and the card says so.</summary>
+        public readonly int HeirloomsFound;
 
-        public OfflineReport(double secondsSimulated, double coinsEarned, int harvests, bool capped, int harvestsApprentice = 0, int harvestsTractor = 0)
+        public OfflineReport(double secondsSimulated, double coinsEarned, int harvests, bool capped, int harvestsApprentice = 0, int harvestsTractor = 0, int heirloomsFound = 0)
         {
+            HeirloomsFound = heirloomsFound;
             SecondsSimulated = secondsSimulated;
             CoinsEarned = coinsEarned;
             Harvests = harvests;

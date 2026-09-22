@@ -1321,3 +1321,80 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   instead of going soft too, since a flake reads as a flake and a spark reads better soft; `ArtTests`'
   shader allow-list and `FeelTests`' material assertion (now also checking render mode and material
   agree) were updated to match.
+
+# Session 11 — store-readiness stages 3–6 (2026-09-22)
+
+- **Stage 3 (UI/teaching).** Plot inspect card; "How to play" sheet laid out by a
+  `VerticalLayoutGroup` + `ContentSizeFitter` because measuring TMP heights at build time was
+  unreliable (paragraphs overlapped); HUD icon buttons got captions through one `UiKit` helper
+  (`ButtonCaption`), the barn share moved into its caption; the Almanac suggestion star got the
+  word "Suggested" and the suggested node is fronted (`SetAsLastSibling`) while it wears it —
+  on-canvas node names were rejected because siblings sit 92 px apart at the layout's minimum, so
+  labels would collide; larger tap targets rejected for the same reason; "N more coins needed"
+  replaces "not enough coins"; Heritage progress "Heritage N/M" lives on the retire-hint line (the
+  title had no room; the two never show together); "nothing to buy — start the next year" on the
+  same line when the advisor has no suggestion; daily-farm subtitle on the title button (mode
+  description, or today's best); ending text points at NG+ and the daily; large text checked by eye
+  for the first time — title kept to one line with autosize, settings hint rows and the sheet grow
+  with `UiType.Scale`; farm code export/import (`SaveTransfer` in Core: base64 + FNV-1a checksum,
+  two taps to overwrite) instead of cloud save.
+- **Studio splash.** Cover is `HudTheme.MenuPrimary` (menu green), no glow, no scale settle —
+  matches PuttSeed's opening on its felt, per the developer.
+- **Stage 4 (balance/content).** The ten changes listed above, all measured with balance-sim; the
+  greenhouse cap is relative to the year (not an absolute) so it scales with the field; Ring Master
+  gained coins rather than more speed so the fork is active-vs-idle; Long Summer lifts the ceiling
+  rather than the ceiling being raised for everyone; crow immunity became a quarter rather than
+  deleting the node; Fertile Start absorbed the old Head Start and Head Start gained half a growth;
+  radius ceiling matched to the sum of levels rather than removing a level (which would change the
+  ending's seed cost).
+- **Deliberately not done in stage 4** (each is a multi-session feature, out of scope for a
+  store-readiness pass): ice-fishing/winter mini-game, endless/free mode, cosmetics, photo mode,
+  naming heirs/farm/animals, crops with trade-offs, generation-keyed events, NG+ variants,
+  multi-year market, colour-blind palette mode.
+- **Stage 5 (Android/iOS platform hygiene).** Target API pinned at 35 (`BuildPipeline.AndroidTargetSdk`,
+  held by BuildTests) instead of Auto, so a future Unity/Android SDK bump can't silently move the
+  target; INTERNET permission forced off, matching the no-network design; `renderOutsideSafeArea` on
+  for Android 15 edge-to-edge since the HUD already lays out inside `Screen.safeArea`; the engine
+  splash switched off (Unity 6 allows it on every licence) so the studio mark is the first frame;
+  `-dev` builds reuse the current version code / build number and only release builds bump, so dev
+  builds stop burning through version codes; `symbols.zip` written next to the .aab
+  (`androidCreateSymbols = Public`, reset after the build); `muteOtherAudioSources` off so the
+  player's own music continues.
+- **iOS privacy manifest.** `IosPostProcess` writes the app's `PrivacyInfo.xcprivacy` (no tracking,
+  no collected data, UserDefaults CA92.1, file timestamps C617.1) and adds it to the main target;
+  Unity's own engine manifest covers the engine, so nothing further was needed there.
+- **Package cleanup.** 20 unused packages/modules removed from `Packages/manifest.json`
+  (ai.navigation, collab-proxy, multiplayer.center, timeline, visualscripting, and the
+  ai/cloth/director/physics2d/terrainphysics/tilemap/vehicles/video/vr/xr/wind/unitywebrequest*
+  modules); `com.unity.modules.terrain` and `physics` stay because URP core depends on them.
+- **Back button.** `PauseMenu.HandleBack` on Escape (Android back) closes sheets in reverse order,
+  resumes from pause, and opens pause from play; `WinterScreen` handles its own back only while the
+  game is not paused, so the two never both react to the same press.
+- **Low memory.** `Application.lowMemory` triggers a save followed by
+  `Resources.UnloadUnusedAssets`, rather than doing nothing and risking a silent kill.
+- **Credits links.** The credits sheet links the privacy policy (GitHub PRIVACY.md) and support
+  (GitHub issues) through a single `Links` constant class, so a hosted page can replace the URL
+  later without touching the sheet. The contact email for the store trader forms is the developer's
+  to enter in the consoles, never committed to the repo.
+- **Stage 6 (local reminders).** `com.unity.mobile.notifications` 2.4.1 chosen over a repeating
+  schedule so the game never nags; opt-in switch in Settings, off by default; permission requested
+  only when the switch is turned on; one notification booked on pause for `OfflineCapSeconds` ahead,
+  only in a year with something passive running (irrigation, sun, apprentices, tractor), cancelled
+  on resume and on launch; never scheduled on the daily farm.
+- **Store rating prompt.** iOS only (`UnityEngine.iOS.Device.RequestStoreReview`, built in), fired
+  once, at the third generation's hand-over, and remembered in `settings.json` so a reset farm does
+  not ask again; Android was left out because it needs Google's Play In-App Review package.
+- **Store assets and docs.** New tour preset `1320x2868 (iPhone 6.9)` for App Store Connect shots;
+  `docs/STORE.md` and `docs/RELEASE.md` hold the listing texts, store-form answers and the release
+  steps; `docs/store/` holds the Play feature graphics (EN/TR, composed from the icon layers and the
+  two fonts).
+- **Deliberately left out of stage 6:** Game Center / Play Games achievements and leaderboards (each
+  needs a platform SDK and an account setup), iOS 18 dark/tinted icon variants, a promo video,
+  Android in-app review. Real-device testing (`docs/DEVICE-CHECKLIST.md`) and the keystore itself
+  are the developer's steps before submission, not something a session can do.
+- The settings sheet became a scroll view (like help and stats): with the farm-code and reminder rows it
+  outgrew a 2340-tall screen and its title was cut. The sheet is 1900 tall everywhere; the rows scroll under
+  the band and above the Back button.
+- Store screenshot sets in `docs/store/screenshots/` (phone 1080x2340, tablet 1536x2048 from the clean tours;
+  iPhone 6.9" 1320x2868 resized from the 1284x2778 simulator device the tour resolves to, same aspect within
+  0.5%). Shot list: title, spring field, autumn dusk, seed bag, Almanac, node sheet, Heritage, album.

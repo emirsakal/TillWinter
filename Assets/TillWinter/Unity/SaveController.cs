@@ -167,6 +167,73 @@ namespace TillWinter.Unity
             return true;
         }
 
+        /// <summary>
+        /// The save file as text, for the farm code in Settings. Reads the file rather than the running farm so the
+        /// daily farm cannot copy itself over the family's save.
+        /// </summary>
+        public static string ReadRaw()
+        {
+            try
+            {
+                if (File.Exists(FilePath)) return File.ReadAllText(FilePath);
+                string bak = FilePath + ".bak";
+                return File.Exists(bak) ? File.ReadAllText(bak) : null;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[TillWinter] Could not read the save for a farm code: " + e.Message);
+                return null;
+            }
+        }
+
+        /// <summary>A farm that arrived as text: parsed and sanity-checked, or null. Never throws.</summary>
+        public static SaveData Parse(string json)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(json)) return null;
+                var data = JsonUtility.FromJson<SaveData>(json);
+                if (data == null || data.SchemaVersion < 1 || data.SchemaVersion > SaveData.CurrentSchemaVersion) return null;
+                return data.Plots != null && data.Plots.Length > 0 ? data : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Writes a farm from a code when no farm is running (the title scene). False if it could not.</summary>
+        public static bool WriteFile(string json)
+        {
+            try
+            {
+                Write(FilePath, json);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[TillWinter] Could not write the farm from a code: " + e.Message);
+                return false;
+            }
+        }
+
+        /// <summary>Replaces the save with a farm brought in from a code and stops saving the running one.</summary>
+        public bool WriteRaw(string json)
+        {
+            try
+            {
+                Write(Path, json);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[TillWinter] Could not write the farm from a code: " + e.Message);
+                LastResult = "write failed: " + e.Message;
+                return false;
+            }
+            Detach();
+            return true;
+        }
+
         public void DeleteSave()
         {
             DeleteFiles(Path);

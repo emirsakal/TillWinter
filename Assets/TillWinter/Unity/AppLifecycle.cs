@@ -1,4 +1,5 @@
 using System;
+using TillWinter.Core;
 using UnityEngine;
 
 namespace TillWinter.Unity
@@ -38,6 +39,19 @@ namespace TillWinter.Unity
             _away = away;
             _winter = winter;
             StartCoroutine(BuildInfo.Load());
+            Application.lowMemory += OnLowMemory;
+            Reminders.Cancel(); // launched: whatever was booked for the time away is moot
+            if (game != null && game.Sim != null) game.Sim.Retired += _ => ReviewPrompt.MaybeAsk(game.State);
+        }
+
+        private void OnDestroy() => Application.lowMemory -= OnLowMemory;
+
+        /// <summary>The system is about to kill something: save first, then hand back what the pools no longer hold.</summary>
+        private static void OnLowMemory()
+        {
+            SaveController.Instance?.SaveNow();
+            Resources.UnloadUnusedAssets();
+            Debug.Log("[TillWinter] Low memory: saved and unloaded unused assets");
         }
 
         private void Update()
@@ -50,6 +64,21 @@ namespace TillWinter.Unity
             }
             int fps = _winter != null && _winter.IsOpen ? WinterFps : YearFps;
             if (Application.targetFrameRate != fps) Application.targetFrameRate = fps;
+        }
+
+        /// <summary>
+        /// Opt-in (Settings → Reminders): one notification when the offline cap runs out, and only if something on
+        /// the farm works on its own — a field with nothing passive has nothing to report.
+        /// </summary>
+        private void BookReminder()
+        {
+            if (!SettingsStore.Current.Reminders || _game == null || _game.Sim == null) return;
+            var st = _game.State;
+            if (st.Phase != Phase.Year || st.IsDaily) return;
+            var stats = st.Stats;
+            bool passive = stats.IrrigationFactor > 0f || stats.SunFactor > 0f || stats.ApprenticeCount > 0 || stats.TractorLevel > 0;
+            if (!passive) return;
+            Reminders.Schedule(_game.Sim.Config.OfflineCapSeconds, Strings.Get("reminder.title"), Strings.Get("reminder.body"));
         }
 
         /// <summary>Desktop and the editor never pause: losing focus should still quiet the game.</summary>
@@ -67,9 +96,11 @@ namespace TillWinter.Unity
                 _pausedAt = DateTime.UtcNow;
                 AudioListener.pause = true;
                 SettingsStore.Save(); // a volume dragged on the settings sheet survives the app being killed in the background
+                BookReminder();
                 return;
             }
             AudioListener.pause = false;
+            Reminders.Cancel();
             if (!_pausedAt.HasValue || _game == null || _game.Sim == null) return;
             double elapsed = Math.Max(0, (DateTime.UtcNow - _pausedAt.Value).TotalSeconds);
             _pausedAt = null;

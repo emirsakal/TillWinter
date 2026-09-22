@@ -8,7 +8,7 @@ namespace TillWinter.Unity
     public sealed class HudTheme : ScriptableObject
     {
         /// <summary>Bumped when the look changes; UiSetup restyles an older asset in place (round three: one palette).</summary>
-        public const int CurrentStyle = 3;
+        public const int CurrentStyle = 4;
         public int StyleVersion;
 
         /// <summary>Cards that sit over the field (the away card).</summary>
@@ -83,11 +83,11 @@ namespace TillWinter.Unity
         public float BarWidth = 960f;
         public float BarHeight = 18f;
         /// <summary>The season band sits below the island, not at the top: this is its height above the safe area's bottom.</summary>
-        public float SeasonBandY = 560f;
+        public float SeasonBandY = 540f;
         public float SeasonBandHeight = 132f;
         /// <summary>Bar and season name inside that band, measured down from its top edge.</summary>
-        public float BarYInBand = -26f;
-        public float SeasonNameYInBand = -58f;
+        public float BarYInBand = -40f;
+        public float SeasonNameYInBand = -76f;
 
         public Color SeasonColor(Season s)
         {
@@ -127,7 +127,10 @@ namespace TillWinter.Unity
             t.CardDark = UiPalette.WithAlpha(UiPalette.Night, 0.97f);
             // Style 2: a thicker season timeline; the name moves down with it.
             t.BarHeight = 26f;
-            t.SeasonNameYInBand = -66f;
+            // Style 4: the timeline sat on the island's bottom edge; the band and bar drop clear of it.
+            t.SeasonBandY = 540f;
+            t.BarYInBand = -40f;
+            t.SeasonNameYInBand = -76f;
             t.StyleVersion = CurrentStyle;
         }
 

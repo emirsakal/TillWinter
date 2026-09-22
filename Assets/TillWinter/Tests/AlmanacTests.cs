@@ -121,7 +121,7 @@ namespace TillWinter.Tests
             {
                 ["ring_radius"] = 20, ["year_length"] = 20, ["apprentice_harvest_time"] = 10, ["expand_field"] = 10, ["unlock_golden_wheat"] = 1,
             });
-            Assert.AreEqual(2.5f, s.RingRadius);
+            Assert.AreEqual(cfg.MaxRingRadius, s.RingRadius);
             Assert.AreEqual(180f, s.YearLength);
             Assert.AreEqual(0.4f, s.ApprenticeHarvestTime);
             Assert.AreEqual(6, s.TargetGridSize);

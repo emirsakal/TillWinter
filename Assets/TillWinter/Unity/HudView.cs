@@ -197,10 +197,9 @@ namespace TillWinter.Unity
             // Ending the year early (GDD §3 v1.5): a field that is finished should not mean watching the clock. It
             // costs the standing crop exactly as frost would, so it sits out at the edge of the band rather than
             // anywhere a thumb rests during play.
-            var endYear = UiKit.Button(_bottomBand, "EndYear", Strings.Get("ui.end_year"), UiType.Caption,
-                _theme.SheetIdle, _theme.SheetButtonText, OpenEndYearConfirm);
-            UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-24f, _theme.SeasonNameYInBand - 20f), new Vector2(220f, 64f)); // below the bar, not touching its end
+            var endYear = UiKit.Button(_safe, "EndYear", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, OpenEndYearConfirm);
+            UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-190f, 54f), new Vector2(130f, 110f));
+            UiKit.ButtonCaption(endYear, UiIcons.Time, Strings.Get("ui.end_year")); // beside Inspect, the same shape as its neighbours
 
             // A long streak pays out: the milestone says so over the ring.
             _milestone = UiKit.Label(_safe, "ComboMilestone", "", UiType.Heading, _theme.Combo, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -211,13 +210,14 @@ namespace TillWinter.Unity
             // The ring's shape, once `ring_shape` is bought: round, rake, cross.
             _shapeButton = UiKit.Button(_safe, "RingShape", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, CycleRingShape);
             UiKit.Box(_shapeButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 180f), new Vector2(130f, 110f));
-            _shapeIcon = UiKit.ButtonIcon(_shapeButton, ShapeIcon(RingShape.Round));
+            _shapeIcon = UiKit.ButtonCaption(_shapeButton, ShapeIcon(RingShape.Round), Strings.Get("hud.cap_shape"));
             _shapeButton.gameObject.SetActive(false);
 
             BuildSeedBag();
             BuildHelperButtons();
             BuildEventUi();
             BuildStoreButton();
+            BuildInspect();
             BuildChecklist();
             _star.transform.SetAsLastSibling(); // the star crosses over the checklist card, never behind it
 
@@ -301,15 +301,15 @@ namespace TillWinter.Unity
         {
             _scarecrowButton = UiKit.Button(_safe, "Scarecrow", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleScarecrowMode);
             UiKit.Box(_scarecrowButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 300f), new Vector2(130f, 110f));
-            UiKit.ButtonIcon(_scarecrowButton, "warning");
+            UiKit.ButtonCaption(_scarecrowButton, "warning", Strings.Get("hud.cap_scarecrow"));
             _scarecrowButton.gameObject.SetActive(false);
 
             _tractorButton = UiKit.Button(_safe, "TractorGo", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, SendTractor);
             UiKit.Box(_tractorButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 420f), new Vector2(130f, 110f));
-            UiKit.ButtonIcon(_tractorButton, "gear");
+            UiKit.ButtonCaption(_tractorButton, "gear", Strings.Get("hud.cap_tractor"));
             var face = _tractorButton.targetGraphic.transform;
             var track = UiKit.Panel(face, "Charge", _theme.BarBackground, true, false);
-            UiKit.Box(track.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 12f), new Vector2(96f, 10f));
+            UiKit.Box(track.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 3f), new Vector2(96f, 7f)); // under the caption, along the near edge
             _tractorFill = UiKit.Panel(track.transform, "Fill", _theme.Gold, true, false).rectTransform;
             UiKit.Stretch(_tractorFill, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
             _tractorButton.gameObject.SetActive(false);
@@ -434,6 +434,121 @@ namespace TillWinter.Unity
             _traderRare.interactable = !t.RareSold;
         }
 
+        // ------------------------------------------------------------------ plot card (what a bed is worth, and why)
+
+        private Button _inspectButton;
+        private GameObject _inspectCard;
+        private TMP_Text _inspectTitle, _inspectState, _inspectGround, _inspectValue;
+        private TMP_Text[] _inspectBonus;
+        private bool _inspecting;
+
+        /// <summary>
+        /// Five multipliers decide what a bed pays (GDD §2.3-§3.1) and none of them were ever visible. The magnifier
+        /// arms one tap: the plot it lands on says what it grows, how far along it is, what ground it stands on, what
+        /// it pays right now, and which bonuses are stacked on it.
+        /// </summary>
+        private void BuildInspect()
+        {
+            _inspectButton = UiKit.Button(_safe, "Inspect", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleInspect);
+            // Bottom right, where the pause button used to be; End year sits to its left. The bottom band's corner used
+            // to hold it alone at the top of the left column, which read as a stray.
+            UiKit.Box(_inspectButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), new Vector2(130f, 110f));
+            UiKit.ButtonCaption(_inspectButton, "zoomIn", Strings.Get("hud.cap_inspect"));
+
+            var card = UiKit.Card(_safe, "PlotCard", _theme.YearCard, false);
+            _inspectCard = card.gameObject;
+            UiKit.Box(card.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 600f), new Vector2(720f, 420f));
+            _inspectTitle = UiKit.Label(card.transform, "Title", "", UiType.Heading, _theme.YearCardText, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Box(_inspectTitle.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -14f), new Vector2(664f, 56f));
+            // One line: "Carrot . likes Spring" wrapped onto the state line underneath it.
+            _inspectTitle.enableWordWrapping = false;
+            _inspectTitle.enableAutoSizing = true;
+            _inspectTitle.fontSizeMin = 26f;
+            _inspectState = UiKit.Label(card.transform, "State", "", UiType.Label, _theme.YearCardMuted, TextAnchor.MiddleLeft);
+            UiKit.Box(_inspectState.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -66f), new Vector2(640f, 44f));
+            _inspectGround = UiKit.Label(card.transform, "Ground", "", UiType.Label, _theme.YearCardMuted, TextAnchor.MiddleLeft);
+            UiKit.Box(_inspectGround.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -110f), new Vector2(640f, 44f));
+            _inspectValue = UiKit.Label(card.transform, "Value", "", UiType.Body, _theme.YearCardText, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.Box(_inspectValue.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -158f), new Vector2(640f, 48f));
+            _inspectBonus = new TMP_Text[5];
+            for (int i = 0; i < _inspectBonus.Length; i++)
+            {
+                _inspectBonus[i] = UiKit.Label(card.transform, "Bonus" + i, "", UiType.Caption, _theme.YearCardText, TextAnchor.MiddleLeft);
+                UiKit.Box(_inspectBonus[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -212f - i * 38f), new Vector2(640f, 36f));
+            }
+            var close = UiKit.Button(card.transform, "Close", Strings.Get("ui.close"), UiType.Caption, _theme.SheetIdle, _theme.SheetButtonText, CloseInspect);
+            UiKit.Box(close.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-24f, 20f), new Vector2(200f, 72f));
+            _inspectCard.SetActive(false);
+        }
+
+        private void ToggleInspect()
+        {
+            _inspecting = !_inspecting;
+            CloseSeedBag();
+            _game.PlotTapOverride = _inspecting ? (System.Func<GridPos, bool>)InspectAt : null;
+            _inspectButton.targetGraphic.color = _inspecting ? _theme.SheetButton : _theme.SheetIdle;
+            if (_inspecting) Banner(Strings.Get("plot.pick"));
+            Haptics.Play(HapticKind.Selection);
+        }
+
+        private void CloseInspect()
+        {
+            if (_inspectCard.activeSelf) _inspectCard.SetActive(false);
+            _inspecting = false;
+            _inspectButton.targetGraphic.color = _theme.SheetIdle;
+            if (_game.PlotTapOverride == (System.Func<GridPos, bool>)InspectAt) _game.PlotTapOverride = null;
+        }
+
+        /// <summary>Fills the card for one plot. Read-only: looking at a bed never changes it.</summary>
+        private bool InspectAt(GridPos pos)
+        {
+            var sim = _game.Sim;
+            var state = _game.State;
+            if (!state.InBounds(pos)) return false;
+            var plot = state.GetPlot(pos);
+            var cfg = sim.Config;
+            var crop = cfg.Crops[Mathf.Clamp(plot.Tier, 0, cfg.Crops.Length - 1)];
+
+            _inspectTitle.text = Strings.Format("plot.title",
+                ("crop", Strings.Get(crop.Key)), ("season", Strings.Get("season." + crop.Likes)));
+            if (plot.IsStony)
+                _inspectState.text = Strings.Get("plot.state_stony");
+            else if (plot.IsRipe)
+                _inspectState.text = Strings.Format("plot.state_ripe", ("percent", Mathf.RoundToInt((float)sim.Freshness(plot) * 100f)));
+            else
+                _inspectState.text = Strings.Format(plot.State == PlotState.Dry ? "plot.state_dry" : "plot.state_wet",
+                    ("percent", Mathf.RoundToInt(plot.Progress * 100f)));
+            _inspectGround.text = Strings.Get(plot.Kind == PlotKind.Fertile ? "plot.ground_fertile"
+                : plot.IsStony ? "plot.ground_stony" : "plot.ground_normal");
+
+            double value = crop.Value * state.Stats.CropValueMult * sim.PlotValueMultiplier(plot) * sim.Freshness(plot);
+            if (state.FrostWarning) value *= cfg.FrostRushValue;
+            _inspectValue.text = Strings.Format("plot.value", ("coins", NumberFormat.Short(value)));
+
+            int line = 0;
+            void Bonus(string key, double mult)
+            {
+                if (line >= _inspectBonus.Length) return;
+                _inspectBonus[line++].text = Strings.Format(key, ("percent", Mathf.RoundToInt((float)(mult - 1) * 100f)));
+            }
+            if (sim.InSeason(plot.Tier)) Bonus("plot.bonus_season", cfg.InSeasonValue);
+            if (plot.Kind == PlotKind.Fertile) Bonus("plot.bonus_fertile", cfg.FertileValue);
+            if (plot.IsRotated) Bonus("plot.bonus_rotation", cfg.RotationBonus);
+            int variety = sim.DifferentNeighbours(plot);
+            if (variety > 0) Bonus("plot.bonus_neighbours", 1 + cfg.NeighbourVarietyBonus * variety);
+            if (state.FrostWarning) Bonus("plot.bonus_frost", cfg.FrostRushValue);
+            if (line == 0 && !plot.IsStony) _inspectBonus[line++].text = Strings.Get("plot.bonus_none");
+            for (int i = line; i < _inspectBonus.Length; i++) _inspectBonus[i].text = "";
+
+            _inspectCard.SetActive(true);
+            _inspectCard.transform.SetAsLastSibling();
+            _inspecting = false;
+            _inspectButton.targetGraphic.color = _theme.SheetIdle;
+            _game.PlotTapOverride = null;
+            Haptics.Play(HapticKind.Light);
+            return true;
+        }
+
         // ------------------------------------------------------------------ barn share (GDD §3.5 v2.2)
 
         private Button _storeButton;
@@ -443,7 +558,7 @@ namespace TillWinter.Unity
         {
             _storeButton = UiKit.Button(_safe, "StoreShare", "", UiType.Caption, _theme.SheetIdle, _theme.SheetButtonText, CycleStoreShare);
             UiKit.Box(_storeButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 300f), new Vector2(170f, 110f));
-            UiKit.ButtonIcon(_storeButton, "home");
+            UiKit.ButtonCaption(_storeButton, "home", Strings.Format("hud.cap_barn", ("percent", 0)));
             _storeButton.gameObject.SetActive(false);
         }
 
@@ -467,7 +582,7 @@ namespace TillWinter.Unity
             float share = state.Barn.StoreShare;
             if (share == _storeShown) return;
             _storeShown = share;
-            UiKit.ButtonLabel(_storeButton).text = Strings.Format("ui.store_pct", ("percent", Mathf.RoundToInt(share * 100f)));
+            UiKit.CaptionLabel(_storeButton).text = Strings.Format("hud.cap_barn", ("percent", Mathf.RoundToInt(share * 100f)));
             _storeButton.targetGraphic.color = share > 0f ? _theme.SheetButton : _theme.SheetIdle;
         }
 
@@ -519,15 +634,20 @@ namespace TillWinter.Unity
         {
             var card = UiKit.Panel(_safe, "Checklist", _theme.HintBackground, true, false);
             _checklist = card.rectTransform;
-            UiKit.Box(_checklist, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -_theme.TopPadding - 390f), new Vector2(520f, 290f));
+            // Top right under the pause button, in the sky: at the top left it lay across the island's corner.
+            UiKit.Box(_checklist, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -136f), new Vector2(300f, 226f)); // narrow: the coin counter is centred and wide
             var title = UiKit.Label(_checklist, "Title", Strings.Get("check.title"), UiType.Label, _theme.HintAccent, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.Box(title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -10f), new Vector2(480f, 44f));
+            UiKit.Box(title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -8f), new Vector2(270f, 40f));
             for (int i = 0; i < FarmSim.ChecklistSteps; i++)
             {
                 _checkMarks[i] = NodeIcons.Image(_checklist, "checkmark", _theme.HintText);
-                UiKit.Box(_checkMarks[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -62f - i * 44f), new Vector2(32f, 32f));
+                UiKit.Box(_checkMarks[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -54f - i * 34f), new Vector2(26f, 26f));
                 _checkLines[i] = UiKit.Label(_checklist, "Step" + i, Strings.Get("check." + (ChecklistStep)i), UiType.Caption, _theme.HintText, TextAnchor.MiddleLeft);
-                UiKit.Box(_checkLines[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(64f, -56f - i * 44f), new Vector2(440f, 44f));
+                UiKit.Box(_checkLines[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(46f, -50f - i * 34f), new Vector2(246f, 34f));
+                _checkLines[i].enableWordWrapping = false;
+                _checkLines[i].enableAutoSizing = true;
+                _checkLines[i].fontSizeMax = _checkLines[i].fontSize;
+                _checkLines[i].fontSizeMin = 15f;
             }
             card.raycastTarget = false;
             _checklist.gameObject.SetActive(false);
@@ -840,7 +960,7 @@ namespace TillWinter.Unity
         {
             _bagButton = UiKit.Button(_safe, "SeedBag", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleSeedBag);
             UiKit.Box(_bagButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 180f), new Vector2(130f, 110f));
-            UiKit.ButtonIcon(_bagButton, "basket");
+            UiKit.ButtonCaption(_bagButton, "basket", Strings.Get("hud.cap_seeds"));
             _bagButton.gameObject.SetActive(false);
 
             _bagRow = UiKit.Rect("SeedRow", _safe);
@@ -1146,6 +1266,10 @@ namespace TillWinter.Unity
             RefreshHelperButtons(state);
             RefreshEventUi(state, dt);
             RefreshStoreButton(state);
+            // The magnifier and its card belong to the running year; winter closes them.
+            bool year = state.Phase == Phase.Year;
+            if (_inspectButton.gameObject.activeSelf != year) _inspectButton.gameObject.SetActive(year);
+            if (!year && _inspectCard.activeSelf) CloseInspect();
             RefreshChecklist(state);
             // The seed bag: once a second crop is unlocked, during the year, never on the Golden Year's field.
             bool bag = state.Stats.MaxTierUnlocked > 0 && !state.IsWinter && !state.GoldenYearActive;

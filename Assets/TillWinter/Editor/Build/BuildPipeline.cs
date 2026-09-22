@@ -32,6 +32,8 @@ namespace TillWinter.EditorTools.Build
         public const string DebugDefine = "TW_DEBUG";
         /// <summary>The brief asked for 24; Unity 6000.3's lowest supported level is 25 (Android 7.1). API 25 still takes the pre-26 haptics fallback.</summary>
         public const int AndroidMinSdk = 25;
+        /// <summary>Pinned, not Auto: Play requires a named level (35 for new apps since 2025), and a test holds it.</summary>
+        public const int AndroidTargetSdk = 35;
         public const string IosMinVersion = "15.0";
 
         public const string EnvKeystorePath = "TW_KEYSTORE_PATH";
@@ -55,13 +57,14 @@ namespace TillWinter.EditorTools.Build
             PlayerSettings.allowedAutorotateToLandscapeLeft = false;
             PlayerSettings.allowedAutorotateToLandscapeRight = false;
             PlayerSettings.gcIncremental = true;
+            PlayerSettings.muteOtherAudioSources = false; // a podcast keeps playing under the farm; the player mutes us in Settings if they want
             PlayerSettings.insecureHttpOption = InsecureHttpOption.NotAllowed;
             PlayerSettings.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
-            PlayerSettings.SplashScreen.show = true;
-            PlayerSettings.SplashScreen.showUnityLogo = true; // Personal licence
-            PlayerSettings.SplashScreen.unityLogoStyle = PlayerSettings.SplashScreen.UnityLogoStyle.LightOnDark;
+            // Unity 6 lets every licence skip the engine splash; the studio mark (StudioSplash) is the first thing seen.
+            PlayerSettings.SplashScreen.show = false;
+            PlayerSettings.SplashScreen.showUnityLogo = false;
             var palette = AssetDatabase.LoadAssetAtPath<Palette>(PaletteAsset);
-            if (palette != null) PlayerSettings.SplashScreen.backgroundColor = palette.LeafDark;
+            if (palette != null) PlayerSettings.SplashScreen.backgroundColor = palette.LeafDark; // still the colour behind the first frame
         }
 
         private static void ApplyScripting(NamedBuildTarget t)
@@ -80,8 +83,12 @@ namespace TillWinter.EditorTools.Build
         {
             ApplyCommonSettings();
             ApplyScripting(NamedBuildTarget.Android);
-            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
+            PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)AndroidTargetSdk;
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            // The game makes no network requests; Unity would add INTERNET on its own for a development build only.
+            PlayerSettings.Android.forceInternetPermission = false;
+            // Android 15 draws edge to edge: the game already lays its HUD out inside Screen.safeArea, so render under the bars.
+            PlayerSettings.Android.renderOutsideSafeArea = true;
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan, GraphicsDeviceType.OpenGLES3 });
             // Set last: Unity re-validates the minimum when the target SDK / architectures change, so an earlier
@@ -166,7 +173,8 @@ namespace TillWinter.EditorTools.Build
         {
             ApplyAndroidSettings();
             IconRenderer.EnsureIcons(HasArg("-twIcons"));
-            int build = BumpAndroidVersionCode();
+            // Only a release moves the version code: a -dev build reuses the current one, so the store sequence has no holes.
+            int build = dev ? Math.Max(1, PlayerSettings.Android.bundleVersionCode) : BumpAndroidVersionCode();
             WriteBuildInfo("Android", build, dev);
             string dir = OutputDir("Android", build);
             string baseName = "TillWinter-" + Version + "-" + build + (dev ? "-dev" : "");
@@ -183,6 +191,8 @@ namespace TillWinter.EditorTools.Build
                     PlayerSettings.Android.keystorePass = ksPass;
                     PlayerSettings.Android.keyaliasName = alias;
                     PlayerSettings.Android.keyaliasPass = aliasPass;
+                    // Play symbolicates native crashes from the symbols.zip written next to the bundle.
+                    EditorUserBuildSettings.androidCreateSymbols = AndroidCreateSymbols.Public;
                     ok &= BuildOne(BuildTarget.Android, Path.Combine(dir, baseName + ".aab"), dev, true);
                     ok &= BuildOne(BuildTarget.Android, Path.Combine(dir, baseName + ".apk"), dev, false);
                 }
@@ -201,6 +211,7 @@ namespace TillWinter.EditorTools.Build
                 PlayerSettings.Android.keyaliasName = "";
                 PlayerSettings.Android.keyaliasPass = "";
                 EditorUserBuildSettings.buildAppBundle = false;
+                EditorUserBuildSettings.androidCreateSymbols = AndroidCreateSymbols.Disabled;
                 AssetDatabase.SaveAssets();
             }
             Log("Android " + Version + " (" + build + ") " + (signed ? "signed with the keystore from the environment" : "debug-signed APK for sideloading") + " -> " + dir);
@@ -211,7 +222,9 @@ namespace TillWinter.EditorTools.Build
         {
             ApplyIosSettings();
             IconRenderer.EnsureIcons(HasArg("-twIcons"));
-            int build = BumpIosBuildNumber();
+            int build;
+            if (dev) { int.TryParse(PlayerSettings.iOS.buildNumber, out build); build = Math.Max(1, build); }
+            else build = BumpIosBuildNumber();
             WriteBuildInfo("iOS", build, dev);
             string dir = OutputDir("iOS", build);
             string xcode = Path.Combine(dir, "Xcode");

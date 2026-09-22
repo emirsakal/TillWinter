@@ -17,7 +17,13 @@ namespace TillWinter.Unity
     {
         public const float ResetHoldSeconds = 3f;
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
-        private const float SettingsHeight = 2010f; // four section headings since round three; hands-free (v2.5)
+        // Four section headings since round three; hands-free (v2.5). The large-text setting wraps both hint lines,
+        // so the sheet and the two hint rows grow with it instead of letting a second line fall into the next section.
+        // The settings page scrolls (v2.8): it outgrew the screen with the farm-code and reminder rows, and it will
+        // keep growing. The sheet itself stays a size every phone can show; the rows live in a scroll view.
+        private const float SettingsHeight = 1900f;
+        private static float HintHeight => UiType.Scale > 1f ? 78f : 44f;
+        private static float HintGap => UiType.Scale > 1f ? 100f : 60f;
         private const float SectionHeight = 64f;
         private const float BandHeight = 128f;
         private const float LabelX = -230f, LabelWidth = 380f, ControlX = 225f, ControlWidth = 410f;
@@ -40,6 +46,9 @@ namespace TillWinter.Unity
         private TMP_Text[] _statValues;
         private float _sampleAt;
         private readonly Button[] _quality = new Button[3];
+        private Button _pasteSave;
+        private TMP_Text _transferStatus;
+        private float _pasteArmed;
         private HoldButton _reset;
         private RectTransform _resetFill;
         private float _resetHeld;
@@ -69,6 +78,7 @@ namespace TillWinter.Unity
             BuildSettings(canvas);
             BuildCredits(canvas);
             BuildStats(canvas);
+            BuildHelp(canvas);
             BuildAlbum(canvas);
         }
 
@@ -76,7 +86,7 @@ namespace TillWinter.Unity
 
         private void BuildPause(RectTransform canvas)
         {
-            _pause = Sheet(canvas, "PauseSheet", "pause.title", 1060f, out var p);
+            _pause = Sheet(canvas, "PauseSheet", "pause.title", 1164f, out var p);
             // Where the farm stands, so the sheet says more than "Paused".
             _pauseSummary = Text(p, "Summary", "", -150f, UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter, 56f);
             float y = -230f;
@@ -84,11 +94,12 @@ namespace TillWinter.Unity
             UiKit.ButtonIcon(Btn(p, "pause.settings", () => Show(_settings), y - RowHeight), "gear");
             UiKit.ButtonIcon(Btn(p, "pause.stats", () => ShowStats(() => Show(_pause)), y - 2f * RowHeight), "leaderboardsSimple");
             UiKit.ButtonIcon(Btn(p, "pause.album", ShowAlbum, y - 3f * RowHeight), "singleplayer");
-            _ngPlus = Btn(p, "pause.new_game_plus", NewGamePlus, y - 4f * RowHeight);
+            UiKit.ButtonIcon(Btn(p, "pause.help", ShowHelp, y - 4f * RowHeight), "exclamation");
+            _ngPlus = Btn(p, "pause.new_game_plus", NewGamePlus, y - 5f * RowHeight);
             UiKit.ButtonIcon(_ngPlus, "star");
-            _away = Btn(p, "pause.away", CycleAwayPlan, y - 5f * RowHeight);
+            _away = Btn(p, "pause.away", CycleAwayPlan, y - 6f * RowHeight);
             UiKit.ButtonIcon(_away, "multiplayer");
-            var mainMenu = Btn(p, "pause.main_menu", ToMainMenu, y - 6f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle);
+            var mainMenu = Btn(p, "pause.main_menu", ToMainMenu, y - 7f * RowHeight, ButtonWidth, 0f, _theme.SheetIdle);
             UiKit.ButtonIcon(mainMenu, "home");
             _tailRows = new[] { (RectTransform)_ngPlus.transform, (RectTransform)_away.transform, (RectTransform)mainMenu.transform };
             _tailSlots = new float[_tailRows.Length];
@@ -112,9 +123,11 @@ namespace TillWinter.Unity
 
         private void BuildSettings(RectTransform canvas)
         {
-            _settings = Sheet(canvas, "SettingsSheet", "settings.title", SettingsHeight, out var p);
+            _settings = Sheet(canvas, "SettingsSheet", "settings.title", SettingsHeight, out var page);
+            UiKit.ScrollView(page, "Scroll", out var p, _theme.SheetMuted);
+            UiKit.Stretch((RectTransform)p.parent, Vector2.zero, Vector2.one, new Vector2(0f, 150f), new Vector2(0f, -BandHeight - 10f));
             var s = SettingsStore.Current;
-            float y = -150f;
+            float y = -16f;
 
             Section(p, "settings.section.general", ref y);
             RowLabel(p, "settings.language", y);
@@ -127,8 +140,14 @@ namespace TillWinter.Unity
             RowLabel(p, "settings.hands_free", y);
             _handsFreeSwitch = SwitchRow(p, "HandsFree", s.HandsFree, on => { SettingsStore.Current.HandsFree = on; if (!on && _game != null) _game.HandsFree.Clear(); }, y);
             y -= RowHeight - 10f;
-            Text(p, "HandsFreeHint", Strings.Get("settings.hands_free_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleLeft, 44f);
-            y -= 60f;
+            Text(p, "HandsFreeHint", Strings.Get("settings.hands_free_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
+            y -= HintGap;
+            // A local reminder, opt-in: the switch asks the system for permission the first time it is turned on.
+            RowLabel(p, "settings.reminders", y);
+            _remindersSwitch = SwitchRow(p, "Reminders", s.Reminders, on => { SettingsStore.Current.Reminders = on; if (on) Reminders.RequestPermission(); }, y);
+            y -= RowHeight - 10f;
+            Text(p, "RemindersHint", Strings.Get("settings.reminders_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
+            y -= HintGap;
 
             Section(p, "settings.section.sound", ref y);
             RowLabel(p, "settings.music", y);
@@ -145,8 +164,8 @@ namespace TillWinter.Unity
             RowLabel(p, "settings.reduce_motion", y);
             _motionSwitch = SwitchRow(p, "ReduceMotion", s.ReduceMotion, on => SettingsStore.Current.ReduceMotion = on, y);
             y -= RowHeight - 10f;
-            Text(p, "MotionHint", Strings.Get("settings.reduce_motion_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleLeft, 44f);
-            y -= 60f;
+            Text(p, "MotionHint", Strings.Get("settings.reduce_motion_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
+            y -= HintGap;
 
             RowLabel(p, "settings.large_text", y);
             _largeTextSwitch = SwitchRow(p, "LargeText", s.LargeText, on =>
@@ -162,8 +181,8 @@ namespace TillWinter.Unity
             for (int i = 0; i < 3; i++)
             {
                 int choice = i - 1;
-                _quality[i] = Btn(p, q[i], () => { QualityTiers.ApplyChoice(choice); RefreshSettings(); }, y, 134f, 88f + i * 137f); // same right edge as the switches
-                UiKit.ButtonLabel(_quality[i]).fontSizeMax = UiType.Size(28);
+                _quality[i] = Btn(p, q[i], () => { QualityTiers.ApplyChoice(choice); RefreshSettings(); }, y, 120f, 101f + i * 134f); // same right edge as the switches, 14 px apart
+                UiKit.ButtonLabel(_quality[i]).fontSizeMax = UiType.Size(26);
             }
             y -= RowHeight + 20f;
 
@@ -171,6 +190,14 @@ namespace TillWinter.Unity
             Section(p, "settings.section.data", ref y);
             Btn(p, "settings.credits", () => { _creditsFromSettings = true; Show(_credits); }, y);
             y -= RowHeight + 16f;
+
+            // A farm as text (there is no cloud save): copy it out, paste it in on the new phone.
+            Btn(p, "settings.copy_save", CopySave, y);
+            y -= RowHeight;
+            _pasteSave = Btn(p, "settings.paste_save", PasteSave, y);
+            y -= RowHeight - 14f;
+            _transferStatus = Text(p, "TransferStatus", Strings.Get("settings.transfer_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperCenter, HintHeight);
+            y -= HintGap + 8f;
 
             // Reset save: hold for three seconds; the fill shows the progress.
             // Same face-on-a-lip shape as every other button, so the one dangerous button does not look like a different kind of thing.
@@ -189,16 +216,16 @@ namespace TillWinter.Unity
             y -= 70f;
 
             _version = Text(p, "Version", "", y, UiType.Caption, _theme.SheetMuted, TextAnchor.MiddleCenter, 40f);
-            y -= 70f;
-            Btn(p, "settings.back", () => { SettingsStore.Save(); if (_fromMenu) CloseSheets(); else Show(_pause); }, y);
+            y -= 50f;
+            p.sizeDelta = new Vector2(0f, -y);
+            Btn(page, "settings.back", () => { SettingsStore.Save(); if (_fromMenu) CloseSheets(); else Show(_pause); }, -(SettingsHeight - 120f));
         }
 
         private void BuildCredits(RectTransform canvas)
         {
-            _credits = Sheet(canvas, "CreditsSheet", "credits.title", 820f, out var page);
-            UiKit.ScrollView(page, "Scroll", out var p);
-            UiKit.Stretch((RectTransform)p.parent, Vector2.zero, Vector2.one, new Vector2(0f, 120f), new Vector2(0f, -110f));
-            p.sizeDelta = new Vector2(0f, 1000f);
+            _credits = Sheet(canvas, "CreditsSheet", "credits.title", CreditsHeight, out var page);
+            UiKit.ScrollView(page, "Scroll", out var p, _theme.SheetMuted);
+            UiKit.Stretch((RectTransform)p.parent, Vector2.zero, Vector2.one, new Vector2(0f, 150f), new Vector2(0f, -BandHeight - 10f));
             float y = -20f;
             // Grouped tightly: the lines used to sit in tall boxes that left gaps bigger than the text.
             Text(p, "MadeBy", Strings.Get("credits.made_by"), y, UiType.Heading, _theme.SheetInk, TextAnchor.MiddleCenter, 70f).fontStyle = FontStyles.Bold;
@@ -212,14 +239,22 @@ namespace TillWinter.Unity
             Text(p, "KitsAudio", Strings.Get("credits.kits_audio"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 50f);
             y -= 90f;
             Text(p, "Font", Strings.Get("credits.font"), y, UiType.Label, _theme.SheetInk, TextAnchor.MiddleCenter);
+            y -= 100f;
+            // The two links a store listing points at, reachable from inside the game as well.
+            Btn(p, "credits.privacy", () => Application.OpenURL(Links.Privacy), y, 380f, -200f);
+            Btn(p, "credits.support", () => Application.OpenURL(Links.Support), y, 380f, 200f);
+            y -= RowHeight;
+            p.sizeDelta = new Vector2(0f, -y + 20f); // the content is as tall as its rows; the sheet no longer guesses
             // Back retraces the way in: Settings if Credits was opened from there, otherwise straight out.
             Btn(page, "settings.back", () =>
             {
                 if (_creditsFromSettings) { _creditsFromSettings = false; Show(_settings); }
                 else if (_fromMenu) CloseSheets();
                 else Show(_pause);
-            }, -700f);
+            }, -(CreditsHeight - 120f));
         }
+
+        private const float CreditsHeight = 980f; // the two link buttons and large text no longer fit 820
 
         /// <summary>Main menu entry: Settings (and Credits from it); Back closes the sheets instead of showing Pause.</summary>
         public void OpenSettingsFrom(Action unused)
@@ -249,7 +284,7 @@ namespace TillWinter.Unity
         // ------------------------------------------------------------------ album and New Game+ (GDD §8.2–§8.3 v2.4)
 
         private Button _ngPlus, _away;
-        private UiSwitch _handsFreeSwitch;
+        private UiSwitch _handsFreeSwitch, _remindersSwitch;
 
         /// <summary>Before you leave (GDD §10.7 v2.5): what the apprentices do while the game is closed.</summary>
         private void CycleAwayPlan()
@@ -299,10 +334,89 @@ namespace TillWinter.Unity
             _ngPlusArmed = 0f;
         }
 
+        // ------------------------------------------------------------------ help (the manual the game never had)
+
+        private GameObject _help;
+        private RectTransform _helpRows;
+
+        /// <summary>
+        /// Everything the game teaches once, in one place: the hints fire in the first minutes and the systems that
+        /// arrive later (ground, rotation, freshness, the grade, the barn, heirs) were never explained anywhere.
+        /// The text is data — a heading key and its lines — so a new system is a row here, not a new screen.
+        /// </summary>
+        private static readonly (string Heading, string[] Lines)[] HelpSections =
+        {
+            ("help.ring", new[] { "help.ring.1", "help.ring.2", "help.ring.3" }),
+            ("help.crops", new[] { "help.crops.1", "help.crops.2", "help.crops.3", "help.crops.4" }),
+            ("help.year", new[] { "help.year.1", "help.year.2", "help.year.3" }),
+            ("help.winter", new[] { "help.winter.1", "help.winter.2", "help.winter.3" }),
+            ("help.heritage", new[] { "help.heritage.1", "help.heritage.2", "help.heritage.3" }),
+            ("help.events", new[] { "help.events.1", "help.events.2", "help.events.3" }),
+            ("help.away", new[] { "help.away.1", "help.away.2" }),
+        };
+
+        private void BuildHelp(RectTransform canvas)
+        {
+            _help = Sheet(canvas, "HelpSheet", "help.title", 1300f, out var page);
+            UiKit.ScrollView(page, "Scroll", out _helpRows, _theme.SheetMuted);
+            UiKit.Stretch((RectTransform)_helpRows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -150f));
+            Btn(page, "stats.continue", () => { _help.SetActive(false); Show(_pause); }, -1180f);
+
+            // Paragraph heights come from the layout system, not from a guess: a Turkish entry runs two lines longer
+            // than its English twin, and a fixed step stacked them on top of each other.
+            var layout = _helpRows.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.spacing = 14f;
+            layout.padding = new RectOffset(12, 12, 8, 28);
+            var fitter = _helpRows.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            foreach (var section in HelpSections)
+            {
+                var head = UiKit.Label(_helpRows, section.Heading, Strings.Get(section.Heading), UiType.Heading, _theme.SheetInk, TextAnchor.UpperLeft, FontStyle.Bold);
+                head.enableAutoSizing = false;
+                head.margin = new Vector4(0f, 18f, 0f, 2f); // air above a heading, so sections read apart
+                foreach (var line in section.Lines)
+                {
+                    var text = UiKit.Label(_helpRows, line, Strings.Get(line), UiType.Body, _theme.SheetMuted, TextAnchor.UpperLeft);
+                    text.enableAutoSizing = false;
+                    text.enableWordWrapping = true;
+                }
+            }
+
+            // The crop table (v2.8): timings, value and the liked season were in the config and nowhere a player looks.
+            var cropsHead = UiKit.Label(_helpRows, "help.crop_table", Strings.Get("help.crop_table"), UiType.Heading, _theme.SheetInk, TextAnchor.UpperLeft, FontStyle.Bold);
+            cropsHead.enableAutoSizing = false;
+            cropsHead.margin = new Vector4(0f, 18f, 0f, 2f);
+            var cfg = _game != null && _game.Sim != null ? _game.Sim.Config : new TillWinter.Core.FarmConfig();
+            for (int i = 0; i < cfg.Crops.Length; i++)
+            {
+                var c = cfg.Crops[i];
+                var line = UiKit.Label(_helpRows, "Crop " + i, Strings.Format("help.crop_line",
+                    ("name", Strings.Crop(c)), ("tier", i + 1), ("season", Strings.Get("season." + c.Likes)),
+                    ("seconds", NumberFormat.Whole(Mathf.RoundToInt(c.Water + c.Grow + c.Harvest))), ("value", NumberFormat.Short(c.Value))),
+                    UiType.Body, _theme.SheetMuted, TextAnchor.UpperLeft);
+                line.enableAutoSizing = false;
+                line.enableWordWrapping = true;
+            }
+            var note = UiKit.Label(_helpRows, "help.crop_note", Strings.Get("help.crop_note"), UiType.Body, _theme.SheetMuted, TextAnchor.UpperLeft);
+            note.enableAutoSizing = false;
+            note.enableWordWrapping = true;
+        }
+
+        private void ShowHelp()
+        {
+            _pause.SetActive(false);
+            _help.SetActive(true);
+        }
+
         private void BuildAlbum(RectTransform canvas)
         {
             _album = Sheet(canvas, "AlbumSheet", "album.title", 1300f, out var page);
-            UiKit.ScrollView(page, "Scroll", out _albumRows);
+            UiKit.ScrollView(page, "Scroll", out _albumRows, _theme.SheetMuted);
             // Clear of the sheet's title rule: the newest page's heading sat on the line.
             UiKit.Stretch((RectTransform)_albumRows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -150f));
             Btn(page, "stats.continue", () => { _album.SetActive(false); Show(_pause); }, -1180f);
@@ -338,7 +452,9 @@ namespace TillWinter.Unity
                 UiKit.Stretch(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -64f), new Vector2(-150f, -8f));
                 var line = UiKit.Label(r, "Line", Strings.Format("album.line", ("years", e.Years), ("coins", NumberFormat.Short(e.Coins)), ("seeds", e.Seeds), ("harvests", e.Harvests)), UiType.Body, _theme.SheetInk, TextAnchor.UpperLeft);
                 UiKit.Stretch(line.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -116f), new Vector2(0f, -66f));
-                string storyKey = e.Challenge > 0 ? "album.story.challenge" : e.Trait > 0 ? "album.story." + (TillWinter.Core.HeirTrait)e.Trait : "album.story.first";
+                // Two tellings per story, by the generation's parity: with six traits the sixth page repeated the first.
+                string storyKey = (e.Challenge > 0 ? "album.story.challenge" : e.Trait > 0 ? "album.story." + (TillWinter.Core.HeirTrait)e.Trait : "album.story.first")
+                    + (e.Generation % 2 == 0 ? ".2" : "");
                 var story = UiKit.Label(r, "Story", Strings.Get(storyKey), UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft);
                 UiKit.Stretch(story.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -176f), new Vector2(0f, -118f));
                 for (int s = 0; s < 3; s++)
@@ -367,14 +483,15 @@ namespace TillWinter.Unity
         private void BuildStats(RectTransform canvas)
         {
             _stats = Sheet(canvas, "StatsSheet", "stats.title", 1300f, out var page); // tall enough that every row shows above the button
-            UiKit.ScrollView(page, "Scroll", out var rows);
+            UiKit.ScrollView(page, "Scroll", out var rows, _theme.SheetMuted);
             UiKit.Stretch((RectTransform)rows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -110f));
-            rows.sizeDelta = new Vector2(0f, StatKeys.Length * StatRow + 20f);
+            const float statTop = 18f; // the first row sat on the band's rule
+            rows.sizeDelta = new Vector2(0f, statTop + StatKeys.Length * StatRow + 20f);
             _statValues = new TMP_Text[StatKeys.Length];
             for (int i = 0; i < StatKeys.Length; i++)
             {
                 var row = UiKit.Rect("Row " + StatKeys[i], rows);
-                UiKit.Box(row, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -i * StatRow), new Vector2(800f, StatRow));
+                UiKit.Box(row, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -statTop - i * StatRow), new Vector2(800f, StatRow));
                 if (i > 0)
                 {
                     var line = UiKit.Panel(row, "Divider", new Color(_theme.SheetInk.r, _theme.SheetInk.g, _theme.SheetInk.b, 0.12f), false, false);
@@ -426,8 +543,9 @@ namespace TillWinter.Unity
         public void PlaceButton(bool top)
         {
             var rt = _pauseButton.GetComponent<RectTransform>();
-            if (top) UiKit.Box(rt, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -24f), new Vector2(110f, 96f));
-            else UiKit.Box(rt, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), new Vector2(130f, 110f));
+            // Top right in both cases now: the bottom-right corner belongs to Inspect and End year, side by side.
+            UiKit.Box(rt, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -24f), new Vector2(110f, 96f));
+            _ = top;
         }
 
         /// <summary>The statistics sheet; <paramref name="after"/> runs on Continue (null = resume play).</summary>
@@ -466,15 +584,104 @@ namespace TillWinter.Unity
 
         private void Update()
         {
+            // The Android back button (and Escape on a desk) walks back the way in, sheet by sheet, and opens pause from play.
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame) HandleBack();
             // The New Game+ confirmation runs out: the button says so instead of waiting for a tap that only re-arms it.
             if (_ngPlusArmed > 0f && Time.unscaledTime > _ngPlusArmed) ResetNgPlusLabel();
+            if (_pasteArmed > 0f && Time.unscaledTime > _pasteArmed) ResetPasteLabel();
             if (_resetDone || !_settings.activeSelf) return;
             _resetHeld = _reset.Held ? _resetHeld + Time.unscaledDeltaTime : 0f;
             _resetFill.anchorMax = new Vector2(Mathf.Clamp01(_resetHeld / ResetHoldSeconds), 1f);
             if (_resetHeld >= ResetHoldSeconds) ResetSave();
         }
 
+        private WinterScreen _winter;
+
+        private void HandleBack()
+        {
+            if (_help != null && _help.activeSelf) { _help.SetActive(false); Show(_pause); return; }
+            if (_album != null && _album.activeSelf) { _album.SetActive(false); Show(_pause); return; }
+            if (_credits.activeSelf)
+            {
+                if (_creditsFromSettings) { _creditsFromSettings = false; Show(_settings); }
+                else if (_fromMenu) CloseSheets();
+                else Show(_pause);
+                return;
+            }
+            if (_settings.activeSelf) { SettingsStore.Save(); if (_fromMenu) CloseSheets(); else Show(_pause); return; }
+            if (_stats.activeSelf) { ContinueFromStats(); return; }
+            if (_pause.activeSelf) { Resume(); return; }
+            // Nothing open: the Winter screen handles its own back (a node sheet, then the tree); in a year, pause.
+            if (_fromMenu || _game == null || _game.Paused || !_pauseButton.gameObject.activeSelf) return;
+            if (_winter == null) _winter = GetComponent<WinterScreen>();
+            if (_winter != null && _winter.IsOpen) return;
+            Open();
+        }
+
         // ------------------------------------------------------------------ settings actions
+
+        // ------------------------------------------------------------------ farm codes (settings, data section)
+
+        private void CopySave()
+        {
+            // Always the file, never the running farm: on the daily farm the farm on screen is not the family's.
+            string json = SaveController.ReadRaw();
+            if (SaveController.Parse(json) == null)
+            {
+                Status("settings.transfer_none");
+                return;
+            }
+            GUIUtility.systemCopyBuffer = SaveTransfer.Encode(json);
+            Status("settings.transfer_copied");
+            Haptics.Play(HapticKind.Light);
+        }
+
+        /// <summary>First tap reads the clipboard and says what is in it; the second one overwrites this farm.</summary>
+        private void PasteSave()
+        {
+            if (!SaveTransfer.TryDecode(GUIUtility.systemCopyBuffer, out var json))
+            {
+                ResetPasteLabel();
+                Status("settings.transfer_bad");
+                return;
+            }
+            var data = SaveController.Parse(json);
+            if (data == null)
+            {
+                ResetPasteLabel();
+                Status("settings.transfer_bad");
+                return;
+            }
+            if (_pasteArmed <= 0f || Time.unscaledTime > _pasteArmed)
+            {
+                _pasteArmed = Time.unscaledTime + 4f; // same window as the New Game+ confirmation
+                UiKit.ButtonLabel(_pasteSave).text = Strings.Get("settings.paste_confirm");
+                _transferStatus.text = Strings.Format("settings.transfer_ready", ("gen", data.Generation), ("year", data.Year));
+                return;
+            }
+            ResetPasteLabel();
+            if (_save != null && !_save.WriteRaw(json))
+            {
+                Status("settings.transfer_failed");
+                return;
+            }
+            if (_save == null && !SaveController.WriteFile(json))
+            {
+                Status("settings.transfer_failed");
+                return;
+            }
+            Haptics.Play(HapticKind.Heavy);
+            Reload(false); // the farm on screen is not this one any more
+        }
+
+        private void ResetPasteLabel()
+        {
+            _pasteArmed = 0f;
+            if (_pasteSave != null) UiKit.ButtonLabel(_pasteSave).text = Strings.Get("settings.paste_save");
+        }
+
+        private void Status(string key) => _transferStatus.text = Strings.Get(key);
 
         private void SetLanguage(string lang)
         {
@@ -546,6 +753,7 @@ namespace TillWinter.Unity
             _hapticsSwitch.Set(s.HapticsEnabled);
             _motionSwitch.Set(s.ReduceMotion);
             _handsFreeSwitch.Set(s.HandsFree);
+            _remindersSwitch.Set(s.Reminders);
             _largeTextSwitch.Set(s.LargeText);
             _musicValue.text = Mathf.RoundToInt(s.MusicVolume * 100f) + "%";
             _sfxValue.text = Mathf.RoundToInt(s.SfxVolume * 100f) + "%";
@@ -571,6 +779,8 @@ namespace TillWinter.Unity
             "stats.generations", "stats.years", "stats.coins", "stats.harvests", "stats.by_ring", "stats.by_apprentice",
             "stats.by_tractor", "stats.crows", "stats.golden", "stats.best_combo", "stats.time",
             "stats.heirlooms", "stats.heir",
+            // v2.8: counters the game kept and never showed.
+            "stats.goals", "stats.pests", "stats.late_frost", "stats.best_grade", "stats.seeds",
         };
 
         private static readonly string[] StatIcons =
@@ -578,6 +788,7 @@ namespace TillWinter.Unity
             UiIcons.Generation, UiIcons.Year, UiIcons.Coin, UiIcons.Harvest, UiIcons.Ring, UiIcons.Apprentice,
             UiIcons.Tractor, UiIcons.Crow, UiIcons.Golden, UiIcons.Combo, UiIcons.Time,
             UiIcons.Golden, UiIcons.Generation,
+            UiIcons.Ring, UiIcons.Crow, UiIcons.Year, UiIcons.Coin, UiIcons.Generation,
         };
 
         private static int HeirloomCount(int bits)
@@ -599,6 +810,8 @@ namespace TillWinter.Unity
                 NumberFormat.Whole(g.BestCombo), Strings.Format("stats.time_value", ("hours", minutes / 60), ("minutes", minutes % 60)),
                 HeirloomCount(g.Achievements) + " / " + TillWinter.Core.Legacy.AchievementCount,
                 Strings.Get("heir." + g.Trait),
+                NumberFormat.Whole(g.GoalsMet), NumberFormat.Whole(g.PestsStopped), NumberFormat.Whole(g.HarvestsLateFrost),
+                NumberFormat.Whole(g.BestGradeThisGeneration) + " / 3", NumberFormat.Whole(g.SeedsEarnedTotal),
             };
             for (int i = 0; i < _statValues.Length && i < values.Length; i++) _statValues[i].text = values[i];
         }
@@ -655,9 +868,10 @@ namespace TillWinter.Unity
         /// <summary>A volume row: the slider plus the percentage to its right. Returns the value label.</summary>
         private TMP_Text SliderRow(RectTransform page, string name, float value, UnityAction<float> onChanged, float y)
         {
-            var slider = UiKit.Slider(page, name, 0f, 1f, value, onChanged);
-            UiKit.Box(slider.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(ControlX - 40f, y - 20f), new Vector2(ControlWidth - 80f, 50f));
             var text = UiKit.Label(page, name + "Value", "", UiType.Label, _theme.SheetMuted, TextAnchor.MiddleRight);
+            // The number is the slider's, live: it read 100% whatever the thumb did until the sheet was reopened.
+            var slider = UiKit.Slider(page, name, 0f, 1f, value, v => { onChanged(v); text.text = Mathf.RoundToInt(v * 100f) + "%"; });
+            UiKit.Box(slider.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(ControlX - 40f, y - 20f), new Vector2(ControlWidth - 80f, 50f));
             UiKit.Box(text.rectTransform, new Vector2(0.5f, 1f), new Vector2(1f, 1f), new Vector2(ControlX + ControlWidth * 0.5f, y - 20f), new Vector2(90f, 50f));
             return text;
         }

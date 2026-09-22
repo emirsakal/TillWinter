@@ -466,7 +466,8 @@ namespace TillWinter.Unity
         private void Update()
         {
             var kb = UnityEngine.InputSystem.Keyboard.current; // the Android back button arrives as Escape
-            if (_visible && kb != null && kb.escapeKey.wasPressedThisFrame) HandleBack();
+            // While the pause menu is up it owns the back button (its sheets close first).
+            if (_visible && !_game.Paused && kb != null && kb.escapeKey.wasPressedThisFrame) HandleBack();
         }
 
         private SkillTreeView ActiveView => _showingHeritage ? _heritage : _almanac;
@@ -632,7 +633,14 @@ namespace TillWinter.Unity
             string reason = "";
             if (maxed) reason = Strings.Get("ui.maxed");
             else if (!available) reason = Strings.Format("ui.needs", ("prereqs", string.Join(" / ", Strings.Names(Prereqs(node)))));
-            else if (!can) reason = Strings.Format("ui.not_enough", ("currency", Strings.Get(heritage ? "ui.seeds" : "ui.coins")));
+            else if (!can)
+            {
+                // "Not enough coins" leaves the player counting. Say how many are missing.
+                double missing = sim.CostOf(_selectedId) - (heritage ? _game.State.Seeds : _game.State.Coins);
+                reason = Strings.Format("ui.short_by",
+                    ("amount", NumberFormat.Short(System.Math.Max(1d, System.Math.Ceiling(missing)))),
+                    ("currency", Strings.Get(heritage ? "ui.seeds" : "ui.coins")));
+            }
             _sheetReason.text = reason;
             UiKit.ButtonLabel(_buy).text = maxed ? Strings.Get("ui.maxed") : !available ? Strings.Get("ui.locked") : Strings.Get("ui.buy");
         }
@@ -646,6 +654,7 @@ namespace TillWinter.Unity
         private Button _sell, _preserve, _respec;
         private long _barnKey = -1;
         private long _suggestKey = -1;
+        private string _suggestedId;
 
         private void BuildBarnStrip()
         {
@@ -754,7 +763,8 @@ namespace TillWinter.Unity
             long key = s.Phase == Phase.Winter ? (long)System.Math.Min(s.Coins, 1e15) * 64 + _game.Sim.Almanac.Levels.Count : -2;
             if (key == _suggestKey) return;
             _suggestKey = key;
-            _almanac.SetSuggested(AlmanacAdvisor.Suggest(_game.Sim));
+            _suggestedId = AlmanacAdvisor.Suggest(_game.Sim);
+            _almanac.SetSuggested(_suggestedId);
         }
 
         private Image[] _gradeStars;
@@ -919,10 +929,22 @@ namespace TillWinter.Unity
                     : "";
             }
             int retireSeeds = s.Phase == Phase.Winter && _game.Sim.CanRetire ? _game.Sim.SeedsIfRetiredNow : -1;
-            if (retireSeeds != _retireSeedsKey)
+            // The same line is empty in the Heritage phase, so there it says how far the tree is from the ending:
+            // "finish Heritage" is the whole goal and nothing else counted it out loud.
+            int heritageDone = s.Phase == Phase.Heritage ? _game.Sim.HeritageDone : -1;
+            // Nothing affordable is its own state: the tree says "locked" everywhere and never says what to do about it.
+            bool broke = s.Phase == Phase.Winter && retireSeeds < 0 && _suggestedId == null;
+            int hintKey = ((retireSeeds + 2) * 1000 + heritageDone + 2) * 2 + (broke ? 1 : 0);
+            if (hintKey != _retireSeedsKey)
             {
-                _retireSeedsKey = retireSeeds;
-                _retireHint.text = retireSeeds >= 0 ? Strings.Format("ui.retire_now", ("seeds", retireSeeds)) : "";
+                _retireSeedsKey = hintKey;
+                _retireHint.text = retireSeeds >= 0
+                    ? Strings.Format("ui.retire_now", ("seeds", retireSeeds))
+                    : heritageDone >= 0
+                        ? Strings.Format("heritage.progress", ("done", heritageDone), ("total", _game.Sim.HeritageTotal))
+                        : broke
+                            ? Strings.Get("ui.nothing_affordable")
+                            : "";
             }
 
             // Bottom sheet slide.

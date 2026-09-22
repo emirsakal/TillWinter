@@ -16,6 +16,14 @@ namespace TillWinter.Tests
             return cfg;
         }
 
+        /// <summary>A year with some take: the greenhouse is capped to a share of it (v2.8), so an empty year earns none.</summary>
+        private static void EarnAYear(FarmSim sim)
+        {
+            sim.DebugForceRipeAll();
+            for (int i = 0; i < 200 && sim.State.CoinsThisYear <= 0; i++) sim.Tick(0.05f, new RingInput(1f, 1f));
+            Assert.That(sim.State.CoinsThisYear, Is.GreaterThan(0), "the ring harvested something");
+        }
+
         private static void Winter(FarmSim sim, double coins)
         {
             sim.DebugSkipToWinter();
@@ -99,20 +107,22 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void FertileStart_PlotsBoughtInWinter_StartSpringWet()
+        public void FertileStart_PlotsBoughtInWinter_ArriveWet_AndEveryPlotStartsSpringWet()
         {
             var cfg = Cfg();
             var sim = new FarmSim(cfg, 1);
             Winter(sim, 1e6);
             sim.DebugSetLevel("fertile_start", 1);
             Assert.IsTrue(sim.TryBuy("expand_field"));
-            sim.StartNextYear();
             int n = sim.State.GridSize;
             foreach (var p in sim.State.Plots)
             {
                 bool added = p.Pos.X == n - 1 || p.Pos.Y == n - 1;
-                Assert.AreEqual(added ? PlotState.Wet : PlotState.Dry, p.State, p.Pos.ToString());
+                Assert.AreEqual(added ? PlotState.Wet : PlotState.Dry, p.State, "in winter " + p.Pos);
             }
+            sim.StartNextYear();
+            // (v2.8) The node is a spring, not a winter, effect: every plot begins the year Wet.
+            foreach (var p in sim.State.Plots) Assert.AreEqual(PlotState.Wet, p.State, p.Pos.ToString());
         }
 
         [Test]
@@ -185,6 +195,7 @@ namespace TillWinter.Tests
         public void Respec_TakesBackTheWintersGreenhouseIncome()
         {
             var sim = new FarmSim(Cfg(), 1);
+            EarnAYear(sim);
             Winter(sim, 1e6);
             sim.DebugSetLevel("year_length", 1);
             Assert.IsTrue(sim.TryBuy("greenhouse"));
@@ -200,6 +211,7 @@ namespace TillWinter.Tests
         public void GreenhouseCoins_AreNotTheYearsTake()
         {
             var sim = new FarmSim(Cfg(), 1);
+            EarnAYear(sim);
             Winter(sim, 1e6);
             sim.DebugSetLevel("year_length", 1);
             Assert.IsTrue(sim.TryBuy("greenhouse"));

@@ -162,7 +162,8 @@ namespace TillWinter.Core
 
         // Ring (GDD §2.1)
         public float BaseRingRadius = 0.7f;
-        public float MaxRingRadius = 2.5f;
+        /// <summary>Base + every Almanac and Heritage radius level exactly (0.7 + 1.25 + 0.75): no bought level is wasted (v2.8).</summary>
+        public float MaxRingRadius = 2.7f;
 
         // Year (GDD §3)
         public float BaseYearLength = 90f;
@@ -194,7 +195,7 @@ namespace TillWinter.Core
         /// <summary>Lifetime coins in this generation needed before "Pass on the farm" unlocks.</summary>
         public double HeritageThreshold = 3500; // S9 balance (GDD §7 v1.4); M.3 3000 → 3500 for the season, goal and grade income (v1.9)
         /// <summary>Seeds = floor(sqrt(lifetimeCoinsThisGeneration / SeedDivisor)); 3 500 coins = 9 seeds (at 37).</summary>
-        public double SeedDivisor = 37; // M.3: 30 → 33, the ending stays past five hours with the new year income (v1.9); M.7: → 35 for heirs and heirlooms (v2.3); play-test fixes: → 37, the balance bot stopped buying nodes it never uses
+        public double SeedDivisor = 38; // M.3: 30 → 33, the ending stays past five hours with the new year income (v1.9); M.7: → 35 for heirs and heirlooms (v2.3); play-test fixes: → 37, the balance bot stopped buying nodes it never uses; v2.8 balance pass: → 38 (wider ring, Ring Master coins, Head Start)
 
         // Events and remaining nodes (GDD §4, §5, §6, §7)
         public float CloudDriftSeconds = 8f;
@@ -205,6 +206,16 @@ namespace TillWinter.Core
         public float TractorSecondsPerPlot = 0.15f;
         public double GreenhouseRatePerLevel = 0.02;
         public float GreenhouseWinterCapSeconds = 60f;
+        /// <summary>A winter's greenhouse income never exceeds this share of the year that just ended (v2.8): it is a
+        /// bonus on the year, not a second year.</summary>
+        public double GreenhouseWinterCapShare = 0.25;
+        /// <summary>The Heritage Old Scarecrow leaves this fraction of the crow spawn chance (v2.8) instead of none, so
+        /// the crow bounty and a watchful heir still have crows to act on.</summary>
+        public float ScarecrowImmunityCrowFactor = 0.25f;
+        /// <summary>Ring Master: on top of its ring speeds, the ring's coin bonus per level (v2.8).</summary>
+        public double RingMasterCoinsPerLevel = 0.10;
+        /// <summary>Head Start: every plot begins spring Wet and this far grown (v2.8).</summary>
+        public float SpringHeadStartProgress = 0.5f;
         // --- M.1 (GDD §2.5 v1.6): ripe crops do not wait forever, the combo pays out, a moving ring works faster.
         /// <summary>A Ripe plot keeps full value for this long; after it the value falls off.</summary>
         public float RipeGraceSeconds = 12f;

@@ -18,7 +18,7 @@ namespace TillWinter.Unity
         private const float FadeOut = 0.35f;
 
         private static SceneLoader _active;
-        private const int TipCount = 6;
+        private const int TipCount = 14; // v2.8: eight more, for the systems the first six never mention
 
         /// <summary>Set by the title scene from the save: the seedling takes the season the farm is in.</summary>
         public static Color? LeafTint;

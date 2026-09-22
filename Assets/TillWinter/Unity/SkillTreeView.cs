@@ -23,8 +23,8 @@ namespace TillWinter.Unity
             public SkillNode Node;
             public RectTransform Rt;
             public Image Ring, Inner, Lock;
-            /// <summary>The Almanac's suggestion (GDD §6.3 v2.2): a small star badge.</summary>
-            public Image Badge;
+            /// <summary>The Almanac's suggestion (GDD §6.3 v2.2): a small star badge and the word that explains it.</summary>
+            public Image Badge, SuggestPill;
             public TMP_Text LevelText;
             public Image Icon;
             public Image[] Pips;
@@ -91,8 +91,13 @@ namespace TillWinter.Unity
             _suggested = id;
             for (int i = 0; i < _nodeList.Count; i++)
             {
+                bool on = _nodeList[i].Node.Id == id;
                 var badge = _nodeList[i].Badge;
-                if (badge != null) badge.gameObject.SetActive(_nodeList[i].Node.Id == id);
+                if (badge != null) badge.gameObject.SetActive(on);
+                var pill = _nodeList[i].SuggestPill;
+                if (pill != null) pill.gameObject.SetActive(on);
+                // The pill reaches past the node, so the suggested node draws over its neighbours while it wears one.
+                if (on) _nodeList[i].Rt.SetAsLastSibling();
             }
         }
         public string SelectedId => _selectedId;
@@ -252,6 +257,14 @@ namespace TillWinter.Unity
                 var badgeStar = NodeIcons.Image(nv.Badge.transform, "star", _theme.Paper);
                 UiKit.Box(badgeStar.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (size * 0.22f));
                 nv.Badge.gameObject.SetActive(false);
+                // A star on its own says nothing. Only one node wears it at a time, so it can afford a word.
+                nv.SuggestPill = UiKit.Panel(nv.Rt, "SuggestedLabel", _theme.Accent, true, false);
+                nv.SuggestPill.raycastTarget = false;
+                UiKit.Box(nv.SuggestPill.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, size * 0.92f), new Vector2(size * 1.7f, size * 0.34f));
+                var pillText = UiKit.Label(nv.SuggestPill.transform, "Text", Strings.Get("ui.suggested"), Mathf.RoundToInt(size * 0.2f), _theme.Paper, TextAnchor.MiddleCenter, FontStyle.Bold);
+                pillText.raycastTarget = false;
+                UiKit.Stretch(pillText.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
+                nv.SuggestPill.gameObject.SetActive(false);
 
                 _nodes[node.Id] = nv;
                 _nodeList.Add(nv);

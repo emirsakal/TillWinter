@@ -48,7 +48,8 @@ and neighbour variety, stony and fertile ground, a greenhouse that earns through
 
 **Comfort.** A getting-started checklist for the first generation, a hands-free ring that tends the
 plots around a tap, a plan for what the helpers do while the app is closed, reduce-motion, larger
-text, and a quality tier chosen from the device.
+text, and a quality tier chosen from the device. A farm code moves a save to another phone, and
+local reminders (opt-in) let you know when the passive work is ready.
 
 ---
 
@@ -98,6 +99,9 @@ fails the suite.
 | `ui-tour.bat <folder>` | Opens all 40-odd screens and sheets through their own buttons and writes a screenshot of each (the images above came from it) |
 
 Plus `release-compile-check.bat`, which fails if debug-only code leaks into a release build.
+
+[`docs/STORE.md`](docs/STORE.md) has the store listing package (texts, screenshots, form answers);
+[`docs/RELEASE.md`](docs/RELEASE.md) has the steps to cut a release.
 
 **Mobile discipline.** No per-frame allocation in gameplay code (numbers are written into char
 buffers, not strings), pooled VFX, one rate limiter for repeatable triggers, haptics behind a
@@ -157,4 +161,5 @@ Kod tarafında dikkat çeken şey ayrım: **bütün kurallar Unity'yi hiç tanı
 Bu sayede oyun sabit bir adım ve tohumla her seferinde aynı şekilde işliyor; denge bir simülasyonla
 ölçülüyor, kayıt dosyasının her sürümü eski kayıtlarla test ediliyor ve 330 test yalnızca kuralları
 sınıyor. Tasarım `docs/GDD.md`'de, mimari kuralları `CLAUDE.md`'de, açık bırakılan her karar
-`DECISIONS.md`'de yazılı.
+`DECISIONS.md`'de yazılı. Mağaza paketi `docs/STORE.md`'de, sürüm çıkarma adımları
+`docs/RELEASE.md`'de.

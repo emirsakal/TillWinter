@@ -260,6 +260,26 @@ namespace TillWinter.Unity
             return icon;
         }
 
+        /// <summary>
+        /// An icon button that says what it does: the icon rides high on the face and a word sits under it. A row of
+        /// bare pictograms is a quiz; the word costs a few pixels and answers it.
+        /// </summary>
+        public static Image ButtonCaption(Button button, string iconKey, string caption)
+        {
+            var icon = ButtonIcon(button, iconKey);
+            Box(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -36f), Vector2.one * 40f);
+            var label = ButtonLabel(button);
+            label.gameObject.SetActive(false); // a captioned button speaks through its caption
+            var text = Label(icon.transform.parent, "Caption", caption, 22, label.color, TextAnchor.LowerCenter);
+            Box(text.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(150f, 30f));
+            text.raycastTarget = false;
+            text.enableWordWrapping = false;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 14f;
+            text.fontSizeMax = 22f;
+            return icon;
+        }
+
         public static Button Button(Transform parent, string name, string text, int fontSize, Color bg, Color fg, UnityAction onClick)
         {
             // A flat rounded rectangle read as a placeholder. The button is now a face sitting on a darker lip, so it
@@ -288,7 +308,14 @@ namespace TillWinter.Unity
             return btn;
         }
 
-        public static TMP_Text ButtonLabel(Button b) => b.GetComponentInChildren<TMP_Text>();
+        public static TMP_Text ButtonLabel(Button b) => b.GetComponentInChildren<TMP_Text>(true);
+
+        /// <summary>The word under a <see cref="ButtonCaption"/> icon, for buttons whose caption carries a value.</summary>
+        public static TMP_Text CaptionLabel(Button b)
+        {
+            var t = b.transform.Find("Face/Caption");
+            return t != null ? t.GetComponent<TMP_Text>() : null;
+        }
 
         /// <summary>A soft drop shadow behind a card: the same rounded shape, offset down and darkened.</summary>
         public static Image Shadow(RectTransform card, Color color, float offset = 8f, float spread = 6f)
@@ -327,10 +354,19 @@ namespace TillWinter.Unity
         }
 
         /// <summary>A vertical scroll view; add content to <paramref name="content"/> (its height grows downward).</summary>
-        public static ScrollRect ScrollView(Transform parent, string name, out RectTransform content)
+        /// <summary>
+        /// A vertical scroll view. With <paramref name="bar"/> it also gets a thin scrollbar on its right edge that
+        /// appears only when the content is taller than the view: the one honest sign that there is more below.
+        /// </summary>
+        public static ScrollRect ScrollView(Transform parent, string name, out RectTransform content, Color? bar = null)
         {
             var viewport = Rect(name, parent);
             var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            if (bar.HasValue)
+            {
+                scroll.verticalScrollbar = VerticalBar(viewport, bar.Value);
+                scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            }
             viewport.gameObject.AddComponent<RectMask2D>();
             var blocker = viewport.gameObject.AddComponent<Image>();
             blocker.color = new Color(0f, 0f, 0f, 0.002f); // catches the drag without showing
@@ -346,6 +382,30 @@ namespace TillWinter.Unity
             scroll.movementType = ScrollRect.MovementType.Elastic;
             scroll.scrollSensitivity = 40f;
             return scroll;
+        }
+
+        private static Scrollbar VerticalBar(RectTransform viewport, Color color)
+        {
+            var rt = Rect("Scrollbar", viewport);
+            rt.anchorMin = new Vector2(1f, 0f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(1f, 0.5f);
+            rt.sizeDelta = new Vector2(8f, -20f);
+            rt.anchoredPosition = new Vector2(-6f, 0f);
+            var track = rt.gameObject.AddComponent<Image>();
+            track.sprite = Rounded;
+            track.type = Image.Type.Sliced;
+            track.color = new Color(color.r, color.g, color.b, 0.12f);
+            track.raycastTarget = false;
+            var bar = rt.gameObject.AddComponent<Scrollbar>();
+            bar.direction = Scrollbar.Direction.BottomToTop;
+            var area = Rect("Sliding Area", rt);
+            Stretch(area, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var handle = Panel(area, "Handle", new Color(color.r, color.g, color.b, 0.55f), true, false);
+            bar.handleRect = handle.rectTransform;
+            bar.targetGraphic = handle;
+            bar.transition = Selectable.Transition.None;
+            return bar;
         }
 
         public static Slider Slider(Transform parent, string name, float min, float max, float value, UnityAction<float> onChanged)
