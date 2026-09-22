@@ -19,7 +19,7 @@ namespace TillWinter.Unity
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
         // Four section headings since round three; hands-free (v2.5). The large-text setting wraps both hint lines,
         // so the sheet and the two hint rows grow with it instead of letting a second line fall into the next section.
-        private static float SettingsHeight => 2260f + (UiType.Scale > 1f ? 80f : 0f);
+        private static float SettingsHeight => 2400f + (UiType.Scale > 1f ? 120f : 0f);
         private static float HintHeight => UiType.Scale > 1f ? 78f : 44f;
         private static float HintGap => UiType.Scale > 1f ? 100f : 60f;
         private const float SectionHeight = 64f;
@@ -138,6 +138,12 @@ namespace TillWinter.Unity
             y -= RowHeight - 10f;
             Text(p, "HandsFreeHint", Strings.Get("settings.hands_free_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
             y -= HintGap;
+            // A local reminder, opt-in: the switch asks the system for permission the first time it is turned on.
+            RowLabel(p, "settings.reminders", y);
+            _remindersSwitch = SwitchRow(p, "Reminders", s.Reminders, on => { SettingsStore.Current.Reminders = on; if (on) Reminders.RequestPermission(); }, y);
+            y -= RowHeight - 10f;
+            Text(p, "RemindersHint", Strings.Get("settings.reminders_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
+            y -= HintGap;
 
             Section(p, "settings.section.sound", ref y);
             RowLabel(p, "settings.music", y);
@@ -229,6 +235,10 @@ namespace TillWinter.Unity
             Text(p, "KitsAudio", Strings.Get("credits.kits_audio"), y, UiType.Label, _theme.SheetMuted, TextAnchor.MiddleCenter, 50f);
             y -= 90f;
             Text(p, "Font", Strings.Get("credits.font"), y, UiType.Label, _theme.SheetInk, TextAnchor.MiddleCenter);
+            y -= 100f;
+            // The two links a store listing points at, reachable from inside the game as well.
+            Btn(p, "credits.privacy", () => Application.OpenURL(Links.Privacy), y, 380f, -200f);
+            Btn(p, "credits.support", () => Application.OpenURL(Links.Support), y, 380f, 200f);
             // Back retraces the way in: Settings if Credits was opened from there, otherwise straight out.
             Btn(page, "settings.back", () =>
             {
@@ -266,7 +276,7 @@ namespace TillWinter.Unity
         // ------------------------------------------------------------------ album and New Game+ (GDD §8.2–§8.3 v2.4)
 
         private Button _ngPlus, _away;
-        private UiSwitch _handsFreeSwitch;
+        private UiSwitch _handsFreeSwitch, _remindersSwitch;
 
         /// <summary>Before you leave (GDD §10.7 v2.5): what the apprentices do while the game is closed.</summary>
         private void CycleAwayPlan()
@@ -564,6 +574,9 @@ namespace TillWinter.Unity
 
         private void Update()
         {
+            // The Android back button (and Escape on a desk) walks back the way in, sheet by sheet, and opens pause from play.
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame) HandleBack();
             // The New Game+ confirmation runs out: the button says so instead of waiting for a tap that only re-arms it.
             if (_ngPlusArmed > 0f && Time.unscaledTime > _ngPlusArmed) ResetNgPlusLabel();
             if (_pasteArmed > 0f && Time.unscaledTime > _pasteArmed) ResetPasteLabel();
@@ -571,6 +584,29 @@ namespace TillWinter.Unity
             _resetHeld = _reset.Held ? _resetHeld + Time.unscaledDeltaTime : 0f;
             _resetFill.anchorMax = new Vector2(Mathf.Clamp01(_resetHeld / ResetHoldSeconds), 1f);
             if (_resetHeld >= ResetHoldSeconds) ResetSave();
+        }
+
+        private WinterScreen _winter;
+
+        private void HandleBack()
+        {
+            if (_help != null && _help.activeSelf) { _help.SetActive(false); Show(_pause); return; }
+            if (_album != null && _album.activeSelf) { _album.SetActive(false); Show(_pause); return; }
+            if (_credits.activeSelf)
+            {
+                if (_creditsFromSettings) { _creditsFromSettings = false; Show(_settings); }
+                else if (_fromMenu) CloseSheets();
+                else Show(_pause);
+                return;
+            }
+            if (_settings.activeSelf) { SettingsStore.Save(); if (_fromMenu) CloseSheets(); else Show(_pause); return; }
+            if (_stats.activeSelf) { ContinueFromStats(); return; }
+            if (_pause.activeSelf) { Resume(); return; }
+            // Nothing open: the Winter screen handles its own back (a node sheet, then the tree); in a year, pause.
+            if (_fromMenu || _game == null || _game.Paused || !_pauseButton.gameObject.activeSelf) return;
+            if (_winter == null) _winter = GetComponent<WinterScreen>();
+            if (_winter != null && _winter.IsOpen) return;
+            Open();
         }
 
         // ------------------------------------------------------------------ settings actions
@@ -707,6 +743,7 @@ namespace TillWinter.Unity
             _hapticsSwitch.Set(s.HapticsEnabled);
             _motionSwitch.Set(s.ReduceMotion);
             _handsFreeSwitch.Set(s.HandsFree);
+            _remindersSwitch.Set(s.Reminders);
             _largeTextSwitch.Set(s.LargeText);
             _musicValue.text = Mathf.RoundToInt(s.MusicVolume * 100f) + "%";
             _sfxValue.text = Mathf.RoundToInt(s.SfxVolume * 100f) + "%";

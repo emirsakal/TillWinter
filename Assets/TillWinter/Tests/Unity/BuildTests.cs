@@ -43,6 +43,12 @@ namespace TillWinter.Tests.Unity
             Assert.AreEqual(ManagedStrippingLevel.Medium, PlayerSettings.GetManagedStrippingLevel(NamedBuildTarget.Android));
             Assert.AreEqual(AndroidArchitecture.ARM64, PlayerSettings.Android.targetArchitectures);
             Assert.AreEqual(TwBuild.AndroidMinSdk, (int)PlayerSettings.Android.minSdkVersion, "lowest level Unity 6000.3 supports");
+            Assert.AreEqual(TwBuild.AndroidTargetSdk, (int)PlayerSettings.Android.targetSdkVersion, "target level pinned, never Auto");
+            Assert.That(TwBuild.AndroidTargetSdk, Is.GreaterThanOrEqualTo(35), "Play's floor for new apps");
+            Assert.IsFalse(PlayerSettings.Android.forceInternetPermission, "no INTERNET permission: the game is offline");
+            Assert.IsTrue(PlayerSettings.Android.renderOutsideSafeArea, "edge to edge; the HUD keeps to Screen.safeArea itself");
+            Assert.IsFalse(PlayerSettings.SplashScreen.show, "the studio mark opens the app, not the engine splash");
+            Assert.IsFalse(PlayerSettings.muteOtherAudioSources, "the player's own music keeps playing");
             Assert.AreEqual("15.0", PlayerSettings.iOS.targetOSVersionString);
             Assert.IsTrue(PlayerSettings.iOS.requiresFullScreen);
             Assert.IsTrue(PlayerSettings.gcIncremental);

@@ -466,7 +466,8 @@ namespace TillWinter.Unity
         private void Update()
         {
             var kb = UnityEngine.InputSystem.Keyboard.current; // the Android back button arrives as Escape
-            if (_visible && kb != null && kb.escapeKey.wasPressedThisFrame) HandleBack();
+            // While the pause menu is up it owns the back button (its sheets close first).
+            if (_visible && !_game.Paused && kb != null && kb.escapeKey.wasPressedThisFrame) HandleBack();
         }
 
         private SkillTreeView ActiveView => _showingHeritage ? _heritage : _almanac;

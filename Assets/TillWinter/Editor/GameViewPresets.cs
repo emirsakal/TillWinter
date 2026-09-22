@@ -35,6 +35,7 @@ namespace TillWinter.EditorTools
             ("1080x1920 (Portrait)", 1080, 1920),
             ("1080x2400 (Portrait)", 1080, 2400),
             ("1536x2048 (Tablet)", 1536, 2048),
+            ("1320x2868 (iPhone 6.9)", 1320, 2868), // App Store Connect's required iPhone screenshot size
         };
 
         static GameViewPresets()
