@@ -30,7 +30,7 @@ namespace TillWinter.Unity
         private const int Grid = 3;
         private const float IslandWidth = 5.5f; // larger island, so it meets the buttons instead of floating over a gap
         /// <summary>Where the island centre sits vertically on screen (title above, buttons below).</summary>
-        private const float IslandScreenY = 0.575f;
+        private const float IslandScreenY = 0.605f; // a little higher: at 0.575 the island's edge ran under the primary button
         private const float ButtonWidth = 620f, ButtonHeight = 112f, ButtonGap = 22f, BottomMargin = 170f;
         private static readonly int[] Tiers = { 0, 1, 3, 2, 0, 5, 1, 5, 2 };
 

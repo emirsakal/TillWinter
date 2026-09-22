@@ -124,7 +124,7 @@ namespace TillWinter.Unity
         private void BuildSettings(RectTransform canvas)
         {
             _settings = Sheet(canvas, "SettingsSheet", "settings.title", SettingsHeight, out var page);
-            UiKit.ScrollView(page, "Scroll", out var p);
+            UiKit.ScrollView(page, "Scroll", out var p, _theme.SheetMuted);
             UiKit.Stretch((RectTransform)p.parent, Vector2.zero, Vector2.one, new Vector2(0f, 150f), new Vector2(0f, -BandHeight - 10f));
             var s = SettingsStore.Current;
             float y = -16f;
@@ -181,8 +181,8 @@ namespace TillWinter.Unity
             for (int i = 0; i < 3; i++)
             {
                 int choice = i - 1;
-                _quality[i] = Btn(p, q[i], () => { QualityTiers.ApplyChoice(choice); RefreshSettings(); }, y, 134f, 88f + i * 137f); // same right edge as the switches
-                UiKit.ButtonLabel(_quality[i]).fontSizeMax = UiType.Size(28);
+                _quality[i] = Btn(p, q[i], () => { QualityTiers.ApplyChoice(choice); RefreshSettings(); }, y, 120f, 101f + i * 134f); // same right edge as the switches, 14 px apart
+                UiKit.ButtonLabel(_quality[i]).fontSizeMax = UiType.Size(26);
             }
             y -= RowHeight + 20f;
 
@@ -223,10 +223,9 @@ namespace TillWinter.Unity
 
         private void BuildCredits(RectTransform canvas)
         {
-            _credits = Sheet(canvas, "CreditsSheet", "credits.title", 820f, out var page);
-            UiKit.ScrollView(page, "Scroll", out var p);
-            UiKit.Stretch((RectTransform)p.parent, Vector2.zero, Vector2.one, new Vector2(0f, 120f), new Vector2(0f, -110f));
-            p.sizeDelta = new Vector2(0f, 1000f);
+            _credits = Sheet(canvas, "CreditsSheet", "credits.title", CreditsHeight, out var page);
+            UiKit.ScrollView(page, "Scroll", out var p, _theme.SheetMuted);
+            UiKit.Stretch((RectTransform)p.parent, Vector2.zero, Vector2.one, new Vector2(0f, 150f), new Vector2(0f, -BandHeight - 10f));
             float y = -20f;
             // Grouped tightly: the lines used to sit in tall boxes that left gaps bigger than the text.
             Text(p, "MadeBy", Strings.Get("credits.made_by"), y, UiType.Heading, _theme.SheetInk, TextAnchor.MiddleCenter, 70f).fontStyle = FontStyles.Bold;
@@ -244,14 +243,18 @@ namespace TillWinter.Unity
             // The two links a store listing points at, reachable from inside the game as well.
             Btn(p, "credits.privacy", () => Application.OpenURL(Links.Privacy), y, 380f, -200f);
             Btn(p, "credits.support", () => Application.OpenURL(Links.Support), y, 380f, 200f);
+            y -= RowHeight;
+            p.sizeDelta = new Vector2(0f, -y + 20f); // the content is as tall as its rows; the sheet no longer guesses
             // Back retraces the way in: Settings if Credits was opened from there, otherwise straight out.
             Btn(page, "settings.back", () =>
             {
                 if (_creditsFromSettings) { _creditsFromSettings = false; Show(_settings); }
                 else if (_fromMenu) CloseSheets();
                 else Show(_pause);
-            }, -700f);
+            }, -(CreditsHeight - 120f));
         }
+
+        private const float CreditsHeight = 980f; // the two link buttons and large text no longer fit 820
 
         /// <summary>Main menu entry: Settings (and Credits from it); Back closes the sheets instead of showing Pause.</summary>
         public void OpenSettingsFrom(Action unused)
@@ -355,7 +358,7 @@ namespace TillWinter.Unity
         private void BuildHelp(RectTransform canvas)
         {
             _help = Sheet(canvas, "HelpSheet", "help.title", 1300f, out var page);
-            UiKit.ScrollView(page, "Scroll", out _helpRows);
+            UiKit.ScrollView(page, "Scroll", out _helpRows, _theme.SheetMuted);
             UiKit.Stretch((RectTransform)_helpRows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -150f));
             Btn(page, "stats.continue", () => { _help.SetActive(false); Show(_pause); }, -1180f);
 
@@ -413,7 +416,7 @@ namespace TillWinter.Unity
         private void BuildAlbum(RectTransform canvas)
         {
             _album = Sheet(canvas, "AlbumSheet", "album.title", 1300f, out var page);
-            UiKit.ScrollView(page, "Scroll", out _albumRows);
+            UiKit.ScrollView(page, "Scroll", out _albumRows, _theme.SheetMuted);
             // Clear of the sheet's title rule: the newest page's heading sat on the line.
             UiKit.Stretch((RectTransform)_albumRows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -150f));
             Btn(page, "stats.continue", () => { _album.SetActive(false); Show(_pause); }, -1180f);
@@ -480,14 +483,15 @@ namespace TillWinter.Unity
         private void BuildStats(RectTransform canvas)
         {
             _stats = Sheet(canvas, "StatsSheet", "stats.title", 1300f, out var page); // tall enough that every row shows above the button
-            UiKit.ScrollView(page, "Scroll", out var rows);
+            UiKit.ScrollView(page, "Scroll", out var rows, _theme.SheetMuted);
             UiKit.Stretch((RectTransform)rows.parent, Vector2.zero, Vector2.one, new Vector2(40f, 150f), new Vector2(-40f, -110f));
-            rows.sizeDelta = new Vector2(0f, StatKeys.Length * StatRow + 20f);
+            const float statTop = 18f; // the first row sat on the band's rule
+            rows.sizeDelta = new Vector2(0f, statTop + StatKeys.Length * StatRow + 20f);
             _statValues = new TMP_Text[StatKeys.Length];
             for (int i = 0; i < StatKeys.Length; i++)
             {
                 var row = UiKit.Rect("Row " + StatKeys[i], rows);
-                UiKit.Box(row, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -i * StatRow), new Vector2(800f, StatRow));
+                UiKit.Box(row, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -statTop - i * StatRow), new Vector2(800f, StatRow));
                 if (i > 0)
                 {
                     var line = UiKit.Panel(row, "Divider", new Color(_theme.SheetInk.r, _theme.SheetInk.g, _theme.SheetInk.b, 0.12f), false, false);
@@ -539,8 +543,9 @@ namespace TillWinter.Unity
         public void PlaceButton(bool top)
         {
             var rt = _pauseButton.GetComponent<RectTransform>();
-            if (top) UiKit.Box(rt, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -24f), new Vector2(110f, 96f));
-            else UiKit.Box(rt, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), new Vector2(130f, 110f));
+            // Top right in both cases now: the bottom-right corner belongs to Inspect and End year, side by side.
+            UiKit.Box(rt, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -24f), new Vector2(110f, 96f));
+            _ = top;
         }
 
         /// <summary>The statistics sheet; <paramref name="after"/> runs on Continue (null = resume play).</summary>
@@ -863,9 +868,10 @@ namespace TillWinter.Unity
         /// <summary>A volume row: the slider plus the percentage to its right. Returns the value label.</summary>
         private TMP_Text SliderRow(RectTransform page, string name, float value, UnityAction<float> onChanged, float y)
         {
-            var slider = UiKit.Slider(page, name, 0f, 1f, value, onChanged);
-            UiKit.Box(slider.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(ControlX - 40f, y - 20f), new Vector2(ControlWidth - 80f, 50f));
             var text = UiKit.Label(page, name + "Value", "", UiType.Label, _theme.SheetMuted, TextAnchor.MiddleRight);
+            // The number is the slider's, live: it read 100% whatever the thumb did until the sheet was reopened.
+            var slider = UiKit.Slider(page, name, 0f, 1f, value, v => { onChanged(v); text.text = Mathf.RoundToInt(v * 100f) + "%"; });
+            UiKit.Box(slider.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(ControlX - 40f, y - 20f), new Vector2(ControlWidth - 80f, 50f));
             UiKit.Box(text.rectTransform, new Vector2(0.5f, 1f), new Vector2(1f, 1f), new Vector2(ControlX + ControlWidth * 0.5f, y - 20f), new Vector2(90f, 50f));
             return text;
         }

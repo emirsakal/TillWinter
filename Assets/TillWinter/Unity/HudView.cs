@@ -197,10 +197,9 @@ namespace TillWinter.Unity
             // Ending the year early (GDD §3 v1.5): a field that is finished should not mean watching the clock. It
             // costs the standing crop exactly as frost would, so it sits out at the edge of the band rather than
             // anywhere a thumb rests during play.
-            var endYear = UiKit.Button(_bottomBand, "EndYear", Strings.Get("ui.end_year"), UiType.Caption,
-                _theme.SheetIdle, _theme.SheetButtonText, OpenEndYearConfirm);
-            UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-24f, _theme.SeasonNameYInBand - 20f), new Vector2(220f, 64f)); // below the bar, not touching its end
+            var endYear = UiKit.Button(_safe, "EndYear", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, OpenEndYearConfirm);
+            UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-190f, 54f), new Vector2(130f, 110f));
+            UiKit.ButtonCaption(endYear, UiIcons.Time, Strings.Get("ui.end_year")); // beside Inspect, the same shape as its neighbours
 
             // A long streak pays out: the milestone says so over the ring.
             _milestone = UiKit.Label(_safe, "ComboMilestone", "", UiType.Heading, _theme.Combo, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -451,7 +450,9 @@ namespace TillWinter.Unity
         private void BuildInspect()
         {
             _inspectButton = UiKit.Button(_safe, "Inspect", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleInspect);
-            UiKit.Box(_inspectButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 420f), new Vector2(130f, 110f));
+            // Bottom right, where the pause button used to be; End year sits to its left. The bottom band's corner used
+            // to hold it alone at the top of the left column, which read as a stray.
+            UiKit.Box(_inspectButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), new Vector2(130f, 110f));
             UiKit.ButtonCaption(_inspectButton, "zoomIn", Strings.Get("hud.cap_inspect"));
 
             var card = UiKit.Card(_safe, "PlotCard", _theme.YearCard, false);
@@ -633,15 +634,20 @@ namespace TillWinter.Unity
         {
             var card = UiKit.Panel(_safe, "Checklist", _theme.HintBackground, true, false);
             _checklist = card.rectTransform;
-            UiKit.Box(_checklist, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -_theme.TopPadding - 390f), new Vector2(520f, 290f));
+            // Top right under the pause button, in the sky: at the top left it lay across the island's corner.
+            UiKit.Box(_checklist, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -136f), new Vector2(300f, 226f)); // narrow: the coin counter is centred and wide
             var title = UiKit.Label(_checklist, "Title", Strings.Get("check.title"), UiType.Label, _theme.HintAccent, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.Box(title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -10f), new Vector2(480f, 44f));
+            UiKit.Box(title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -8f), new Vector2(270f, 40f));
             for (int i = 0; i < FarmSim.ChecklistSteps; i++)
             {
                 _checkMarks[i] = NodeIcons.Image(_checklist, "checkmark", _theme.HintText);
-                UiKit.Box(_checkMarks[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -62f - i * 44f), new Vector2(32f, 32f));
+                UiKit.Box(_checkMarks[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -54f - i * 34f), new Vector2(26f, 26f));
                 _checkLines[i] = UiKit.Label(_checklist, "Step" + i, Strings.Get("check." + (ChecklistStep)i), UiType.Caption, _theme.HintText, TextAnchor.MiddleLeft);
-                UiKit.Box(_checkLines[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(64f, -56f - i * 44f), new Vector2(440f, 44f));
+                UiKit.Box(_checkLines[i].rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(46f, -50f - i * 34f), new Vector2(246f, 34f));
+                _checkLines[i].enableWordWrapping = false;
+                _checkLines[i].enableAutoSizing = true;
+                _checkLines[i].fontSizeMax = _checkLines[i].fontSize;
+                _checkLines[i].fontSizeMin = 15f;
             }
             card.raycastTarget = false;
             _checklist.gameObject.SetActive(false);

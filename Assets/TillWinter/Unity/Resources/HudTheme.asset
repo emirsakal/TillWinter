@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e152de1fc27b6d4f8d103a5bb4612c2, type: 3}
   m_Name: HudTheme
   m_EditorClassIdentifier: TillWinter.Unity::TillWinter.Unity.HudTheme
-  StyleVersion: 3
+  StyleVersion: 4
   CardDark: {r: 0.16, g: 0.135, b: 0.12, a: 0.97}
   YearCard: {r: 0.965, g: 0.92, b: 0.84, a: 1}
   YearCardText: {r: 0.18, g: 0.14, b: 0.105, a: 1}
@@ -40,6 +40,8 @@ MonoBehaviour:
   TopPadding: 40
   PauseButton: {r: 0, g: 0, b: 0, a: 0.35}
   SheetOverlay: {r: 0.1, g: 0.08, b: 0.06, a: 0.72}
+  FrostEdge: {r: 0.8, g: 0.9, b: 1, a: 1}
+  Flash: {r: 1, g: 1, b: 1, a: 1}
   SheetPaper: {r: 0.965, g: 0.92, b: 0.84, a: 1}
   SheetInk: {r: 0.18, g: 0.14, b: 0.105, a: 1}
   SheetMuted: {r: 0.18, g: 0.14, b: 0.105, a: 0.65}
@@ -61,7 +63,7 @@ MonoBehaviour:
   SubFontSize: 38
   BarWidth: 960
   BarHeight: 26
-  SeasonBandY: 560
+  SeasonBandY: 540
   SeasonBandHeight: 132
-  BarYInBand: -26
-  SeasonNameYInBand: -66
+  BarYInBand: -40
+  SeasonNameYInBand: -76

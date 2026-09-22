@@ -112,8 +112,9 @@ namespace TillWinter.Unity
             _treesAutumn.Clear();
             if (_catalog.Trees != null && _catalog.Trees.Length > 0)
             {
-                PlaceTree(0, new Vector3(-edge + 0.7f, 0f, back - 0.2f), 0f);
-                PlaceTree(2, new Vector3(-edge + 1.5f, 0f, back + 0.4f), -40f);
+                // The two back trees stand apart so the kennel fits between them (the house corner was crowded).
+                PlaceTree(0, new Vector3(-edge + 0.45f, 0f, back - 0.15f), 0f);
+                PlaceTree(2, new Vector3(-edge + 2.35f, 0f, back + 0.45f), -40f);
                 PlaceTree(3, new Vector3(-edge + 0.5f, 0f, -half - 0.9f), 70f);
             }
             var bush = new Vector3(edge - 0.6f, 0f, -half - 0.8f);
@@ -123,10 +124,13 @@ namespace TillWinter.Unity
             // Up on the back strip beside the house, where there is room for it: down in front it crowded the field.
             Place(_catalog.Pond, "Pond", new Vector3(edge - 2.9f, 0f, back - 0.15f), 15f);
             // The kennel is scenery and batches with the rest; the dog must not, or batching would freeze its wag.
-            Place(_catalog.Kennel, "Kennel", new Vector3(edge - 1.95f, 0f, back - 0.35f), -25f);
-            PlaceDog(new Vector3(edge - 1.3f, 0f, back - 1.05f), -35f); // in front of the kennel, where it can be seen
+            // Between the back trees on the left, away from the house, pond and frog on the right.
+            var kennel = new Vector3(-edge + 1.4f, 0f, back + 0.1f);
+            Place(_catalog.Kennel, "Kennel", kennel, 25f);
+            var dogHome = new Vector3(-edge + 1.5f, 0f, back - 0.65f);
+            PlaceDog(dogHome, 35f); // in front of the kennel, where it can be seen
             // It trots along the grass strip just behind the fence, clear of the pond and the house.
-            _dogView?.SetArea(new Vector3(edge - 1.3f, 0f, back - 1.05f), -edge + 1.9f, edge - 0.5f, half + 0.55f + 0.3f, half + 0.55f + 0.42f);
+            _dogView?.SetArea(dogHome, -edge + 0.9f, edge - 0.5f, half + 0.55f + 0.3f, half + 0.55f + 0.42f);
             PlaceFrog(new Vector3(edge - 2.9f + 0.62f, 0f, back - 0.15f - 0.5f), 200f);
             // Stepping stones from the gate up to the farmhouse door.
             var gateStep = new Vector3(0f, 0f, half + 0.95f);

@@ -354,10 +354,19 @@ namespace TillWinter.Unity
         }
 
         /// <summary>A vertical scroll view; add content to <paramref name="content"/> (its height grows downward).</summary>
-        public static ScrollRect ScrollView(Transform parent, string name, out RectTransform content)
+        /// <summary>
+        /// A vertical scroll view. With <paramref name="bar"/> it also gets a thin scrollbar on its right edge that
+        /// appears only when the content is taller than the view: the one honest sign that there is more below.
+        /// </summary>
+        public static ScrollRect ScrollView(Transform parent, string name, out RectTransform content, Color? bar = null)
         {
             var viewport = Rect(name, parent);
             var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            if (bar.HasValue)
+            {
+                scroll.verticalScrollbar = VerticalBar(viewport, bar.Value);
+                scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            }
             viewport.gameObject.AddComponent<RectMask2D>();
             var blocker = viewport.gameObject.AddComponent<Image>();
             blocker.color = new Color(0f, 0f, 0f, 0.002f); // catches the drag without showing
@@ -373,6 +382,30 @@ namespace TillWinter.Unity
             scroll.movementType = ScrollRect.MovementType.Elastic;
             scroll.scrollSensitivity = 40f;
             return scroll;
+        }
+
+        private static Scrollbar VerticalBar(RectTransform viewport, Color color)
+        {
+            var rt = Rect("Scrollbar", viewport);
+            rt.anchorMin = new Vector2(1f, 0f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(1f, 0.5f);
+            rt.sizeDelta = new Vector2(8f, -20f);
+            rt.anchoredPosition = new Vector2(-6f, 0f);
+            var track = rt.gameObject.AddComponent<Image>();
+            track.sprite = Rounded;
+            track.type = Image.Type.Sliced;
+            track.color = new Color(color.r, color.g, color.b, 0.12f);
+            track.raycastTarget = false;
+            var bar = rt.gameObject.AddComponent<Scrollbar>();
+            bar.direction = Scrollbar.Direction.BottomToTop;
+            var area = Rect("Sliding Area", rt);
+            Stretch(area, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var handle = Panel(area, "Handle", new Color(color.r, color.g, color.b, 0.55f), true, false);
+            bar.handleRect = handle.rectTransform;
+            bar.targetGraphic = handle;
+            bar.transition = Selectable.Transition.None;
+            return bar;
         }
 
         public static Slider Slider(Transform parent, string name, float min, float max, float value, UnityAction<float> onChanged)
