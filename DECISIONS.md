@@ -1392,3 +1392,9 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   needs a platform SDK and an account setup), iOS 18 dark/tinted icon variants, a promo video,
   Android in-app review. Real-device testing (`docs/DEVICE-CHECKLIST.md`) and the keystore itself
   are the developer's steps before submission, not something a session can do.
+- The settings sheet became a scroll view (like help and stats): with the farm-code and reminder rows it
+  outgrew a 2340-tall screen and its title was cut. The sheet is 1900 tall everywhere; the rows scroll under
+  the band and above the Back button.
+- Store screenshot sets in `docs/store/screenshots/` (phone 1080x2340, tablet 1536x2048 from the clean tours;
+  iPhone 6.9" 1320x2868 resized from the 1284x2778 simulator device the tour resolves to, same aspect within
+  0.5%). Shot list: title, spring field, autumn dusk, seed bag, Almanac, node sheet, Heritage, album.

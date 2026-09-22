@@ -19,7 +19,9 @@ namespace TillWinter.Unity
         private const float PageWidth = 940f, RowHeight = 104f, ButtonWidth = 700f;
         // Four section headings since round three; hands-free (v2.5). The large-text setting wraps both hint lines,
         // so the sheet and the two hint rows grow with it instead of letting a second line fall into the next section.
-        private static float SettingsHeight => 2400f + (UiType.Scale > 1f ? 120f : 0f);
+        // The settings page scrolls (v2.8): it outgrew the screen with the farm-code and reminder rows, and it will
+        // keep growing. The sheet itself stays a size every phone can show; the rows live in a scroll view.
+        private const float SettingsHeight = 1900f;
         private static float HintHeight => UiType.Scale > 1f ? 78f : 44f;
         private static float HintGap => UiType.Scale > 1f ? 100f : 60f;
         private const float SectionHeight = 64f;
@@ -121,9 +123,11 @@ namespace TillWinter.Unity
 
         private void BuildSettings(RectTransform canvas)
         {
-            _settings = Sheet(canvas, "SettingsSheet", "settings.title", SettingsHeight, out var p);
+            _settings = Sheet(canvas, "SettingsSheet", "settings.title", SettingsHeight, out var page);
+            UiKit.ScrollView(page, "Scroll", out var p);
+            UiKit.Stretch((RectTransform)p.parent, Vector2.zero, Vector2.one, new Vector2(0f, 150f), new Vector2(0f, -BandHeight - 10f));
             var s = SettingsStore.Current;
-            float y = -150f;
+            float y = -16f;
 
             Section(p, "settings.section.general", ref y);
             RowLabel(p, "settings.language", y);
@@ -212,8 +216,9 @@ namespace TillWinter.Unity
             y -= 70f;
 
             _version = Text(p, "Version", "", y, UiType.Caption, _theme.SheetMuted, TextAnchor.MiddleCenter, 40f);
-            y -= 70f;
-            Btn(p, "settings.back", () => { SettingsStore.Save(); if (_fromMenu) CloseSheets(); else Show(_pause); }, y);
+            y -= 50f;
+            p.sizeDelta = new Vector2(0f, -y);
+            Btn(page, "settings.back", () => { SettingsStore.Save(); if (_fromMenu) CloseSheets(); else Show(_pause); }, -(SettingsHeight - 120f));
         }
 
         private void BuildCredits(RectTransform canvas)

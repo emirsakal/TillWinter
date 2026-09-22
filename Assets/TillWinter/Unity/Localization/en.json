@@ -39,7 +39,7 @@
   "settings.hands_free": "Hands-free ring",
   "settings.hands_free_hint": "Tap the field: the ring tends the plots around it.",
   "settings.reminders": "Reminders",
-  "settings.reminders_hint": "One notification when your helpers have worked their eight hours. Nothing else, ever.",
+  "settings.reminders_hint": "One notification when the helpers finish their eight hours.",
   "reminder.title": "The farm has been waiting",
   "reminder.body": "Your helpers worked eight hours. The harvest is in the barn and the beds want the ring.",
   "pause.away": "While away: {plan}",

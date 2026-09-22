@@ -39,7 +39,7 @@
   "settings.hands_free": "Eller serbest halka",
   "settings.hands_free_hint": "Tarlaya dokun: halka çevresindeki parsellere kendi bakar.",
   "settings.reminders": "Hatırlatmalar",
-  "settings.reminders_hint": "Yardımcıların sekiz saatini doldurunca tek bir bildirim. Başka hiçbir şey, hiçbir zaman.",
+  "settings.reminders_hint": "Yardımcılar sekiz saati doldurunca tek bildirim, başkası yok.",
   "reminder.title": "Çiftlik seni bekliyor",
   "reminder.body": "Yardımcıların sekiz saat çalıştı. Hasat ambarda, yataklar halkayı istiyor.",
   "pause.away": "Sen yokken: {plan}",
