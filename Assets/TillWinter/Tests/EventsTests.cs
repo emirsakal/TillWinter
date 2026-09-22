@@ -301,18 +301,23 @@ namespace TillWinter.Tests
         [Test]
         public void Greenhouse_OnlyInWinter_Formula_CapPerWinter_X2Node()
         {
-            var sim = NewSim();
+            // The share-of-the-year cap (v2.8) has its own test; here it is out of the way so the formula shows.
+            var sim = NewSim(c => c.GreenhouseWinterCapShare = 1000);
             sim.DebugSetLevel("greenhouse", 2);
             Run(sim, 5f, null);
             Assert.AreEqual(0, sim.State.Coins, "nothing during the year");
+            sim.DebugForceRipeAll();
+            Run(sim, 5f, new RingInput(1f, 1f)); // a year with a take: winter income is a share of it
+            double take = sim.State.Coins;
+            Assert.That(take, Is.GreaterThan(0));
             sim.DebugSkipToWinter();
             // 9 carrot plots: field value 9; rate = 2 x 0.02 x 9 = 0.36 coins/s
             Assert.That(sim.State.Greenhouse.CoinsPerSecond, Is.EqualTo(0.36).Within(1e-9));
             Assert.AreEqual(60f, sim.State.Greenhouse.SecondsLeftThisWinter);
             Run(sim, 10f, null);
-            Assert.That(sim.State.Coins, Is.EqualTo(3.6).Within(1e-3));
+            Assert.That(sim.State.Coins - take, Is.EqualTo(3.6).Within(1e-3));
             Run(sim, 100f, null);
-            Assert.That(sim.State.Coins, Is.EqualTo(0.36 * 60).Within(0.02), "capped at 60 s per winter");
+            Assert.That(sim.State.Coins - take, Is.EqualTo(0.36 * 60).Within(0.02), "capped at 60 s per winter");
             Assert.AreEqual(0f, sim.State.Greenhouse.SecondsLeftThisWinter);
             Assert.That(sim.State.Greenhouse.CoinsThisWinter, Is.EqualTo(21.6).Within(0.02));
 
@@ -320,6 +325,8 @@ namespace TillWinter.Tests
             Assert.That(sim.State.Greenhouse.CoinsPerSecond, Is.EqualTo(0.72).Within(1e-9));
             sim.StartNextYear();
             Assert.AreEqual(0f, sim.State.Greenhouse.SecondsLeftThisWinter);
+            sim.DebugForceRipeAll();
+            Run(sim, 5f, new RingInput(1f, 1f)); // this year needs a take of its own before its winter pays
             sim.DebugSkipToWinter();
             double before = sim.State.Coins;
             Run(sim, 5f, null);
@@ -435,7 +442,9 @@ namespace TillWinter.Tests
             var s = sim.State;
             Assert.AreEqual(PlotState.Wet, s.GetPlot(3, 3).State);
             Assert.AreEqual(PlotState.Wet, s.GetPlot(0, 3).State);
-            Assert.AreEqual(PlotState.Dry, s.GetPlot(0, 0).State, "existing plots untouched");
+            Assert.AreEqual(PlotState.Dry, s.GetPlot(0, 0).State, "existing plots untouched until spring");
+            sim.StartNextYear();
+            foreach (var p in sim.State.Plots) Assert.AreEqual(PlotState.Wet, p.State, "(v2.8) every plot starts spring Wet");
             var plain = NewSim();
             plain.DebugSkipToWinter();
             plain.DebugAddCoins(1000);
@@ -450,7 +459,11 @@ namespace TillWinter.Tests
             sim.DebugSetLevel("spring_head_start", 1);
             sim.DebugSkipToWinter();
             sim.StartNextYear();
-            foreach (var p in sim.State.Plots) Assert.AreEqual(PlotState.Wet, p.State);
+            foreach (var p in sim.State.Plots)
+            {
+                Assert.AreEqual(PlotState.Wet, p.State);
+                Assert.AreEqual(sim.Config.SpringHeadStartProgress, p.Progress, 1e-6f, "(v2.8) and part-grown");
+            }
             sim.DebugSkipToWinter();
             sim.DebugAddLifetimeCoins(5000);
             Assert.IsTrue(sim.Retire());
@@ -494,7 +507,7 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void ScarecrowImmunity_NeedsScarecrow2_ThenNoCrows()
+        public void ScarecrowImmunity_NeedsScarecrow2_ThenAQuarterOfTheCrows()
         {
             var cfg = TestConfig.Classic();
             var only = StatResolver.Resolve(cfg, new Dictionary<string, int>(), new Dictionary<string, int> { ["h_scarecrow_immunity"] = 1 });
@@ -503,18 +516,15 @@ namespace TillWinter.Tests
             Assert.AreEqual(0.25f, one.CrowSpawnChance, "a scarecrow guards an area; it does not lower the chance (v2.0)");
             Assert.AreEqual(1, one.ScarecrowCount);
             var both = StatResolver.Resolve(cfg, new Dictionary<string, int> { ["scarecrow"] = 2 }, new Dictionary<string, int> { ["h_scarecrow_immunity"] = 1 });
-            Assert.AreEqual(0f, both.CrowSpawnChance);
+            // (v2.8) A quarter, never none: at zero the crow bounty and a watchful heir had nothing left to act on.
+            Assert.AreEqual(0.25f * cfg.ScarecrowImmunityCrowFactor, both.CrowSpawnChance, 1e-6f);
 
+            // In a running sim the stat lands on the state (two scarecrows guard all of a 3x3 field, so a landing
+            // could not be observed here anyway).
             var sim = NewSim(c => c.CrowSpawnChance = 1f);
             sim.DebugSetLevel("scarecrow", 2);
             sim.DebugSetLevel("h_scarecrow_immunity", 1);
-            sim.DebugSkipToWinter();
-            sim.StartNextYear();
-            int landed = 0;
-            sim.CrowLanded += _ => landed++;
-            sim.DebugForceRipeAll();
-            Run(sim, 30f, null);
-            Assert.AreEqual(0, landed);
+            Assert.AreEqual(sim.Config.ScarecrowImmunityCrowFactor, sim.State.Stats.CrowSpawnChance, 1e-6f, "crows still come, just rarely");
         }
 
         // ---------------------------------------------------------------- every node does something

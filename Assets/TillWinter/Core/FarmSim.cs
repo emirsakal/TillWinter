@@ -468,10 +468,12 @@ namespace TillWinter.Core
             ClearCrows();
             foreach (var p in State.PlotArray)
             {
-                // Winter left every plot Dry; one that is Wet now was added this winter by `fertile_start` and stays so.
-                bool fertileNew = State.Stats.FertileStart && p.State == PlotState.Wet;
+                // (v2.8) Fertile Start: every plot begins spring Wet. Head Start: Wet and part-grown on top of it. The
+                // old Fertile Start only watered plots bought that winter, which was worth almost nothing.
                 p.Reset();
-                if ((State.Stats.SpringHeadStart || fertileNew) && !p.IsStony) p.State = PlotState.Wet;
+                if (p.IsStony) continue;
+                if (State.Stats.SpringHeadStart) { p.State = PlotState.Wet; p.Progress = Config.SpringHeadStartProgress; }
+                else if (State.Stats.FertileStart) p.State = PlotState.Wet;
             }
             ResetApprentices();
             ResetTractor();
@@ -2118,7 +2120,11 @@ namespace TillWinter.Core
             if (State.Stats.GreenhouseLevel <= 0 || gh.SecondsLeftThisWinter <= 0f || dt <= 0f) return;
             float used = Math.Min(dt, gh.SecondsLeftThisWinter);
             gh.SecondsLeftThisWinter -= used;
-            double coins = gh.CoinsPerSecond * used;
+            // (v2.8) A winter earns at most a share of the year it follows: a full golden field ran to tens of
+            // thousands a winter and every coin of it became seeds.
+            double cap = Config.GreenhouseWinterCapShare * State.CoinsThisYear;
+            double coins = Math.Min(gh.CoinsPerSecond * used, Math.Max(0, cap - gh.CoinsThisWinter));
+            if (coins <= 0) { gh.SecondsLeftThisWinter = 0f; return; }
             gh.CoinsThisWinter += coins;
             AddCoins(coins, false); // the year was graded at the frost: winter income is not its take
         }

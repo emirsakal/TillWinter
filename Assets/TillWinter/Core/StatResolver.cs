@@ -29,6 +29,8 @@ namespace TillWinter.Core
         /// <summary>Crops the barn holds (GDD §3.5 v2.2); 0 = no barn.</summary>
         public int BarnCapacity;
         public float YearLength, FrostWarningSeconds;
+        /// <summary>How far Long Summer lifts the year-length ceiling (v2.8).</summary>
+        public float YearLengthCapBonus;
 
         /// <summary>Highest crop tier plots may be upgraded to.</summary>
         public int MaxTierUnlocked;
@@ -96,6 +98,10 @@ namespace TillWinter.Core
                     case EffectType.FreeApprentice: s.ApprenticeCount += (int)Math.Round(v); break;
                     case EffectType.HeritageApprenticeYield: apprenticeYieldMult += v; break;
                     case EffectType.HeritageStartYearLength: s.YearLength += (float)v; break;
+                    // Long Summer counts past the ceiling, or it would be dead once the Almanac's year_length is maxed.
+                    case EffectType.LongSummer: s.YearLength += (float)v; s.YearLengthCapBonus += (float)v; break;
+                    // Ring Master pays the active player twice: faster ring, and more coins from what it picks.
+                    case EffectType.HeritageRingMaster: ringSpeedMult += (float)v; ringCoinsMult += cfg.RingMasterCoinsPerLevel * level; break;
                     case EffectType.AlmanacDiscount: s.AlmanacCostMult = Math.Max(0.05, 1 - v); break;
                     case EffectType.UnlockRainCloud: s.RainCloudUnlocked = true; break;
                     case EffectType.GoldenCropChance: s.GoldenCropChance = v; break;
@@ -163,11 +169,12 @@ namespace TillWinter.Core
             s.SoilMultiplier *= globalGrowth;
             s.ApprenticeYield *= apprenticeYieldMult;
 
-            // GDD §7: Heritage scarecrow immunity = Almanac scarecrow 2 + node -> no crows.
-            if (s.ScarecrowImmunity && Level(almanacLevels, "scarecrow") >= 2) s.CrowSpawnChance = 0f;
+            // GDD §7 (v2.8): Heritage Old Scarecrow + Almanac scarecrow 2 -> crows come a quarter as often, never never:
+            // at zero the crow bounty and the watchful heir had nothing left to act on.
+            if (s.ScarecrowImmunity && Level(almanacLevels, "scarecrow") >= 2) s.CrowSpawnChance *= cfg.ScarecrowImmunityCrowFactor;
 
             s.RingRadius = Math.Min(cfg.MaxRingRadius, s.RingRadius);
-            s.YearLength = Math.Min(cfg.MaxYearLength, s.YearLength);
+            s.YearLength = Math.Min(cfg.MaxYearLength + s.YearLengthCapBonus, s.YearLength);
             s.ApprenticeHarvestTime = Math.Max(cfg.ApprenticeMinHarvestTime, s.ApprenticeHarvestTime);
             s.StartGridSize = Math.Min(cfg.MaxGridSize, s.StartGridSize);
             s.TargetGridSize = Math.Min(cfg.MaxGridSize, s.TargetGridSize);

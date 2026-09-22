@@ -207,6 +207,10 @@ namespace TillWinter.Core
         HeritageApprenticeYield,
         ScarecrowImmunity,
         HeritageStartYearLength,
+        /// <summary>Ring speeds and the ring's coin bonus together: the active-play path (GDD §7.3 v2.8).</summary>
+        HeritageRingMaster,
+        /// <summary>Years longer, and the year-length ceiling raised by the same amount (GDD §7.3 v2.8).</summary>
+        LongSummer,
         GreenhouseX2,
         AlmanacDiscount,
     }

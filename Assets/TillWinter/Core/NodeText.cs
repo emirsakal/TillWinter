@@ -44,7 +44,8 @@ namespace TillWinter.Core
                 case EffectType.RingWaterSpeed: return "x" + F(s.RingWaterMult, "0.0");
                 case EffectType.RingGrowSpeed: return "x" + F(s.RingGrowMult, "0.0");
                 case EffectType.RingHarvestSpeed: return "x" + F(s.RingHarvestMult, "0.0");
-                case EffectType.HeritageRingSpeeds: return "+" + Pct(node.ValuePerLevel * level);
+                case EffectType.HeritageRingSpeeds:
+                case EffectType.HeritageRingMaster: return "+" + Pct(node.ValuePerLevel * level);
                 case EffectType.RingBonusCoins: return "+" + Pct(s.RingBonusMult - 1);
                 case EffectType.HeritageRingCoins: return "+" + Pct(node.ValuePerLevel * level);
                 case EffectType.RingCombo: return "+" + Pct(node.ValuePerLevel * level * cfg.ComboMaxStacks);
@@ -69,6 +70,7 @@ namespace TillWinter.Core
                 case EffectType.Barn: return s.BarnCapacity.ToString(CultureInfo.InvariantCulture);
                 case EffectType.ScarecrowImmunity: return level > 0 ? "owned" : "-";
                 case EffectType.YearLength:
+                case EffectType.LongSummer:
                 case EffectType.HeritageStartYearLength: return F(s.YearLength, "0") + " s";
                 case EffectType.FrostWarning: return F(s.FrostWarningSeconds, "0") + " s";
                 case EffectType.Greenhouse: return Pct(level * cfg.GreenhouseRatePerLevel) + "/s";

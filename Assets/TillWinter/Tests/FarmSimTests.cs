@@ -387,7 +387,7 @@ namespace TillWinter.Tests
             var cfg = new FarmConfig { BaseRingRadius = 2.0f };
             var capped = new FarmSim(cfg, 1);
             capped.DebugSetLevel("ring_radius", 5);
-            Assert.AreEqual(2.5f, capped.State.RingRadius);
+            Assert.AreEqual(cfg.MaxRingRadius, capped.State.RingRadius);
         }
 
         [Test]

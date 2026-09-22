@@ -79,9 +79,9 @@ namespace TillWinter.Core
             N("h_almanac_discount", Branch.Calendar, new[] { "h_start_year_length" }, 4, 6, EffectType.AlmanacDiscount, 0.05),
 
             // Paths (GDD §7.3 v2.3): two pairs where taking one rules out the other.
-            X(N("h_ring_master", Branch.Hand, new[] { "h_ring_coins" }, 2, 6, EffectType.HeritageRingSpeeds, 0.08), "h_steward"),
+            X(N("h_ring_master", Branch.Hand, new[] { "h_ring_coins" }, 2, 6, EffectType.HeritageRingMaster, 0.08), "h_steward"),
             X(N("h_steward", Branch.Helpers, new[] { "h_apprentice_yield" }, 2, 6, EffectType.HeritageApprenticeYield, 0.1), "h_ring_master"),
-            X(N("h_long_summer", Branch.Calendar, new[] { "h_start_year_length" }, 1, 8, EffectType.HeritageStartYearLength, 15), "h_rich_soil"),
+            X(N("h_long_summer", Branch.Calendar, new[] { "h_start_year_length" }, 1, 8, EffectType.LongSummer, 15), "h_rich_soil"),
             X(N("h_rich_soil", Branch.Soil, new[] { "h_global_growth" }, 1, 8, EffectType.HeritageGlobalGrowth, 0.08), "h_long_summer"),
         };
 
