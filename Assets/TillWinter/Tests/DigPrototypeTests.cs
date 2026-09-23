@@ -159,21 +159,52 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void Winter_EndsTheYear_KeepsEverything_ChargesNothing()
+        public void Winter_KeepsTheDepth_RefillsHp_ReapsTheRipe_LetsTheGrowingWait()
         {
-            var sim = New(c => c.YearLength = 5f);
+            var sim = New(c => { c.YearLength = 5f; c.BaseHp = 10; c.ComboPerCrop = 0.5; c.Crops[0].Grow = 1000f; }); // a slow crop: it must still be growing at the frost
             sim.Tiles[0].State = TileState.Growing;
             sim.Tiles[0].Growth = 0.5f;
             sim.Tiles[1].Layer = 3;
+            sim.Tiles[1].Hp = 4; // half-broken
+            sim.Tiles[1].MaxHp = 12;
+            sim.Tiles[2].State = TileState.Ripe;
+            sim.Tiles[3].State = TileState.Ripe;
+            double one = sim.CropValue(sim.Tiles[2]);
+            double coins = sim.Coins;
             for (int i = 0; i < 200 && !sim.Winter; i++) sim.Tick(0.05f);
             Assert.IsTrue(sim.Winter);
-            double coins = sim.Coins;
-            Assert.IsFalse(sim.Strike(sim.Tiles[2]), "nothing happens in winter");
+            Assert.AreEqual(coins + 2 * one, sim.Coins, 1e-6, "the frost reaped both ripe crops, one at a time: no combo");
+            Assert.AreEqual(2, sim.FrostReaped);
+            Assert.AreEqual(TileState.Hard, sim.Tiles[2].State);
+            Assert.AreEqual(1, sim.Tiles[2].Layer, "and the ground came back a layer deeper");
+            Assert.AreEqual(12, sim.Tiles[1].Hp, 1e-6, "winter closes the half-made crack");
+            Assert.AreEqual(TileState.Growing, sim.Tiles[0].State, "a growing crop waits");
+            Assert.That(sim.Tiles[0].Growth, Is.InRange(0.5f, 0.6f), "it grew a little and stopped for the winter");
+            Assert.IsFalse(sim.Strike(sim.Tiles[4]), "nothing happens in winter");
+            Assert.AreEqual(0, sim.Reap(new[] { sim.Tiles[4] }), "nor is anything reaped by hand");
+            coins = sim.Coins;
             sim.StartNextYear();
             Assert.AreEqual(2, sim.Year);
             Assert.AreEqual(coins, sim.Coins);
-            Assert.AreEqual(3, sim.Tiles[1].Layer, "depth persists");
+            Assert.AreEqual(3, sim.Tiles[1].Layer, "depth persists into the next year");
             Assert.AreEqual(sim.StaminaMax, sim.Stamina, "spring starts with a full depot");
+        }
+
+        [Test]
+        public void Rebirth_ReturnsTheFieldToTheSurface()
+        {
+            var sim = New();
+            sim.Tiles[0].Layer = 9;
+            sim.Tiles[1].State = TileState.Growing;
+            sim.Tiles[2].State = TileState.Ripe;
+            sim.ResetField();
+            foreach (var t in sim.Tiles)
+            {
+                Assert.AreEqual(0, t.Layer);
+                Assert.AreEqual(TileState.Hard, t.State);
+                Assert.AreEqual(t.MaxHp, t.Hp, 1e-9);
+                Assert.AreEqual(GroundType.Clay, t.Ground);
+            }
         }
 
         [Test]

@@ -58,7 +58,7 @@ namespace TillWinter.Core.Dig
         public int DamageLevel, CritLevel, CritChanceLevel, StaminaLevel, RegenLevel, GrowthLevel;
 
         // Counters for the tables
-        public int Strikes, Crits, TiredStrikes, Breaks, Reaped, CrowsEaten, CrowsScared, Chests, Golds;
+        public int Strikes, Crits, TiredStrikes, Breaks, Reaped, FrostReaped, CrowsEaten, CrowsScared, Chests, Golds;
         public double CoinsThisYear, CoinsFromBreaks, CoinsFromCrops;
         public float SecondsStaminaEmpty;
         public int Swipes;
@@ -172,7 +172,7 @@ namespace TillWinter.Core.Dig
         /// <summary>A swipe: every ripe tile on the path is reaped, n in one swipe pays the combo (GDD §2v3.7). Free.</summary>
         public double Reap(IList<DigTile> path)
         {
-            if (Winter) return 0;
+            if (Winter && !_frost) return 0;
             int n = 0;
             double sum = 0;
             for (int i = 0; i < path.Count; i++)
@@ -273,11 +273,36 @@ namespace TillWinter.Core.Dig
             if (YearTime >= Config.YearLength) EnterWinter();
         }
 
+        /// <summary>
+        /// Frost (GDD §2v3.2 v3.2): whatever is ripe is reaped by itself, one tile at a time so no combo is paid; a
+        /// growing crop waits for spring; hard ground keeps its layer but the winter closes every half-made crack —
+        /// HP refills. Nothing else changes; the depth is the farm's memory between years.
+        /// </summary>
+        private bool _frost;
+
         private void EnterWinter()
         {
             Winter = true;
-            foreach (var t in Tiles) { t.Watering = false; t.Crow = false; }
+            _frost = true;
+            foreach (var t in Tiles)
+            {
+                t.Watering = false;
+                t.Crow = false;
+                if (t.State == TileState.Ripe) { FrostReaped++; Reap(new[] { t }); }
+                if (t.State == TileState.Hard) t.Hp = t.MaxHp;
+            }
+            _frost = false;
             YearEnded?.Invoke(Year);
+        }
+
+        /// <summary>Rebirth: the field returns to the surface — every tile a fresh first layer, nothing growing.</summary>
+        public void ResetField()
+        {
+            foreach (var t in Tiles)
+            {
+                t.Layer = -1;
+                NewLayer(t);
+            }
         }
 
         /// <summary>Spring: the clock restarts; layers, crops and coins are kept (winter carries no penalty, GDD §2v3.2).</summary>
