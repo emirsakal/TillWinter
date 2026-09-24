@@ -80,8 +80,10 @@ namespace TillWinter.Unity
                 _plots.Add(plot.Pos, view);
                 _newPlots.Add(plot.Pos);
             }
+            // The field is centred on its own middle, so growing it moves every plot by half a step; the view's
+            // cached home has to follow, or the old plots snap back to where the smaller field stood.
             foreach (var kv in _plots)
-                kv.Value.transform.localPosition = _game.PlotToWorld(kv.Key);
+                kv.Value.SetHome(_game.PlotToWorld(kv.Key));
             _camera.Frame(state.GridSize, false);
         }
 
@@ -310,6 +312,14 @@ namespace TillWinter.Unity
         private float _hit, _hitStrength, _crackShow;
         private Vector3 _basePos;
         private bool _basePosSet;
+
+        /// <summary>Where the plot sits when nothing shakes it; the flinch is added on top each frame.</summary>
+        public void SetHome(Vector3 localPosition)
+        {
+            _basePos = localPosition;
+            _basePosSet = true;
+            transform.localPosition = localPosition;
+        }
 
         public void Init(Plot plot, VisualCatalog catalog, GameController game)
         {
