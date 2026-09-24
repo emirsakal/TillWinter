@@ -88,7 +88,7 @@ namespace TillWinter.EditorTools
             // Winter, reached through the new End year button.
             new Step("14b-end-year-confirm", 0.7f, () => Click("EndYear")),
             new Step("15-winter", 1.8f, () => Click("EndYearYes", "EndYearConfirm")),
-            new Step("16-node-sheet", 0.7f, () => Click("Ring", "Node ring_radius")),
+            new Step("16-node-sheet", 0.7f, () => Click("Ring", "Node hoe_damage")),
             new Step("17-retire-ready", 0.8f, GrantRetire),
             new Step("18-retire-confirm", 0.6f, () => Click("Retire")),
             new Step(null, 0.4f, () => Click("No", "ConfirmDim")),
@@ -140,10 +140,6 @@ namespace TillWinter.EditorTools
             new Step("41b-help-end", 0.5f, () => ScrollToEnd("HelpSheet")), // the crop table closes the sheet
             new Step(null, 0.4f, () => Click("stats.continue", "HelpSheet")),
             new Step(null, 0.4f, () => Click("pause.resume", "PauseSheet")),
-
-            // The ring's shapes, cycled from the HUD button.
-            new Step("25-ring-rake", 0.6f, () => Click("RingShape")),
-            new Step("26-ring-cross", 0.6f, () => Click("RingShape")),
 
             // The seed bag, opened from the HUD, then a crop in hand.
             new Step("27-seed-bag", 0.6f, () => Click("SeedBag")),
@@ -384,16 +380,17 @@ namespace TillWinter.EditorTools
             var game = Game;
             if (game == null) return;
             game.Sim.DebugSetLevel("apprentice_count", 2);
-            game.Sim.DebugSetLevel("irrigation", 3);
-            game.Sim.DebugSetLevel("sun", 3);
-            game.Sim.DebugSetLevel("ring_shape", 2); // the shape button only shows with its node
-            game.Sim.DebugSetLevel("tap_harvest", 1);
+            game.Sim.DebugSetLevel("growth", 3);
+            game.Sim.DebugSetLevel("hoe_damage", 3);
             game.Sim.DebugSetLevel("unlock_tomato", 1); // the seed bag shows once a second crop is unlocked
             game.Sim.DebugSetLevel("unlock_corn", 1);
             game.Sim.DebugSetLevel("unlock_pumpkin", 1);
-            // Special ground (GDD §2.4 v1.8), so the later shots show a stony and a fertile plot.
-            game.Sim.DebugSetPlotKind(new GridPos(0, 2), PlotKind.Stony);
+            // Special ground (GDD §2.4 v1.8) and every plot state (GDD §2v3.2), so the later shots show them all.
             game.Sim.DebugSetPlotKind(new GridPos(2, 0), PlotKind.Fertile);
+            game.Sim.DebugSetLayer(new GridPos(0, 2), 4);
+            game.Sim.DebugBreak(new GridPos(1, 1));
+            game.Sim.DebugBreak(new GridPos(2, 2));
+            game.Sim.DebugForceRipe(new GridPos(2, 2));
             game.Sim.DebugSetLevel("scarecrow", 2); // two scarecrows on the field and the button to move them
             game.Sim.DebugSetLevel("tractor", 1);
             game.Sim.DebugSetLevel("farm_dog", 1);

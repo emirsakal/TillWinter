@@ -9,15 +9,15 @@ using UnityEngine.UI;
 namespace TillWinter.Unity
 {
     /// <summary>
-    /// Corner toggle + panel: time scale, ring offset, ring radius override, +1000 coins, skip to Winter,
-    /// spawn crow, force Ripe on all plots, a per-node level editor, and the resolved stats.
+    /// Corner toggle + panel: time scale, +1000 coins, skip to Winter, spawn crow, break/ripen/reap every plot,
+    /// refill the depot, a per-node level editor, and the resolved stats.
     /// </summary>
     public sealed class DebugPanel : MonoBehaviour
     {
         private GameController _game;
         private AudioManager _audio;
         private GameObject _panel;
-        private TMP_Text _timeLabel, _offsetLabel, _radiusLabel, _info, _stats, _nodeLevel;
+        private TMP_Text _timeLabel, _info, _stats, _nodeLevel;
         private UnityEngine.UI.Button _qualityBtn;
 
         private SaveController _save;
@@ -42,8 +42,6 @@ namespace TillWinter.Unity
 
             float y = -24f;
             _timeLabel = SliderRow(rt, ref y, "Time scale", 0.5f, 8f, _game.TimeScale, v => { _game.TimeScale = v; });
-            _offsetLabel = SliderRow(rt, ref y, "Ring offset", 0f, 2f, _game.RingOffsetPlots, v => { _game.RingOffsetPlots = v; });
-            _radiusLabel = SliderRow(rt, ref y, "Ring radius override", 0f, 4f, 0f, v => { _game.Sim.DebugSetRingRadiusOverride(v < 0.25f ? (float?)null : v); });
 
             y -= 10f;
             float bw = (1080f - 60f - 60f - 60f) / 4f;
@@ -51,6 +49,11 @@ namespace TillWinter.Unity
             ButtonAt(rt, "Skip to Winter", 1, y, bw, () => _game.Sim.DebugSkipToWinter());
             ButtonAt(rt, "Spawn crow", 2, y, bw, () => _game.Sim.DebugSpawnCrow());
             ButtonAt(rt, "Ripe all", 3, y, bw, () => _game.Sim.DebugForceRipeAll());
+            y -= 100f;
+            ButtonAt(rt, "Break all", 0, y, bw, () => _game.Sim.DebugBreakAll());
+            ButtonAt(rt, "Reap all", 1, y, bw, () => _game.Sim.ReapAll());
+            ButtonAt(rt, "Refill stamina", 2, y, bw, () => _game.Sim.DebugSetStamina(_game.State.Stats.StaminaMax));
+            ButtonAt(rt, "Stamina 0", 3, y, bw, () => _game.Sim.DebugSetStamina(0f));
             y -= 100f;
             ButtonAt(rt, "+50 seeds", 0, y, bw, () => _game.Sim.DebugAddSeeds(50));
             ButtonAt(rt, "Force CanRetire", 1, y, bw, () => _game.Sim.DebugAddLifetimeCoins(_game.Sim.Config.HeritageThreshold));
@@ -152,9 +155,6 @@ namespace TillWinter.Unity
             var s = sim.State;
             var st = s.Stats;
             _timeLabel.text = "Time scale  x" + _game.TimeScale.ToString("0.0");
-            _offsetLabel.text = "Ring offset  " + _game.RingOffsetPlots.ToString("0.00") + " plots (toward top)";
-            var ov = sim.DebugRingRadiusOverride;
-            _radiusLabel.text = "Ring radius override  " + (ov.HasValue ? ov.Value.ToString("0.0") + " plots" : "off (almanac " + st.RingRadius.ToString("0.00") + ")");
             _info.text = s.Phase + "  gen " + s.Generation.Generation + "  seeds " + s.Seeds + "  lifetime " + s.Generation.LifetimeCoinsThisGeneration.ToString("0") + "/" + sim.Config.HeritageThreshold.ToString("0")
                          + "\nsave: " + _save.Path + "  (" + _save.LastResult + ")"
                          + "\nYear " + s.Year + "  " + s.Season + "  t=" + s.YearTime.ToString("0.0") + "/" + s.YearLength.ToString("0") + "s"
@@ -162,31 +162,26 @@ namespace TillWinter.Unity
                          + "\napprentices " + s.Apprentices.Count + "   audio " + (_audio.UsingKenneyClips ? "kenney" : "generated")
                          + "   fps " + (1f / Mathf.Max(0.0001f, Time.unscaledDeltaTime)).ToString("0")
                          + "\n" + BuildInfo.Summary + "   cold start " + AppLifecycle.ColdStartSeconds.ToString("0.00") + " s"
-                         + "\nquality " + QualityTiers.Current + " (" + QualityTiers.Reason + ")   ring offset " + _game.RingOffsetPlots.ToString("0.00");
+                         + "\nquality " + QualityTiers.Current + " (" + QualityTiers.Reason + ")   stamina " + s.Stamina.ToString("0") + "/" + st.StaminaMax.ToString("0") + (s.Tired ? " tired" : "") + "   beat " + (s.OnBeat ? "ON" : "off");
 
             if (_nodeIndex >= 0 && _nodeIndex < _nodeIds.Count)
                 _nodeLevel.text = s.GetLevel(_nodeIds[_nodeIndex]) + " / " + sim.GetMaxLevel(_nodeIds[_nodeIndex]);
 
             _stats.text =
-                "ring radius " + st.RingRadius.ToString("0.00") +
-                "\nring water x" + st.RingWaterMult.ToString("0.00") +
-                "\nring grow x" + st.RingGrowMult.ToString("0.00") +
-                "\nring harvest x" + st.RingHarvestMult.ToString("0.00") +
-                "\nring bonus x" + st.RingBonusMult.ToString("0.00") +
-                "\nsoil x" + st.SoilMultiplier.ToString("0.00") +
-                "\nirrigation " + st.IrrigationFactor.ToString("0.00") +
-                "\nsun " + st.SunFactor.ToString("0.00") +
-                "\ncrop value x" + st.CropValueMult.ToString("0.00") +
+                "damage " + st.StrikeDamage.ToString("0.0") + "  crit " + (st.CritChance * 100).ToString("0") + "% window " + st.CritWindow.ToString("0.00") + "  cooldown " + st.StrikeCooldown.ToString("0.00") + " s" +
+                "\nstamina " + st.StaminaMax.ToString("0") + " +" + st.StaminaRegen.ToString("0.00") + "/s  splash " + (st.SplashShare * 100).ToString("0") + "%  break x" + st.BreakBonusMult.ToString("0.00") + "  combo +" + (st.ComboPerCrop * 100).ToString("0") + "%/crop" +
+                "\ngrowth x" + st.GrowthMult.ToString("0.00") + "  soil x" + st.SoilMultiplier.ToString("0.00") + "  hp x" + st.HpMult.ToString("0.00") +
+                "\ncrop value x" + st.CropValueMult.ToString("0.00") + "  deepest " + s.Generation.DeepestLayer + "  strikes " + s.Generation.Strikes + " crits " + s.Generation.Crits +
                 "\napprentices " + st.ApprenticeCount +
                 "\n  speed " + st.ApprenticeSpeed.ToString("0.0") +
-                "\n  harvest " + st.ApprenticeHarvestTime.ToString("0.00") + " s" +
+                "\n  work " + st.ApprenticeWorkTime.ToString("0.00") + " s  dig " + (st.ApprenticeDigShare * 100).ToString("0") + "%" +
                 "\n  yield x" + st.ApprenticeYield.ToString("0.00") +
                 "\ncrow chance " + (st.CrowSpawnChance * 100f).ToString("0") + "%" +
                 "\nyear " + st.YearLength.ToString("0") + " s" +
                 "\nfrost warn " + st.FrostWarningSeconds.ToString("0") + " s" +
                 "\nmax tier " + st.MaxTierUnlocked +
                 "\ngrid target " + st.TargetGridSize +
-                "\ntractor " + st.TractorLevel + " greenhouse " + st.GreenhouseLevel + " combo " + st.RingComboLevel + " bounty " + st.CrowBountyLevel +
+                "\ntractor " + st.TractorLevel + " greenhouse " + st.GreenhouseLevel + " bounty " + st.CrowBountyLevel +
                 "\ncloud " + (st.RainCloudUnlocked ? "on" : "off") + " golden " + (st.GoldenCropChance * 100).ToString("0") + "% immunity " + st.ScarecrowImmunity;
         }
     }

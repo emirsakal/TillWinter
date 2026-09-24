@@ -108,7 +108,7 @@ namespace TillWinter.Unity
             UiKit.Stretch(top, new Vector2(0f, 0.78f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
             _topGroup = top.gameObject.AddComponent<CanvasGroup>();
             if (top.GetComponent<CanvasRenderer>() == null) top.gameObject.AddComponent<CanvasRenderer>();
-            top.gameObject.AddComponent<RaycastBlocker>(); // a finger resting on the HUD never becomes ring input
+            top.gameObject.AddComponent<RaycastBlocker>(); // a finger resting on the HUD never strikes the field
 
             _coinGroup = UiKit.Rect("Coins", top);
             UiKit.Box(_coinGroup, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 90f), new Vector2(700f, 130f));
@@ -207,12 +207,7 @@ namespace TillWinter.Unity
             UiKit.OutlineStrong(_milestone);
             _milestone.alpha = 0f;
 
-            // The ring's shape, once `ring_shape` is bought: round, rake, cross.
-            _shapeButton = UiKit.Button(_safe, "RingShape", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, CycleRingShape);
-            UiKit.Box(_shapeButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 180f), new Vector2(130f, 110f));
-            _shapeIcon = UiKit.ButtonCaption(_shapeButton, ShapeIcon(RingShape.Round), Strings.Get("hud.cap_shape"));
-            _shapeButton.gameObject.SetActive(false);
-
+            BuildStamina();
             BuildSeedBag();
             BuildHelperButtons();
             BuildEventUi();
@@ -246,7 +241,14 @@ namespace TillWinter.Unity
                 _pool.Push(rt);
                 _coinObjPool.Push(new Coin());
             }
+            for (int i = 0; i < NumberPoolWarm; i++)
+            {
+                var n = MakeNumber();
+                n.Rt.gameObject.SetActive(false);
+                _numberPool.Push(n);
+            }
             _game.Sim.Harvested += OnHarvested;
+            _game.Sim.PlotBroken += OnBroken;
             _game.Sim.ComboMilestone += OnComboMilestone;
             _game.Sim.CrowScared += OnCrowScared;
             _game.Sim.YearStarted += OnYearStarted;
@@ -511,15 +513,14 @@ namespace TillWinter.Unity
 
             _inspectTitle.text = Strings.Format("plot.title",
                 ("crop", Strings.Get(crop.Key)), ("season", Strings.Get("season." + crop.Likes)));
-            if (plot.IsStony)
-                _inspectState.text = Strings.Get("plot.state_stony");
+            if (plot.IsHard)
+                _inspectState.text = Strings.Format("plot.state_hard", ("hits", sim.HitsLeft(plot)), ("percent", Mathf.RoundToInt(plot.Cracks * 100f)));
             else if (plot.IsRipe)
                 _inspectState.text = Strings.Format("plot.state_ripe", ("percent", Mathf.RoundToInt((float)sim.Freshness(plot) * 100f)));
             else
-                _inspectState.text = Strings.Format(plot.State == PlotState.Dry ? "plot.state_dry" : "plot.state_wet",
-                    ("percent", Mathf.RoundToInt(plot.Progress * 100f)));
-            _inspectGround.text = Strings.Get(plot.Kind == PlotKind.Fertile ? "plot.ground_fertile"
-                : plot.IsStony ? "plot.ground_stony" : "plot.ground_normal");
+                _inspectState.text = Strings.Format(plot.Watering ? "plot.state_watering" : "plot.state_growing", ("percent", Mathf.RoundToInt(plot.Progress * 100f)));
+            string ground = Strings.Get(plot.Hardpan ? "ground.hardpan" : "ground." + plot.Ground);
+            _inspectGround.text = Strings.Format(plot.Kind == PlotKind.Fertile ? "plot.ground_fertile" : "plot.ground_layer", ("layer", plot.Layer + 1), ("ground", ground));
 
             double value = crop.Value * state.Stats.CropValueMult * sim.PlotValueMultiplier(plot) * sim.Freshness(plot);
             if (state.FrostWarning) value *= cfg.FrostRushValue;
@@ -537,7 +538,9 @@ namespace TillWinter.Unity
             int variety = sim.DifferentNeighbours(plot);
             if (variety > 0) Bonus("plot.bonus_neighbours", 1 + cfg.NeighbourVarietyBonus * variety);
             if (state.FrostWarning) Bonus("plot.bonus_frost", cfg.FrostRushValue);
-            if (line == 0 && !plot.IsStony) _inspectBonus[line++].text = Strings.Get("plot.bonus_none");
+            int depth = plot.IsHard ? plot.Layer : plot.CropLayer;
+            if (depth > 0 && cfg.DepthValue > 0) Bonus("plot.bonus_depth", 1 + cfg.DepthValue * depth);
+            if (line == 0) _inspectBonus[line++].text = Strings.Get("plot.bonus_none");
             for (int i = line; i < _inspectBonus.Length; i++) _inspectBonus[i].text = "";
 
             _inspectCard.SetActive(true);
@@ -696,7 +699,7 @@ namespace TillWinter.Unity
         private void OnRoleToggled(int index)
         {
             var role = _game.State.Apprentices[index].Role;
-            Banner(Strings.Get(role == ApprenticeRole.Waterer ? "ui.role_Waterer" : "ui.role_Harvester"));
+            Banner(Strings.Get("ui.role_" + role));
             Haptics.Play(HapticKind.Selection);
         }
 
@@ -869,6 +872,7 @@ namespace TillWinter.Unity
         {
             if (_game == null || _game.Sim == null) return;
             _game.Sim.Harvested -= OnHarvested;
+            _game.Sim.PlotBroken -= OnBroken;
             _game.Sim.ComboMilestone -= OnComboMilestone;
             _game.Sim.GoalCompleted -= OnGoalCompleted;
             _game.Sim.WeatherChanged -= OnWeatherChanged;
@@ -907,11 +911,21 @@ namespace TillWinter.Unity
         private void OnHarvested(HarvestEvent e)
         {
             if (_game.Sim.IsSimulatingOffline) return;
-            bool ring = e.Source == HarvestSource.Ring;
-            // Ring harvests: 3–8 coins by value, counter punch on arrival. Helpers: fewer coins, tick only.
-            int count = ring ? Mathf.Clamp(3 + (int)(e.Coins / 4.0), 3, 8) : Mathf.Clamp(2 + e.Tier / 2, 2, 4);
+            bool hand = e.Source == HarvestSource.Hand;
+            // Reaped by hand: 3–8 coins by value, counter punch on arrival. Helpers and the frost: fewer coins, tick only.
+            int count = hand ? Mathf.Clamp(3 + (int)(e.Coins / 4.0), 3, 8) : Mathf.Clamp(2 + e.Tier / 2, 2, 4);
             if (e.WasGolden) count = 8;
-            SpawnCoins(_game.PlotToWorld(e.Pos, 0.5f), e.Coins, count, ring, e.Tier >= 3 || e.WasGolden, e.WasGolden);
+            SpawnCoins(_game.PlotToWorld(e.Pos, 0.5f), e.Coins, count, hand, e.Tier >= 3 || e.WasGolden, e.WasGolden);
+            if (hand) { _lastReapCanvas = WorldToCanvas(_game.PlotToWorld(e.Pos, 0.3f)); _hasReapPos = true; }
+        }
+
+        /// <summary>The layer's coins (GDD §2v3.3): a small burst from the broken ground, a big one for a chest or hardpan.</summary>
+        private void OnBroken(BreakEvent e)
+        {
+            if (_game.Sim.IsSimulatingOffline || e.Coins <= 0) return;
+            bool rich = e.Chest || e.Hardpan;
+            SpawnCoins(_game.PlotToWorld(e.Pos, 0.3f), e.Coins, rich ? 8 : Mathf.Clamp(2 + (int)(e.Coins / 3.0), 2, 5), rich, rich, e.Hardpan);
+            if (rich) Banner(Strings.Get(e.Chest ? "ui.chest_found" : "ui.hardpan_broken"));
         }
 
         private void OnCrowScared(CrowEvent e)
@@ -925,22 +939,100 @@ namespace TillWinter.Unity
         private GameObject _endYearConfirm;
         private TMP_Text _milestone;
         private float _milestoneLeft;
-        private Button _shapeButton;
-        private Image _shapeIcon;
+        // ------------------------------------------------------------------ the depot and the damage numbers (GDD §2v3.4–5)
 
-        private static string ShapeIcon(RingShape shape) =>
-            shape == RingShape.Rake ? "barsVertical" : shape == RingShape.Cross ? "plus" : "target";
-
-        /// <summary>Cycles through the shapes the player has unlocked (GDD §2.1 v1.6).</summary>
-        private void CycleRingShape()
+        private sealed class Number
         {
-            int level = _game.State.Stats.RingShapeLevel;
-            if (level <= 0) return;
-            int count = level >= 2 ? 3 : 2;
-            var next = (RingShape)(((int)_game.State.RingShape + 1) % count);
-            if (!_game.Sim.SetRingShape(next)) return;
-            _shapeIcon.sprite = NodeIcons.Get(ShapeIcon(next)) ?? _shapeIcon.sprite;
-            Haptics.Play(HapticKind.Selection);
+            public RectTransform Rt;
+            public TMP_Text Text;
+            public Vector2 From;
+            public float T, Drift;
+        }
+
+        private RectTransform _staminaTrack, _staminaFill;
+        private Image _staminaFillImage, _staminaTrackImage;
+        private float _staminaShown = -1f;
+        private readonly List<Number> _numbers = new List<Number>(32);
+        private readonly Stack<Number> _numberPool = new Stack<Number>(32);
+        private readonly char[] _numberChars = new char[16];
+        private const int NumberPoolWarm = 32;
+        private Vector2 _lastReapCanvas;
+        private bool _hasReapPos;
+
+        /// <summary>The depot (GDD §2v3.5): a slim bar under the season band, brick when the next swing would be tired.</summary>
+        private void BuildStamina()
+        {
+            _staminaTrackImage = UiKit.Panel(_safe, "StaminaTrack", _theme.BarBackground, true, false);
+            _staminaTrack = _staminaTrackImage.rectTransform;
+            UiKit.Box(_staminaTrack, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, _theme.SeasonBandY - 34f), new Vector2(_theme.BarWidth * 0.6f, 14f));
+            _staminaFillImage = UiKit.Panel(_staminaTrack, "Fill", _theme.Seed, true, false);
+            _staminaFill = _staminaFillImage.rectTransform;
+            UiKit.Stretch(_staminaFill, Vector2.zero, new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+        }
+
+        /// <summary>A strike's number over the plot: rising, fading; a crit bigger and in the hot colour, a tired swing grey and small.</summary>
+        public void ShowDamage(Vector3 world, double damage, bool crit, bool tired, bool splash)
+        {
+            if (_fxLayer == null) return;
+            var n = _numberPool.Count > 0 ? _numberPool.Pop() : MakeNumber();
+            n.From = WorldToCanvas(world) + new Vector2(Random.Range(-24f, 24f), 0f);
+            n.T = 0f;
+            n.Drift = Random.Range(-30f, 30f);
+            int len = NumberFormat.Short(System.Math.Round(damage * 10) / 10, _numberChars);
+            n.Text.SetText(_numberChars, 0, len);
+            n.Text.color = crit ? _theme.ComboHot : tired || splash ? _theme.TextMuted : _theme.Text;
+            n.Rt.localScale = Vector3.one * (crit ? 1.45f : tired || splash ? 0.7f : 1f);
+            n.Rt.anchoredPosition = n.From;
+            n.Rt.gameObject.SetActive(true);
+            _numbers.Add(n);
+        }
+
+        private Number MakeNumber()
+        {
+            var t = UiKit.Label(_fxLayer, "Damage", "", UiType.Heading, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.OutlineStrong(t);
+            var rt = t.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(260f, 90f);
+            t.raycastTarget = false;
+            t.SetText("999.9");
+            t.ForceMeshUpdate(true);
+            return new Number { Rt = rt, Text = t };
+        }
+
+        private void TickNumbers(float dt)
+        {
+            for (int i = _numbers.Count - 1; i >= 0; i--)
+            {
+                var n = _numbers[i];
+                n.T += dt;
+                float t = n.T / 0.75f;
+                if (t >= 1f)
+                {
+                    n.Rt.gameObject.SetActive(false);
+                    _numberPool.Push(n);
+                    _numbers.RemoveAt(i);
+                    continue;
+                }
+                n.Rt.anchoredPosition = n.From + new Vector2(n.Drift * t, 90f * Prims.EaseOutQuad(t));
+                var c = n.Text.color;
+                c.a = t < 0.6f ? 1f : 1f - (t - 0.6f) / 0.4f;
+                n.Text.color = c;
+            }
+        }
+
+        private void RefreshStamina(FarmState state, float dt)
+        {
+            float max = Mathf.Max(1f, state.Stats.StaminaMax);
+            float share = Mathf.Clamp01(state.Stamina / max);
+            if (_staminaShown < 0f) _staminaShown = share;
+            _staminaShown = Prims.Damp(_staminaShown, share, 14f, dt);
+            _staminaFill.anchorMax = new Vector2(_staminaShown, 1f);
+            var fill = state.Tired ? _theme.SheetDanger : Color.Lerp(_theme.Seed, _theme.Gold, share);
+            if (state.Tired) fill = Color.Lerp(fill, _theme.Text, 0.3f + 0.3f * Mathf.Sin(Time.unscaledTime * 6f));
+            _staminaFillImage.color = fill;
+            bool show = state.Phase == Phase.Year;
+            if (_staminaTrack.gameObject.activeSelf != show) _staminaTrack.gameObject.SetActive(show);
         }
 
         // ------------------------------------------------------------------ seed bag (GDD §2.3 v1.7)
@@ -1208,8 +1300,11 @@ namespace TillWinter.Unity
                 if (len != _coinTextLength)
                 {
                     // The icon sits against the number's left edge; only a change of length can move that edge much.
+                    // Width is estimated from the character count: preferredWidth forces a text generation (and an
+                    // allocation) every time the length changes.
                     _coinTextLength = len;
-                    _coinIcon.anchoredPosition = new Vector2(-_coinText.preferredWidth * 0.5f - 12f, 0f);
+                    float half = len * _coinText.fontSize * 0.3f;
+                    _coinIcon.anchoredPosition = new Vector2(-half - 12f, 0f);
                     _coinGlow.rectTransform.anchoredPosition = _coinIcon.anchoredPosition;
                 }
             }
@@ -1251,7 +1346,7 @@ namespace TillWinter.Unity
             MCoinText.End();
 
             if (state.Year != _subYear || state.Generation.Generation != _subGen) { _subYear = state.Year; _subGen = state.Generation.Generation; _subText.SetText(_yearGenFormat, state.Year, state.Generation.Generation); }
-            // Milestone banner fades; the shape button appears with its node.
+            // Milestone banner fades.
             if (_milestoneLeft > 0f)
             {
                 _milestoneLeft -= dt;
@@ -1260,8 +1355,8 @@ namespace TillWinter.Unity
                 _milestone.rectTransform.anchoredPosition = new Vector2(0f, 120f + (1f - k) * 60f);
             }
             else if (_milestone.alpha > 0f) _milestone.alpha = 0f;
-            bool shapes = state.Stats.RingShapeLevel > 0 && !state.IsWinter;
-            if (_shapeButton.gameObject.activeSelf != shapes) _shapeButton.gameObject.SetActive(shapes);
+            RefreshStamina(state, dt);
+            TickNumbers(dt);
             RefreshGoalLine(state);
             RefreshHelperButtons(state);
             RefreshEventUi(state, dt);
@@ -1281,7 +1376,7 @@ namespace TillWinter.Unity
             if (_bagRow.gameObject.activeSelf) RefreshSeedChips(false);
 
             MCombo.Begin();
-            // Combo floats near the ring; on a break it keeps the last value and fades out.
+            // The swipe's count floats over the last crop it took; it keeps its value and fades out.
             if (state.Combo >= 2)
             {
                 if (state.Combo != _lastCombo) _combo.SetText("×{0}", state.Combo);
@@ -1290,12 +1385,7 @@ namespace TillWinter.Unity
             }
             else _comboFade = Mathf.Max(0f, _comboFade - dt / 0.4f);
             _lastCombo = state.Combo;
-            var ring = _game.CurrentRing;
-            if (ring.HasValue)
-            {
-                var sp = WorldToCanvas(_game.PlotToWorld(ring.Value.X, ring.Value.Y, 0.3f));
-                _comboRt.anchoredPosition = sp + new Vector2(state.RingRadius * 90f + 40f, 90f);
-            }
+            if (_hasReapPos && state.Combo != _lastCombo && state.Combo >= 2) _comboRt.anchoredPosition = _lastReapCanvas + new Vector2(60f, 90f);
             float heat = Mathf.Clamp01((state.Combo - 2) / 12f); // a long streak should look like one
             _comboRt.localScale = Vector3.one * Mathf.Max(0.0001f, Prims.Damp(_comboRt.localScale.x, _comboFade > 0f ? 1f + 0.4f * heat : 0.6f, 10f, dt));
             var comboColor = state.Combo >= 2 ? Color.Lerp(_theme.Combo, _theme.ComboHot, heat) : _combo.color;

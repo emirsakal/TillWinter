@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace TillWinter.Unity
 {
-    /// <summary>Creates and updates one <see cref="PlotView"/> per plot from the catalogue; rebuilds when the field changes; owns the generation decor.</summary>
+    /// <summary>Creates and updates one <see cref="PlotView"/> per plot from the catalogue; rebuilds when the field changes; owns the generation decor; plays the hoe's feedback.</summary>
     public sealed class FieldView : MonoBehaviour
     {
         private GameController _game;
@@ -30,11 +30,12 @@ namespace TillWinter.Unity
             for (int t = 0; t < 6; t++) TierColors[t] = palette.Crop(t);
             Rebuild();
             _game.Sim.Harvested += OnHarvested;
+            _game.Sim.Struck += OnStruck;
+            _game.Sim.PlotBroken += OnBroken;
             _game.Sim.PlotWatered += OnWatered;
             _game.Sim.PlotRipened += OnRipened;
-            _game.Sim.PlotCleared += OnCleared;
-            _game.Sim.PlotDriedOut += OnDriedOut;
             _game.Sim.CrowAte += OnCrowAte;
+            _game.Sim.PestStruck += OnPestStruck;
             _game.Sim.FieldExpanded += OnFieldExpanded;
             _game.Sim.RainCloudTapped += OnRainSweep;
             _game.Sim.Retired += _ => Rebuild();
@@ -48,11 +49,12 @@ namespace TillWinter.Unity
         {
             if (_game == null || _game.Sim == null) return;
             _game.Sim.Harvested -= OnHarvested;
+            _game.Sim.Struck -= OnStruck;
+            _game.Sim.PlotBroken -= OnBroken;
             _game.Sim.PlotWatered -= OnWatered;
-            _game.Sim.PlotCleared -= OnCleared;
-            _game.Sim.PlotDriedOut -= OnDriedOut;
             _game.Sim.PlotRipened -= OnRipened;
             _game.Sim.CrowAte -= OnCrowAte;
+            _game.Sim.PestStruck -= OnPestStruck;
             _game.Sim.FieldExpanded -= OnFieldExpanded;
             _game.Sim.RainCloudTapped -= OnRainSweep;
             _game.Sim.GenerationStarted -= OnGenerationStarted;
@@ -124,9 +126,9 @@ namespace TillWinter.Unity
             if (_game.Sim.IsSimulatingOffline) return;
             var at = _game.PlotToWorld(e.Pos, 0.4f);
             if (_plots.TryGetValue(e.Pos, out var view)) view.Pop();
-            bool ring = e.Source == HarvestSource.Ring;
-            // Combo pitch: +2 % per step, capped at +30 %, reset on break (Combo is 0 then).
-            _audio.HarvestPitch = 1f + Mathf.Min(0.3f, 0.02f * Mathf.Max(0, _game.State.Combo - 1));
+            bool hand = e.Source == HarvestSource.Hand;
+            // Swipe pitch: +2 % per crop in the swipe, capped at +30 %.
+            _audio.HarvestPitch = 1f + Mathf.Min(0.3f, 0.02f * Mathf.Max(0, e.Combo - 1));
             if (e.WasGolden)
             {
                 _fx.Play(VfxId.HarvestGolden, at);
@@ -137,35 +139,56 @@ namespace TillWinter.Unity
             }
             else
             {
-                // The streak makes the burst bigger and warmer: the most repeated moment in the game pays off.
-                float streak = Mathf.Clamp01((_game.State.Combo - 1) / 9f);
+                // A long swipe makes the burst bigger and warmer: the most repeated moment in the game pays off.
+                float streak = Mathf.Clamp01((e.Combo - 1) / 8f);
                 var tint = Color.Lerp(TierColors[Mathf.Clamp(e.Tier, 0, 5)], Palette.Load().Golden, streak * 0.5f);
-                _fx.Play(VfxId.Harvest, at, (ring ? 1f + e.Tier * 0.15f : 0.6f) * (1f + 0.35f * streak), tint);
-                _audio.Play(SfxId.HarvestPop, ring ? 1f : 0.7f);
-                if (ring) Haptics.Play(HapticKind.Light);
+                _fx.Play(VfxId.Harvest, at, (hand ? 1f + e.Tier * 0.15f : 0.6f) * (1f + 0.35f * streak), tint);
+                _audio.Play(SfxId.HarvestPop, hand ? 1f : 0.7f);
+                if (hand) Haptics.Play(HapticKind.Light);
             }
         }
 
-        /// <summary>The ring has cleared a stony plot (GDD §2.4 v1.8): the stones burst away in a puff of dirt.</summary>
-        private void OnCleared(GridPos pos)
+        /// <summary>A strike landed (GDD §2v3.4): the plot flinches, dirt flies, the number says how hard; a crit shakes it.</summary>
+        private void OnStruck(StrikeEvent e)
         {
             if (_game.Sim.IsSimulatingOffline) return;
-            var at = _game.PlotToWorld(pos, 0.2f);
-            _fx.Play(VfxId.SoilPuff, at, 1.8f);
-            _fx.Play(VfxId.PlotPop, at);
-            _audio.Play(SfxId.Expansion, 0.8f);
+            var at = _game.PlotToWorld(e.Pos, 0.25f);
+            bool player = e.ApprenticeIndex < 0 && !e.Splash;
+            if (_plots.TryGetValue(e.Pos, out var view)) view.Hit(e.Crit && !e.Splash ? 1f : e.Splash ? 0.35f : 0.7f);
+            _fx.Play(VfxId.SoilPuff, at, e.Splash ? 0.5f : e.Crit ? 1.6f : e.Tired ? 0.6f : 1f);
+            if (player)
+            {
+                _audio.Play(e.Crit ? SfxId.StrikeCrit : e.Tired ? SfxId.StrikeTired : SfxId.Strike);
+                Haptics.Play(e.Crit ? HapticKind.Medium : HapticKind.Light);
+            }
+            else if (!e.Splash) _audio.Play(SfxId.Strike, 0.5f);
+            HudView.Instance?.ShowDamage(_game.PlotToWorld(e.Pos, 0.6f), e.Damage, e.Crit && !e.Splash, e.Tired, e.Splash);
         }
 
-        /// <summary>Summer drought (GDD §3.2 v1.9): a neglected Wet plot cracks dry in a small dust puff.</summary>
-        private void OnDriedOut(GridPos pos)
+        /// <summary>The ground gave way (GDD §2v3.3): a bigger puff, the pop, and the sprout that follows.</summary>
+        private void OnBroken(BreakEvent e)
         {
             if (_game.Sim.IsSimulatingOffline) return;
-            _fx.Play(VfxId.SoilPuff, _game.PlotToWorld(pos, 0.2f), 0.8f);
+            var at = _game.PlotToWorld(e.Pos, 0.2f);
+            if (_plots.TryGetValue(e.Pos, out var view)) view.Broke();
+            _fx.Play(VfxId.SoilPuff, at, e.Hardpan ? 2.4f : 1.8f, e.Hardpan ? Palette.Load().Golden : Palette.Load().SoilDry);
+            _fx.Play(VfxId.PlotPop, at);
+            _fx.Play(VfxId.Sprout, _game.PlotToWorld(e.Pos, 0.25f));
+            _audio.Play(SfxId.Break, e.Hardpan || e.Chest ? 1f : 0.85f);
+            _audio.Play(SfxId.Sprout, 0.6f);
+            Haptics.Play(e.Hardpan || e.Chest ? HapticKind.Heavy : HapticKind.Medium);
+            if (e.Chest || e.Hardpan) HudView.Instance?.Flash(0.08f, 0.05f);
+        }
+
+        private void OnPestStruck(PestKind kind, GridPos pos)
+        {
+            if (_game.Sim.IsSimulatingOffline) return;
+            if (_plots.TryGetValue(pos, out var view)) view.Vanish();
         }
 
         private void OnWatered(GridPos pos)
         {
-            if (_game.Sim.IsSimulatingOffline) return; // hours away on resume: the field just shows where it is now
+            if (_game.Sim.IsSimulatingOffline) return;
             if (_plots.TryGetValue(pos, out var view)) view.SproutPop();
             var at = _game.PlotToWorld(pos, 0.2f);
             _fx.Play(VfxId.WaterSplash, at);
@@ -184,6 +207,8 @@ namespace TillWinter.Unity
             if (_plots.TryGetValue(e.Pos, out var view)) view.Vanish();
             _fx.Play(VfxId.SoilPuff, _game.PlotToWorld(e.Pos, 0.35f));
         }
+
+        private float _waterSplash;
 
         private void LateUpdate()
         {
@@ -212,22 +237,38 @@ namespace TillWinter.Unity
             }
             if (CameraRig.Instance != null)
             {
-                CameraRig.Instance.Excitement = Mathf.Clamp01((state.Combo - 1) / 9f);
+                CameraRig.Instance.Excitement = Mathf.Clamp01((state.Combo - 1) / 8f);
                 CameraRig.Instance.PulledBack = state.IsWinter;
             }
             _sheen = Mathf.Max(0f, _sheen - dt / 1.2f);
+            // The whole board breathes with the field's beat (GDD §2v3.4): a hair larger on the beat, still with Reduce motion.
+            float env = state.Phase == Phase.Year ? 1f - Mathf.Clamp01(Mathf.Abs(state.Pulse - 0.5f) * 2f) : 0f;
+            float breathe = SettingsStore.MotionAllowed ? 1f + 0.012f * Prims.EaseOutQuad(env) : 1f;
+            transform.localScale = new Vector3(breathe, 1f, breathe);
+            // The finger's watering keeps a drip going on its plot.
+            var watering = state.WateringPos;
+            if (watering.HasValue && state.Phase == Phase.Year && state.InBounds(watering.Value) && state.GetPlot(watering.Value).Watering)
+            {
+                _waterSplash -= dt;
+                if (_waterSplash <= 0f)
+                {
+                    _waterSplash = 0.35f;
+                    _fx.Play(VfxId.WaterSplash, _game.PlotToWorld(watering.Value, 0.2f), 0.7f);
+                }
+            }
+            else _waterSplash = 0f;
             foreach (var kv in _plots)
             {
                 var plot = state.GetPlot(kv.Key);
-                bool underRing = !state.IsWinter && state.IsUnderRing(kv.Key);
-                kv.Value.Tick(plot, state.IsWinter, underRing, dt, t, _sheen);
+                kv.Value.Tick(plot, state.IsWinter, dt, t, _sheen);
             }
         }
     }
 
     /// <summary>
-    /// One plot from the catalogue: soil whose palette slot reads the state (Dry cracked, Wet dark + droplets),
-    /// three crop stage prefabs toggled by Wet progress, wobble + emissive glow when Ripe, golden = Golden slot + emission.
+    /// One plot from the catalogue: soil whose palette slot reads the state (hard ground cracked by damage and rocky by
+    /// depth, a growing crop on dark earth with droplets while it is watered), three crop stage prefabs toggled by
+    /// growth, wobble + emissive glow when Ripe, golden = Golden slot + emission.
     /// </summary>
     public sealed class PlotView : MonoBehaviour
     {
@@ -246,7 +287,10 @@ namespace TillWinter.Unity
         private float _goldSpark;
         private float _stale;
         private Transform _rocks;
+        private PaletteBinder[] _rockBinders;
         private float _rockShow;
+        private GroundType _rockGround = (GroundType)(-1);
+        private bool _rockGold;
         private float _stageSwap = 1f;
         private readonly GameObject[] _stages = new GameObject[3];
         private readonly PaletteBinder[] _stageBinders = new PaletteBinder[3];
@@ -263,6 +307,9 @@ namespace TillWinter.Unity
         private float _winterBlend;
         private float _phase;
         private float _ripePunch;
+        private float _hit, _hitStrength, _crackShow;
+        private Vector3 _basePos;
+        private bool _basePosSet;
 
         public void Init(Plot plot, VisualCatalog catalog, GameController game)
         {
@@ -281,6 +328,7 @@ namespace TillWinter.Unity
                 _cracks.transform.localRotation = Quaternion.Euler(0f, (h % 4) * 90f + (h / 4 % 5) * 6f, 0f);
                 var cs = _cracks.transform.localScale;
                 _cracks.transform.localScale = new Vector3(cs.x * ((h / 32 % 2) == 0 ? 1f : -1f), cs.y, cs.z);
+                _crackBase = _cracks.transform.localScale;
             }
             _droplets = transform.Find("Droplets")?.gameObject;
             _cropRoot = transform.Find("CropAnchor");
@@ -296,7 +344,9 @@ namespace TillWinter.Unity
             _cropRoot.localScale = Vector3.one * 0.0001f;
         }
 
-        /// <summary>Stony ground (GDD §2.4 v1.8): three rocks laid out per grid position, hidden on any other plot.</summary>
+        private Vector3 _crackBase = Vector3.one;
+
+        /// <summary>The ground's material (GDD §2v3.3): three rocks laid out per grid position, coloured by the layer's type, hidden on clay.</summary>
         private void BuildRocks(Plot plot)
         {
             _rocks = new GameObject("Rocks").transform;
@@ -304,6 +354,7 @@ namespace TillWinter.Unity
             _rocks.localPosition = new Vector3(0f, 0.12f, 0f);
             int h = (plot.Pos.X * 92821) ^ (plot.Pos.Y * 68917);
             if (h < 0) h = -h;
+            _rockBinders = new PaletteBinder[3];
             for (int i = 0; i < 3; i++)
             {
                 var rock = _catalog.Spawn(_catalog.Rock, _rocks, "Rock" + i).transform;
@@ -312,10 +363,11 @@ namespace TillWinter.Unity
                 rock.localPosition = new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r);
                 rock.localRotation = Quaternion.Euler(0f, (h / 7 % 360) + i * 97f, 0f);
                 rock.localScale = Vector3.one * (i == 0 ? 0.8f : 0.6f); // the catalogue rock is a pebble at plot scale
+                _rockBinders[i] = rock.GetComponent<PaletteBinder>();
             }
-            _rockShow = plot.IsStony ? 1f : 0f;
-            _rocks.localScale = Vector3.one * Mathf.Max(0.0001f, _rockShow);
-            _rocks.gameObject.SetActive(plot.IsStony);
+            _rockShow = 0f;
+            _rocks.localScale = Vector3.one * 0.0001f;
+            _rocks.gameObject.SetActive(false);
         }
 
         private void BuildCrop(int tier)
@@ -400,12 +452,27 @@ namespace TillWinter.Unity
 
         public void RipePop() => _ripePunch = 1f;
 
-        public void Tick(Plot plot, bool winter, bool underRing, float dt, float simTime, float sheen = 0f)
+        /// <summary>A strike: the plot flinches and, for a crit, shakes.</summary>
+        public void Hit(float strength)
+        {
+            _hit = 1f;
+            _hitStrength = Mathf.Max(_hitStrength * Mathf.Clamp01(_hit), strength);
+        }
+
+        /// <summary>The layer broke: the cracks vanish with the ground that carried them.</summary>
+        public void Broke()
+        {
+            _hit = 1f;
+            _hitStrength = 1f;
+            _crackShow = 0f;
+        }
+
+        public void Tick(Plot plot, bool winter, float dt, float simTime, float sheen = 0f)
         {
             if (plot.Tier != _builtTier) BuildCrop(plot.Tier);
 
-            bool dry = plot.State == PlotState.Dry;
-            bool wet = plot.State == PlotState.Wet;
+            bool hard = plot.State == PlotState.Hard;
+            bool growing = plot.State == PlotState.Growing;
             bool ripe = plot.State == PlotState.Ripe && !winter;
 
             float scale;
@@ -420,8 +487,8 @@ namespace TillWinter.Unity
             else
             {
                 float target;
-                if (winter || dry) target = 0f;
-                else if (wet) target = 0.35f + 0.65f * Prims.EaseOutQuad(Mathf.Clamp01(plot.Progress));
+                if (hard) target = 0f;
+                else if (growing) target = 0.35f + 0.65f * Prims.EaseOutQuad(Mathf.Clamp01(plot.Progress));
                 else target = 1f;
                 if (_vanish)
                 {
@@ -432,19 +499,17 @@ namespace TillWinter.Unity
                 scale = _visualScale;
             }
 
-            // The ripe model is the only thing that says "harvest me", so it waits for Ripe: an almost-grown plot
-            // used to show the same orange carrot as a ready one, which read as the reverse of the truth.
-            int stage = ripe ? 2 : wet && plot.Progress >= 0.45f ? 1 : 0;
+            // The ripe model is the only thing that says "reap me", so it waits for Ripe.
+            int stage = ripe ? 2 : growing && plot.Progress >= 0.45f ? 1 : 0;
             ShowStage(stage);
 
             _ripePunch = Mathf.Max(0f, _ripePunch - dt * 4f);
             float punch = 1f + 0.18f * Mathf.Sin(_ripePunch * Mathf.PI);
-            float squash = ripe && underRing ? 1f - 0.2f * plot.Progress : 1f;
             // A stage swap eases in over a fifth of a second: sprout to stalk used to jump in one frame.
             _stageSwap = Mathf.Min(1f, _stageSwap + dt / StageSwapSeconds);
             float swap = Mathf.Lerp(0.62f, 1f, Prims.EaseOutBack(_stageSwap));
-            float xz = Mathf.Lerp(0.7f, 1f, scale) * punch * swap / Mathf.Sqrt(squash);
-            _cropRoot.localScale = new Vector3(xz, Mathf.Max(0.0001f, scale * punch * squash * swap), xz);
+            float xz = Mathf.Lerp(0.7f, 1f, scale) * punch * swap;
+            _cropRoot.localScale = new Vector3(xz, Mathf.Max(0.0001f, scale * punch * swap), xz);
 
             // Over-ripening (GDD §2.5 v1.6): the longer a crop stands, the duller it looks and the lower it hangs.
             float fresh = ripe && _game != null ? (float)_game.Sim.Freshness(plot) : 1f;
@@ -454,7 +519,7 @@ namespace TillWinter.Unity
             float wobble = ripe ? Mathf.Sin(simTime * 6f + _phase) * 7f : 0f;
             float wobble2 = ripe ? Mathf.Sin(simTime * 4.3f + _phase * 1.7f) * 4f : 0f;
             _cropRoot.localRotation = Quaternion.Euler(wobble2 + _stale * 9f, 0f, wobble);
-            bool golden = plot.IsGolden && !winter;
+            bool golden = plot.IsGolden && !winter && !hard;
             if (golden || _golden) SetGolden(golden, simTime);
             // A golden crop keeps shedding sparkles (the VFX pool rate-limits them with every other burst).
             if (golden && SettingsStore.MotionAllowed && _game != null && !_game.Sim.IsSimulatingOffline)
@@ -467,10 +532,7 @@ namespace TillWinter.Unity
                 }
             }
 
-            // A ready plant has to read "ready" from across the board. Kenney's carrot is mostly leafy top with the
-            // root at soil level, so at this camera angle a ripe one looked as green as a growing one whatever the
-            // stage rule said; the ripe model's foliage warms toward the crop's own colour instead. Golden keeps its
-            // own override, and the tint is dropped the moment the plot stops being ripe.
+            // A ready plant has to read "ready" from across the board: the ripe model's foliage warms toward the crop's colour.
             bool warmRipe = ripe && !golden;
             if (warmRipe != _ripeTinted)
             {
@@ -492,52 +554,75 @@ namespace TillWinter.Unity
                 stageBinder.SetTintMultiplier(Color.Lerp(Color.white, Palette.Load().StaleTint, _stale)); // a crop past its best goes dull
             }
 
-            // Stones sink as the ring works them loose, shiver under it, and are gone once the plot is cleared.
-            bool stony = plot.IsStony;
-            _rockShow = Prims.Damp(_rockShow, stony ? 1f - 0.45f * plot.Progress : 0f, stony ? 10f : 14f, dt);
-            bool showRocks = stony || _rockShow > 0.02f;
-            if (_rocks.gameObject.activeSelf != showRocks) _rocks.gameObject.SetActive(showRocks);
-            if (showRocks)
-            {
-                float shiver = stony && underRing && SettingsStore.MotionAllowed ? 0.025f * Mathf.Sin(simTime * 47f + _phase) : 0f;
-                _rocks.localPosition = new Vector3(shiver, 0.12f, 0f);
-                _rocks.localScale = Vector3.one * Mathf.Max(0.0001f, _rockShow);
-            }
-
-            // Soil: Dry -> Wet -> winter white, all through the binder. The ring shows only as its round decal:
-            // no per-tile tint or lift, which drew square highlights under a round ring.
-            _wetBlend = Prims.Damp(_wetBlend, dry || winter ? 0f : 1f, 10f, dt);
-            _winterBlend = Prims.Damp(_winterBlend, winter ? 1f : 0f, 4f, dt);
             var palette = Palette.Load();
-            var soil = Color.Lerp(palette.SoilDry, palette.SoilWet, _wetBlend);
+            // The ground's material (GDD §2v3.3): clay is bare; stone, roots, gravel and rock put rocks on the plot, in
+            // their own colour; golden hardpan glints. The rocks sink as the cracks spread and vanish with the break.
+            bool rocky = hard && !winter && plot.Ground != GroundType.Clay;
+            if (rocky && (plot.Ground != _rockGround || plot.Hardpan != _rockGold) && _rockBinders != null)
+            {
+                _rockGround = plot.Ground;
+                _rockGold = plot.Hardpan;
+                Color rock = plot.Hardpan ? palette.Golden
+                    : plot.Ground == GroundType.Roots ? palette.Wood
+                    : plot.Ground == GroundType.Gravel ? palette.Path
+                    : plot.Ground == GroundType.Rock ? palette.SoilBlock : palette.Stone;
+                for (int i = 0; i < _rockBinders.Length; i++) _rockBinders[i]?.Override(PaletteSlot.Stone, rock);
+            }
+            float rockSize = rocky ? (0.6f + 0.15f * (int)plot.Ground) * (1f - 0.4f * plot.Cracks) : 0f;
+            _rockShow = Prims.Damp(_rockShow, rockSize, rocky ? 10f : 14f, dt);
+            bool showRocks = rocky || _rockShow > 0.02f;
+            if (_rocks.gameObject.activeSelf != showRocks) _rocks.gameObject.SetActive(showRocks);
+            if (showRocks) _rocks.localScale = Vector3.one * Mathf.Max(0.0001f, _rockShow);
+
+            // The strike's flinch: a quick squash, and a shake for a crit.
+            _hit = Mathf.Max(0f, _hit - dt * 6f);
+            float flinch = Prims.EaseOutQuad(_hit) * _hitStrength;
+            if (!_basePosSet) { _basePos = transform.localPosition; _basePosSet = true; }
+            bool moving = SettingsStore.MotionAllowed;
+            float shake = moving && _hitStrength >= 1f ? flinch * 0.05f : 0f;
+            transform.localPosition = _basePos + new Vector3(Mathf.Sin(simTime * 61f + _phase) * shake, -0.03f * flinch, Mathf.Cos(simTime * 53f) * shake);
+            if (_hit <= 0f) _hitStrength = 0f;
+
+            // Soil: hard ground dry (darker the deeper it lies), a crop on dark earth, winter white, all through the binder.
+            _wetBlend = Prims.Damp(_wetBlend, hard || winter ? 0f : 1f, 10f, dt);
+            _winterBlend = Prims.Damp(_winterBlend, winter ? 1f : 0f, 4f, dt);
+            var dry = Color.Lerp(palette.SoilDry, palette.SoilBlock, Mathf.Clamp01(plot.Layer / 12f) * 0.55f);
+            if (plot.Hardpan && hard) dry = Color.Lerp(dry, palette.Golden, 0.35f);
+            var soil = Color.Lerp(dry, palette.SoilWet, _wetBlend);
             if (plot.Kind == PlotKind.Fertile)
             {
-                // Rich, dark earth: darker than any wet plot, so it reads at a glance in every phase.
+                // Rich, dark earth: darker than any plain plot, so it reads at a glance in every phase.
                 float a = soil.a;
                 soil = Color.Lerp(soil, soil * 0.5f, 0.85f);
                 soil.a = a;
             }
             _soilBinder.Override(PaletteSlot.SoilDry, soil);
             // Wet soil takes a faint cool sheen; the rain cloud's sweep adds more.
-            _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, Palette.Load().WetSheen, sheen * 0.6f + _wetBlend * (1f - _winterBlend) * 0.3f));
-            bool showCracks = _wetBlend < 0.5f && _winterBlend < 0.5f;
-            if (_cracks != null && _cracks.activeSelf != showCracks) _cracks.SetActive(showCracks);
-            // Ready marker: pops in over a ripe bed, bobs and turns; hidden under the ring while it is being harvested.
+            _soilBinder.SetTintMultiplier(Color.Lerp(Color.white, palette.WetSheen, sheen * 0.6f + _wetBlend * (1f - _winterBlend) * 0.3f));
+            // Cracks are the damage (GDD §2v3.4): none on fresh ground, spreading with every strike, gone with the break.
+            float crackTarget = hard && !winter ? plot.Cracks : 0f;
+            _crackShow = Prims.Damp(_crackShow, crackTarget, 14f, dt);
+            bool showCracks = _crackShow > 0.03f;
+            if (_cracks != null)
+            {
+                if (_cracks.activeSelf != showCracks) _cracks.SetActive(showCracks);
+                if (showCracks) _cracks.transform.localScale = _crackBase * Mathf.Lerp(0.35f, 1f, _crackShow);
+            }
+            // Ready marker: pops in over a ripe bed, bobs and turns.
             if (_ripeMark != null)
             {
-                _markShow = Prims.Damp(_markShow, ripe && !underRing ? 1f : 0f, 12f, dt);
+                _markShow = Prims.Damp(_markShow, ripe ? 1f : 0f, 12f, dt);
                 bool showMark = _markShow > 0.02f;
                 if (_ripeMark.gameObject.activeSelf != showMark) _ripeMark.gameObject.SetActive(showMark);
                 if (showMark)
                 {
-                    bool moving = SettingsStore.MotionAllowed; // Reduce motion: the gem simply stands there
                     float bob = moving ? 0.05f * Mathf.Sin(simTime * 3.2f + _phase) * (1f - _stale * 0.7f) : 0f;
                     _ripeMark.localPosition = new Vector3(0f, _ripeTop + bob, 0f);
                     _ripeMark.localRotation = Quaternion.Euler(0f, moving ? simTime * 90f + _phase * 40f : 45f, 0f);
                     _ripeMark.localScale = Vector3.one * Prims.EaseOutBack(_markShow);
                 }
             }
-            bool showDrops = wet && !winter; // the whole wet phase, not just its first half
+            bool showDrops = growing && !winter && plot.Watering; // the droplets say "being watered", not "wet"
             if (_droplets != null && _droplets.activeSelf != showDrops) _droplets.SetActive(showDrops);
         }
     }

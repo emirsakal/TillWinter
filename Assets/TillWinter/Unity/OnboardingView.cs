@@ -6,9 +6,10 @@ using UnityEngine.UI;
 namespace TillWinter.Unity
 {
     /// <summary>
-    /// One-shot hints (GDD §10.5). Flags live in Core (<see cref="OnboardingFlags"/>) and are saved; this view only
-    /// decides when a pending hint is relevant, shows it without blocking input, and marks it when the taught
-    /// action happens. In-year hints only; the Winter/Heritage/CanRetire hints are driven by the Winter screen.
+    /// One-shot hints (GDD §10.5, v3 set). Flags live in Core (<see cref="OnboardingFlags"/>) and are saved; this view
+    /// only decides when a pending hint is relevant, shows it without blocking input, and marks it when the taught
+    /// action happens: tap the ground, strike on the beat, hold to water, swipe to reap, tap the crow. In-year hints
+    /// only; the Winter/Heritage/CanRetire hints are driven by the Winter screen.
     /// </summary>
     public sealed class OnboardingView : MonoBehaviour
     {
@@ -22,12 +23,12 @@ namespace TillWinter.Unity
         private CanvasGroup _captionGroup;
         private RectTransform _arrow;
         private float _captionUntil;
-        private bool _handShown;
         private GridPos? _handPlot;
-        private float _holdShownAt = -1f;
         private GridPos? _ripePlot;
         private GridPos? _crowPlot;
+        private GridPos? _growPlot;
         private float _pulse;
+        private int _strikes;
 
         public void Init(GameController game, RectTransform canvas)
         {
@@ -58,6 +59,8 @@ namespace TillWinter.Unity
             _arrow.localRotation = Quaternion.Euler(0f, 0f, 180f);
             _arrow.gameObject.SetActive(false);
 
+            _game.Sim.Struck += OnStruck;
+            _game.Sim.PlotBroken += OnBroken;
             _game.Sim.PlotRipened += OnRipened;
             _game.Sim.CrowLanded += e => { if (_game.Sim.HintPending(Hint.FirstCrow)) _crowPlot = e.Pos; };
             _game.Sim.CrowScared += _ => { if (_crowPlot.HasValue) { _crowPlot = null; _game.Sim.MarkHint(Hint.FirstCrow); } };
@@ -65,17 +68,38 @@ namespace TillWinter.Unity
             _game.Sim.FrostWarningStarted += () => { if (_game.Sim.MarkHint(Hint.FirstFrost)) Say("hint.first_frost", 5f); };
             _game.Sim.Harvested += e =>
             {
-                if (!_ripePlot.HasValue || e.Pos != _ripePlot.Value) return;
+                if (!_ripePlot.HasValue || e.Source != HarvestSource.Hand) return;
+                // Only the player's own swipe learns the lesson; a helper or the frost taking it lets the next one show it.
                 _ripePlot = null;
-                // Only the player's own ring learns the lesson; a helper or the tractor taking it lets the next one show it.
-                if (e.Source == HarvestSource.Ring) _game.Sim.MarkHint(Hint.FirstRipeOutside);
+                _game.Sim.MarkHint(Hint.FirstRipe);
             };
+        }
+
+        /// <summary>The first strikes: the touch hint is learned at the first, the beat is taught after it.</summary>
+        private void OnStruck(StrikeEvent e)
+        {
+            if (_game.Sim.IsSimulatingOffline || e.ApprenticeIndex >= 0 || e.Splash) return;
+            _strikes++;
+            if (_game.Sim.MarkHint(Hint.FirstTouch)) _hand.gameObject.SetActive(false);
+            if (_strikes >= 2 && _game.Sim.HintPending(Hint.Beat))
+            {
+                if (e.Crit) _game.Sim.MarkHint(Hint.Beat); // it landed on the beat: nothing to teach
+                else if (_captionGroup.alpha < 0.5f) Say("hint.beat", 3f);
+            }
+            if (e.Crit && _game.Sim.MarkHint(Hint.Beat)) Say("hint.beat_hit", 2f);
+        }
+
+        /// <summary>The first seed dropped: the hold is taught on the crop it grows.</summary>
+        private void OnBroken(BreakEvent e)
+        {
+            if (_game.Sim.IsSimulatingOffline || !_game.Sim.HintPending(Hint.Hold) || _growPlot.HasValue) return;
+            _growPlot = e.Pos;
+            Say("hint.hold", 4f);
         }
 
         private void OnRipened(GridPos pos)
         {
-            if (_game.Sim.IsSimulatingOffline || !_game.Sim.HintPending(Hint.FirstRipeOutside) || _ripePlot.HasValue) return;
-            if (_game.State.IsUnderRing(pos)) return;
+            if (_game.Sim.IsSimulatingOffline || !_game.Sim.HintPending(Hint.FirstRipe) || _ripePlot.HasValue) return;
             _ripePlot = pos;
             Say("hint.first_ripe", 4f);
         }
@@ -102,43 +126,51 @@ namespace TillWinter.Unity
             _pulse += dt;
             bool inYear = s.Phase == Phase.Year && !_game.InputBlocked;
 
-            // 1. First touch: pulsing hand over a Dry plot until the ring covers a plot.
+            // 1. First touch: pulsing dot over hard ground until the first strike lands.
+            bool showHand = false;
+            GridPos? handAt = null;
             if (sim.HintPending(Hint.FirstTouch) && inYear)
             {
-                if (!_handPlot.HasValue)
+                if (!_handPlot.HasValue || !s.InBounds(_handPlot.Value) || !s.GetPlot(_handPlot.Value).IsHard)
                 {
+                    _handPlot = null;
                     var plots = s.Plots;
-                    for (int i = 0; i < plots.Count; i++) if (plots[i].State == PlotState.Dry) { _handPlot = plots[i].Pos; break; }
+                    for (int i = 0; i < plots.Count; i++) if (plots[i].IsHard) { _handPlot = plots[i].Pos; break; }
                 }
                 if (_handPlot.HasValue)
                 {
-                    if (!_hand.gameObject.activeSelf) _hand.gameObject.SetActive(true);
-                    _hand.anchoredPosition = PlotToCanvas(_handPlot.Value, 0.3f);
-                    float ripple = _pulse * 0.8f % 1f;
-                    _ripple.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.5f, 1.5f, ripple);
-                    var rippleColor = _theme.HintAccent;
-                    rippleColor.a = 0.5f * (1f - ripple);
-                    _ripple.color = rippleColor;
-                    _handImg.rectTransform.localScale = Vector3.one * (1f + 0.08f * Mathf.Sin(_pulse * 6f));
+                    showHand = true;
+                    handAt = _handPlot;
                     if (_captionGroup.alpha < 0.5f) Say("hint.first_touch", 1f);
                 }
-                bool anyUnderRing = false;
-                if (s.Ring.HasValue)
+            }
+            // 2. Hold to water: the dot rests on the growing crop until the finger waters it.
+            else if (_growPlot.HasValue && inYear)
+            {
+                var plot = s.InBounds(_growPlot.Value) ? s.GetPlot(_growPlot.Value) : null;
+                if (plot == null || !plot.IsGrowing) _growPlot = null;
+                else if (plot.Watering && _game.Watering) { _growPlot = null; sim.MarkHint(Hint.Hold); }
+                else
                 {
-                    var plots = s.Plots;
-                    for (int i = 0; i < plots.Count; i++) if (s.IsUnderRing(plots[i].Pos)) { anyUnderRing = true; break; }
+                    showHand = true;
+                    handAt = _growPlot;
+                    if (_captionGroup.alpha < 0.5f) Say("hint.hold", 1f);
                 }
-                if (anyUnderRing)
-                {
-                    sim.MarkHint(Hint.FirstTouch);
-                    _hand.gameObject.SetActive(false);
-                    _holdShownAt = Time.unscaledTime;
-                    if (sim.MarkHint(Hint.Hold)) Say("hint.hold", 3f);
-                }
+            }
+            if (showHand && handAt.HasValue)
+            {
+                if (!_hand.gameObject.activeSelf) _hand.gameObject.SetActive(true);
+                _hand.anchoredPosition = PlotToCanvas(handAt.Value, 0.3f);
+                float ripple = _pulse * 0.8f % 1f;
+                _ripple.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.5f, 1.5f, ripple);
+                var rippleColor = _theme.HintAccent;
+                rippleColor.a = 0.5f * (1f - ripple);
+                _ripple.color = rippleColor;
+                _handImg.rectTransform.localScale = Vector3.one * (1f + 0.08f * Mathf.Sin(_pulse * 6f));
             }
             else if (_hand.gameObject.activeSelf) _hand.gameObject.SetActive(false);
 
-            // 3. First Ripe outside the ring: highlight arrow on that plot.
+            // 3. First ripe crop: highlight arrow on that plot until a swipe takes it.
             if (_ripePlot.HasValue && inYear && s.InBounds(_ripePlot.Value) && s.GetPlot(_ripePlot.Value).IsRipe)
             {
                 if (!_arrow.gameObject.activeSelf) _arrow.gameObject.SetActive(true);
@@ -146,7 +178,7 @@ namespace TillWinter.Unity
             }
             else if (_crowPlot.HasValue && inYear && s.InBounds(_crowPlot.Value) && s.GetPlot(_crowPlot.Value).HasCrow)
             {
-                // 6. First crow: arrow + caption.
+                // 4. First crow: arrow + caption.
                 if (!_arrow.gameObject.activeSelf) _arrow.gameObject.SetActive(true);
                 _arrow.anchoredPosition = PlotToCanvas(_crowPlot.Value, 0.9f) + new Vector2(0f, 20f + Mathf.Abs(Mathf.Sin(_pulse * 5f)) * 20f);
                 if (_captionGroup.alpha < 0.5f) Say("hint.first_crow", 1.5f);

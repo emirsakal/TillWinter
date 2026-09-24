@@ -16,8 +16,6 @@ namespace TillWinter.Unity
         [Tooltip("Optional. Leave empty to use FarmConfig defaults.")]
         public FarmConfigAsset ConfigAsset;
         public int Seed = 12345;
-        [Tooltip("Plots the ring is pushed toward the top of the screen so the finger does not cover it.")]
-        public float RingOffsetPlots = 0.8f;
         [Tooltip("EN string table (Assets/TillWinter/Unity/Localization/en.json).")]
         public TextAsset StringTable;
         [Tooltip("TR string table (Assets/TillWinter/Unity/Localization/tr.json).")]
@@ -68,7 +66,6 @@ namespace TillWinter.Unity
             }
             if (!daily) save.Attach(game);
             GameSession.NgPlus = game.Sim.State.NgPlus;
-            game.RingOffsetPlots = RingOffsetPlots;
             game.Pointer = root.AddComponent<PointerInput>();
 
             var camRig = new GameObject("CameraRig").AddComponent<CameraRig>();
@@ -107,9 +104,9 @@ namespace TillWinter.Unity
             field.transform.SetParent(root.transform, false);
             field.Init(game, camRig, fx, audio, catalog);
 
-            var ring = new GameObject("Ring").AddComponent<RingView>();
-            ring.transform.SetParent(root.transform, false);
-            ring.Init(game, catalog);
+            var beat = new GameObject("Beat").AddComponent<BeatView>();
+            beat.transform.SetParent(root.transform, false);
+            beat.Init(game, catalog);
 
             var apprentices = new GameObject("Apprentices").AddComponent<ApprenticesView>();
             apprentices.transform.SetParent(root.transform, false);

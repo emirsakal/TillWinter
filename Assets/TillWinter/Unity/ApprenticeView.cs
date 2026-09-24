@@ -58,7 +58,7 @@ namespace TillWinter.Unity
         }
     }
 
-    /// <summary>Character prefab with a hat. Bobs while walking, squashes while harvesting.</summary>
+    /// <summary>Character prefab with a hat. Bobs while walking, bends while working a plot.</summary>
     public sealed class ApprenticeView : MonoBehaviour
     {
         private Transform _body;
@@ -151,11 +151,11 @@ namespace TillWinter.Unity
             }
             float bobY = walking ? Mathf.Abs(Mathf.Sin(_bob)) * (_animator != null ? 0.025f : 0.07f) : 0f;
             // Picking: bend down to the bed and straighten with a little hop as the crop comes up.
-            float pick = a.IsHarvesting ? Mathf.Sin(a.HarvestProgress * Mathf.PI) : 0f;
-            float lift = a.IsHarvesting && a.HarvestProgress > 0.8f ? Mathf.Sin((a.HarvestProgress - 0.8f) / 0.2f * Mathf.PI) * 0.05f : 0f;
+            float pick = a.IsWorking ? Mathf.Sin(a.WorkProgress * Mathf.PI) : 0f;
+            float lift = a.IsWorking && a.WorkProgress > 0.8f ? Mathf.Sin((a.WorkProgress - 0.8f) / 0.2f * Mathf.PI) * 0.05f : 0f;
             float squash = 1f - 0.1f * pick;
             // Standing still: breathe, and look about now and then.
-            bool idle = !walking && !a.IsHarvesting;
+            bool idle = !walking && !a.IsWorking;
             _idle = idle ? _idle + dt : 0f;
             float breathe = idle ? 1f + 0.02f * Mathf.Sin(_idle * 2.4f) : 1f;
             float look = idle ? Mathf.Sin(_idle * 0.6f) * Mathf.Clamp01(_idle - 0.5f) * 30f : 0f;
@@ -163,19 +163,20 @@ namespace TillWinter.Unity
             // Thought bubble: which crop is being picked, in its colour.
             if (_bubble != null)
             {
-                _bubbleShow = Prims.Damp(_bubbleShow, a.IsHarvesting ? 1f : 0f, 12f, dt);
+                _bubbleShow = Prims.Damp(_bubbleShow, a.IsWorking ? 1f : 0f, 12f, dt);
                 bool show = _bubbleShow > 0.02f;
                 if (_bubble.gameObject.activeSelf != show) _bubble.gameObject.SetActive(show);
                 if (show)
                 {
                     var gp = new TillWinter.Core.GridPos(Mathf.RoundToInt(a.X), Mathf.RoundToInt(a.Y));
-                    // A waterer thinks of water (GDD §4.2 v2.0); a harvester of the crop it is picking.
+                    // A waterer thinks of water, a digger of the ground, a picker of the crop it is picking (GDD §2v3.9).
                     bool waterer = a.Role == TillWinter.Core.ApprenticeRole.Waterer;
-                    int tier = waterer ? -1 : game.State.InBounds(gp) ? game.State.GetPlot(gp).Tier : 0;
+                    bool digger = a.Role == TillWinter.Core.ApprenticeRole.Digger;
+                    int tier = waterer ? -1 : digger ? -2 : game.State.InBounds(gp) ? game.State.GetPlot(gp).Tier : 0;
                     if (tier != _bubbleTier && _bubbleBinder != null)
                     {
                         _bubbleTier = tier;
-                        _bubbleBinder.Override(PaletteSlot.Golden, waterer ? Palette.Load().Water : Palette.Load().Crop(tier));
+                        _bubbleBinder.Override(PaletteSlot.Golden, waterer ? Palette.Load().Water : digger ? Palette.Load().SoilDry : Palette.Load().Crop(tier));
                     }
                     float bob = SettingsStore.MotionAllowed ? Mathf.Sin(Time.time * 4f) * 0.02f : 0f;
                     _bubble.localPosition = new Vector3(0.12f, 0.8f + bob, 0f);
