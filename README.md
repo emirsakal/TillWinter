@@ -1,9 +1,9 @@
 # Till Winter
 
-**A short, finite, one-thumb farming game for phones.** You drag a ring across a field; every plot
-under it gets watered, grows and pops into coins. Autumn ends in frost, winter opens a skill tree,
-and when a farm has given all it can you hand it to the next generation. Five to seven hours to the
-ending — then it ends, on purpose.
+**A short, finite, one-thumb farming game for phones.** You strike the hard ground with a hoe,
+holding to water what grows and swiping to reap what ripens. Autumn ends in frost, winter opens a
+skill tree, and when a farm has given all it can you hand it to the next generation. Seven to eight
+hours to the ending — then it ends, on purpose.
 
 Unity 6000.3.22f1 · portrait mobile (iOS + Android) · English & Turkish · no ads, no in-app
 purchases, no analytics, no network · 330 automated tests
@@ -16,18 +16,21 @@ purchases, no analytics, no network · 330 automated tests
 
 ## How it plays
 
-**One finger, always busy.** The ring follows your thumb, offset up the screen so your hand never
-covers it. Each plot is a small state machine — **Dry → Wet → Ripe → coins** — and the ring drives
-whichever phase a plot is in. Harvest without pause and a combo builds; let a crop stand too long
-and it dulls and pays less.
+**One finger, always busy.** Tap hard ground to strike it, harder on the beat than off it; break
+through and a seed drops by itself. Hold your finger on what's growing to water it; swipe across
+what's ripe to reap it — several crops in one swipe pay more than one at a time. Break through a
+layer and the ground underneath is tougher, but pays more: **hard → growing → ripe → hard, one
+layer deeper**. Let a crop stand too long and it dulls and pays less.
 
-**A year is about four minutes.** Spring rains water for you, summer dries plots out, autumn stretches
-your combo window. The last ten seconds before frost are a rush: everything pays more and the timer
-beats like a heart. Then winter, and the year is graded on how fresh your harvests were.
+**A year is about four minutes.** Spring hits harder, summer softens growth, autumn stretches your
+reap combo. The last ten seconds before frost are a rush: everything pays more and the timer beats
+like a heart. Then winter: the year is graded on how fresh your harvests were, the ground keeps every
+layer you dug to, hard patches heal, and whatever was ripe gets reaped for you, one tile at a time.
 
 **Winter is the breath.** Coins buy nodes in the Almanac, a skill tree of 38 nodes across five
-branches: a wider ring, irrigation and sun that work while you are away, apprentices who harvest on
-their own, a tractor, a barn that stores part of each harvest for the market, scarecrows, a dog, hens.
+branches: a harder-hitting hoe, deeper stamina and faster growth, apprentices who dig, water and
+harvest on their own, a tractor, a barn that stores part of each harvest for the market, scarecrows,
+a dog, hens.
 
 **Then you let go.** When a farm stalls, you pass it on. The Almanac, the coins and the field are
 gone; Heritage Seeds remain and buy 20 permanent nodes for every generation that follows. An heir
@@ -46,10 +49,10 @@ and neighbour variety, stony and fertile ground, a greenhouse that earns through
 |---|---|---|---|
 | ![Menu](docs/screenshots/readme-0-menu.png) | ![Storm](docs/screenshots/readme-5-weather.png) | ![Album](docs/screenshots/readme-4-album.png) | ![Turkish](docs/screenshots/readme-6-turkish.png) |
 
-**Comfort.** A getting-started checklist for the first generation, a hands-free ring that tends the
-plots around a tap, a plan for what the helpers do while the app is closed, reduce-motion, larger
-text, and a quality tier chosen from the device. A farm code moves a save to another phone, and
-local reminders (opt-in) let you know when the passive work is ready.
+**Comfort.** A getting-started checklist for the first generation, a plan for what the helpers do
+while the app is closed, reduce-motion, larger text, and a quality tier chosen from the device. A
+farm code moves a save to another phone, and local reminders (opt-in) let you know when the passive
+work is ready.
 
 ---
 
@@ -80,14 +83,14 @@ system can quietly invent its own multiplier. Tunables live in `FarmConfig`.
 hand-written JSON fixture of the previous version that must load and then play deterministically —
 so a save written by any older build still opens.
 
-**Offline is a rule, not a bonus.** `SimulateOffline` advances irrigation, sun, apprentices and the
-tractor for at most eight hours; the year timer, crows, weather and seasons never move while the app
-is closed, so you cannot lose a year by living your life.
+**Offline is a rule, not a bonus.** `SimulateOffline` advances growth, apprentices (diggers included)
+and the tractor for at most eight hours; the year timer, crows, weather and seasons never move while
+the app is closed, so you cannot lose a year by living your life.
 
 **Balance is measured, not argued.** `AutoPlayer` plays the whole game headlessly. `BalanceTests`
 asserts the targets: year-1 income, hours to the ending, generations to a full Heritage tree, how
-much of the take comes from the ring, seeds at the first rebirth. A tuning change that breaks one
-fails the suite.
+much of the take comes from your own hand rather than the helpers, seeds at the first rebirth. A
+tuning change that breaks one fails the suite.
 
 **Four gates, not one.**
 
@@ -149,10 +152,10 @@ Built by [Emirhan Furkan Sakal](https://github.com/emirsakal) (EFS Games), paire
 
 ## Türkçe özet
 
-**Till Winter**, tek parmakla oynanan, kısa ve sonu olan bir mobil çiftlik oyunu. Parmağını tarlada
-gezdirirsin: halkanın altındaki parseller sulanır, büyür ve jetona dönüşür. Sonbahar donla biter, kış
-Almanak'ı açar; bir çiftlik verebileceğini verince onu bir sonraki nesle devredersin. Sona beş ila
-yedi saatte varılır ve oyun gerçekten biter.
+**Till Winter**, tek parmakla oynanan, kısa ve sonu olan bir mobil çiftlik oyunu. Sert toprağı çapayla
+kırarsın, büyüyeni tutarak sularsın, olgunlaşanı kaydırarak biçersin — her kırdığın katman bir öncekinden
+daha zor ama daha kazançlıdır. Sonbahar donla biter, kış Almanak'ı açar; bir çiftlik verebileceğini
+verince onu bir sonraki nesle devredersin. Sona yedi ila sekiz saatte varılır ve oyun gerçekten biter.
 
 Reklam yok, uygulama içi satın alma yok, analitik yok, internet gerekmiyor. Türkçe ve İngilizce
 birlikte geliyor.

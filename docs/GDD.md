@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 2.12 - September 2026 (play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline; an art pass reworked apprentice locomotion, crop-stage easing, frost/storm readability, skill-tree branch colour and layout, coin iconography and the generation card, marked *(v2.8)* inline; round particles moved from opaque primitives to soft billboards on a fourth shader, `TW_Particle`, marked *(v2.9)* inline; a balance/content pass fixed the greenhouse winter cap, the Heritage `h_ring_master`/`h_long_summer` pair, crow immunity, `fertile_start`/`spring_head_start`, the ring radius ceiling, Almanac advisor weights, offline heirloom counting, family-album story parity and the statistics/how-to-play/loading-tip screens, marked *(v2.8)* inline; a core-loop rebuild prototype — tile digging, striking, stamina, and reaping replacing the ring — is specified in §2v3, marked *(v3.0, prototype)* inline; after playing the prototype the crit became a hybrid (on-beat certain, off-beat a base chance) and stamina became a multiplier rather than a gate (tired swings never stop the finger), marked *(v3.1)* inline; after playing again, the field became the farm's memory between years — layer depth persists but hard-ground HP refills at the frost, and whatever is ripe is reaped by itself one tile at a time — while rebirth still resets every tile to the surface, marked *(v3.2)* inline; the ring stays the shipped rule until v3 is adopted).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 3.0 - September 2026 (the core loop v3 migration is complete and shipped: Kaz, Kır, Ek, Biç — strike, grow, reap — replaces the ring as the game's one active loop; §2v3 is no longer a prototype, §2.1 "The ring" and §2.2 "Plot state machine" are superseded by it; a bedrock cap, the final tuned break/HP curve, the re-themed Almanac and Heritage tables and the measured acceptance numbers are marked *(v3.3)* inline; play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline; an art pass reworked apprentice locomotion, crop-stage easing, frost/storm readability, skill-tree branch colour and layout, coin iconography and the generation card, marked *(v2.8)* inline; round particles moved from opaque primitives to soft billboards on a fourth shader, `TW_Particle`, marked *(v2.9)* inline; a balance/content pass fixed the greenhouse winter cap, the Heritage `h_ring_master`/`h_long_summer` pair, crow immunity, `fertile_start`/`spring_head_start`, the ring radius ceiling, Almanac advisor weights, offline heirloom counting, family-album story parity and the statistics/how-to-play/loading-tip screens, marked *(v2.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -24,9 +24,9 @@ A short, finite, mobile incremental farming game. You drag a ring over a field; 
 
 ## 2. Core loop
 
-*(v3.0)* A rebuild of this loop is specified in §2v3; the ring remains the shipped rule until it is adopted.
+*(v3.3)* §2v3 — Kaz, Kır, Ek, Biç (strike, grow, reap) — is the shipped core loop. §2.1 "The ring" and §2.2 "Plot state machine" below describe the demo-era ring loop and are **superseded**; kept short, for history, not as current rule.
 
-### 2.1 The ring
+### 2.1 The ring *(superseded by §2v3, v3.3)*
 - The player holds/drags anywhere on the field. A ring (radius in plot units) follows the pointer, offset **0.8 plots toward the top of the screen** (tested in the demo; keep).
 - Every plot whose centre is inside the ring is processed **independently and in parallel** according to its own state (see 2.2). There is no "mode"; the ring does whatever each plot needs. *(v1.4)* Watering and growing stay parallel, but the ring **harvests one Ripe plot at a time** (the one furthest along, ties to the plot nearest the ring centre); other Ripe plots under the ring wait or go to the helpers. A big ring stays a big watering can while the late-game harvest shifts to apprentices and the tractor.
 - Tapping (down+up < 0.2 s, < 20 px) targets the plot under the finger with no offset: scares a crow, and counts as a one-frame ring.
@@ -35,7 +35,7 @@ A short, finite, mobile incremental farming game. You drag a ring over a field; 
 - *(v1.6)* `ring_shape` unlocks two more footprints beyond the circle, chosen by the player on the play screen and saved: **Rake**, a wide thin ellipse (1.7 × 0.5 radii), and **Cross**, two crossed ellipses (1.5 × 0.42 radii).
 - *(v1.6)* With `tap_harvest`, a tap finishes one Ripe plot outright on a cooldown (**6 s**, **3 s** at level 2) instead of doing nothing.
 
-### 2.2 Plot state machine
+### 2.2 Plot state machine *(superseded by §2v3, v3.3)*
 Each plot holds a crop of a given **tier** and is in one of three states. Harvest replants the same tier at Dry.
 
 | State | Under the ring | Passive counterpart |
@@ -119,9 +119,9 @@ apprentice, tractor, late frost); crop timings are untouched by any of them.
 
 ---
 
-## 2v3. Core loop v3 — Kaz, Kır, Ek, Biç *(v3.0, prototype)*
+## 2v3. Core loop v3 — Kaz, Kır, Ek, Biç *(v3.3 — shipped)*
 
-Prototype on branch feat/core-v3; supersedes §2.1–§2.2 if adopted. Numbers are the simulation's starting point and move with the bot tables (§15).
+The shipped core loop, replacing §2.1–§2.2. Built on branch feat/core-v3, merged as the game's one active loop. Numbers here are the tuned, measured values (§15); *(v3.3)* marks what the bedrock cap and the final tuning pass changed.
 
 ### 2v3.1 Why
 The ring asks no question: the balance bot plays it optimally with one rule ("ring over the ripest plot") and the ring's share of harvests falls from 100% (year 1) to 20–30% by generation 4–6, so the active layer becomes irrelevant; generations 5–6 are ~25 years of waiting with nothing to buy. Model: Bills Must Be Paid — a physical timed hit, damage vs HP, a stamina-bounded run, felt upgrades.
@@ -129,38 +129,59 @@ The ring asks no question: the balance bot plays it optimally with one rule ("ri
 ### 2v3.2 The tile cycle
 `hard ground (layer n) → strike → broken: seed drops → growing (idle timer; hold to water ×3) → ripe → reap (swipe) → hard ground (layer n+1)`. A tile never finishes; each reap opens the next, tougher and richer layer. *(v3.2)* Between years the field is the farm's memory: every tile keeps its layer (L10 stays L10), but winter closes every half-made crack — hard ground's HP refills to full at the frost. At the frost, whatever is ripe is reaped by itself, one tile at a time (no combo), so nothing is lost, but reaping before the frost still pays the combo; a growing crop waits and continues in spring. Rebirth (retire) returns the whole field to the surface: every tile a fresh first layer (L0 clay, full HP, nothing growing); Heritage makes the next descent faster. Winter carries no penalty (developer decision): the only thing it takes is a half-made crack.
 
+*(v3.3)* **Bedrock.** `FarmConfig.MaxLayer` (**12**) caps how deep a tile goes: past it, a reap brings the same layer back instead of opening layer 13. Reason: with unbounded HP growth a long generation's field locked solid — the balance bot's 5th generation sat 1 700 years at layer 24 with 0 breaks (13 500 HP against a 14-damage hoe in a 90 s year). A capped field keeps paying instead of fossilising.
+
 ### 2v3.3 Ground
-Table: layer index → type (0–1 clay "kil", 2–3 stone "taş", 4–5 roots "kök", 6–7 gravel "çakıl", 8+ rock "kaya"); HP = `DigConfig.BaseHp` (10) × `HpGrowth` (1.6)^layer; break bonus coins = `BreakCoins` (2) × `BreakGrowth` (1.5)^layer. Type is visible, the reward inside is hidden until the break. Specials roll on each new layer: buried chest `ChestChance` (4%): opens with a choice of one of two revealed rewards from a table — coin purse (35%, 5–10× the layer's break bonus), rare seed (20%, one planting of a crop tier not yet unlocked), tool part (15%, three make a one-year special tool), water flask (12%, stamina to full), Heritage seed (8%, +1), heirloom shard (10%); never empty, never a penalty. Golden hardpan `GoldChance` (2%): visible, HP ×3, break bonus ×8 — a patience question, not a surprise. Spring rain softens ground (HP ×0.8), summer drought hardens it (×1.2) and slows growth, autumn lengthens the reap combo window (existing season rules re-themed).
+Table: layer index → type (0–1 clay "kil", 2–3 stone "taş", 4–5 roots "kök", 6–7 gravel "çakıl", 8+ rock "kaya"); HP = `DigConfig.BaseHp` (10) × `HpGrowth`^layer × the soft-ground multiplier; break bonus coins = `BreakCoins` × `BreakGrowth`^layer, paid when the tile breaks, before the tile's chosen seed drops by itself. *(v3.3, tuned)* `HpGrowth` **1.22**, `BreakGrowth` **1.28**, `BreakCoins` **1** — down from the prototype's 1.6/1.5/2; see §15 for why (a shallower HP curve keeps a deeper layer worth a *little* more per hit instead of outgrowing the hoe). Type is visible, the reward inside is hidden until the break; capped at `MaxLayer` **12** (§2v3.2).
+
+Specials roll on each new layer: buried chest `ChestChance` (**4%**), pays **7.5×** the layer's break bonus outright *(v3.3 — the two-revealed-rewards choice sketched in the prototype is deferred to a later phase; the shipped chest is a straight coin bonus, never empty, never a penalty)*. Golden hardpan `GoldChance` (**2%**): visible, HP ×3, break bonus coins ×8 — a patience question, not a surprise.
+
+*(v3.3)* Seasons re-themed for the hoe: spring strike damage ×1.25, summer strike damage ×0.83 and growth ×0.8, autumn reap combo ×1.5. Weather re-themed: storm = growth ×1.5, ground softer ×1.25, crows hide; heat wave = growth ×0.7, ground harder ×0.8; fog = ripe crops keep (no over-ripening), crows hide.
 
 ### 2v3.4 Striking and the timing pulse
-A short press on a hard tile is one strike. *(v3.1)* The pulse is the field's, not the tile's: one beat for the whole board (period `PulseSeconds` 1.0 s, later tied to the music's tempo); the whole board breathes with it and the selected tile carries the halo. *(v3.1)* Crit is a hybrid: a strike within `CritWindow` (0.25 of the period, centred on the beat; widened by the "steady hand" Almanac line, capped at `MaxCritWindow` 0.40) always crits; off the beat a strike still crits at `BaseCritChance` (10%), raised by the Almanac ("lucky hoe", +3%/level, cap `MaxCritChance` 50%) and later by tools. Crit damage × `CritMult` (2.5). Base hoe damage `Damage` (3). Strike cooldown `StrikeCooldown` (0.35 s). Damage numbers always show; crits larger, accent colour, tile shake, haptic Medium; no camera shake (rule kept).
+A short press on a hard tile is one strike. *(v3.1)* The pulse is the field's, not the tile's: one beat for the whole board (period `PulseSeconds` **0.6 s** *(v3.3, tuned — 100 bpm; was 1.0 s)*, later tied to the music's tempo); the whole board breathes with it and the selected tile carries the halo. *(v3.1)* Crit is a hybrid: a strike within `CritWindow` (**0.30** of the period *(v3.3, was 0.25)*, centred on the beat; widened by the "steady hand" Almanac line, capped at `MaxCritWindow` 0.40) always crits; off the beat a strike still crits at `BaseCritChance` (10%), raised by the Almanac ("lucky hoe", +3%/level, cap `MaxCritChance` 50%) and later by tools. Crit damage × `CritMult` (2.5). Base hoe damage `Damage` (3). Strike cooldown `StrikeCooldown` (0.35 s). *(v3.3)* "splash" (Almanac, Hand branch) gives the four side neighbours 25%/level of the struck tile's damage. Damage numbers always show; crits larger, accent colour, tile shake, haptic Medium; no camera shake (rule kept).
 
 ### 2v3.5 Stamina
-*(v3.1)* Stamina is a multiplier, not a gate: a strike with no stamina still lands as a *tired swing* at `TiredDamage` (40%) and never crits, and costs nothing — the finger never waits. Depot `StaminaMax` (100); a rested strike costs `StrikeCost` (3); holding to water costs `WaterCostPerSecond` (6); regen `StaminaRegen` (2/s) always, plus *(v3.1)* `ReapStamina` (8) per crop reaped — the ground gives back, feeding the next strikes; reaping itself is free. Stamina is a budget inside the year's clock, not a second clock: when it is empty the field keeps growing and the helpers keep working; the player swings tired and waits for the depot to refill. It refills to full offline. *(v3.1)* Expected ~140 rested strikes a year on the 90 s clock, against a cooldown ceiling of ~257.
+*(v3.1)* Stamina is a multiplier, not a gate: a strike with no stamina still lands as a *tired swing* at `TiredDamage` (**30%** *(v3.3, tuned — was 40% in the prototype)*) and never crits, and costs nothing — the finger never waits. Depot `StaminaMax` (100); a rested strike costs `StrikeCost` (3); holding to water costs `WaterCostPerSecond` (6); regen `StaminaRegen` (2/s) always, plus *(v3.1)* `ReapStamina` (8) per crop reaped — the ground gives back, feeding the next strikes; reaping itself is free. Stamina is a budget inside the year's clock, not a second clock: when it is empty the field keeps growing and the helpers keep working; the player swings tired and waits for the depot to refill. It refills to full offline. *(v3.1)* Expected ~140 rested strikes a year on the 90 s clock, against a cooldown ceiling of ~257.
 
 ### 2v3.6 Seeds and growth
-A broken tile receives the tile's chosen seed automatically (default: the most valuable unlocked crop; changed from the seed bag; never random). Growth is a timer (`Grow` seconds per crop, reusing §2.3's crops with water+grow folded into one number: carrot 2.5, tomato 5, corn 8, pumpkin 13, grapes 19, golden wheat 27 — *tune*); holding on a growing tile waters it: ×`WaterBoost` (3) growth while held. Value = crop value × (1 + `DepthValue` (0.5) × layer).
+*(v3.3, reverted)* A broken tile receives the plot's chosen seed automatically from the seed bag (§2.4), default the bed's best crop — never random. (An earlier prototype note said this was "changed from the seed bag"; implementation kept the seed bag after all, since a plot's chosen crop still needs to mean something once the plot goes back underground.) Growth is a timer (`Grow` seconds per crop, reusing §2.3's crops with water+grow folded into one number: carrot 2.5, tomato 5, corn 8, pumpkin 13, grapes 19, golden wheat 27 — measured, no longer *tune*); holding on a growing tile waters it: ×`WaterBoost` (3) growth while held. Value = crop value × (1 + `DepthValue` (0.5) × layer).
 
 ### 2v3.7 Reaping
-A swipe reaps every ripe tile its path crosses; n tiles in one swipe pay ×(1 + `ComboPerCrop` (0.1) × (n−1)). Unripe tiles are ignored. Over-ripening (§2.5) stays.
+A swipe reaps every ripe tile its path crosses; n tiles in one swipe pay ×(1 + `ComboPerCrop` (0.1) × (n−1)) each *(v3.3: autumn's reap combo runs at ×1.5, §2v3.3)*. A tap reaps one ripe tile outright. Unripe tiles are ignored. Reaping itself is free and gives `ReapStamina` (8) stamina per crop (§2v3.5). Over-ripening (§2.5) stays.
 
 ### 2v3.8 Crows and pests
-A crow lands on a ripe crop and waits `CrowWait` (4 s). Tapping it scares it *and reaps that crop* (no penalty); untouched, it eats the crop and leaves — the crop is lost. Pests likewise per §5.5.
+*(v3.3)* A crop ripe for ≥ 3 s is checked every second at an 8% chance for a crow to land; once landed it waits `CrowWait` (4 s). Tapping it scares it (bounty) *and reaps that crop*; untouched, it eats the crop, and the ground returns a layer deeper anyway (breaking is not skipped just because the crop was lost). Pests likewise: a mole or rabbit that gets its way costs the crop and the ground still returns deeper; a locust swarm is driven off by 3 strikes landed inside it; a four-leaf clover is taken by a strike, a tap, or a swipe on its plot *(v3.3 — any hoe action, not just the ring passing over it)*. See §5.5–§5.6 for the rest of each event's rules.
 
 ### 2v3.9 Helpers
-Three apprentice roles, each with its own Almanac nodes: digger ("kazan çırak", strikes slowly, never crits), waterer, picker (reaps). Tractor reaps rows. Dog and hens as today.
+*(v3.3)* Three apprentice roles (tap an apprentice to cycle): **Picker** reaps ripe tiles; **Waterer** visits growing tiles and adds +25% growth per visit; **Digger** ("kazan çırak") strikes hard ground at 50% of the player's damage, +25% per `apprentice_dig` level, never crits. Tractor reaps rows; dog and hens unchanged. Away plan (§10.7): "all harvest" turns every apprentice into a Picker; "balanced" makes every other one a Waterer.
 
 ### 2v3.10 Offline
-Growth continues, stamina refills, waterers/pickers/tractor work; no strikes by the player. Cap unchanged (§9).
+Growth continues, helpers work (pickers reap, waterers water, diggers dig — *(v3.3)* diggers are not held back offline), stamina refills; no strikes by the player; the year clock, crows and seasons stay frozen as before. Cap unchanged (§9).
 
-### 2v3.11 Almanac and Heritage re-theme (sketch)
-Hand → Hoe: damage, crit window, strike speed, area (splash to neighbours), stamina depot/regen. Soil: growth, softness (−HP%), seed quality. Field: expand, crops. Helpers: three roles. Calendar: unchanged. Heritage mirrors. Ring-only nodes (ring_shape, tap_harvest, ring_radius…) are dropped.
+### 2v3.11 Almanac and Heritage re-theme *(v3.3, final tables)*
+
+Every base Almanac cost is **×4** the ring game's (measured: the hoe earns about four times as much in year 1, so costs were scaled to match rather than crop values being cut). Nodes removed outright: `ring_radius`, `ring_water_speed`, `ring_grow_speed`, `ring_harvest_speed`, `ring_bonus_coins`, `ring_combo`, `ring_shape`, `tap_harvest`, `irrigation`, `sun`, `fertile_start`, `helper_water`.
+
+**Hand → the hoe** (replaces §6's Hand branch): `hoe_damage` +1 damage/level (8 levels, base 120) · `stamina_depot` +15/level (5, 240) · `stamina_regen` +0.25/s/level (5, 480) · `steady_hand` +0.03 crit window/level (3, 600) · `lucky_hoe` +3% crit/level (6, 480) · `strike_speed` −0.04 s cooldown/level, floor 0.15 s (4, 1000) · `splash` +25%/level to the four side neighbours (2, 2800) · `break_bonus` +10%/level break coins (4, 1600) · `reap_combo` +0.02/level per crop in a swipe (3, 3200).
+
+**Soil**: `growth` +15%/level, replaces `sun`/`irrigation` (5, 160) · `soft_ground` −6% HP/level (5, 600) · `soil_quality` × (6, 1000) · `crop_value` (5, 2000) · `early_thaw` spring opens with a quarter of the cracks already made, replaces `fertile_start` (1, 2400) · `beehive` growth ×1.3 on the two sunflower columns (1, 1800).
+
+**Field** (unchanged from §6 besides cost): `expand_field` (240) · `unlock_tomato` (400) · `upgrade_plot` (100) · `unlock_corn` (1200) · `unlock_pumpkin` (2800) · `unlock_grapes` (4800) · `unlock_golden_wheat` (8000) · `bulk_upgrade` (3600) · `barn` (1000).
+
+**Helpers**: `apprentice_count` (320) · `apprentice_speed` (480) · `apprentice_work_time` (600, was `apprentice_harvest_time`) · `apprentice_yield` (1200) · `apprentice_dig` **new**, digger damage +25%/level (2000) · `scarecrow` (400) · `tractor` (4000) · `farm_dog` (1600) · `hens` (2000). `helper_water` is removed (apprentice-only effect with no apprentice-only meaning left once watering is a hoe action too).
+
+**Calendar**: `year_length` (200) · `frost_warning` (480) · `late_frost` (2400) · `greenhouse` (1600) · `crow_bounty` (1200) · `spring_head_start` (6000) — now means spring opens with half the cracks already made and every growing crop half grown.
+
+**Heritage** (replaces the four §7 nodes named below; rest of §7's table unchanged): `h_start_damage` +1 starting hoe damage, replaces `h_start_radius` · `h_strike_speed` +5%/level hoe speed, replaces `h_ring_speeds` · `h_break_coins` +5%/level break coins, replaces `h_ring_coins` · `h_start_growth` / `h_start_soft` start with Growth 1 / Soft Ground 1, replace `h_start_irrigation` / `h_start_sun` · `h_hoe_master` hoe speed +8%/level and break coins +10%/level, replaces `h_ring_master`, still excludes `h_steward` (§7.3). Heirs (§7.4): Green Thumb = growth +12% (was Irrigation/Sun), Quick Hands = hoe speed +8% (was ring speeds). The "Old metronome" heirloom (25-combo, §7.6) is renamed **Old sickle**: reap 9 in one swipe. The yearly Combo goal (§3.3) is now "reap N in one swipe": target 3, +1 per year, max 9.
 
 ### 2v3.12 Later: tools
-Bills-Must-Be-Paid-style purchasable tools chosen between: e.g. light hoe (fast, narrow, high crit), mattock (slow, wide, high damage), pick (crit damage), each with levels. Out of scope for the prototype.
+Bills-Must-Be-Paid-style purchasable tools chosen between: e.g. light hoe (fast, narrow, high crit), mattock (slow, wide, high damage), pick (crit damage), each with levels. Still out of scope — not built yet.
 
-### 2v3.13 Acceptance
-Two headless bots play the prototype: "dumb" (random tile, random timing, never waters, reaps one at a time) and "smart" (tile by expected coins per stamina, keeps a reserve, waters when full, one swipe per cycle, on-beat p=0.8). Adopt v3 only if smart ≥ 1.5× dumb over five years — the ring core fails this test by construction. *(v3.1)* The bot tables also report the share of tired swings; the smart bot spends tired swings only to finish a tile. *(v3.2)* The bot tables also count frost-reaped crops (`FrostReaped`). Then a box-graphics playable scene; the developer decides by hand ("vuruş hissi").
+### 2v3.13 Acceptance — passed, v3 shipped *(v3.3)*
+Two headless bots play the core loop: "dumb" (random tile, random timing, never waters, reaps one at a time) and "smart" — strikes the hard tile worth the most per hit, waits for the beat with probability `Skill` (0.8), spends tired swings only to finish a tile, waters the crop nearest ripe while the depot is over half, and swipes once two crops stand ripe (or one has stood 1.5 s, or nothing is left to strike). Adopt v3 only if smart ≥ 1.5× dumb over five years — the ring core failed this test by construction, which is why v3 replaced it.
+
+Measured (five years, seeds 1–2): smart 2 995 / 3 058 coins vs. dumb 1 422 / 1 562 (**2.1×** and **2.0×**) — the bar is cleared. Smart also beats an off-beat player (never timing strikes to the pulse) by +23% / +20% (2 432 / 2 554 coins), so the timing pulse itself is worth something, not just "play at all". *(v3.1)* The bot tables also report the share of tired swings. *(v3.2)* The bot tables also count frost-reaped crops (`FrostReaped`). A box-graphics playable scene followed, and the developer's own play ("vuruş hissi") confirmed it — v3 is now the whole game.
 
 ---
 
@@ -197,7 +218,7 @@ From `FarmConfig.GoalFirstYear` (year 2) of a generation, skipping the Golden Ye
 draws one goal with the sim RNG:
 
 - **Harvest a crop**: a random crop up to the best bed; target = `ceil(2 × non-stony plots)`.
-- **Combo**: target = `8 + 2 × (year − 1)`, capped at 30.
+- **Combo**: *(v3.3)* now "reap N in one swipe" — target = `3 + 1 × (year − 1)`, capped at 9 (was `8 + 2 × (year − 1)`, capped at 30, back when combo meant consecutive ring harvests).
 - **Coins**: only offered if last year earned anything; target = `ceil(lastYearCoins × 1.2)`.
 
 Reward = `max(GoalMinReward, GoalRewardShare × lastYearCoins)` (**10**, **5%**), paid once on
@@ -457,7 +478,8 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
   50 crows scared, 10 golden harvests, a three-star year, 1 000 harvests, a second generation,
   golden wheat unlocked, 5 yearly goals met, a trader deal, 10 pests stopped, a market sale.
 - Each achievement leaves a named heirloom with a small permanent bonus, stacking and never reset:
-  Worn gloves, Old metronome, Tin whistle, Gilded seed, Blue ribbon, Farmer's almanac, Family
+  Worn gloves, Old sickle *(v3.3, was Old metronome — the 25-combo achievement is now "reap 9 in
+  one swipe", §2v3.11)*, Tin whistle, Gilded seed, Blue ribbon, Farmer's almanac, Family
   portrait, Seed tin, Pocket watch, Merchant's scale, Wooden mallet, Market ledger. Bonuses are
   crop value +1–1.5%, ring speeds +1.5%, passive growth +1.5%, crows −5%, golden chance +0.3% or
   Almanac −1%, one per heirloom.
@@ -518,6 +540,7 @@ local only) and returns to the title. Offline, no online services, no live-ops.
 
 - JSON file in `Application.persistentDataPath`, versioned (`schemaVersion`), written on every winter, rebirth, purchase, and on app pause. Corrupt/unknown file → start fresh, never crash. *(v1.2)* Also written on Next Year, on starting a new generation, and every 30 s during a year. Atomic write with one `.bak`; a corrupt file is renamed `.corrupt-<timestamp>`.
 - Offline progress: on resume, simulate passive systems only (irrigation → sun → apprentices/tractor) for `min(elapsed, 8 h)` at a fixed dt in the pure core; the year timer does **not** advance offline (you never come back to a lost year). Show a "while you were away" card with coins earned. *(v1.2)* Simulated at a 1 s step; the ring, crows and seasons are frozen. A clock that went backwards counts as 0 elapsed. *(v1.3)* The tractor also runs offline; the greenhouse does not (phase is not Year). *(v2.1)* Schema 11 → 12 adds `PestKind`/`X`/`Y`/`Timer`/`Shoo`, `HenCooldown`, `CloverX`/`Y`/`Left`, `StarLeft`, `RushLeft`, `Trader*` fields, `PestCheckTimer` and `LuckyCheckTimer` to `SaveData`. `SaveMigrations.V11ToV12` starts a loaded save with no pest, no lucky moment and no trader due (`PlannedTime` −1). Pests, lucky moments and the trader are Year-phase state only, never part of offline simulation (§5.5–§5.7). *(v2.8)* `OfflineReport.HeirloomsFound` — achievements earned while away are counted, and the away card lists "Heirlooms found: N".
+- *(v3.3)* Core loop v3's offline rule (§2v3.10): growth continues and stamina refills to full; apprentices work their role, including diggers (they are not held back the way the player's own strikes are); the player cannot strike, and the year clock, crows and seasons stay frozen exactly as before. Nothing new to the save format — this reuses the existing offline-simulation pipeline with the hoe's systems added to it.
 - *(v1.6)* Schema is now **7**: adds each plot's `RipeAge` and the player's chosen ring shape. Migration `V6ToV7` is a no-op with safe defaults (age 0, circle shape).
 - *(v1.7)* Schema is now **8**: adds each plot's `Choice` (default **-1**); `Tier` now means the bed's quality, not the crop growing. Migration `V7ToV8` sets `Choice = -1` on every plot. Fixture-tested in `SaveV8Tests` against a hand-written v7 JSON.
 - *(v1.8)* Schema is now **9**: adds each plot's `Kind` (int) and `LastYearTier` (default **-1**). Migration `V8ToV9` sets every plot to plain ground with no rotation memory. Fixture-tested in `SaveV9Tests` against a hand-written v8 JSON.
@@ -543,6 +566,12 @@ local only) and returns to the title. Offline, no online services, no live-ops.
   `V15ToV16` marks every checklist step (§10.5) done — a farm saved before the checklist existed is
   already past what it teaches — and keeps apprentice roles as they are. Fixture-tested in
   `SaveV16Tests` against a hand-written v15 JSON.
+- *(v3.3)* Schema is now **18**: the core loop v3 migration changes what a plot and a save even
+  mean, so v1–v17 (ring-game) saves **start fresh by decision** rather than migrating — no players
+  have shipped saves yet. `PlotSave` now carries `Layer`, `Hardpan`, `Chest`, `Hp`, `MaxHp`,
+  `HiddenBonus`, `CropLayer`; `SaveData` carries `Stamina` and the hoe's lifetime counters
+  (`Strikes`, `Crits`, `Breaks`, `DeepestLayer`), shown on the statistics screen. `SaveV18Tests`
+  replaces the v2–v17 fixture tests.
 
 ---
 
@@ -552,26 +581,25 @@ local only) and returns to the title. Offline, no online services, no live-ops.
 2. **Almanac** (Winter) — tree canvas (`SkillTreeView` + `TreeTheme`), node detail card, "Next Year" and "Pass on the farm" buttons. A "Heritage" tab in the Winter top bar opens the Heritage tree without leaving Winter.
 3. **Heritage** — *(v1.3, Session 5)* the same `SkillTreeView` shown full screen, themed by a second asset (`HeritageTheme`: deep green paper, gold accents, seed currency, darker branch colours, tighter initial zoom so all five branches fit). Reached after rebirth (Retire on the farm -> confirm dialog -> `Retire()` -> a full-screen **Generation card**: "Generation N", one flavour line, seeds counting up, skip after 0.5 s / auto-continue at 6 s -> Heritage screen), before Spring of the new generation; also reachable as the Winter tab above. Starting the new generation reveals plots one by one bottom-left to top-right, clears snow, and pops in generation-appropriate decor (`FarmDecorSet`/`FarmDecorView`, data-driven, `MinGeneration`-gated). Pan/zoom is remembered per tree (Almanac and Heritage separately) across sessions.
 4. **Pause / Settings** — language, sound, haptics, reset save, credits. Last.
-5. **Onboarding** — no tutorial screen; a `Hint` enum + `OnboardingFlags` in Core make every hint fire once and only once, saved. *(v1.3, Session 5)* Shipped hints: first touch on a Dry plot (pulsing hand + hold caption), first Ripe plot outside the ring, first frost warning, first crow; first Winter (the tree centres on `ring_radius`/`irrigation` with a pulse and caption until the first purchase); the first time `CanRetire` (a one-time explanatory sheet); first entry to Heritage ("Seeds never reset."). Hints never block input. **While-you-were-away card** (`AwayCard`, shown on resume when offline sim earned coins): duration in h/min, total coins, a line per source (apprentices, tractor), a note when capped at the 8 h offline cap; the HUD coin counter withholds the earned coins (`HudView.HeldCoins`) until the card is dismissed. *(v2.8)* The "How to play" sheet (Settings) ends with a crop table (name, tier, liked season, seconds dry→ripe at ring level one, value); loading tips grew from 6 to 14.
+5. **Onboarding** — no tutorial screen; a `Hint` enum + `OnboardingFlags` in Core make every hint fire once and only once, saved. *(v1.3, Session 5)* Shipped hints: first touch on a Dry plot (pulsing hand + hold caption), first Ripe plot outside the ring, first frost warning, first crow; first Winter (the tree centres on `ring_radius`/`irrigation` with a pulse and caption until the first purchase); the first time `CanRetire` (a one-time explanatory sheet); first entry to Heritage ("Seeds never reset."). *(v3.3)* Re-themed for the hoe loop: tap the hard ground; strike on the beat (fires after the second strike); hold to water; swipe over the ripe crop; tap the crow. Hints never block input. **While-you-were-away card** (`AwayCard`, shown on resume when offline sim earned coins): duration in h/min, total coins, a line per source (apprentices, tractor), a note when capped at the 8 h offline cap; the HUD coin counter withholds the earned coins (`HudView.HeldCoins`) until the card is dismissed. *(v2.8)* The "How to play" sheet (Settings) ends with a crop table (name, tier, liked season, seconds dry→ripe at ring level one, value); loading tips grew from 6 to 14.
 
 ### 10.5 Getting-started checklist *(v2.5)*
 
 During the family's first generation only (not New Game+, not the daily farm), a HUD card
-"Getting started" lists five steps that tick themselves as they happen: water a plot with the
-ring; grow a crop until it is ripe; harvest 5 crops; harvest 3 in a row for a combo; buy something
-in the Almanac. Done steps show struck through; the card hides once every step is done. The steps
-are Core state — `ChecklistBits` on `FarmState` (saved), one bit per `ChecklistStep`, checked each
-tick, firing event `ChecklistStepDone`. The existing one-shot onboarding hints above stay; the
-checklist sits beside them rather than replacing them (the hints explain, the checklist shows
-progress).
+"Getting started" lists five steps that tick themselves as they happen. *(v3.3)* Re-themed for the
+hoe: **break the ground with a tap**; grow a crop until it is ripe; reap 5 crops; **reap 3 in one
+swipe**; buy something in the Almanac. Done steps show struck through; the card hides once every
+step is done. The steps are Core state — `ChecklistBits` on `FarmState` (saved), one bit per
+`ChecklistStep`, checked each tick, firing event `ChecklistStepDone`. The existing one-shot
+onboarding hints above stay; the checklist sits beside them rather than replacing them (the hints
+explain, the checklist shows progress).
 
-### 10.6 Hands-free ring *(v2.5)*
+### 10.6 Hands-free ring — removed *(v3.3)*
 
-A Settings switch "Hands-free ring" (`SettingsData.HandsFree`). A tap on the field places the
-ring's home; with no finger down, `AutoRing` (Core, pure input) tends the plots within 1.6 plots of
-home on its own at 3 plots/s, most urgent first (Ripe, then the Wet plot nearest ripening, then
-Dry, stones last; nearest wins ties). It produces the same `RingInput` a finger would, so the sim
-stays deterministic and balance measurements are unchanged. A finger still takes over at any time.
+A Settings switch "Hands-free ring" (`SettingsData.HandsFree`) used to let a tap place the ring's
+home and have `AutoRing` (Core) tend nearby plots with no finger down; it does not carry over to
+the hoe loop — striking, watering and reaping are all deliberate single actions with no equivalent
+"idle tending" — so the switch, `AutoRing` and its Core input are removed along with the ring.
 
 ### 10.7 Before you leave *(v2.5)*
 
@@ -887,3 +915,30 @@ Results: 5.06 / 5.07 / 5.03 h over seeds 1–3 before the pass; 4.98 h after the
 before the divisor change. Tuned: `SeedDivisor` 37 → 38 to bring it back; measured ending
 5.12 / 5.14 / 5.12 h over seeds 1–3. 6 generations to max Heritage, 10 seeds at first retire, ring
 share at first retire 54–56%, generation 4 30–31%.
+
+**2026-09-24 — v3.3 core loop v3 migration, final tuning.** Measured with `balance-sim.bat` /
+`BalanceTests` (`AutoPlayer` plays to the ending, seeds 1–3).
+
+What changed: the ring loop (§2.1–§2.2) is replaced by the hoe loop (§2v3) as the shipped rule;
+`FarmConfig.MaxLayer` (**12**, bedrock, §2v3.2) caps how deep a tile can go; `HpGrowth`/
+`BreakGrowth`/`BreakCoins` tuned to **1.22/1.28/1**; `TiredDamage` tuned to **0.3**; every Almanac
+base cost scaled **×4** (§2v3.11).
+
+Why the bedrock cap: at the prototype's `HpGrowth` **1.35** a long generation's field locked
+solid — the balance bot's 5th generation sat **1 700 years at layer 24 with 0 breaks** (13 500 HP
+against a 14-damage hoe in a 90 s year) — and income fell within a generation instead of rising
+(year 1 = 297 coins / 45 breaks → year 8 = 123 coins / 4 breaks, the ground outgrowing the hoe).
+`HpGrowth` **1.22** with `BreakGrowth` **1.28** makes a deeper layer pay a little more per hit than
+it costs, so income rises again inside a generation (376 → 936 coins over generation 1); `MaxLayer`
+**12** is the backstop for whatever this pass didn't fully flatten.
+
+Results (seeds 1–3): year-1 coins 472 / 467 / 434 (2–3 root nodes bought in the first winter, before
+the ×4 Almanac costs it was 5–8); first apprentice year 4; first `CanRetire` year 6 / 5 / 6 with
+9 / 10 / 9 seeds; 6 generations to max Heritage; ending at 7.31 / 7.27 / 7.38 h (up from ~5.1 h —
+the hoe loop is a slower burn than the ring); hand share 100% in year 1, 100% at the first retire,
+73–76% in generation 4 (seven helpers, still hand-dominant unlike the ring's 28–31% at the same
+point); largest finite node share 29–30% (`hoe_damage`). Acceptance (§2v3.13, five years, seeds
+1–2): smart player 2 995 / 3 058 coins vs. dumb 1 422 / 1 562 (2.1× / 2.0×) and vs. off-beat play
+2 432 / 2 554 (+23% / +20%) — comfortably past the 1.5× bar. Balance columns are now strikes /
+crit% / tired% / breaks / deepest layer and hand% instead of ring radius and ring%; the bot tables
+also carry frost-reaped crops (`FrostReaped`) since v3.2.
