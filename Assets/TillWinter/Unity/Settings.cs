@@ -27,7 +27,6 @@ namespace TillWinter.Unity
         public int DailyBestDate;
         public double DailyBestCoins;
         /// <summary>Hands-free ring (GDD §10.6 v2.5): a tap places the ring and it tends the plots around it.</summary>
-        public bool HandsFree;
         /// <summary>Opt-in local reminder when the farm has worked its offline cap (v2.8). Off until the player turns it on.</summary>
         public bool Reminders;
         /// <summary>The store rating sheet was shown once (v2.8); lives here so a reset farm does not ask again.</summary>

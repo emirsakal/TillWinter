@@ -18,8 +18,8 @@ namespace TillWinter.EditorTools
 {
     /// <summary>
     /// Automated play-mode smoke test for the demo loop. Run with smoke-test.bat (opens the real editor,
-    /// enters play mode, injects a virtual mouse, drives a full year, buys upgrades, starts year 2,
-    /// and writes screenshots + a report to TestResults/smoke/). Exits the editor with 0 on success.
+    /// enters play mode, strikes the ground through the pointer path, reaps with a swipe, drives a full year, buys
+    /// upgrades, starts year 2, and writes screenshots + a report to TestResults/smoke/). Exits the editor with 0 on success.
     /// </summary>
     [InitializeOnLoad]
     public static class SmokeTest
@@ -32,7 +32,6 @@ namespace TillWinter.EditorTools
         private static int _phase;
         private static double _phaseStart;
         private static Mouse _mouse;
-        private static bool _holding;
         private static Vector2 _holdPos;
         private static readonly StringBuilder Report = new StringBuilder();
         private static int _errors;
@@ -122,17 +121,15 @@ namespace TillWinter.EditorTools
             double inPhase = now - _phaseStart;
             if (elapsed > 180) { Fail("Timed out"); return; }
 
-            if (_holding && _mouse != null)
+            // The taps go through the game's own press path (a press one frame, a release the next), like a finger.
+            if (_tapping && _game != null)
             {
-                InputSystem.QueueStateEvent(_mouse, new MouseState { position = _holdPos }.WithButton(MouseButton.Left));
-                // Editor focus can swallow injected input; after 1 s without a ring, drive the pointer directly.
-                _holdFrames++;
-                if (_holdFrames > 60 && _game.CurrentRing == null && !_fallback)
+                _tapFrames++;
+                if (_tapFrames % 24 == 1)
                 {
-                    _fallback = true;
-                    Log("Input System injection not reaching the game; using GameController.DebugPointerScreen");
+                    var target = _game.State.GetPlot(1, 1);
+                    if (target.IsHard) _game.DebugTapScreen = _holdPos;
                 }
-                if (_fallback) _game.DebugPointerScreen = _holdPos;
             }
 
             var s = _game.State;
@@ -141,43 +138,63 @@ namespace TillWinter.EditorTools
                 case 0: // spring, idle
                     if (inPhase > 1.0) { Log("Render stats at 3x3 gen 1: " + RenderStats().text); Shot("01-spring-idle"); Next(); }
                     break;
-                case 1: // hold the finger under the field centre so the offset ring covers the 3x3
+                case 1: // tap the centre plot through the pointer path until the ground breaks (GDD §2v3.4)
                     if (inPhase > 0.3)
                     {
                         _mouse = InputSystem.AddDevice<Mouse>("SmokeMouse");
-                        _holdPos = ScreenOf(1f, 1f - _game.RingOffsetPlots);
-                        _holding = true;
-                        Log("Holding virtual mouse at " + _holdPos);
+                        _holdPos = ScreenOf(1f, 1f);
+                        _tapping = true;
+                        _tapFrames = 0;
+                        Log("Tapping the centre plot at " + _holdPos);
                         Next();
                     }
                     break;
                 case 2:
-                    if (inPhase > 2.0 && _game.CurrentRing == null && !_warnedInput)
+                {
+                    var centre = s.GetPlot(1, 1);
+                    if (!centre.IsHard && _tapping)
                     {
-                        _warnedInput = true;
-                        Log("Ring still off 2 s after the virtual press (Game view focus?)");
+                        _tapping = false;
+                        Log("Centre broke after " + s.Generation.Strikes + " strikes (crits " + s.Generation.Crits + ")");
+                        Check(s.Generation.Strikes >= 1, "strikes landed through the pointer path");
+                        Check(!_game.Sim.HintPending(Hint.FirstTouch), "first-touch hint consumed by the strike");
                     }
-                    if (inPhase > 6.0)
+                    if (inPhase > 8.0)
                     {
-                        Shot("02-harvesting");
-                        Check(!_game.Sim.HintPending(Hint.FirstTouch) && !_game.Sim.HintPending(Hint.Hold), "first-touch and hold hints consumed by the ring");
-                        Log("After 4 s of ring: coins=" + s.Coins + " harvests=" + _harvests + " ring=" + (_game.CurrentRing.HasValue ? "on" : "off"));
-                        Check(s.Coins >= 1, "at least one carrot harvested after 6 s under the 0.7 ring (got " + s.Coins + ", ring " + (_game.CurrentRing.HasValue ? "on" : "off") + ", pointer=" + (Pointer.current == null ? "null" : Pointer.current.name) + " down=" + _game.Pointer.Current.IsDown + " blocked=" + _game.InputBlocked + " overUi=" + (UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) + " phase=" + s.Phase + ")");
-                        Check(_harvests >= 1, "Harvested fired");
+                        Shot("02-struck");
+                        Check(!centre.IsHard, "the centre plot broke within 8 s of tapping (state " + centre.State + ", hp " + centre.Hp.ToString("0.0") + ", strikes " + s.Generation.Strikes + ", blocked=" + _game.InputBlocked + ", phase=" + s.Phase + ")");
+                        _tapping = false;
+                        // A hold waters the growing crop; then everything ripe is reaped by a swipe through the sim.
+                        _game.DebugPointerScreen = _holdPos;
                         Next();
                     }
                     break;
-                case 3: // fast-forward to frost warning
+                }
+                case 3:
+                    if (inPhase > 1.0)
+                    {
+                        Check(_game.Watering || s.GetPlot(1, 1).IsRipe, "the held finger waters the growing crop");
+                        _game.DebugPointerScreen = null;
+                        _game.Sim.DebugForceRipeAll();
+                        int reaped = _game.Sim.ReapAll();
+                        Check(reaped >= 1, "a swipe reaped the ripe crops (" + reaped + ")");
+                        Check(s.Coins >= 1, "coins after the reap (got " + s.Coins + ")");
+                        Check(_harvests >= 1, "Harvested fired");
+                        Log("After the swipe: coins=" + s.Coins + " harvests=" + _harvests + " stamina=" + s.Stamina.ToString("0"));
+                        Next();
+                    }
+                    break;
+                case 4: // fast-forward to frost warning
                     if (inPhase < 0.1) { _game.TimeScale = 8f; }
                     if (s.FrostWarning) { _game.TimeScale = 2f; Next(); }
                     break;
-                case 4:
+                case 5:
                     if (inPhase > 1.6) { Shot("03-frost-warning"); Log("Frost: season=" + s.Season + " left=" + s.SecondsUntilWinter.ToString("0.0") + " coins=" + s.Coins); Next(); }
                     break;
-                case 5: // wait for winter
-                    if (s.IsWinter) { _holding = false; Release(); Next(); }
+                case 6: // wait for winter
+                    if (s.IsWinter) { Release(); Next(); }
                     break;
-                case 6:
+                case 7:
                     if (inPhase > 1.2)
                     {
                         Shot("04-winter-shop");
@@ -186,38 +203,33 @@ namespace TillWinter.EditorTools
                         Check(!_game.Sim.HintPending(Hint.FirstWinter), "first-winter hint shown");
                         Check(GameObject.Find("TreeToggle") != null, "Heritage tab visible in Winter");
                         double before = s.Coins;
-                        _game.Sim.DebugAddCoins(600);
+                        _game.Sim.DebugAddCoins(2400);
                         Check(_game.Sim.TryBuy("apprentice_count"), "buy apprentice_count");
                         Check(_game.Sim.TryBuy("apprentice_count"), "buy apprentice_count #2");
-                        Check(_game.Sim.TryBuy("irrigation"), "buy irrigation");
+                        Check(_game.Sim.TryBuy("growth"), "buy growth");
                         Check(_game.Sim.TryBuy("expand_field"), "buy expand_field");
-                        Check(!_game.Sim.TryBuy("sun") || true, "sun is available after irrigation");
-                        Check(_game.Sim.TryBuy("ring_radius"), "buy ring_radius");
+                        Check(_game.Sim.TryBuy("hoe_damage"), "buy hoe_damage");
                         Log("Shop: coins " + before + " (+400) -> " + s.Coins + ", grid " + s.GridSize + "x" + s.GridSize);
                         Next();
                     }
                     break;
-                case 7:
+                case 8:
                     if (inPhase > 0.8)
                     {
                         Shot("05-winter-tree-after-buys");
                         var screen = UnityEngine.Object.FindFirstObjectByType<WinterScreen>();
                         Check(screen != null && screen.IsOpen, "winter screen open");
                         var view = screen.AlmanacView;
-                        var panBefore = view.Pan;
-                        view.PanBy(new Vector2(120f, 80f));
-                        Check((view.Pan - panBefore).magnitude > 1f, "pan moved the canvas");
-                        float zoomBefore = view.Zoom;
-                        view.ZoomBy(1.3f);
-                        Check(view.Zoom > zoomBefore, "zoom changed");
-                        view.Select("ring_radius");
-                        Check(screen.SelectedId == "ring_radius", "ring_radius selected");
+                        Check(view.Zoom > 0.2f && view.Zoom < 2f, "field fitted to the canvas (zoom " + view.Zoom.ToString("0.00") + ")");
+                        Check(GameObject.Find("Node hoe_damage") != null, "hoe_damage bed exists");
+                        view.Select("hoe_damage");
+                        Check(screen.SelectedId == "hoe_damage", "hoe_damage selected");
                         _selectedAt = EditorApplication.timeSinceStartup;
-                        _game.Sim.DebugAddCoins(100);
-                        int lvBefore = s.GetLevel("ring_radius");
-                        Check(_game.Sim.TryBuy("ring_radius"), "buy ring_radius via sim while selected");
-                        Check(s.GetLevel("ring_radius") == lvBefore + 1, "ring_radius level +1");
-                        Check(view.StateOf("ring_water_speed") != SkillTreeView.NodeState.Locked, "child ring_water_speed now available (edge lit)");
+                        _game.Sim.DebugAddCoins(400);
+                        int lvBefore = s.GetLevel("hoe_damage");
+                        Check(_game.Sim.TryBuy("hoe_damage"), "buy hoe_damage via sim while selected");
+                        Check(s.GetLevel("hoe_damage") == lvBefore + 1, "hoe_damage level +1");
+                        Check(view.StateOf("stamina_depot") != SkillTreeView.NodeState.Locked, "child stamina_depot now available (edge lit)");
                         var btn = GameObject.Find("NextYear")?.GetComponent<Button>();
                         Check(btn != null, "Next Year button exists");
                         _phase = 70;
@@ -248,34 +260,30 @@ namespace TillWinter.EditorTools
                         Check(s.Year == 2 && s.Season == Season.Spring, "year 2 spring after Next Year");
                         Check(!_game.InputBlocked, "input unblocked after Next Year");
                         _game.TimeScale = 1f;
-                        _phase = 7;
+                        _phase = 8;
                         Next();
                     }
                     break;
-                case 8: // year 2: hold ring on the new 4x4 field, apprentice should be working
+                case 9: // year 2: ripe crops on the new 4x4 field, the apprentices should be picking
                     if (inPhase < 0.1)
                     {
                         _game.Sim.DebugForceRipeAll();
-                        _holdPos = ScreenOf(1f, 1f - _game.RingOffsetPlots);
-                        _holding = true;
                     }
                     if (inPhase > 4.5)
                     {
-                        Shot("06-year2-ring-apprentice");
-                        _holding = false;
-                        Release();
+                        Shot("06-year2-apprentices");
                         Check(s.Apprentices.Count == 2, "two apprentices on the field");
                         Next();
                     }
                     break;
-                case 9: // crow
+                case 10: // crow
                     if (inPhase > 0.5 && !s.IsWinter)
                     {
                         Check(_game.Sim.DebugSpawnCrow(), "debug spawn crow");
                         Next();
                     }
                     break;
-                case 10:
+                case 11:
                     if (inPhase > 1.5)
                     {
                         Shot("07-crow");
@@ -292,7 +300,7 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 11: // finish the tap next frame, then evaluate
+                case 12: // finish the tap next frame, then evaluate
                     if (_tapState == 1) { InputSystem.QueueStateEvent(_mouse, new MouseState { position = _tapPos }); _tapState = 2; }
                     else if (inPhase > 1.0)
                     {
@@ -300,13 +308,13 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 12: // retire: threshold via debug, winter, Retire(), Heritage buys, new generation
+                case 13: // retire: threshold via debug, winter, Retire(), Heritage buys, new generation
                     _game.Sim.DebugAddLifetimeCoins(_game.Sim.Config.HeritageThreshold);
                     Check(_game.Sim.CanRetire, "CanRetire after threshold");
                     _game.Sim.DebugSkipToWinter();
                     Next();
                     break;
-                case 13:
+                case 14:
                     if (inPhase > 0.8)
                     {
                         if (_sub++ == 0) { Shot("08-winter-retire-button"); break; } // capture lands end of frame
@@ -327,7 +335,7 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 14: // let the seeds count up, screenshot, then tap to skip
+                case 15: // let the seeds count up, screenshot, then tap to skip
                     if (inPhase > 1.6)
                     {
                         if (_sub++ == 0) { Shot("08b-generation-card"); break; }
@@ -338,12 +346,12 @@ namespace TillWinter.EditorTools
                         var winter = UnityEngine.Object.FindFirstObjectByType<WinterScreen>();
                         Check(winter != null && winter.IsOpen, "heritage screen open after card");
                         _game.Sim.DebugAddSeeds(20);
-                        Check(_game.Sim.TryBuy("h_start_radius"), "buy h_start_radius");
+                        Check(_game.Sim.TryBuy("h_start_damage"), "buy h_start_damage");
                         Check(_game.Sim.TryBuy("h_free_apprentice"), "buy h_free_apprentice");
                         Next();
                     }
                     break;
-                case 15:
+                case 16:
                     if (inPhase > 0.8)
                     {
                         if (_sub++ == 0) { Shot("09-heritage-panel"); break; }
@@ -355,12 +363,12 @@ namespace TillWinter.EditorTools
                         Check(s.Apprentices.Count == 1, "free apprentice present");
                         Check(!_game.Sim.HintPending(Hint.FirstHeritage), "heritage hint shown");
                         var away = UnityEngine.Object.FindFirstObjectByType<AwayCard>();
-                        _game.Sim.DebugSetLevel("irrigation", 2);
-                        _game.Sim.DebugSetLevel("sun", 2);
+                        _game.Sim.DebugSetLevel("growth", 2);
+                        _game.Sim.DebugBreakAll(); // the free apprentice reaps what grows while away
                         var report = _game.Sim.SimulateOffline(600);
                         away.Show(report);
                         Check(away.IsOpen, "away card open (10 min offline)");
-                        Check(Mathf.Abs(s.RingRadius - 0.95f) < 1e-3f, "heritage radius bonus applied");
+                        Check(System.Math.Abs(s.Stats.StrikeDamage - 4.0) < 1e-3, "heritage damage bonus applied");
                         var save = UnityEngine.Object.FindFirstObjectByType<SaveController>();
                         save.SaveNow();
                         var data = SaveController.Load(save.Path);
@@ -370,7 +378,7 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 16:
+                case 17:
                     if (inPhase > 1.0)
                     {
                         if (_sub++ == 0) { Shot("10-away-card"); break; }
@@ -381,11 +389,11 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 17:
+                case 18:
                     if (inPhase > 1.0) { Shot("11-generation2-field"); Next(); }
                     break;
                 // ---- art pass (S6): seasons, golden crop, tractor, six apprentices at 6x6, generation-3 decor, draw-call budget
-                case 18:
+                case 19:
                     if (_sub++ == 0)
                     {
                         _game.Sim.DebugSetLevel("expand_field", 3);
@@ -410,11 +418,11 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 19: // golden: force ripe, let an apprentice replant one plot golden, then park the apprentices and ripen again
-                    if (_sub++ == 0) { _game.Sim.DebugNextHarvestGolden(); _game.Sim.DebugForceRipeAll(); break; }
-                    if (inPhase > 1.5) { _game.Sim.DebugSetLevel("apprentice_count", 0); _game.Sim.DebugForceRipeAll(); Next(); }
+                case 20: // golden: the next seed to drop is golden, so break one plot and ripen the field
+                    if (_sub++ == 0) { _game.Sim.DebugNextHarvestGolden(); _game.Sim.DebugBreak(new GridPos(2, 2)); break; }
+                    if (inPhase > 1.5) { _game.Sim.DebugSetLevel("apprentice_count", 0); _game.Sim.DebugBreakAll(); _game.Sim.DebugForceRipeAll(); Next(); }
                     break;
-                case 20:
+                case 21:
                     if (inPhase > 0.7 && _sub++ == 0) { Shot("13-art-golden-crop"); break; }
                     if (_sub == 0 || _sub++ < 3) break;
                     {
@@ -426,12 +434,12 @@ namespace TillWinter.EditorTools
                         Next();
                     }
                     break;
-                case 21:
+                case 22:
                     if (inPhase > 0.35 && _sub++ == 0) { Check(s.Tractor.Sweeping, "tractor sweeping"); Shot("14-art-tractor-sweep"); break; }
                     if (_sub > 0 && inPhase > 0.6) { _burstMaxSystems = 0; _burstMaxVoices = 0; _hapticsBefore = Haptics.Fired; Next(); }
                     break;
-                // ---- feel pass (S7): 5 s scripted burst — 6x6 all Ripe, tractor sweeping, ring over the centre; budgets sampled every frame
-                case 22:
+                // ---- feel pass (S7): 5 s scripted burst — 6x6 all Ripe, tractor sweeping, the hoe on the centre; budgets sampled every frame
+                case 23:
                 {
                     var vfx = VfxPlayer.Instance;
                     var audio = UnityEngine.Object.FindFirstObjectByType<AudioManager>();
@@ -449,7 +457,7 @@ namespace TillWinter.EditorTools
                         Check(allocated == 0, "zero allocations in VfxPlayer.Play / AudioManager.Play (" + allocated + " B)");
                     }
                     _sub++;
-                    if (_sub % 20 == 0) { _game.Sim.DebugForceRipeAll(); _game.Sim.DebugForceTractorSweep(); }
+                    if (_sub % 20 == 0) { _game.Sim.DebugForceRipeAll(); _game.Sim.DebugForceTractorSweep(); _game.Sim.ReapAll(); }
                     _burstMaxSystems = Mathf.Max(_burstMaxSystems, vfx.ActiveSystems);
                     _burstMaxVoices = Mathf.Max(_burstMaxVoices, audio.ActiveVoices);
                     if (inPhase > 2.5 && !_burstShot) { _burstShot = true; Shot("14b-feel-burst"); FrameAlloc.Reset(); ProfilerStart(); }
@@ -471,20 +479,20 @@ namespace TillWinter.EditorTools
                     }
                     break;
                 }
-                case 23:
+                case 24:
                     if (inPhase > 2.0 && _sub++ == 0) { Check(s.Season == Season.Summer, "summer"); Shot("15-art-summer"); break; }
                     if (_sub == 0 || _sub++ < 3) break; // capture lands end of frame: change state two frames later
                     _game.Sim.DebugSetSeason(Season.Autumn);
                     Log("Autumn set: " + s.SecondsUntilWinter.ToString("0.0") + " s until winter, frost " + s.FrostWarning);
                     Next();
                     break;
-                case 24:
+                case 25:
                     if (inPhase > 1.6 && _sub++ == 0) { Check(s.Season == Season.Autumn && s.FrostWarning && s.Phase == Phase.Year, "autumn frost warning (" + s.SecondsUntilWinter.ToString("0.0") + " s left)"); Shot("16-art-autumn-frost"); break; }
                     if (_sub == 0 || _sub++ < 3) break;
                     _game.Sim.DebugSkipToWinter();
                     Next();
                     break;
-                case 25:
+                case 26:
                     if (inPhase > 1.5) { Check(s.Phase == Phase.Winter, "winter"); Shot("17-art-winter-tree"); Next(); }
                     break;
                 default:
@@ -494,10 +502,10 @@ namespace TillWinter.EditorTools
         }
 
         private static Vector2 _tapPos;
-        private static bool _warnedInput;
         private static bool _fallback;
         private static double _selectedAt;
-        private static int _holdFrames;
+        private static bool _tapping;
+        private static int _tapFrames;
         private static int _tapState;
         private static int _sub;
         private static int _burstMaxSystems, _burstMaxVoices, _hapticsBefore;
@@ -514,7 +522,7 @@ namespace TillWinter.EditorTools
         {
             if (_mouse != null) InputSystem.QueueStateEvent(_mouse, new MouseState { position = _holdPos });
             _game.DebugPointerScreen = null;
-            _holdFrames = 0;
+            _tapping = false;
         }
 
         private static void Next()

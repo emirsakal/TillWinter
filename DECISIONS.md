@@ -1398,3 +1398,94 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - Store screenshot sets in `docs/store/screenshots/` (phone 1080x2340, tablet 1536x2048 from the clean tours;
   iPhone 6.9" 1320x2868 resized from the 1284x2778 simulator device the tour resolves to, same aspect within
   0.5%). Shot list: title, spring field, autumn dusk, seed bag, Almanac, node sheet, Heritage, album.
+
+---
+
+# Session 12 — core loop v3 migration (2026-09-24)
+
+- **Bedrock cap.** Open: an unbounded HP curve let a long generation's field lock solid (the
+  balance bot's 5th generation sat 1 700 years at layer 24 with 0 breaks — 13 500 HP against a
+  14-damage hoe in a 90 s year). Chosen: `FarmConfig.MaxLayer` = 12; past it a reap brings the same
+  layer back instead of opening a new one, so a field always keeps paying instead of fossilising.
+- **Frost reaps counted with late frost in the stats split.** Open: whether a crop the frost reaps
+  by itself at Winter (`HarvestSource.Frost`, §2v3.2) needed its own bucket in the per-source
+  statistics, alongside strike/tap/swipe/apprentice/tractor. Chosen: no — it's counted with the
+  existing late-frost bucket rather than adding a sixth source everywhere the split is shown; the
+  distinction that matters (paid in full, no combo, no stamina refund) is already carried by the
+  event, not the stat row.
+- **Almanac base costs ×4 rather than lowering crop values.** Open: the hoe loop earns roughly four
+  times what the ring did in year 1 — either crop/break values come down to match the old cost
+  curve, or costs move up to match the new income. Chosen: costs ×4 (§2v3.11); a bigger-feeling
+  number on every coin pickup reads better than shrinking one to fit an old curve, and it keeps the
+  break-bonus/crop-value tuning free to move on its own later without re-deriving every node cost.
+- **TiredDamage tuned to 0.3.** Open: the prototype's 40% tired-swing damage. Chosen: 30% — with
+  the tuned HP curve (`HpGrowth` 1.22) a tired swing at 40% was still finishing tiles too easily,
+  undercutting the reason to wait for stamina to regen; 30% keeps the tired swing a real fallback
+  without making the stamina budget optional.
+- **The smart bot swipes at two ripe crops, not one.** Open: how eagerly the acceptance bot should
+  cash in a swipe. Chosen: it waits for two ripe tiles (or one that has stood 1.5 s, or nothing left
+  to strike) before swiping, so the combo bonus (§2v3.7) is actually exercised in the measured
+  numbers instead of every swipe reaping a single crop.
+- **Ring-game saves (schema v1–v17) start fresh rather than migrate.** Open: the core loop v3
+  migration changes what a plot and a save mean deeply enough that a real migration would be mostly
+  invented defaults. Chosen: no players have shipped saves yet, so v1–v17 saves are treated as
+  incompatible and a farm starts fresh under schema v18 rather than carrying a fake migration for a
+  save format nobody is actually holding.
+- **Hands-free ring removed rather than re-themed.** Open: whether "idle tending" had an equivalent
+  in the hoe loop. Chosen: no — striking, watering and reaping are all deliberate single actions
+  with no passive-drag analogue, so the setting, `AutoRing` and its Core input are deleted rather
+  than kept dormant (§10.6).
+- **A four-leaf clover is taken by any hoe action on its plot.** Open: the ring version took a
+  clover only by sweeping over it; the hoe has no equivalent continuous motion. Chosen: a strike, a
+  tap, or a swipe on the clover's plot all take it (§2v3.8) — matching whichever input the player
+  would naturally use on that plot's current state, rather than inventing a clover-specific gesture.
+- **The digger apprentice role works offline.** Open: whether letting an offline digger keep
+  breaking ground while the player is not strikes themselves undercuts the "no strikes offline"
+  rule. Chosen: it works like any other apprentice role (§2v3.10) — the rule offline protects is the
+  player's own timed input, not progress in general, and pickers/waterers already worked offline
+  under the same reasoning.
+- **The prototype files are deleted, not archived.** `Assets/TillWinter/Core/Dig/` (`DigBots.cs`,
+  `DigConfig.cs`, `DigSim.cs`), the Unity-side proto view, `Assets/TillWinter/Scenes/Proto.unity`,
+  `dig-sim.bat` and `proto-shot.bat` are removed now that the core loop lives in `FarmSim` proper —
+  keeping a parallel prototype tree around after adoption would just be dead code the compile-check
+  and the art/asmdef rules would have to keep excusing.
+- **Tests rewritten rather than patched.** `CoreLoopTests` and `NodeMapTests` replace the old
+  ring-era rule tests for the plot state machine and the Almanac/Heritage id maps; `SaveV18Tests`
+  (with its own hand-written v18 fixture) replaces the whole `SaveV2Tests`–`SaveV17Tests` chain,
+  since those fixtures describe a save shape (`PlotSave` with Dry/Wet/Ripe fields) that no longer
+  exists — patching them one migration at a time would have meant maintaining a save-format history
+  for a format nobody ever saved to outside this repo.
+
+# Session 13 — the Almanac as a field (2026-09-24)
+
+- **Top-down field chosen over three other mockups.** Open: the developer found the radial
+  dark-page tree screens noisy (40 small circles with counters and padlocks, floating branch
+  plates, pan and zoom, a heavy sheet). Chosen: four directions were mocked up (night-sky
+  constellations, soil cross-section with roots, a top-down field of beds, a list); the developer
+  picked the top-down field, "especially the state with nothing selected".
+- **A new Core layout instead of fitting the radial one.** Open: whether `SkillTreeLayout` could
+  keep its existing radial-canopy algorithm and just be re-skinned. Chosen: no — the radial
+  canopy's sibling spacing would have left beds 40 px wide on a phone once laid out as a flat
+  field; the field needed its own lane-based layout (fixed rectangle, per-branch corner/edge start,
+  turning lanes) rather than a reskin.
+- **No pan, no zoom.** Open: the old tree remembered pan/zoom per tree across sessions. Chosen: the
+  field is a fixed portrait rectangle fitted whole to the screen — dropped entirely rather than
+  kept as an option, since the redesign's point was removing navigation, not relocating it.
+- **No icons, levels or locks on the beds themselves.** Open: how much a bed should show before
+  it's selected. Chosen: beds carry only grown/tilled/hard state and a crop/seed dot; icons, level
+  numbers and padlocks all moved to the node detail card, which already opens on selection.
+- **Heirs and the challenge switch moved to the album page.** Open: the Heritage screen's heir
+  strip sat above "Start the new generation" as a persistent row. Chosen: heir choice belongs to
+  the handover moment, not the Heritage tree, so it moved to `GenerationCard` (now an album page)
+  which opens on the `Retired` event and is the only place the heir and challenge are chosen; "Heir:
+  <name> »" on the Heritage screen reopens it afterward.
+- **The album page has no auto-close and no tap-to-skip.** Open: the old Generation card
+  auto-continued after 6 s. Chosen: since the album page is now also where the heir is chosen,
+  auto-continuing would risk locking in the preselected heir without a look — the player must press
+  "Continue »".
+- **Guillemets instead of single chevrons.** Open: the mockups used "‹ ›" for the tree-toggle and
+  heir links. Chosen: "« »" — the body font (Figtree) has no single-chevron glyphs.
+- **TMP char-array pre-sizing in the HUD coin counter.** Open: a first longer coin string during
+  this session's playtesting allocated mid-play. Chosen: the coin counter's `char[]` buffer is now
+  sized for the longest string it will ever need up front, matching the no-per-frame-allocation
+  rule rather than growing lazily the first time a bigger number appears.

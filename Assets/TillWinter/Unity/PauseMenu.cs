@@ -137,11 +137,6 @@ namespace TillWinter.Unity
             RowLabel(p, "settings.haptics", y);
             _hapticsSwitch = SwitchRow(p, "Haptics", s.HapticsEnabled, on => { SettingsStore.Current.HapticsEnabled = on; if (on) Haptics.Play(HapticKind.Medium); }, y);
             y -= RowHeight;
-            RowLabel(p, "settings.hands_free", y);
-            _handsFreeSwitch = SwitchRow(p, "HandsFree", s.HandsFree, on => { SettingsStore.Current.HandsFree = on; if (!on && _game != null) _game.HandsFree.Clear(); }, y);
-            y -= RowHeight - 10f;
-            Text(p, "HandsFreeHint", Strings.Get("settings.hands_free_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
-            y -= HintGap;
             // A local reminder, opt-in: the switch asks the system for permission the first time it is turned on.
             RowLabel(p, "settings.reminders", y);
             _remindersSwitch = SwitchRow(p, "Reminders", s.Reminders, on => { SettingsStore.Current.Reminders = on; if (on) Reminders.RequestPermission(); }, y);
@@ -284,7 +279,7 @@ namespace TillWinter.Unity
         // ------------------------------------------------------------------ album and New Game+ (GDD §8.2–§8.3 v2.4)
 
         private Button _ngPlus, _away;
-        private UiSwitch _handsFreeSwitch, _remindersSwitch;
+        private UiSwitch _remindersSwitch;
 
         /// <summary>Before you leave (GDD §10.7 v2.5): what the apprentices do while the game is closed.</summary>
         private void CycleAwayPlan()
@@ -346,9 +341,9 @@ namespace TillWinter.Unity
         /// </summary>
         private static readonly (string Heading, string[] Lines)[] HelpSections =
         {
-            ("help.ring", new[] { "help.ring.1", "help.ring.2", "help.ring.3" }),
+            ("help.hoe", new[] { "help.hoe.1", "help.hoe.2", "help.hoe.3", "help.hoe.4" }),
             ("help.crops", new[] { "help.crops.1", "help.crops.2", "help.crops.3", "help.crops.4" }),
-            ("help.year", new[] { "help.year.1", "help.year.2", "help.year.3" }),
+            ("help.year", new[] { "help.year.1", "help.year.2", "help.year.3", "help.year.4" }),
             ("help.winter", new[] { "help.winter.1", "help.winter.2", "help.winter.3" }),
             ("help.heritage", new[] { "help.heritage.1", "help.heritage.2", "help.heritage.3" }),
             ("help.events", new[] { "help.events.1", "help.events.2", "help.events.3" }),
@@ -397,7 +392,7 @@ namespace TillWinter.Unity
                 var c = cfg.Crops[i];
                 var line = UiKit.Label(_helpRows, "Crop " + i, Strings.Format("help.crop_line",
                     ("name", Strings.Crop(c)), ("tier", i + 1), ("season", Strings.Get("season." + c.Likes)),
-                    ("seconds", NumberFormat.Whole(Mathf.RoundToInt(c.Water + c.Grow + c.Harvest))), ("value", NumberFormat.Short(c.Value))),
+                    ("seconds", NumberFormat.Whole(Mathf.RoundToInt(c.Grow))), ("value", NumberFormat.Short(c.Value))),
                     UiType.Body, _theme.SheetMuted, TextAnchor.UpperLeft);
                 line.enableAutoSizing = false;
                 line.enableWordWrapping = true;
@@ -752,7 +747,6 @@ namespace TillWinter.Unity
             var s = SettingsStore.Current;
             _hapticsSwitch.Set(s.HapticsEnabled);
             _motionSwitch.Set(s.ReduceMotion);
-            _handsFreeSwitch.Set(s.HandsFree);
             _remindersSwitch.Set(s.Reminders);
             _largeTextSwitch.Set(s.LargeText);
             _musicValue.text = Mathf.RoundToInt(s.MusicVolume * 100f) + "%";
@@ -776,11 +770,13 @@ namespace TillWinter.Unity
 
         private static readonly string[] StatKeys =
         {
-            "stats.generations", "stats.years", "stats.coins", "stats.harvests", "stats.by_ring", "stats.by_apprentice",
+            "stats.generations", "stats.years", "stats.coins", "stats.harvests", "stats.by_hand", "stats.by_apprentice",
             "stats.by_tractor", "stats.crows", "stats.golden", "stats.best_combo", "stats.time",
             "stats.heirlooms", "stats.heir",
             // v2.8: counters the game kept and never showed.
             "stats.goals", "stats.pests", "stats.late_frost", "stats.best_grade", "stats.seeds",
+            // v3: the hoe.
+            "stats.strikes", "stats.crits", "stats.breaks", "stats.deepest",
         };
 
         private static readonly string[] StatIcons =
@@ -789,6 +785,7 @@ namespace TillWinter.Unity
             UiIcons.Tractor, UiIcons.Crow, UiIcons.Golden, UiIcons.Combo, UiIcons.Time,
             UiIcons.Golden, UiIcons.Generation,
             UiIcons.Ring, UiIcons.Crow, UiIcons.Year, UiIcons.Coin, UiIcons.Generation,
+            UiIcons.Ring, UiIcons.Combo, UiIcons.Harvest, UiIcons.Tractor,
         };
 
         private static int HeirloomCount(int bits)
@@ -805,13 +802,14 @@ namespace TillWinter.Unity
             string[] values =
             {
                 NumberFormat.Whole(g.Generation), NumberFormat.Whole(g.YearsTotal), NumberFormat.Short(g.LifetimeCoinsTotal),
-                NumberFormat.Whole(g.Harvests), NumberFormat.Whole(g.HarvestsRing), NumberFormat.Whole(g.HarvestsApprentice),
+                NumberFormat.Whole(g.Harvests), NumberFormat.Whole(g.HarvestsHand), NumberFormat.Whole(g.HarvestsApprentice),
                 NumberFormat.Whole(g.HarvestsTractor), NumberFormat.Whole(g.CrowsScared), NumberFormat.Whole(g.GoldenHarvests),
                 NumberFormat.Whole(g.BestCombo), Strings.Format("stats.time_value", ("hours", minutes / 60), ("minutes", minutes % 60)),
                 HeirloomCount(g.Achievements) + " / " + TillWinter.Core.Legacy.AchievementCount,
                 Strings.Get("heir." + g.Trait),
                 NumberFormat.Whole(g.GoalsMet), NumberFormat.Whole(g.PestsStopped), NumberFormat.Whole(g.HarvestsLateFrost),
                 NumberFormat.Whole(g.BestGradeThisGeneration) + " / 3", NumberFormat.Whole(g.SeedsEarnedTotal),
+                NumberFormat.Whole(g.Strikes), NumberFormat.Whole(g.Crits), NumberFormat.Whole(g.Breaks), NumberFormat.Whole(g.DeepestLayer + 1),
             };
             for (int i = 0; i < _statValues.Length && i < values.Length; i++) _statValues[i].text = values[i];
         }

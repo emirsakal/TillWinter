@@ -4,9 +4,10 @@ using System.Collections.Generic;
 namespace TillWinter.Core
 {
     /// <summary>
-    /// The whole game. Pure C#, deterministic for a fixed dt and seed. The Unity layer calls
-    /// <see cref="Tick"/> every frame, forwards input via <see cref="Tick"/>/<see cref="TapAt"/>/<see cref="TapCloud"/>,
-    /// buys tree nodes with <see cref="TryBuy"/>, and renders <see cref="State"/>.
+    /// The whole game (core loop v3, GDD §2v3). Pure C#, deterministic for a fixed dt and seed. The Unity layer calls
+    /// <see cref="Tick"/> every frame, forwards input via <see cref="Strike"/>, <see cref="SetWatering"/>,
+    /// <see cref="Reap"/>, <see cref="TapAt"/> and <see cref="TapCloud"/>, buys tree nodes with <see cref="TryBuy"/>,
+    /// and renders <see cref="State"/>.
     /// </summary>
     public sealed partial class FarmSim
     {
@@ -19,12 +20,15 @@ namespace TillWinter.Core
         public IReadOnlyList<SkillNode> HeritageNodes => Heritage.Nodes;
 
         public event Action<HarvestEvent> Harvested;
+        /// <summary>A strike landed on hard ground (GDD §2v3.4): the player's, a digger's, or a splash on a neighbour.</summary>
+        public event Action<StrikeEvent> Struck;
+        /// <summary>Hard ground broke and the seed dropped (GDD §2v3.3).</summary>
+        public event Action<BreakEvent> PlotBroken;
+        /// <summary>A swipe reaped this many crops for these coins (GDD §2v3.7).</summary>
+        public event Action<int, double> Reaped;
+        /// <summary>A growing crop got a burst of water (a waterer's visit, the rain cloud).</summary>
         public event Action<GridPos> PlotWatered;
         public event Action<GridPos> PlotRipened;
-        /// <summary>The ring has cleared the stones off a plot (GDD §2.4 v1.8).</summary>
-        public event Action<GridPos> PlotCleared;
-        /// <summary>Summer drought turned a neglected Wet plot back to Dry (GDD §3.2 v1.9).</summary>
-        public event Action<GridPos> PlotDriedOut;
         /// <summary>The year's goal was met: the goal, with its reward already paid (GDD §3.3 v1.9).</summary>
         public event Action<YearGoal> GoalCompleted;
         /// <summary>A new year set a goal.</summary>
@@ -61,7 +65,7 @@ namespace TillWinter.Core
         public event Action RainCloudLeft;
         public event Action<int> TractorSweepStarted;
         public event Action<Hint> HintShown;
-        /// <summary>A combo reached one of <see cref="FarmConfig.ComboMilestones"/>: the length and the bonus paid.</summary>
+        /// <summary>A swipe reached one of <see cref="FarmConfig.ComboMilestones"/>: the length and the bonus paid.</summary>
         public event Action<int, double> ComboMilestone;
         /// <summary>The Golden Year began (every Heritage node maxed, first time).</summary>
         public event Action GoldenYearStarted;
@@ -70,9 +74,11 @@ namespace TillWinter.Core
 
         private Rng _rng;
         private readonly List<Plot> _scratch = new List<Plot>();
+        private readonly List<Plot> _reapScratch = new List<Plot>();
         private float _crowSpawnTimer;
-        private float? _ringRadiusOverride;
         private bool _offline;
+        /// <summary>True while the frost reaps the field at the end of the year (reaping is otherwise a year action).</summary>
+        private bool _frost;
 
         /// <summary>True while <see cref="SimulateOffline"/> runs; presentation skips per-event FX.</summary>
         public bool IsSimulatingOffline => _offline;
@@ -87,10 +93,7 @@ namespace TillWinter.Core
             if (errors.Count > 0) throw new InvalidOperationException("Skill tree table invalid: " + string.Join("; ", errors));
 
             State = new FarmState();
-            State.RakeLength = Config.RakeLength;
-            State.RakeWidth = Config.RakeWidth;
-            State.CrossLength = Config.CrossLength;
-            State.CrossWidth = Config.CrossWidth;
+            State.StrikeCost = Config.StrikeCost;
             _rng = new Rng(seed);
             Almanac = new SkillTree(TreeKind.Almanac, almanacNodes)
             {
@@ -111,19 +114,18 @@ namespace TillWinter.Core
             State.Almanac = Almanac;
             State.Heritage = Heritage;
             ResolveStats();
-            BuildField(State.Stats.StartGridSize, false);
+            BuildField(State.Stats.StartGridSize);
             ResolveStats();
+            State.Stamina = State.Stats.StaminaMax;
             ScheduleCloud();
         }
 
         // ------------------------------------------------------------------ public API
 
         /// <param name="dt">Seconds. Already scaled by any debug time scale.</param>
-        /// <param name="ring">Ring centre in plot space, or null when the finger is up.</param>
-        public void Tick(float dt, RingInput? ring)
+        public void Tick(float dt)
         {
             if (dt < 0f) dt = 0f;
-            State.Ring = State.Phase == Phase.Year ? ring : null;
             if (State.Phase == Phase.Winter)
             {
                 UpdateGreenhouse(dt);
@@ -135,8 +137,9 @@ namespace TillWinter.Core
             if (State.Phase != Phase.Year) return;
 
             UpdateWeather(dt);
-            UpdateFlow(dt);
-            if (State.TapCooldown > 0f) State.TapCooldown = Math.Max(0f, State.TapCooldown - dt);
+            UpdateBeat();
+            if (State.StrikeCooldownLeft > 0f) State.StrikeCooldownLeft = Math.Max(0f, State.StrikeCooldownLeft - dt);
+            State.Stamina = Math.Min(State.Stats.StaminaMax, State.Stamina + State.Stats.StaminaRegen * dt);
             UpdateCombo(dt);
             UpdatePlots(dt);
             UpdateApprentices(dt);
@@ -150,7 +153,163 @@ namespace TillWinter.Core
             UpdateChecklist();
         }
 
-        /// <summary>Tap a plot. Scares a crow (dropping the bounty) if one is there. Returns true if something happened.</summary>
+        /// <summary>The field's beat (GDD §2v3.4): one pulse for the whole board, read off the year clock.</summary>
+        private void UpdateBeat()
+        {
+            float period = Math.Max(0.05f, Config.PulseSeconds);
+            State.PulseTime = State.YearTime % period;
+            State.Pulse = State.PulseTime / period;
+            State.OnBeat = Math.Abs(State.Pulse - 0.5f) <= State.Stats.CritWindow * 0.5f;
+        }
+
+        /// <summary>A strike is allowed now: the year runs and the last swing has settled. Stamina never gates it.</summary>
+        public bool CanStrike => State.Phase == Phase.Year && State.StrikeCooldownLeft <= 0f;
+
+        /// <summary>
+        /// A short press on hard ground (GDD §2v3.4). A rested swing crits on the beat for certain and off the beat by
+        /// chance; a tired swing (no stamina) lands at <see cref="FarmConfig.TiredDamage"/>, never crits and costs
+        /// nothing. Splash reaches the four side neighbours. False if nothing happened.
+        /// </summary>
+        public bool Strike(GridPos pos)
+        {
+            if (!CanStrike || !State.InBounds(pos)) return false;
+            var plot = State.GetPlot(pos);
+            if (!plot.IsHard) return false;
+            var st = State.Stats;
+            bool tired = State.Tired;
+            if (!tired) State.Stamina -= Config.StrikeCost;
+            State.StrikeCooldownLeft = st.StrikeCooldown;
+            bool crit = !tired && (State.OnBeat || _rng.NextDouble() < st.CritChance);
+            double dmg = st.StrikeDamage * GroundSoftness * (crit ? Config.CritMult : 1) * (tired ? Config.TiredDamage : 1);
+            var g = State.Generation;
+            g.Strikes++;
+            if (crit) g.Crits++;
+            State.LastStrikePos = pos;
+            TakeCloverAt(pos);
+            ShooLocustsAt(pos);
+            Damage(plot, dmg, crit, tired, false, -1);
+            if (st.SplashShare > 0f)
+            {
+                Splash(new GridPos(pos.X - 1, pos.Y), dmg * st.SplashShare, crit, tired);
+                Splash(new GridPos(pos.X + 1, pos.Y), dmg * st.SplashShare, crit, tired);
+                Splash(new GridPos(pos.X, pos.Y - 1), dmg * st.SplashShare, crit, tired);
+                Splash(new GridPos(pos.X, pos.Y + 1), dmg * st.SplashShare, crit, tired);
+            }
+            return true;
+        }
+
+        private void Splash(GridPos at, double dmg, bool crit, bool tired)
+        {
+            if (!State.InBounds(at)) return;
+            var p = State.GetPlot(at);
+            if (p.IsHard) Damage(p, dmg, crit, tired, true, -1);
+        }
+
+        /// <summary>Spring rain softens the ground, summer drought and a heat wave bake it, a storm loosens it (GDD §2v3.3).</summary>
+        private double GroundSoftness
+        {
+            get
+            {
+                double m = State.Season == Season.Spring ? Config.SpringSoftness : State.Season == Season.Summer ? Config.SummerHardness : 1f;
+                if (SkyNow == Weather.Storm) m *= Config.StormSoftness;
+                else if (SkyNow == Weather.HeatWave) m *= Config.HeatWaveHardness;
+                return m;
+            }
+        }
+
+        /// <summary>Hits a rested, uncrit strike of the current damage needs on this plot (what a planning player can see).</summary>
+        public int HitsLeft(Plot plot) =>
+            plot == null || !plot.IsHard ? 0 : (int)Math.Ceiling(plot.Hp / Math.Max(1e-6, State.Stats.StrikeDamage * GroundSoftness));
+
+        private void Damage(Plot plot, double dmg, bool crit, bool tired, bool splash, int apprenticeIndex)
+        {
+            plot.Hp -= dmg;
+            Struck?.Invoke(new StrikeEvent(plot.Pos, dmg, crit, tired, splash, apprenticeIndex));
+            if (plot.Hp <= 0) Break(plot);
+        }
+
+        /// <summary>The layer gives way: its hidden coins, then the seed drops by itself (GDD §2v3.3, §2v3.6).</summary>
+        private void Break(Plot plot)
+        {
+            plot.Hp = 0;
+            double coins = plot.HiddenBonus * State.Stats.BreakBonusMult;
+            AddCoins(coins);
+            var g = State.Generation;
+            g.Breaks++;
+            if (plot.Layer > g.DeepestLayer) g.DeepestLayer = plot.Layer;
+            bool chest = plot.Chest, hardpan = plot.Hardpan;
+            plot.State = PlotState.Growing;
+            plot.Progress = 0f;
+            plot.RipeAge = 0f;
+            plot.CropLayer = plot.Layer;
+            RollGolden(plot);
+            PlotBroken?.Invoke(new BreakEvent(plot.Pos, plot.Layer, coins, chest, hardpan));
+        }
+
+        /// <summary>The player's finger rests on a growing crop: it is watered while the depot pays for it (GDD §2v3.6). Null lifts the finger.</summary>
+        public void SetWatering(GridPos? pos)
+        {
+            if (pos.HasValue && (State.Phase != Phase.Year || !State.InBounds(pos.Value))) pos = null;
+            State.WateringPos = pos;
+        }
+
+        /// <summary>
+        /// A swipe (GDD §2v3.7): every ripe plot on the path is reaped, n in one swipe pay the combo, and the ground
+        /// gives stamina back. Plots that are not ripe are ignored. Returns how many crops were reaped.
+        /// </summary>
+        public int Reap(IList<GridPos> path)
+        {
+            if (path == null || (State.Phase != Phase.Year && !_frost)) return 0;
+            _reapScratch.Clear();
+            for (int i = 0; i < path.Count; i++)
+            {
+                if (!State.InBounds(path[i])) continue;
+                var p = State.GetPlot(path[i]);
+                if (p.IsRipe && !_reapScratch.Contains(p)) _reapScratch.Add(p);
+            }
+            int n = _reapScratch.Count;
+            if (n == 0) return 0;
+            double comboMult = 1 + State.Stats.ComboPerCrop * (State.Season == Season.Autumn ? Config.AutumnCombo : 1f) * (n - 1);
+            State.Combo = n;
+            State.ComboTimer = 0f;
+            if (n > State.Generation.BestCombo) State.Generation.BestCombo = n;
+            var goal = State.Goal;
+            if (goal.Type == GoalType.Combo && !goal.Done) goal.Progress = Math.Max(goal.Progress, n);
+            double total = 0;
+            for (int i = 0; i < n; i++)
+            {
+                TakeCloverAt(_reapScratch[i].Pos);
+                total += Harvest(_reapScratch[i], HarvestSource.Hand, -1, n, comboMult);
+            }
+            total += ComboMilestoneBonus(_reapScratch[n - 1], n);
+            _reapScratch.Clear();
+            CheckGoal();
+            Reaped?.Invoke(n, total);
+            return n;
+        }
+
+        private readonly GridPos[] _single = new GridPos[1];
+
+        /// <summary>Reaps one plot by hand (a tap on a ripe crop, or on the crow sitting on it).</summary>
+        public bool ReapOne(GridPos pos)
+        {
+            _single[0] = pos;
+            return Reap(_single) > 0;
+        }
+
+        /// <summary>Reaps every ripe plot on the field in one swipe (tests, the developer panel).</summary>
+        public int ReapAll()
+        {
+            var all = new GridPos[State.PlotArray.Length];
+            for (int i = 0; i < all.Length; i++) all[i] = State.PlotArray[i].Pos;
+            return Reap(all);
+        }
+
+        /// <summary>
+        /// A tap on a plot. A crow is scared (dropping the bounty) and its crop reaped; a mole is bonked, a rabbit
+        /// shooed; a clover taken; a ripe crop reaped on its own. Returns true if something happened. Hard ground is
+        /// <see cref="Strike"/>'s business.
+        /// </summary>
         public bool TapAt(GridPos pos)
         {
             if (State.Phase != Phase.Year || !State.InBounds(pos)) return false;
@@ -158,60 +317,50 @@ namespace TillWinter.Core
             if (plot.HasCrow)
             {
                 ScareWithBounty(plot);
+                if (plot.IsRipe) ReapOne(pos);
                 return true;
             }
             if (TapPest(pos)) return true; // GDD §5.5 (v2.1): a mole is bonked, a rabbit shooed
-            // GDD §2.1 (v1.6): with `tap_harvest`, a tap finishes one Ripe plot outright, on a cooldown.
-            int level = State.Stats.TapHarvestLevel;
-            if (level <= 0 || !plot.IsRipe || State.TapCooldown > 0f) return false;
-            State.TapCooldown = Index(Config.TapHarvestCooldownByLevel, level);
-            Harvest(plot, HarvestSource.Ring, -1);
-            return true;
+            bool clover = TakeCloverAt(pos);
+            if (plot.IsRipe) return ReapOne(pos) || clover;
+            return clover;
         }
 
-        private static float Index(float[] table, int level) =>
-            table == null || table.Length == 0 ? 0f : table[Math.Max(0, Math.Min(table.Length - 1, level))];
+        /// <summary>The finger comes down on a plot: whatever a tap does, else a strike on hard ground.</summary>
+        public bool Press(GridPos pos) => TapAt(pos) || Strike(pos);
 
-        /// <summary>Picks the ring's footprint; Rake needs `ring_shape` 1 and Cross level 2. Returns true when it changed.</summary>
-        public bool SetRingShape(RingShape shape)
-        {
-            int level = State.Stats.RingShapeLevel;
-            if (shape == RingShape.Rake && level < 1) return false;
-            if (shape == RingShape.Cross && level < 2) return false;
-            if (State.RingShape == shape) return false;
-            State.RingShape = shape;
-            return true;
-        }
-
-        /// <summary>Tap the rain cloud (GDD §5.2): waters every Dry plot, grows every Wet plot by the boost.</summary>
+        /// <summary>Tap the rain cloud (GDD §5.2): every growing crop gets a burst of growth.</summary>
         public bool TapCloud()
         {
             var c = State.Cloud;
             if (State.Phase != Phase.Year || !c.Active) return false;
             foreach (var p in State.PlotArray)
             {
-                if (p.IsStony) continue; // rain does not move stones
-                if (p.State == PlotState.Dry)
-                {
-                    p.State = PlotState.Wet;
-                    p.Progress = 0f;
-                    PlotWatered?.Invoke(p.Pos);
-                }
-                else if (p.State == PlotState.Wet && !InLocusts(p.Pos)) // nothing grows under a swarm, rain or not
-                {
-                    p.Progress += Config.CloudWetBoost;
-                    if (p.Progress >= 1f)
-                    {
-                        p.State = PlotState.Ripe;
-                        p.Progress = 0f;
-                        PlotRipened?.Invoke(p.Pos);
-                    }
-                }
+                if (!p.IsGrowing || InLocusts(p.Pos)) continue; // nothing grows under a swarm, rain or not
+                Water(p, Config.CloudGrowBoost);
             }
             c.Active = false;
             c.TimeLeft = 0f;
             RainCloudTapped?.Invoke();
             return true;
+        }
+
+        /// <summary>A burst of growth on a growing crop (a waterer's visit, the cloud).</summary>
+        private void Water(Plot p, float amount)
+        {
+            if (!p.IsGrowing) return;
+            p.Progress += amount;
+            PlotWatered?.Invoke(p.Pos);
+            if (p.Progress >= 1f) Ripen(p);
+        }
+
+        private void Ripen(Plot p)
+        {
+            p.State = PlotState.Ripe;
+            p.Progress = 0f;
+            p.RipeAge = 0f;
+            p.Watering = false;
+            PlotRipened?.Invoke(p.Pos);
         }
 
         private SkillTree TreeOf(string nodeId) => Almanac.Contains(nodeId) ? Almanac : Heritage.Contains(nodeId) ? Heritage : null;
@@ -255,9 +404,8 @@ namespace TillWinter.Core
         }
 
         /// <summary>
-        /// Ends the running year now and brings Winter forward (GDD §2.4 v1.5). Waiting out the clock was the only
-        /// way into the Almanac, which made a finished field dead time; the harvest still standing is resolved by the
-        /// same <see cref="EnterWinter"/> the timer uses, so ending early costs whatever late frost would have cost.
+        /// Ends the running year now and brings Winter forward (GDD §2.4 v1.5). The frost resolves the standing
+        /// field exactly as the clock would: ripe crops are reaped one by one, growing ones wait for spring.
         /// </summary>
         public void EndYearNow()
         {
@@ -315,8 +463,7 @@ namespace TillWinter.Core
             }
         }
 
-        /// <summary>Heritage nodes finished, counted by the same rule as <see cref="HeritageComplete"/> (a path not
-        /// taken counts as done once its rival is maxed). The pair says how far the ending is.</summary>
+        /// <summary>Heritage nodes finished, counted by the same rule as <see cref="HeritageComplete"/>.</summary>
         public int HeritageDone
         {
             get
@@ -345,7 +492,7 @@ namespace TillWinter.Core
         public int SeedsFor(double lifetimeCoins) =>
             Config.SeedDivisor <= 0 ? 0 : (int)Math.Floor(Math.Sqrt(Math.Max(0, lifetimeCoins) / Config.SeedDivisor));
 
-        /// <summary>Hand the farm to the next generation. Winter only, and only once <see cref="CanRetire"/>.</summary>
+        /// <summary>Hand the farm to the next generation. Winter only, and only once <see cref="CanRetire"/>. The field returns to the surface (GDD §2v3.2 v3.2).</summary>
         public bool Retire()
         {
             if (State.Phase != Phase.Winter || !CanRetire) return false;
@@ -381,12 +528,14 @@ namespace TillWinter.Core
             State.YearTime = 0f;
             State.FrostWarning = false;
             State.Combo = 0;
+            State.WateringPos = null;
+            State.LastStrikePos = null;
             _crowSpawnTimer = 0f;
             ResetCloud();
             ResolveStats();
             State.PlotArray = null;
             State.GridSize = 0;
-            BuildField(State.Stats.StartGridSize, false);
+            BuildField(State.Stats.StartGridSize);
             ResolveStats();
             ResetTractor();
             State.Phase = Phase.Heritage;
@@ -408,21 +557,13 @@ namespace TillWinter.Core
             State.GoldenYearActive = HeritageComplete && !State.EndingSeen;
             GrantHeritageStarts();
             ResolveStats();
-            if (!State.GoldenYearActive && State.GridSize != State.Stats.TargetGridSize) BuildField(State.Stats.TargetGridSize, false);
+            if (!State.GoldenYearActive && State.GridSize != State.Stats.TargetGridSize) BuildField(State.Stats.TargetGridSize);
+            if (State.GoldenYearActive) PlantGoldenField();
             BeginSpring();
-            if (State.GoldenYearActive)
-            {
-                PlantGoldenField(); // after BeginSpring, which resets every plot for the new year
-                GoldenYearStarted?.Invoke();
-            }
+            if (State.GoldenYearActive) GoldenYearStarted?.Invoke();
             GenerationStarted?.Invoke();
         }
 
-        /// <summary>
-        /// Heritage head starts that are Almanac nodes (GDD §7, `h_start_tomato`: "start with Tomato unlocked"): the
-        /// generation starts owning them, free (not in <see cref="GenerationStats.AlmanacSpent"/>), so everything behind
-        /// them — `upgrade_plot`, the later crops — opens exactly as if the player had bought it.
-        /// </summary>
         /// <summary>
         /// No helpers (GDD §7.5 v2.3): the generation has no apprentices and no tractor, so the nodes that only make them
         /// better are closed rather than sold for nothing. The scarecrow, dog and hens behind them stay open.
@@ -434,16 +575,20 @@ namespace TillWinter.Core
             {
                 case EffectType.ApprenticeCount:
                 case EffectType.ApprenticeSpeed:
-                case EffectType.ApprenticeHarvestTime:
+                case EffectType.ApprenticeWorkTime:
                 case EffectType.ApprenticeYield:
+                case EffectType.ApprenticeDig:
                 case EffectType.Tractor:
-                case EffectType.HelperWater:
                     return true;
                 default:
                     return false;
             }
         }
 
+        /// <summary>
+        /// Heritage head starts that are Almanac nodes (GDD §7, `h_start_tomato`): the generation starts owning them,
+        /// free (not in <see cref="GenerationStats.AlmanacSpent"/>), so everything behind them opens as if bought.
+        /// </summary>
         private void GrantHeritageStarts()
         {
             bool tomato = false;
@@ -455,6 +600,10 @@ namespace TillWinter.Core
                     Almanac.SetLevel(n.Id, 1);
         }
 
+        /// <summary>
+        /// Spring (GDD §2v3.2 v3.2): the clock restarts and the depot is full; layers, crops and coins are kept. Early
+        /// Thaw opens a quarter of the cracks; Head Start half of them and half of every crop's growth.
+        /// </summary>
         private void BeginSpring()
         {
             State.Phase = Phase.Year;
@@ -464,16 +613,19 @@ namespace TillWinter.Core
             State.CoinsThisYear = 0;
             State.HarvestsThisYear = 0;
             State.Combo = 0;
+            State.Stamina = State.Stats.StaminaMax;
+            State.StrikeCooldownLeft = 0f;
+            State.WateringPos = null;
             _crowSpawnTimer = 0f;
             ClearCrows();
             foreach (var p in State.PlotArray)
             {
-                // (v2.8) Fertile Start: every plot begins spring Wet. Head Start: Wet and part-grown on top of it. The
-                // old Fertile Start only watered plots bought that winter, which was worth almost nothing.
-                p.Reset();
-                if (p.IsStony) continue;
-                if (State.Stats.SpringHeadStart) { p.State = PlotState.Wet; p.Progress = Config.SpringHeadStartProgress; }
-                else if (State.Stats.FertileStart) p.State = PlotState.Wet;
+                if (State.Stats.SpringHeadStart)
+                {
+                    if (p.IsHard) p.Hp = Math.Min(p.Hp, p.MaxHp * Config.SpringHeadStartProgress);
+                    else if (p.IsGrowing) p.Progress = Math.Max(p.Progress, Config.SpringHeadStartProgress);
+                }
+                else if (State.Stats.EarlyThaw && p.IsHard) p.Hp = Math.Min(p.Hp, p.MaxHp * (1 - Config.EarlyThawShare));
             }
             ResetApprentices();
             ResetTractor();
@@ -506,6 +658,7 @@ namespace TillWinter.Core
                 Coins = s.Coins,
                 CrowSpawnTimer = _crowSpawnTimer,
                 RngState = _rng.State,
+                Stamina = s.Stamina,
                 Generation = s.Generation.Generation,
                 LifetimeCoinsThisGeneration = s.Generation.LifetimeCoinsThisGeneration,
                 LifetimeCoinsTotal = s.Generation.LifetimeCoinsTotal,
@@ -530,7 +683,6 @@ namespace TillWinter.Core
                 TractorTimeToNextSweep = s.Tractor.TimeToNextSweep,
                 TractorPassed = s.Tractor.Passed,
                 Combo = s.Combo,
-                RingShape = (int)s.RingShape,
                 ComboTimer = s.ComboTimer,
                 GreenhouseSecondsLeft = s.Greenhouse.SecondsLeftThisWinter,
                 GreenhouseCoinsThisWinter = s.Greenhouse.CoinsThisWinter,
@@ -539,12 +691,16 @@ namespace TillWinter.Core
                 HeritageViewHas = s.HeritageView.HasView, HeritageViewX = s.HeritageView.PanX, HeritageViewY = s.HeritageView.PanY, HeritageViewZoom = s.HeritageView.Zoom,
                 EndingSeen = s.EndingSeen,
                 GoldenYearActive = s.GoldenYearActive,
-                HarvestsRing = s.Generation.HarvestsRing,
+                HarvestsHand = s.Generation.HarvestsHand,
                 HarvestsApprentice = s.Generation.HarvestsApprentice,
                 HarvestsTractor = s.Generation.HarvestsTractor,
                 HarvestsLateFrost = s.Generation.HarvestsLateFrost,
                 GoldenHarvests = s.Generation.GoldenHarvests,
                 BestCombo = s.Generation.BestCombo,
+                Strikes = s.Generation.Strikes,
+                Crits = s.Generation.Crits,
+                Breaks = s.Generation.Breaks,
+                DeepestLayer = s.Generation.DeepestLayer,
                 TimePlayedSeconds = s.Generation.TimePlayedSeconds,
                 YearsTotal = s.Generation.YearsTotal,
                 CoinsThisYear = s.CoinsThisYear,
@@ -570,7 +726,12 @@ namespace TillWinter.Core
                 var p = s.PlotArray[i];
                 float crowTimer = 0f;
                 foreach (var c in s.CrowList) if (c.Pos == p.Pos) crowTimer = c.Timer;
-                d.Plots[i] = new PlotSave { X = p.Pos.X, Y = p.Pos.Y, Tier = p.BedTier, Choice = p.Choice, State = (int)p.State, Progress = p.Progress, HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge, Kind = (int)p.Kind, LastYearTier = p.LastYearTier, DryTimer = p.DryTimer };
+                d.Plots[i] = new PlotSave
+                {
+                    X = p.Pos.X, Y = p.Pos.Y, Tier = p.BedTier, Choice = p.Choice, State = (int)p.State, Progress = p.Progress,
+                    HasCrow = p.HasCrow, CrowTimer = crowTimer, Golden = p.IsGolden, RipeAge = p.RipeAge, Kind = (int)p.Kind, LastYearTier = p.LastYearTier,
+                    Layer = p.Layer, Hardpan = p.Hardpan, Chest = p.Chest, Hp = p.Hp, MaxHp = p.MaxHp, HiddenBonus = p.HiddenBonus, CropLayer = p.CropLayer,
+                };
             }
             for (int i = 0; i < s.ApprenticeList.Count; i++)
                 d.Apprentices[i] = new ApprenticeSave { X = s.ApprenticeList[i].X, Y = s.ApprenticeList[i].Y, Role = (int)s.ApprenticeList[i].Role };
@@ -622,7 +783,6 @@ namespace TillWinter.Core
             d.Album = s.AlbumList.ToArray();
             d.ChecklistBits = s.ChecklistBits;
             d.AwayPlan = (int)s.AwayPlan;
-            d.TapCooldown = s.TapCooldown;
             d.LuckyCheckTimer = _luckyCheckTimer;
             return d;
         }
@@ -638,7 +798,6 @@ namespace TillWinter.Core
 
             var sim = new FarmSim(config, 0, almanacNodes, heritageNodes);
             var s = sim.State;
-            sim._rng = new Rng(data.RngState);
             sim._crowSpawnTimer = data.CrowSpawnTimer;
             s.Phase = (Phase)data.Phase;
             s.Year = data.Year;
@@ -655,12 +814,16 @@ namespace TillWinter.Core
             g.SeedsEarnedTotal = data.SeedsEarnedTotal;
             g.CrowsScared = data.CrowsScared;
             g.Harvests = data.Harvests;
-            g.HarvestsRing = data.HarvestsRing;
+            g.HarvestsHand = data.HarvestsHand;
             g.HarvestsApprentice = data.HarvestsApprentice;
             g.HarvestsTractor = data.HarvestsTractor;
             g.HarvestsLateFrost = data.HarvestsLateFrost;
             g.GoldenHarvests = data.GoldenHarvests;
             g.BestCombo = data.BestCombo;
+            g.Strikes = Math.Max(0, data.Strikes);
+            g.Crits = Math.Max(0, data.Crits);
+            g.Breaks = Math.Max(0, data.Breaks);
+            g.DeepestLayer = Math.Max(0, data.DeepestLayer);
             g.TimePlayedSeconds = data.TimePlayedSeconds;
             g.YearsTotal = data.YearsTotal;
             s.CoinsThisYear = data.CoinsThisYear;
@@ -689,7 +852,7 @@ namespace TillWinter.Core
 
             s.PlotArray = null;
             s.GridSize = 0;
-            sim.BuildField(data.GridSize, false);
+            sim.BuildField(data.GridSize);
             foreach (var ps in data.Plots)
             {
                 var pos = new GridPos(ps.X, ps.Y);
@@ -697,26 +860,34 @@ namespace TillWinter.Core
                 var plot = s.GetPlot(pos);
                 plot.BedTier = Math.Max(0, Math.Min(config.MaxTier, ps.Tier));
                 plot.Choice = Math.Max(-1, Math.Min(plot.BedTier, ps.Choice));
-                plot.State = ps.State >= (int)PlotState.Dry && ps.State <= (int)PlotState.Ripe ? (PlotState)ps.State : PlotState.Dry;
-                plot.Progress = ps.Progress;
+                plot.State = ps.State >= (int)PlotState.Hard && ps.State <= (int)PlotState.Ripe ? (PlotState)ps.State : PlotState.Hard;
+                plot.Progress = Math.Max(0f, Math.Min(1f, ps.Progress));
                 plot.IsGolden = ps.Golden;
-                plot.RipeAge = ps.RipeAge;
-                plot.Kind = ps.Kind >= 0 && ps.Kind <= (int)PlotKind.Stony ? (PlotKind)ps.Kind : PlotKind.Normal;
+                plot.RipeAge = Math.Max(0f, ps.RipeAge);
+                plot.Kind = ps.Kind >= 0 && ps.Kind <= (int)PlotKind.Fertile ? (PlotKind)ps.Kind : PlotKind.Normal;
                 plot.LastYearTier = Math.Max(-1, Math.Min(config.MaxTier, ps.LastYearTier));
-                plot.DryTimer = ps.DryTimer;
-                if (ps.HasCrow)
+                plot.Layer = Math.Max(0, ps.Layer);
+                plot.Ground = sim.GroundOf(plot.Layer);
+                plot.Hardpan = ps.Hardpan;
+                plot.Chest = ps.Chest;
+                plot.MaxHp = ps.MaxHp > 0 ? ps.MaxHp : sim.LayerHp(plot);
+                plot.Hp = plot.IsHard ? Math.Max(0.01, Math.Min(plot.MaxHp, ps.Hp)) : 0;
+                plot.HiddenBonus = ps.HiddenBonus > 0 ? ps.HiddenBonus : sim.LayerBonus(plot);
+                plot.CropLayer = Math.Max(0, ps.CropLayer);
+                if (ps.HasCrow && plot.IsRipe)
                 {
                     plot.HasCrow = true;
                     s.CrowList.Add(new Crow { Pos = pos, Timer = ps.CrowTimer, EatTime = config.CrowEatTime });
                 }
             }
+            sim._rng = new Rng(data.RngState); // after the field: its fresh layers drew from the throwaway RNG, not the saved one
             sim.ResolveStats();
             var saved = data.Apprentices ?? new ApprenticeSave[0];
             for (int i = 0; i < s.ApprenticeList.Count && i < saved.Length; i++)
             {
                 s.ApprenticeList[i].X = saved[i].X;
                 s.ApprenticeList[i].Y = saved[i].Y;
-                s.ApprenticeList[i].Role = saved[i].Role == (int)ApprenticeRole.Waterer ? ApprenticeRole.Waterer : ApprenticeRole.Harvester;
+                s.ApprenticeList[i].Role = saved[i].Role >= 0 && saved[i].Role <= (int)ApprenticeRole.Digger ? (ApprenticeRole)saved[i].Role : ApprenticeRole.Picker;
             }
             if (data.ScarecrowX != null && data.ScarecrowY != null && data.ScarecrowX.Length == data.ScarecrowY.Length && data.ScarecrowX.Length > 0)
             {
@@ -769,9 +940,9 @@ namespace TillWinter.Core
             s.NgPlus = Math.Max(0, data.NgPlus);
             if (data.Album != null) foreach (var page in data.Album) if (page != null) s.AlbumList.Add(page);
             s.ChecklistBits = data.ChecklistBits & ((1 << ChecklistSteps) - 1);
-            s.TapCooldown = Math.Max(0f, data.TapCooldown);
             s.AwayPlan = data.AwayPlan >= 0 && data.AwayPlan <= (int)AwayPlan.Balanced ? (AwayPlan)data.AwayPlan : AwayPlan.AsTheyAre;
             sim.ResolveStats(); // heirlooms, trait and challenge on top of the trees
+            s.Stamina = Math.Max(0f, Math.Min(s.Stats.StaminaMax, data.Stamina));
             sim._luckyCheckTimer = data.LuckyCheckTimer;
             s.Cloud.Active = data.CloudActive;
             s.Cloud.X = data.CloudX;
@@ -784,7 +955,6 @@ namespace TillWinter.Core
             s.Tractor.TimeToNextSweep = data.TractorTimeToNextSweep;
             s.Tractor.Passed = data.TractorPassed;
             s.Combo = data.Combo;
-            s.RingShape = (RingShape)Math.Max(0, Math.Min(s.Stats.RingShapeLevel, data.RingShape));
             s.ComboTimer = data.ComboTimer;
             s.Greenhouse.SecondsLeftThisWinter = data.GreenhouseSecondsLeft;
             s.Greenhouse.CoinsThisWinter = data.GreenhouseCoinsThisWinter;
@@ -803,11 +973,12 @@ namespace TillWinter.Core
             return list.ToArray();
         }
 
-        // ------------------------------------------------------------------ offline (GDD §9)
+        // ------------------------------------------------------------------ offline (GDD §9, §2v3.10)
 
         /// <summary>
-        /// Advances passive systems only (Irrigation → Sun → apprentices/tractor) for min(elapsed, cap) at a
-        /// coarse fixed step. No ring, no crows, no cloud, no year timer, no season change. No-op outside Phase.Year.
+        /// Advances passive systems only (growth, apprentices, tractor) for min(elapsed, cap) at a coarse fixed step,
+        /// then refills the depot for the time away. No strikes, no crows, no cloud, no year timer, no season change.
+        /// No-op outside Phase.Year.
         /// </summary>
         public OfflineReport SimulateOffline(double elapsedSeconds)
         {
@@ -827,8 +998,8 @@ namespace TillWinter.Core
             int apprentice = 0, tractor = 0;
             Action<HarvestEvent> count = e => { if (e.Source == HarvestSource.Apprentice) apprentice++; else if (e.Source == HarvestSource.Tractor) tractor++; };
             Harvested += count;
-            var ringBefore = State.Ring;
-            State.Ring = null;
+            var wateringBefore = State.WateringPos;
+            State.WateringPos = null;
             _offline = true;
             ApplyAwayPlan(); // GDD §10.7 (v2.5): the plan the player left, for the time away only
             try
@@ -843,12 +1014,13 @@ namespace TillWinter.Core
             }
             finally
             {
-                // A throwing event handler must not leave the farm stuck offline, the roles swapped or the ring gone.
+                // A throwing event handler must not leave the farm stuck offline or the roles swapped.
                 _offline = false;
                 RestoreRolesAfterAway();
                 Harvested -= count;
-                State.Ring = ringBefore;
+                State.WateringPos = wateringBefore;
             }
+            State.Stamina = Math.Min(State.Stats.StaminaMax, State.Stamina + State.Stats.StaminaRegen * (float)(steps * (double)step));
             int found = 0;
             for (int bits = State.Generation.Achievements & ~achievementsBefore; bits != 0; bits &= bits - 1) found++;
             return new OfflineReport(steps * (double)step, State.Coins - coinsBefore, State.Generation.Harvests - harvestsBefore, capped, apprentice, tractor, found);
@@ -912,36 +1084,76 @@ namespace TillWinter.Core
             if (State.Phase != Phase.Year) return false;
             _scratch.Clear();
             foreach (var p in State.PlotArray)
-                if (!p.HasCrow && p.IsRipe && !State.IsUnderRing(p.Pos)) _scratch.Add(p);
+                if (!p.HasCrow && p.IsRipe) _scratch.Add(p);
             if (_scratch.Count == 0)
                 foreach (var p in State.PlotArray)
                     if (!p.HasCrow) _scratch.Add(p);
             if (_scratch.Count == 0) return false;
             var plot = _scratch[_rng.Next(_scratch.Count)];
-            plot.State = PlotState.Ripe;
-            plot.Progress = 0f;
+            ForceRipe(plot);
             SpawnCrowAt(plot.Pos);
             return true;
         }
 
+        private void ForceRipe(Plot p)
+        {
+            if (p.IsRipe) return;
+            if (p.IsHard) { p.CropLayer = p.Layer; p.Hp = 0; }
+            p.State = PlotState.Ripe;
+            p.Progress = 0f;
+            p.RipeAge = 0f;
+            p.Watering = false;
+        }
+
+        /// <summary>Every plot ripe now (the crop it would have grown).</summary>
         public void DebugForceRipeAll()
         {
             if (State.Phase != Phase.Year) return;
-            foreach (var p in State.PlotArray)
-            {
-                if (p.IsStony) continue;
-                p.State = PlotState.Ripe;
-                p.Progress = 0f;
-            }
+            foreach (var p in State.PlotArray) ForceRipe(p);
         }
 
-        /// <summary>Makes a plot fertile, stony or plain, as a field expansion might.</summary>
-        public void DebugSetPlotKind(GridPos pos, PlotKind kind)
+        /// <summary>One plot ripe now (tests, the developer panel).</summary>
+        public bool DebugForceRipe(GridPos pos)
+        {
+            if (State.Phase != Phase.Year || !State.InBounds(pos)) return false;
+            ForceRipe(State.GetPlot(pos));
+            return true;
+        }
+
+        /// <summary>Every hard plot broken now, without a strike: the seeds drop.</summary>
+        public void DebugBreakAll()
+        {
+            if (State.Phase != Phase.Year) return;
+            foreach (var p in State.PlotArray) if (p.IsHard) Break(p);
+        }
+
+        /// <summary>Breaks one plot outright (tests, the developer panel).</summary>
+        public bool DebugBreak(GridPos pos)
+        {
+            if (State.Phase != Phase.Year || !State.InBounds(pos)) return false;
+            var p = State.GetPlot(pos);
+            if (!p.IsHard) return false;
+            Break(p);
+            return true;
+        }
+
+        public void DebugSetStamina(float stamina) => State.Stamina = Math.Max(0f, Math.Min(State.Stats.StaminaMax, stamina));
+        public void DebugClearCooldown() => State.StrikeCooldownLeft = 0f;
+
+        /// <summary>Puts a plot at a layer (fresh, full HP), as years of digging would (tests, the developer panel).</summary>
+        public void DebugSetLayer(GridPos pos, int layer)
         {
             if (!State.InBounds(pos)) return;
             var p = State.GetPlot(pos);
-            p.Kind = kind;
-            if (kind == PlotKind.Stony) p.Reset();
+            p.Layer = Math.Max(0, layer) - 1;
+            NewLayer(p);
+        }
+
+        /// <summary>Makes a plot fertile or plain, as a field expansion might.</summary>
+        public void DebugSetPlotKind(GridPos pos, PlotKind kind)
+        {
+            if (!State.InBounds(pos)) return;
+            State.GetPlot(pos).Kind = kind;
         }
 
         /// <summary>Spawns the rain cloud now (even if not unlocked or already spawned this year).</summary>
@@ -952,12 +1164,8 @@ namespace TillWinter.Core
             return true;
         }
 
-        /// <summary>The next replanted crop is golden regardless of chance.</summary>
+        /// <summary>The next seed to drop is golden regardless of chance.</summary>
         public void DebugNextHarvestGolden() => _forceGoldenNext = true;
-
-        /// <summary>Clears the tap-harvest cooldown. Smoke/test hook.</summary>
-        public void DebugClearTapCooldown() => State.TapCooldown = 0f;
-        public void DebugSetTapCooldown(float seconds) => State.TapCooldown = Math.Max(0f, seconds);
 
         /// <summary>Starts a tractor sweep now if the tractor is owned and a row has Ripe plots.</summary>
         public bool DebugForceTractorSweep()
@@ -983,19 +1191,10 @@ namespace TillWinter.Core
             ResolveStats();
             if (State.GridSize < State.Stats.TargetGridSize)
             {
-                BuildField(State.Stats.TargetGridSize, State.Stats.FertileStart);
+                BuildField(State.Stats.TargetGridSize);
                 FieldExpanded?.Invoke();
             }
         }
-
-        /// <summary>null restores the tree-driven radius.</summary>
-        public void DebugSetRingRadiusOverride(float? radius)
-        {
-            _ringRadiusOverride = radius;
-            ResolveStats();
-        }
-
-        public float? DebugRingRadiusOverride => _ringRadiusOverride;
 
         // ------------------------------------------------------------------ year
 
@@ -1033,6 +1232,11 @@ namespace TillWinter.Core
             return Season.Autumn;
         }
 
+        /// <summary>
+        /// Frost (GDD §2v3.2 v3.2): whatever is ripe is reaped by itself, one plot at a time so no combo is paid; with
+        /// Late Frost a nearly grown crop pays half now; every other growing crop waits for spring; hard ground keeps its
+        /// layer but the winter closes the cracks. The depth is the farm's memory between years.
+        /// </summary>
         private void EnterWinter()
         {
             bool goldenEnded = State.GoldenYearActive;
@@ -1041,13 +1245,15 @@ namespace TillWinter.Core
                 State.GoldenYearActive = false;
                 State.EndingSeen = true;
             }
-            // late_frost: nearly-grown crops pay half instead of being lost.
-            if (State.Stats.LateFrost)
+            State.WateringPos = null;
+            _frost = true;
+            foreach (var p in State.PlotArray)
             {
-                foreach (var p in State.PlotArray)
-                    if (p.IsRipe || (p.State == PlotState.Wet && p.Progress >= Config.LateFrostThreshold))
-                        Harvest(p, HarvestSource.LateFrost, -1);
+                p.Watering = false;
+                if (p.IsRipe) Harvest(p, HarvestSource.Frost, -1);
+                else if (State.Stats.LateFrost && p.IsGrowing && p.Progress >= Config.LateFrostThreshold) Harvest(p, HarvestSource.LateFrost, -1);
             }
+            _frost = false;
             GradeYear();
             // The Golden Year's 6x6 golden harvest is no yardstick for the plain years after it (goals, trader prices).
             if (goldenEnded) State.LastYearCoins = 0;
@@ -1055,19 +1261,20 @@ namespace TillWinter.Core
             State.Weather = Weather.Clear;
             State.WeatherLeft = 0f;
             State.PlannedWeather = Weather.Clear;
-            // Crop rotation (GDD §2.3 v1.8): each plot remembers what it grew this year; stony ground grew nothing.
-            foreach (var p in State.PlotArray) p.LastYearTier = p.IsStony ? -1 : p.Tier;
+            // Crop rotation (GDD §2.3 v1.8): each plot remembers what it grew this year.
+            foreach (var p in State.PlotArray)
+            {
+                p.LastYearTier = p.Tier;
+                if (p.IsHard) p.Hp = Math.Max(p.Hp, p.MaxHp * Math.Max(0f, Math.Min(1f, Config.WinterHpRefill)));
+            }
             State.Phase = Phase.Winter;
             State.Season = Season.Winter;
             State.YearTime = State.Stats.YearLength;
             State.FrostWarning = false;
-            State.Ring = null;
             State.Combo = 0;
-            State.Flow = 0f;       // a ring held at the frost does not carry its speed into next spring
-            _hasLastRing = false;
+            State.StrikeCooldownLeft = 0f;
             ClearCrows();
             ClearEvents();
-            foreach (var p in State.PlotArray) p.Reset();
             ResetApprentices();
             ResetTractor();
             ResetCloud();
@@ -1080,7 +1287,7 @@ namespace TillWinter.Core
                 ResolveStats();
                 State.PlotArray = null;
                 State.GridSize = 0;
-                BuildField(State.Stats.TargetGridSize, false);
+                BuildField(State.Stats.TargetGridSize);
                 ResolveStats();
                 GoldenYearEnded?.Invoke();
             }
@@ -1101,12 +1308,13 @@ namespace TillWinter.Core
         }
 
         /// <summary>
-        /// Everything about where and what a crop is that changes its price (GDD §2.3/§2.4 v1.7–1.8): its liked season,
-        /// fertile ground, a rotation from last year, and each side neighbour growing a different crop.
+        /// Everything about where and what a crop is that changes its price (GDD §2.3/§2.4 v1.7–1.8, §2v3.6): the depth
+        /// it was dug from, its liked season, fertile ground, a rotation from last year, and each side neighbour growing
+        /// a different crop.
         /// </summary>
         public double PlotValueMultiplier(Plot plot)
         {
-            double m = 1;
+            double m = 1 + Config.DepthValue * (plot.IsHard ? plot.Layer : plot.CropLayer);
             if (InSeason(plot.Tier)) m *= Config.InSeasonValue;
             if (plot.Kind == PlotKind.Fertile) m *= Config.FertileValue;
             if (plot.IsRotated) m *= Config.RotationBonus;
@@ -1115,7 +1323,7 @@ namespace TillWinter.Core
             return m;
         }
 
-        /// <summary>Side neighbours (not diagonals) growing a crop other than this plot's; stony ground grows nothing.</summary>
+        /// <summary>Side neighbours (not diagonals) growing a crop other than this plot's.</summary>
         public int DifferentNeighbours(Plot plot)
         {
             int n = 0;
@@ -1130,25 +1338,28 @@ namespace TillWinter.Core
         private int Differs(Plot plot, GridPos at)
         {
             if (!State.InBounds(at)) return 0;
-            var o = State.GetPlot(at);
-            return !o.IsStony && o.Tier != plot.Tier ? 1 : 0;
+            return State.GetPlot(at).Tier != plot.Tier ? 1 : 0;
         }
 
         /// <summary>
         /// The seed bag (GDD §2.3 v1.7): plants <paramref name="tier"/> on the plot, any crop up to what its bed can grow,
-        /// or -1 to follow the bed again. A different crop replants the plot from Dry; the same crop keeps its progress.
+        /// or -1 to follow the bed again. On hard ground it only picks the next seed; a growing or ripe crop is
+        /// replanted from the start with the new one.
         /// </summary>
         public bool SetPlotCrop(GridPos pos, int tier)
         {
             if (State.Phase != Phase.Year || State.GoldenYearActive || !State.InBounds(pos)) return false;
             var plot = State.GetPlot(pos);
-            if (plot.IsStony || tier < -1 || tier > plot.BedTier) return false;
+            if (tier < -1 || tier > plot.BedTier) return false;
             int before = plot.Tier;
             plot.Choice = tier;
-            if (plot.Tier != before)
+            if (plot.Tier != before && !plot.IsHard)
             {
-                plot.Reset();
-                // Nothing left to eat: the crow flies off without a bounty, as it does when the crop is harvested.
+                plot.State = PlotState.Growing;
+                plot.Progress = 0f;
+                plot.RipeAge = 0f;
+                plot.IsGolden = false;
+                // Nothing left to eat: the crow flies off without a bounty, as it does when the crop is reaped.
                 if (plot.HasCrow)
                 {
                     RemoveCrowAt(plot.Pos);
@@ -1161,106 +1372,39 @@ namespace TillWinter.Core
         private void UpdatePlots(float dt)
         {
             var st = State.Stats;
-            var ringHarvest = _offline ? null : RingHarvestTarget();
+            float season = State.Season == Season.Summer ? Config.SummerGrowth : 1f;
+            float sky = SkyNow == Weather.Storm ? Config.StormGrowth : SkyNow == Weather.HeatWave ? Config.HeatWaveGrowth : 1f;
+            var watering = _offline ? null : State.WateringPos;
             foreach (var plot in State.PlotArray)
             {
-                bool under = !_offline && State.IsUnderRing(plot.Pos);
-                var crop = Crop(plot);
                 switch (plot.State)
                 {
-                    case PlotState.Dry:
+                    case PlotState.Growing:
                     {
-                        if (plot.IsStony)
-                        {
-                            // GDD §2.4 (v1.8): only the ring clears stones; nothing grows until it has.
-                            if (!under || Config.StoneClearSeconds <= 0f) break;
-                            plot.Progress += dt / Config.StoneClearSeconds;
-                            if (plot.Progress >= 1f)
-                            {
-                                plot.Kind = PlotKind.Normal;
-                                plot.Progress = 0f;
-                                PlotCleared?.Invoke(plot.Pos);
-                            }
-                            break;
-                        }
-                        float speed = under ? st.RingWaterMult * FlowMult : PassiveWater;
-                        if (speed <= 0f) break;
-                        plot.Progress += speed / crop.Water * dt;
-                        if (plot.Progress >= 1f)
-                        {
-                            plot.State = PlotState.Wet;
-                            plot.Progress = 0f;
-                            PlotWatered?.Invoke(plot.Pos);
-                        }
-                        break;
-                    }
-                    case PlotState.Wet:
-                    {
+                        plot.Watering = false;
                         if (!_offline && InLocusts(plot.Pos)) break; // GDD §5.5 (v2.1): nothing grows under a swarm; offline it has flown on
-                        float speed = (under ? st.RingGrowMult * FlowMult : PassiveSun * BeeBoost(plot)) * st.SoilMultiplier;
-                        if (speed <= 0f)
+                        float boost = 1f;
+                        if (watering.HasValue && watering.Value == plot.Pos)
                         {
-                            // GDD §3.2 (v1.9): in a drought a Wet plot nothing is growing dries back out.
-                            if (!_offline && InDrought)
+                            float cost = Config.WaterCostPerSecond * dt;
+                            if (State.Stamina >= cost)
                             {
-                                plot.DryTimer += dt * (State.Weather == Weather.HeatWave ? 2f : 1f);
-                                if (plot.DryTimer >= Config.SummerDryOutSeconds)
-                                {
-                                    plot.State = PlotState.Dry;
-                                    plot.Progress = 0f;
-                                    plot.DryTimer = 0f;
-                                    PlotDriedOut?.Invoke(plot.Pos);
-                                }
+                                State.Stamina -= cost;
+                                boost = Config.WaterBoost;
+                                plot.Watering = true;
                             }
-                            break;
                         }
-                        plot.DryTimer = 0f;
-                        plot.Progress += speed / crop.Grow * dt;
-                        if (plot.Progress >= 1f)
-                        {
-                            plot.State = PlotState.Ripe;
-                            plot.Progress = 0f;
-                            PlotRipened?.Invoke(plot.Pos);
-                        }
+                        float speed = boost * season * sky * st.GrowthMult * st.SoilMultiplier * BeeBoost(plot);
+                        plot.Progress += speed / Math.Max(0.01f, Crop(plot).Grow) * dt;
+                        if (plot.Progress >= 1f) Ripen(plot);
                         break;
                     }
                     case PlotState.Ripe:
-                    {
-                        // GDD §2.5 (v1.6): a crop left standing slowly loses value, so the ring has to prioritise.
+                        // GDD §2.5 (v1.6): a crop left standing slowly loses value, so the swipe has to come.
                         if (!_offline && State.Weather != Weather.Fog) plot.RipeAge += dt; // fog keeps them (GDD §5.4 v1.9)
-                        if (plot != ringHarvest) break; // GDD §2.1 (v1.4): the ring harvests one plot at a time
-                        plot.Progress += st.RingHarvestMult * FlowMult / crop.Harvest * dt;
-                        if (plot.Progress >= 1f)
-                            Harvest(plot, HarvestSource.Ring, -1);
                         break;
-                    }
                 }
             }
-        }
-
-        /// <summary>
-        /// GDD §2.1 (v1.4): the ring waters and grows every plot under it, but harvests one Ripe plot at a time —
-        /// the one furthest along (a started harvest finishes), ties to the plot nearest the ring centre, then array order.
-        /// </summary>
-        private Plot RingHarvestTarget()
-        {
-            if (State.Ring == null) return null;
-            var r = State.Ring.Value;
-            Plot best = null;
-            float bestProgress = -1f, bestDist = float.MaxValue;
-            foreach (var p in State.PlotArray)
-            {
-                if (!p.IsRipe || !State.IsUnderRing(p.Pos)) continue;
-                float dx = p.Pos.X - r.X, dy = p.Pos.Y - r.Y;
-                float d = dx * dx + dy * dy;
-                if (p.Progress > bestProgress || (p.Progress == bestProgress && d < bestDist))
-                {
-                    best = p;
-                    bestProgress = p.Progress;
-                    bestDist = d;
-                }
-            }
-            return best;
         }
 
         /// <summary>1 while the crop is fresh, falling to <see cref="FarmConfig.OverripeMinValue"/> once it has stood too long.</summary>
@@ -1273,23 +1417,23 @@ namespace TillWinter.Core
             return 1 - t * (1 - Config.OverripeMinValue);
         }
 
-        private void Harvest(Plot plot, HarvestSource source, int apprenticeIndex)
+        /// <summary>Reaps one plot; the ground returns a layer deeper (GDD §2v3.2). Returns the coins it paid (0 if stored).</summary>
+        private double Harvest(Plot plot, HarvestSource source, int apprenticeIndex, int combo = 1, double comboMult = 1)
         {
             var st = State.Stats;
             bool golden = plot.IsGolden;
             double coins = Crop(plot).Value * st.CropValueMult * (golden ? Config.GoldenValueMultiplier : 1) * Freshness(plot);
             coins *= PlotValueMultiplier(plot);
-            // GDD §3.1 (v1.9): the last rush before frost pays double; late frost's rescue keeps its own price.
-            if (State.FrostWarning && !_offline && source != HarvestSource.LateFrost) coins *= Config.FrostRushValue;
+            // GDD §3.1 (v1.9): the last rush before frost pays more; the frost's own reaping keeps the plain price.
+            if (State.FrostWarning && !_offline && !_frost) coins *= Config.FrostRushValue;
             coins *= LuckMultiplier; // GDD §5.6 (v2.1): the shooting star's rush
             // A late-frost rescue is a half-price save, not a fresh harvest: in the year's grade it counts at that half.
             State.YearFreshSum += source == HarvestSource.LateFrost ? Freshness(plot) * Config.LateFrostValueMultiplier : Freshness(plot);
             switch (source)
             {
-                case HarvestSource.Ring:
-                    RegisterComboHit();
-                    coins *= st.RingBonusMult * (1 + st.RingComboPerStack * Math.Min(State.Combo, Config.ComboMaxStacks));
-                    coins += ComboMilestoneBonus(plot);
+                case HarvestSource.Hand:
+                    coins *= comboMult;
+                    State.Stamina = Math.Min(st.StaminaMax, State.Stamina + Config.ReapStamina); // the ground gives back
                     break;
                 case HarvestSource.Apprentice:
                     coins *= st.ApprenticeYield;
@@ -1304,32 +1448,90 @@ namespace TillWinter.Core
             gen.Harvests++;
             switch (source)
             {
-                case HarvestSource.Ring: gen.HarvestsRing++; break;
+                case HarvestSource.Hand: gen.HarvestsHand++; break;
                 case HarvestSource.Apprentice: gen.HarvestsApprentice++; break;
                 case HarvestSource.Tractor: gen.HarvestsTractor++; break;
-                case HarvestSource.LateFrost: gen.HarvestsLateFrost++; break;
+                case HarvestSource.LateFrost:
+                case HarvestSource.Frost: gen.HarvestsLateFrost++; break; // both are the frost's doing: the stats screen's "saved from the frost"
             }
             if (golden) gen.GoldenHarvests++;
             State.HarvestsThisYear++;
             int tier = plot.Tier;
             var goal = State.Goal;
             if (goal.Type == GoalType.HarvestCrop && !goal.Done && tier == goal.Tier) goal.Progress++;
-            CheckGoal();
-            Replant(plot, source == HarvestSource.Apprentice && st.HelperWater);
+            if (source != HarvestSource.Hand) CheckGoal(); // a swipe checks once, after every crop
             if (plot.HasCrow)
             {
                 RemoveCrowAt(plot.Pos);
                 CrowScared?.Invoke(new CrowEvent(plot.Pos, 0));
             }
+            NewLayer(plot);
             if (stored) Stored?.Invoke(plot.Pos, coins);
-            Harvested?.Invoke(new HarvestEvent(plot.Pos, tier, stored ? 0 : coins, source, apprenticeIndex, golden));
+            Harvested?.Invoke(new HarvestEvent(plot.Pos, tier, stored ? 0 : coins, source, apprenticeIndex, golden, combo));
+            return stored ? 0 : coins;
         }
 
-        /// <summary>Same tier back to Dry (or Wet), rolling the golden chance.</summary>
-        private void Replant(Plot plot, bool startWet)
+        /// <summary>A crop lost (a crow, a pest): counted against the grade; the ground returns deeper all the same.</summary>
+        private void LoseCrop(Plot plot)
         {
-            plot.Reset();
-            if (startWet) plot.State = PlotState.Wet;
+            if (plot.IsHard) return;
+            if (plot.IsRipe) State.CropsLostThisYear++;
+            if (plot.HasCrow) RemoveCrowAt(plot.Pos);
+            NewLayer(plot);
+        }
+
+        // ------------------------------------------------------------------ the layer under the crop (GDD §2v3.3)
+
+        private GroundType GroundOf(int layer)
+        {
+            var t = Config.GroundLayers;
+            int g = 0;
+            if (t != null) for (int i = 0; i < t.Length; i++) if (layer >= t[i]) g = i + 1;
+            return (GroundType)Math.Min(g, (int)GroundType.Rock);
+        }
+
+        private double LayerHp(Plot p) =>
+            Config.BaseHp * Math.Pow(Config.HpGrowth, p.Layer) * (p.Hardpan ? Config.HardpanHpMult : 1) * State.Stats.HpMult;
+
+        private double LayerBonus(Plot p)
+        {
+            double bonus = Config.BreakCoins * Math.Pow(Config.BreakGrowth, p.Layer);
+            if (p.Hardpan) bonus *= Config.HardpanCoinsMult;
+            else if (p.Chest) bonus *= Config.ChestMult;
+            return bonus;
+        }
+
+        /// <summary>The next layer: tougher, richer, with its specials rolled and its reward decided now and hidden.</summary>
+        private void NewLayer(Plot p)
+        {
+            p.Layer = Math.Min(Math.Max(0, Config.MaxLayer), p.Layer + 1);
+            p.ClearCrop();
+            p.Hardpan = _rng.NextDouble() < Config.HardpanChance;
+            p.Chest = !p.Hardpan && _rng.NextDouble() < Config.ChestChance;
+            p.Ground = GroundOf(p.Layer);
+            p.MaxHp = LayerHp(p);
+            p.Hp = p.MaxHp;
+            p.HiddenBonus = LayerBonus(p);
+            p.CropLayer = p.Layer;
+        }
+
+        /// <summary>Softness bought mid-generation reshapes the ground under the cracks already made.</summary>
+        private void RefreshLayerHp()
+        {
+            foreach (var p in State.PlotArray)
+            {
+                double max = LayerHp(p);
+                if (max <= 0 || p.MaxHp <= 0) continue;
+                double ratio = p.Hp / p.MaxHp;
+                p.MaxHp = max;
+                if (p.IsHard) p.Hp = Math.Max(0.01, max * ratio);
+            }
+        }
+
+        /// <summary>The seed that dropped may be golden: the Golden Year always, a rare seed by chance.</summary>
+        private void RollGolden(Plot plot)
+        {
+            plot.IsGolden = false;
             if (State.GoldenYearActive)
             {
                 plot.IsGolden = true;
@@ -1346,16 +1548,17 @@ namespace TillWinter.Core
             }
         }
 
-        /// <summary>A combo that reaches a milestone pays a lump sum in crop values (GDD §2.5 v1.6).</summary>
-        private double ComboMilestoneBonus(Plot plot)
+        /// <summary>A swipe that reaches a milestone pays a lump sum in crop values (GDD §2.5 v1.6).</summary>
+        private double ComboMilestoneBonus(Plot last, int n)
         {
             var milestones = Config.ComboMilestones;
             if (milestones == null) return 0;
             for (int i = 0; i < milestones.Length; i++)
             {
-                if (State.Combo != milestones[i]) continue;
-                double bonus = Crop(plot).Value * State.Stats.CropValueMult * Index(Config.ComboMilestoneBonus, i);
-                ComboMilestone?.Invoke(State.Combo, bonus);
+                if (n != milestones[i]) continue;
+                double bonus = Crop(last).Value * State.Stats.CropValueMult * Index(Config.ComboMilestoneBonus, i);
+                AddCoins(bonus);
+                ComboMilestone?.Invoke(n, bonus);
                 return bonus;
             }
             return 0;
@@ -1364,81 +1567,15 @@ namespace TillWinter.Core
         private static double Index(double[] table, int i) =>
             table == null || table.Length == 0 ? 0 : table[Math.Max(0, Math.Min(table.Length - 1, i))];
 
-        /// <summary>A ring that keeps moving works a little faster; standing still it settles back (GDD §2.1 v1.6).</summary>
-        private void UpdateFlow(float dt)
-        {
-            var ring = State.Ring;
-            if (ring == null || dt <= 0f)
-            {
-                _hasLastRing = false;
-                State.Flow = Math.Max(0f, State.Flow - dt * 2f);
-                return;
-            }
-            float speed = 0f;
-            if (_hasLastRing)
-            {
-                float dx = ring.Value.X - _lastRingX, dy = ring.Value.Y - _lastRingY;
-                speed = (float)Math.Sqrt(dx * dx + dy * dy) / dt;
-            }
-            _lastRingX = ring.Value.X;
-            _lastRingY = ring.Value.Y;
-            _hasLastRing = true;
-            float target = Config.FlowSpeedThreshold <= 0f || speed >= Config.FlowSpeedThreshold ? 1f : 0f;
-            float rate = target > State.Flow ? 4f : 1.5f;
-            State.Flow += (target - State.Flow) * Math.Min(1f, rate * dt);
-        }
-
-        /// <summary>Ring rates including the flow bonus.</summary>
-        private float FlowMult => 1f + Config.FlowBonus * State.Flow;
-
-        private float _lastRingX, _lastRingY;
-        private bool _hasLastRing;
-
-        private void RegisterComboHit()
-        {
-            State.Combo = State.ComboTimer <= ComboWindow && State.Combo > 0 ? State.Combo + 1 : 1;
-            State.ComboTimer = 0f;
-            if (State.Combo > State.Generation.BestCombo) State.Generation.BestCombo = State.Combo;
-            var goal = State.Goal;
-            if (goal.Type == GoalType.Combo && !goal.Done) goal.Progress = Math.Max(goal.Progress, State.Combo);
-        }
-
         private void UpdateCombo(float dt)
         {
             State.ComboTimer += dt;
-            if (State.Combo > 0 && State.ComboTimer > ComboWindow) State.Combo = 0;
+            if (State.Combo > 0 && State.ComboTimer > Config.ComboWindowSeconds) State.Combo = 0;
         }
-
-        /// <summary>GDD §3.2 (v1.9): the autumn harvest festival gives a streak longer to breathe.</summary>
-        private float ComboWindow => Config.ComboWindowSeconds * (State.Season == Season.Autumn ? Config.AutumnComboWindow : 1f);
-
-        /// <summary>Passive watering: Irrigation, faster in spring rain; a storm waters every Dry plot (GDD §3.2/§5.4 v1.9).</summary>
-        private float PassiveWater
-        {
-            get
-            {
-                float w = State.Stats.IrrigationFactor * (State.Season == Season.Spring ? Config.SpringWaterBoost : 1f);
-                return SkyNow == Weather.Storm ? Math.Max(w, Config.StormWaterRate) : w;
-            }
-        }
-
-        /// <summary>Passive growing: the Sun, gone in a storm, stronger in a heat wave.</summary>
-        private float PassiveSun
-        {
-            get
-            {
-                float s = State.Stats.SunFactor;
-                if (SkyNow == Weather.Storm) return 0f;
-                return SkyNow == Weather.HeatWave ? s * Config.HeatWaveSun : s;
-            }
-        }
-
-        /// <summary>Summer, or a heat wave; never while it storms.</summary>
-        private bool InDrought => SkyNow != Weather.Storm && (State.Season == Season.Summer || SkyNow == Weather.HeatWave);
 
         /// <summary>
-        /// The weather the passive rates see. Weather lasts seconds and does not tick offline, so a stretch away is
-        /// clear skies rather than one storm or heat wave frozen for hours.
+        /// The weather the field sees. Weather lasts seconds and does not tick offline, so a stretch away is clear
+        /// skies rather than one storm or heat wave frozen for hours.
         /// </summary>
         private Weather SkyNow => _offline ? Weather.Clear : State.Weather;
 
@@ -1585,7 +1722,7 @@ namespace TillWinter.Core
             ResolveStats();
             if (State.GridSize > State.Stats.TargetGridSize)
             {
-                BuildField(State.Stats.TargetGridSize, false);
+                BuildField(State.Stats.TargetGridSize);
                 ResolveStats();
                 FieldExpanded?.Invoke();
             }
@@ -1656,7 +1793,6 @@ namespace TillWinter.Core
                     int top = 0, plots = 0;
                     foreach (var p in State.PlotArray)
                     {
-                        if (p.IsStony) continue;
                         plots++;
                         top = Math.Max(top, Math.Min(p.BedTier, State.Stats.MaxTierUnlocked));
                     }
@@ -1665,7 +1801,7 @@ namespace TillWinter.Core
                     break;
                 }
                 case GoalType.Combo:
-                    goal.Target = Math.Min(Config.GoalComboMax, Config.GoalComboBase + Config.GoalComboPerYear * (State.Year - 1));
+                    goal.Target = Math.Min(Math.Min(Config.GoalComboMax, State.PlotArray.Length), Config.GoalComboBase + Config.GoalComboPerYear * (State.Year - 1));
                     break;
                 case GoalType.Coins:
                     goal.Target = Math.Ceiling(State.LastYearCoins * Config.GoalCoinsGrowth);
@@ -1766,7 +1902,7 @@ namespace TillWinter.Core
             GoalSet?.Invoke(goal);
         }
 
-        // ------------------------------------------------------------------ apprentices
+        // ------------------------------------------------------------------ apprentices (GDD §2v3.9)
 
         private void SyncApprenticeCount()
         {
@@ -1800,8 +1936,8 @@ namespace TillWinter.Core
                 a.X = a.IdleX;
                 a.Y = a.IdleY;
                 a.HasTarget = false;
-                a.IsHarvesting = false;
-                a.HarvestProgress = 0f;
+                a.IsWorking = false;
+                a.WorkProgress = 0f;
                 a.IsWalking = false;
             }
         }
@@ -1821,8 +1957,8 @@ namespace TillWinter.Core
                 if (a.HasTarget && !Wants(a, State.GetPlot(a.Target)))
                 {
                     a.HasTarget = false;
-                    a.IsHarvesting = false;
-                    a.HarvestProgress = 0f;
+                    a.IsWorking = false;
+                    a.WorkProgress = 0f;
                 }
 
                 if (!a.HasTarget)
@@ -1847,25 +1983,30 @@ namespace TillWinter.Core
                     }
                 }
 
-                if (a.IsHarvesting)
+                if (a.IsWorking)
                 {
-                    float time = st.ApprenticeHarvestTime;
-                    a.HarvestProgress += time <= 0f ? 1f : dt / time;
+                    float time = st.ApprenticeWorkTime;
+                    a.WorkProgress += time <= 0f ? 1f : dt / time;
                     a.IsWalking = false;
-                    if (a.HarvestProgress >= 1f)
+                    if (a.WorkProgress >= 1f)
                     {
                         var worked = State.GetPlot(a.Target);
-                        if (a.Role == ApprenticeRole.Waterer)
+                        switch (a.Role)
                         {
-                            worked.State = PlotState.Wet;
-                            worked.Progress = 0f;
-                            worked.DryTimer = 0f;
-                            PlotWatered?.Invoke(worked.Pos);
+                            case ApprenticeRole.Waterer:
+                                Water(worked, Config.ApprenticeWaterBoost);
+                                break;
+                            case ApprenticeRole.Digger:
+                                // A digger never crits and never tires: a steady blow, a share of the player's (GDD §2v3.9).
+                                if (worked.IsHard) Damage(worked, st.StrikeDamage * st.ApprenticeDigShare * GroundSoftness, false, false, false, a.Index);
+                                break;
+                            default:
+                                if (worked.IsRipe) Harvest(worked, HarvestSource.Apprentice, a.Index);
+                                break;
                         }
-                        else Harvest(worked, HarvestSource.Apprentice, a.Index);
-                        a.IsHarvesting = false;
+                        a.IsWorking = false;
                         a.HasTarget = false;
-                        a.HarvestProgress = 0f;
+                        a.WorkProgress = 0f;
                     }
                     continue;
                 }
@@ -1882,8 +2023,8 @@ namespace TillWinter.Core
                     a.IsWalking = false;
                     if (a.HasTarget)
                     {
-                        a.IsHarvesting = true;
-                        a.HarvestProgress = 0f;
+                        a.IsWorking = true;
+                        a.WorkProgress = 0f;
                     }
                 }
                 else
@@ -1895,13 +2036,18 @@ namespace TillWinter.Core
             }
         }
 
-        // ------------------------------------------------------------------ tractor (GDD §4)
+        /// <summary>A picker wants Ripe plots, a waterer Growing ones, a digger Hard ones (GDD §2v3.9).</summary>
+        private static bool Wants(ApprenticeState a, Plot p)
+        {
+            switch (a.Role)
+            {
+                case ApprenticeRole.Waterer: return p.IsGrowing;
+                case ApprenticeRole.Digger: return p.IsHard;
+                default: return p.IsRipe;
+            }
+        }
 
-        /// <summary>A harvester wants Ripe plots; a waterer wants Dry ones it can water (GDD §4.2 v2.0).</summary>
-        private static bool Wants(ApprenticeState a, Plot p) =>
-            a.Role == ApprenticeRole.Waterer ? p.State == PlotState.Dry && !p.IsStony : p.IsRipe;
-
-        /// <summary>Switches an apprentice between harvesting and watering; it drops whatever it was doing.</summary>
+        /// <summary>Switches an apprentice's role; it drops whatever it was doing.</summary>
         public bool SetApprenticeRole(int index, ApprenticeRole role)
         {
             if (index < 0 || index >= State.ApprenticeList.Count) return false;
@@ -1909,8 +2055,8 @@ namespace TillWinter.Core
             if (a.Role == role) return false;
             a.Role = role;
             a.HasTarget = false;
-            a.IsHarvesting = false;
-            a.HarvestProgress = 0f;
+            a.IsWorking = false;
+            a.WorkProgress = 0f;
             return true;
         }
 
@@ -1991,9 +2137,9 @@ namespace TillWinter.Core
             return best;
         }
 
-        /// <summary>The beehive speeds the Sun on the right-most columns, by the sunflowers.</summary>
+        /// <summary>The beehive speeds growth on the right-most columns, by the sunflowers.</summary>
         private float BeeBoost(Plot p) =>
-            State.Stats.Beehive && p.Pos.X >= State.GridSize - Config.BeeColumns ? Config.BeeSunBoost : 1f;
+            State.Stats.Beehive && p.Pos.X >= State.GridSize - Config.BeeColumns ? Config.BeeGrowth : 1f;
 
         /// <summary>Is this plot one the bees work?</summary>
         public bool IsBeePlot(GridPos pos) => State.Stats.Beehive && pos.X >= State.GridSize - Config.BeeColumns;
@@ -2123,8 +2269,7 @@ namespace TillWinter.Core
             if (State.Stats.GreenhouseLevel <= 0 || gh.SecondsLeftThisWinter <= 0f || dt <= 0f) return;
             float used = Math.Min(dt, gh.SecondsLeftThisWinter);
             gh.SecondsLeftThisWinter -= used;
-            // (v2.8) A winter earns at most a share of the year it follows: a full golden field ran to tens of
-            // thousands a winter and every coin of it became seeds.
+            // (v2.8) A winter earns at most a share of the year it follows.
             double cap = Config.GreenhouseWinterCapShare * State.CoinsThisYear;
             double coins = Math.Min(gh.CoinsPerSecond * used, Math.Max(0, cap - gh.CoinsThisWinter));
             if (coins <= 0) { gh.SecondsLeftThisWinter = 0f; return; }
@@ -2182,7 +2327,7 @@ namespace TillWinter.Core
             }
         }
 
-        // ------------------------------------------------------------------ crows
+        // ------------------------------------------------------------------ crows (GDD §2v3.8)
 
         private void ScareWithBounty(Plot plot)
         {
@@ -2225,12 +2370,11 @@ namespace TillWinter.Core
                 crow.Timer += dt;
                 if (crow.Timer >= crow.EatTime)
                 {
+                    // Eaten: the crop is gone, the ground comes back one layer deeper all the same.
                     var plot = State.GetPlot(crow.Pos);
-                    plot.Reset();
                     plot.HasCrow = false;
                     crows.RemoveAt(i);
-                    State.Combo = 0; // a crop lost to a crow breaks the streak
-                    State.CropsLostThisYear++;
+                    LoseCrop(plot);
                     CrowAte?.Invoke(new CrowEvent(crow.Pos));
                 }
             }
@@ -2252,7 +2396,7 @@ namespace TillWinter.Core
             if (State.Stats.CrowSpawnChance <= 0f) return;
             _scratch.Clear();
             foreach (var p in State.PlotArray)
-                if (p.IsRipe && !p.HasCrow && !State.IsUnderRing(p.Pos) && !IsGuarded(p.Pos)) _scratch.Add(p);
+                if (p.IsRipe && !p.HasCrow && p.RipeAge >= Config.CrowMinRipe && !IsGuarded(p.Pos)) _scratch.Add(p);
             if (_scratch.Count == 0) return;
             if (_rng.NextDouble() >= State.Stats.CrowSpawnChance) return;
             SpawnCrowAt(_scratch[_rng.Next(_scratch.Count)].Pos);
@@ -2281,7 +2425,7 @@ namespace TillWinter.Core
 
         // ------------------------------------------------------------------ field & trees
 
-        private void BuildField(int size, bool newPlotsWet)
+        private void BuildField(int size)
         {
             var old = State.PlotArray;
             int oldSize = State.GridSize;
@@ -2289,7 +2433,7 @@ namespace TillWinter.Core
             for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++)
             {
-                // Existing plots keep their index (field is anchored bottom-left); new ones start at tier 0.
+                // Existing plots keep their index (field is anchored bottom-left); new ones start at tier 0, layer 0.
                 if (old != null && x < oldSize && y < oldSize)
                 {
                     plots[y * size + x] = old[y * oldSize + x];
@@ -2297,51 +2441,46 @@ namespace TillWinter.Core
                 else
                 {
                     var p = new Plot(new GridPos(x, y), 0);
-                    if (newPlotsWet && old != null) p.State = PlotState.Wet;
                     plots[y * size + x] = p;
                 }
             }
             State.PlotArray = plots;
             State.GridSize = size;
+            foreach (var p in plots) if (p.Layer < 0) NewLayer(p);
             foreach (var a in State.ApprenticeList) PlaceIdle(a);
         }
 
-        /// <summary>Golden Year field: the largest field, every plot the top tier (Golden Wheat), golden, just planted (Wet).</summary>
+        /// <summary>Golden Year field: the largest field, every plot the top tier (Golden Wheat), golden, just planted.</summary>
         private void PlantGoldenField()
         {
             State.PlotArray = null;
             State.GridSize = 0;
-            BuildField(Config.MaxGridSize, false);
+            BuildField(Config.MaxGridSize);
             foreach (var p in State.PlotArray)
             {
                 p.BedTier = Config.MaxTier;
                 p.Choice = -1;
-                p.IsGolden = true;
-                p.State = PlotState.Wet;
+                p.State = PlotState.Growing;
                 p.Progress = 0f;
+                p.Hp = 0;
+                p.CropLayer = p.Layer;
+                p.IsGolden = true;
             }
         }
 
-        /// <summary>GDD §2.4 (v1.8): the ground a field expansion adds may be fertile or stony; the starting field never is.</summary>
+        /// <summary>GDD §2.4 (v1.8): the ground a field expansion adds may be fertile; the starting field never is.</summary>
         private void RollNewGround(int oldSize)
         {
             foreach (var p in State.PlotArray)
             {
                 if (p.Pos.X < oldSize && p.Pos.Y < oldSize) continue;
-                double r = GroundRoll(p.Pos);
-                if (r < Config.StonyChance)
-                {
-                    p.Kind = PlotKind.Stony;
-                    p.Reset(); // stones first: a new plot that would have started wet waits for the clearing
-                }
-                else if (r < Config.StonyChance + Config.FertileChance) p.Kind = PlotKind.Fertile;
+                if (GroundRoll(p.Pos) < Config.FertileChance) p.Kind = PlotKind.Fertile;
             }
         }
 
         /// <summary>
         /// A plot's ground is fixed for the generation by where it lies, not drawn from the running RNG: shrinking the
-        /// field with a respec and buying it back gives the same stones and fertile patches, so the ground cannot be
-        /// re-rolled for a better draw.
+        /// field with a respec and buying it back gives the same fertile patches, so the ground cannot be re-rolled.
         /// </summary>
         private double GroundRoll(GridPos pos)
         {
@@ -2364,13 +2503,11 @@ namespace TillWinter.Core
         {
             int cap = State.Stats.MaxTierUnlocked;
             Plot lowest = null;
-            // Row-major, first lowest wins ties; at the same bed a stony plot waits, since it grows nothing until cleared.
+            // Row-major, first lowest wins ties.
             foreach (var p in State.PlotArray)
-                if (p != exclude && p.BedTier < cap && (lowest == null || UpgradeRank(p) < UpgradeRank(lowest))) lowest = p;
+                if (p != exclude && p.BedTier < cap && (lowest == null || p.BedTier < lowest.BedTier)) lowest = p;
             return lowest;
         }
-
-        private static int UpgradeRank(Plot p) => p.BedTier * 2 + (p.IsStony ? 1 : 0);
 
         /// <summary>True once the field is as large as it gets: another `expand_field` level would add nothing.</summary>
         private bool FieldAtMax => State.GridSize >= Config.MaxGridSize;
@@ -2382,7 +2519,7 @@ namespace TillWinter.Core
                 case EffectType.ExpandField:
                 {
                     int oldSize = State.GridSize;
-                    BuildField(Math.Min(Config.MaxGridSize, State.GridSize + 1), State.Stats.FertileStart);
+                    BuildField(Math.Min(Config.MaxGridSize, State.GridSize + 1));
                     RollNewGround(oldSize);
                     FieldExpanded?.Invoke();
                     break;
@@ -2425,14 +2562,14 @@ namespace TillWinter.Core
         private void ResolveStats()
         {
             State.Stats = ResolveWith(Almanac.Levels, Heritage.Levels);
-            State.RingRadius = _ringRadiusOverride ?? State.Stats.RingRadius;
-            // A shape the levels no longer allow (retire, respec) falls back to round; the HUD hides the picker at 0.
-            if ((int)State.RingShape > State.Stats.RingShapeLevel) State.RingShape = RingShape.Round;
+            State.StrikeCost = Config.StrikeCost;
+            if (State.Stamina > State.Stats.StaminaMax) State.Stamina = State.Stats.StaminaMax;
             bool ownedBefore = State.Tractor.Owned;
             State.Tractor.Owned = State.Stats.TractorLevel > 0;
             if (State.Tractor.Owned && !ownedBefore) ResetTractor();
             if (State.PlotArray != null)
             {
+                RefreshLayerHp();
                 SyncApprenticeCount();
                 UpdateGreenhouseRate();
                 SyncScarecrows();

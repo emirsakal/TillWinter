@@ -1,58 +1,60 @@
 using NUnit.Framework;
 using TillWinter.Core;
+using static TillWinter.Tests.CoreLoopTests;
 
 namespace TillWinter.Tests
 {
     /// <summary>
-    /// M.9, feel and accessibility (GDD §10.5–§10.7 v2.5): the first generation's checklist, the hands-free ring, and
-    /// the plan the apprentices follow while the game is closed.
+    /// M.9, feel and accessibility (GDD §10.5–§10.7 v2.5, re-themed v3): the first generation's checklist and the
+    /// plan the apprentices follow while the game is closed.
     /// </summary>
     public class ComfortTests
     {
-        private static FarmConfig Cfg()
-        {
-            var cfg = new FarmConfig();
-            cfg.CrowSpawnChance = 0f;
-            cfg.WeatherFirstYear = cfg.GoalFirstYear = int.MaxValue;
-            cfg.PestFirstYear = cfg.LuckyFirstYear = cfg.TraderFirstYear = int.MaxValue;
-            return cfg;
-        }
-
-        private static void Run(FarmSim sim, float seconds, RingInput? ring)
-        {
-            for (float t = 0f; t < seconds; t += 0.05f) sim.Tick(0.05f, ring);
-        }
+        private static FarmSim Sim() => NewSim(c => c.CrowSpawnChance = 0f);
 
         [Test]
         public void TheChecklist_FollowsTheFirstYear_StepByStep()
         {
-            var sim = new FarmSim(Cfg(), 1);
+            var sim = Sim();
             Assert.IsTrue(sim.ChecklistActive);
-            Assert.IsFalse(sim.ChecklistDone(ChecklistStep.Water));
-            var plot = sim.State.GetPlot(1, 1);
-            while (plot.State == PlotState.Dry) sim.Tick(0.05f, new RingInput(1f, 1f));
-            sim.Tick(0.05f, null);
-            Assert.IsTrue(sim.ChecklistDone(ChecklistStep.Water));
+            Assert.IsFalse(sim.ChecklistDone(ChecklistStep.Strike));
+            var centre = new GridPos(1, 1);
+            WaitForBeat(sim, false);
+            Assert.IsTrue(sim.Strike(centre));
+            sim.Tick(0.01f);
+            Assert.IsFalse(sim.ChecklistDone(ChecklistStep.Strike), "a crack is not yet the ground broken");
+            Assert.IsTrue(sim.DebugBreak(centre));
+            sim.Tick(0.01f);
+            Assert.IsTrue(sim.ChecklistDone(ChecklistStep.Strike));
             Assert.IsFalse(sim.ChecklistDone(ChecklistStep.Grow));
-            Run(sim, 20f, new RingInput(1f, 1f));
+            Run(sim, 3f); // a carrot ripens in 2.5 s
             Assert.IsTrue(sim.ChecklistDone(ChecklistStep.Grow));
-            Assert.IsTrue(sim.ChecklistDone(ChecklistStep.Harvest5), "twenty seconds of ring on one carrot bed: a harvest every three");
+            Assert.IsFalse(sim.ChecklistDone(ChecklistStep.Harvest5));
+            Assert.IsFalse(sim.ChecklistDone(ChecklistStep.Combo3));
+
+            sim.DebugBreakAll();
+            Run(sim, 3f);
+            Assert.AreEqual(9, sim.ReapAll(), "nine in one swipe");
+            sim.Tick(0.01f);
+            Assert.IsTrue(sim.ChecklistDone(ChecklistStep.Harvest5));
+            Assert.IsTrue(sim.ChecklistDone(ChecklistStep.Combo3));
+            Assert.IsFalse(sim.ChecklistDone(ChecklistStep.BuyNode));
 
             sim.DebugSkipToWinter();
             sim.DebugAddCoins(100);
-            Assert.IsTrue(sim.TryBuy("ring_radius"));
+            Assert.IsTrue(sim.TryBuy("hoe_damage"));
             sim.StartNextYear();
-            sim.Tick(0.05f, null);
+            sim.Tick(0.01f);
             Assert.IsTrue(sim.ChecklistDone(ChecklistStep.BuyNode));
+            Assert.IsFalse(sim.ChecklistActive, "every step done");
         }
 
         [Test]
         public void TheChecklist_IsForTheFirstGenerationOnly()
         {
-            var cfg = Cfg();
-            var sim = new FarmSim(cfg, 1);
+            var sim = Sim();
             sim.DebugSkipToWinter();
-            sim.DebugAddLifetimeCoins(cfg.HeritageThreshold);
+            sim.DebugAddLifetimeCoins(sim.Config.HeritageThreshold);
             Assert.IsTrue(sim.Retire());
             sim.StartNewGeneration();
             Assert.IsFalse(sim.ChecklistActive, "the second generation knows the farm");
@@ -60,37 +62,11 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void TheHandsFreeRing_StaysNearHome_AndHarvests()
-        {
-            var cfg = Cfg();
-            cfg.StartGridSize = 3;
-            var sim = new FarmSim(cfg, 1);
-            sim.DebugSetLevel("expand_field", 2);
-            var auto = new AutoRing();
-            Assert.IsNull(auto.Step(sim.State, 0.05f), "nothing until a home is placed");
-            auto.Place(1f, 1f);
-            sim.DebugForceRipeAll();
-            int harvested = 0;
-            sim.Harvested += _ => harvested++;
-            for (int i = 0; i < 300; i++)
-            {
-                var ring = auto.Step(sim.State, 0.05f);
-                Assert.IsTrue(ring.HasValue);
-                float dx = ring.Value.X - 1f, dy = ring.Value.Y - 1f;
-                Assert.That(dx * dx + dy * dy, Is.LessThanOrEqualTo(auto.Reach * auto.Reach + 1e-3f), "within reach of home");
-                sim.Tick(0.05f, ring);
-            }
-            Assert.That(harvested, Is.GreaterThan(3));
-            foreach (var p in sim.State.Plots)
-                if (p.Pos.X >= 4 || p.Pos.Y >= 4) Assert.AreEqual(PlotState.Ripe, p.State, "out of reach, still waiting: " + p.Pos);
-        }
-
-        [Test]
         public void TheAwayPlan_SetsTheRoles_ForTheTimeAwayOnly()
         {
             int OfflineHarvests(AwayPlan plan)
             {
-                var sim = new FarmSim(Cfg(), 1);
+                var sim = Sim();
                 sim.DebugSetLevel("apprentice_count", 2);
                 Assert.IsTrue(sim.SetApprenticeRole(0, ApprenticeRole.Waterer));
                 Assert.IsTrue(sim.SetApprenticeRole(1, ApprenticeRole.Waterer));
@@ -102,9 +78,9 @@ namespace TillWinter.Tests
                 return report.Harvests;
             }
 
-            Assert.AreEqual(0, OfflineHarvests(AwayPlan.AsTheyAre), "two waterers harvest nothing");
+            Assert.AreEqual(0, OfflineHarvests(AwayPlan.AsTheyAre), "two waterers reap nothing");
             Assert.That(OfflineHarvests(AwayPlan.AllHarvest), Is.GreaterThan(0));
-            Assert.That(OfflineHarvests(AwayPlan.Balanced), Is.GreaterThan(0));
+            Assert.That(OfflineHarvests(AwayPlan.Balanced), Is.GreaterThan(0), "the first picks, the second waters");
         }
     }
 }

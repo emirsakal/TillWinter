@@ -369,8 +369,9 @@ namespace TillWinter.Unity
         private void RefreshUpgrades(bool force)
         {
             var stats = _game.State.Stats;
-            bool channel = stats.IrrigationFactor > 0f;
-            bool sun = stats.SunFactor > 0f;
+            // The channel comes with the soft-ground line (the well), the sunflowers with growth: what the Soil branch buys.
+            bool channel = stats.HpMult < 0.999f;
+            bool sun = stats.GrowthMult > 1.001f;
             if (_channel != null && (force || channel != _showChannel)) _channel.gameObject.SetActive(channel);
             if (_sunflowers != null && (force || sun != _showSunflowers)) _sunflowers.gameObject.SetActive(sun);
             _showChannel = channel;

@@ -52,14 +52,14 @@ namespace TillWinter.Tests
         {
             var cfg = Cfg();
             cfg.HeirloomsEnabled = false; // compare the trait alone
-            Stats Resolve() => StatResolver.Resolve(cfg, new Dictionary<string, int> { ["irrigation"] = 2 }, new Dictionary<string, int>());
+            Stats Resolve() => StatResolver.Resolve(cfg, new Dictionary<string, int> { ["growth"] = 2 }, new Dictionary<string, int>());
             var none = Resolve();
             var s = Resolve();
             Legacy.Apply(s, cfg, 0, HeirTrait.GreenThumb, ChallengeKind.None);
-            Assert.AreEqual(none.IrrigationFactor * (1f + (float)cfg.TraitGreenThumb), s.IrrigationFactor, 1e-5);
+            Assert.AreEqual(none.GrowthMult * (1f + (float)cfg.TraitGreenThumb), s.GrowthMult, 1e-5, "green thumb: crops grow faster");
             var q = Resolve();
             Legacy.Apply(q, cfg, 0, HeirTrait.QuickHands, ChallengeKind.None);
-            Assert.AreEqual(none.RingHarvestMult * (1f + (float)cfg.TraitQuickHands), q.RingHarvestMult, 1e-5);
+            Assert.AreEqual(none.StrikeCooldown / (1f + (float)cfg.TraitQuickHands), q.StrikeCooldown, 1e-5, "quick hands: a shorter strike cooldown");
         }
 
         [Test]
@@ -92,7 +92,8 @@ namespace TillWinter.Tests
             sim.AchievementUnlocked += id => { if (id == AchievementId.FirstHarvest) unlocked++; };
             double before = sim.State.Stats.CropValueMult;
             sim.DebugForceRipeAll();
-            for (int i = 0; i < 20; i++) sim.Tick(0.05f, new RingInput(1f, 1f));
+            Assert.IsTrue(sim.ReapOne(new GridPos(0, 0)));
+            sim.Tick(0.05f); // achievements are checked on the tick
             Assert.AreEqual(1, unlocked);
             Assert.IsTrue(Legacy.Has(sim.State.Generation.Achievements, AchievementId.FirstHarvest));
             Assert.AreEqual(before * (1 + Legacy.Heirloom(AchievementId.FirstHarvest).value), sim.State.Stats.CropValueMult, 1e-9);
@@ -105,14 +106,32 @@ namespace TillWinter.Tests
         }
 
         [Test]
+        public void ANineCropSwipe_LeavesTheComboHeirloom()
+        {
+            var sim = new FarmSim(Cfg(), 1);
+            sim.DebugForceRipeAll();
+            Assert.AreEqual(8, sim.Reap(new[]
+            {
+                new GridPos(0, 0), new GridPos(1, 0), new GridPos(2, 0), new GridPos(0, 1),
+                new GridPos(1, 1), new GridPos(2, 1), new GridPos(0, 2), new GridPos(1, 2),
+            }));
+            sim.Tick(0.05f);
+            Assert.IsFalse(Legacy.Has(sim.State.Generation.Achievements, AchievementId.Combo9), "eight is not nine");
+            sim.DebugForceRipeAll();
+            Assert.AreEqual(9, sim.ReapAll());
+            sim.Tick(0.05f);
+            Assert.IsTrue(Legacy.Has(sim.State.Generation.Achievements, AchievementId.Combo9));
+        }
+
+        [Test]
         public void ExclusivePaths_RuleEachOtherOut_AndTheEndingCountsAPathNotTaken()
         {
             var sim = Retired(Cfg());
             sim.DebugAddSeeds(200);
-            foreach (var pre in new[] { "h_start_radius", "h_ring_speeds", "h_ring_coins", "h_free_apprentice", "h_apprentice_yield" })
+            foreach (var pre in new[] { "h_start_damage", "h_strike_speed", "h_break_coins", "h_free_apprentice", "h_apprentice_yield" })
                 Assert.IsTrue(sim.TryBuy(pre), pre);
             Assert.IsTrue(sim.CanBuy("h_steward"));
-            Assert.IsTrue(sim.TryBuy("h_ring_master"));
+            Assert.IsTrue(sim.TryBuy("h_hoe_master"));
             Assert.IsFalse(sim.CanBuy("h_steward"), "the other path is closed");
 
             foreach (var n in HeritageData.Nodes)
@@ -124,7 +143,7 @@ namespace TillWinter.Tests
         public void TheTables_ValidateTheExclusions()
         {
             Assert.IsEmpty(SkillTree.ValidateAll(AlmanacData.Nodes, HeritageData.Nodes));
-            Assert.AreEqual("h_steward", HeritageData.Get("h_ring_master").Excludes);
+            Assert.AreEqual("h_steward", HeritageData.Get("h_hoe_master").Excludes);
             Assert.AreEqual("h_rich_soil", HeritageData.Get("h_long_summer").Excludes);
         }
 

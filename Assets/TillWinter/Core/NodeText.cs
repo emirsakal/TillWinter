@@ -39,18 +39,21 @@ namespace TillWinter.Core
             var cfg = sim.Config;
             switch (node.Effect)
             {
-                case EffectType.RingRadius:
-                case EffectType.HeritageStartRadius: return F(s.RingRadius, "0.00");
-                case EffectType.RingWaterSpeed: return "x" + F(s.RingWaterMult, "0.0");
-                case EffectType.RingGrowSpeed: return "x" + F(s.RingGrowMult, "0.0");
-                case EffectType.RingHarvestSpeed: return "x" + F(s.RingHarvestMult, "0.0");
-                case EffectType.HeritageRingSpeeds:
-                case EffectType.HeritageRingMaster: return "+" + Pct(node.ValuePerLevel * level);
-                case EffectType.RingBonusCoins: return "+" + Pct(s.RingBonusMult - 1);
-                case EffectType.HeritageRingCoins: return "+" + Pct(node.ValuePerLevel * level);
-                case EffectType.RingCombo: return "+" + Pct(node.ValuePerLevel * level * cfg.ComboMaxStacks);
-                case EffectType.Irrigation: return Pct(s.IrrigationFactor);
-                case EffectType.Sun: return Pct(s.SunFactor);
+                case EffectType.StrikeDamage:
+                case EffectType.HeritageStartDamage: return F(s.StrikeDamage, "0.#");
+                case EffectType.CritWindow: return Pct(s.CritWindow);
+                case EffectType.CritChance: return Pct(s.CritChance);
+                case EffectType.StrikeSpeed: return F(1f / s.StrikeCooldown, "0.0") + "/s";
+                case EffectType.HeritageStrikeSpeed:
+                case EffectType.HeritageHoeMaster: return "+" + Pct(node.ValuePerLevel * level);
+                case EffectType.Splash: return Pct(s.SplashShare);
+                case EffectType.StaminaMax: return F(s.StaminaMax, "0");
+                case EffectType.StaminaRegen: return F(s.StaminaRegen, "0.00") + "/s";
+                case EffectType.BreakBonus: return "+" + Pct(s.BreakBonusMult - 1);
+                case EffectType.HeritageBreakCoins: return "+" + Pct(node.ValuePerLevel * level);
+                case EffectType.ReapCombo: return "+" + Pct(s.ComboPerCrop);
+                case EffectType.Growth: return "x" + F(s.GrowthMult, "0.00");
+                case EffectType.Softness: return "-" + Pct(1 - s.HpMult);
                 case EffectType.SoilQuality: return "x" + F(s.SoilMultiplier, "0.00");
                 case EffectType.HeritageGlobalGrowth: return "+" + Pct(node.ValuePerLevel * level);
                 case EffectType.CropValue: return "+" + Pct(s.CropValueMult - 1);
@@ -62,8 +65,9 @@ namespace TillWinter.Core
                 case EffectType.ApprenticeCount:
                 case EffectType.FreeApprentice: return s.ApprenticeCount.ToString(CultureInfo.InvariantCulture);
                 case EffectType.ApprenticeSpeed: return F(s.ApprenticeSpeed, "0.0");
-                case EffectType.ApprenticeHarvestTime: return F(s.ApprenticeHarvestTime, "0.0") + " s";
+                case EffectType.ApprenticeWorkTime: return F(s.ApprenticeWorkTime, "0.0") + " s";
                 case EffectType.ApprenticeYield: return Pct(s.ApprenticeYield);
+                case EffectType.ApprenticeDig: return Pct(s.ApprenticeDigShare);
                 case EffectType.HeritageApprenticeYield: return "+" + Pct(node.ValuePerLevel * level);
                 case EffectType.Tractor: return level > 0 && level < cfg.TractorIntervalByLevel.Length ? F(cfg.TractorIntervalByLevel[level], "0") + " s" : "-";
                 case EffectType.Scarecrow: return s.ScarecrowCount.ToString(CultureInfo.InvariantCulture);
@@ -78,20 +82,16 @@ namespace TillWinter.Core
                 case EffectType.CrowBounty: return "x" + F(cfg.CrowScareValueMultiplier + level, "0");
                 case EffectType.AlmanacDiscount: return "-" + Pct(1 - s.AlmanacCostMult);
                 case EffectType.GoldenCropChance: return Pct(s.GoldenCropChance);
-                case EffectType.RingShape: return level >= 2 ? "rake+cross" : level == 1 ? "rake" : "round";
-                case EffectType.TapHarvest: return level > 0 && level < cfg.TapHarvestCooldownByLevel.Length
-                    ? F(cfg.TapHarvestCooldownByLevel[level], "0") + " s" : "-";
                 case EffectType.BulkUpgrade:
-                case EffectType.FertileStart:
+                case EffectType.EarlyThaw:
                 case EffectType.SpringHeadStart:
                 case EffectType.LateFrost:
-                case EffectType.HelperWater:
                 case EffectType.FarmDog:
                 case EffectType.Beehive:
                 case EffectType.Hens:
                 case EffectType.UnlockRainCloud:
-                case EffectType.HeritageStartIrrigation:
-                case EffectType.HeritageStartSun: return level > 0 ? "on" : "off";
+                case EffectType.HeritageStartGrowth:
+                case EffectType.HeritageStartSoft: return level > 0 ? "on" : "off";
                 default: return F(node.ValuePerLevel * level, "0.##");
             }
         }

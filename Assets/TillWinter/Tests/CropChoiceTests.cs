@@ -53,7 +53,8 @@ namespace TillWinter.Tests
             var sim = TomatoBed();
             var at = new GridPos(0, 0);
             var plot = sim.State.GetPlot(at);
-            for (int i = 0; i < 10; i++) sim.Tick(0.05f, new RingInput(0f, 0f));
+            Assert.IsTrue(sim.DebugBreak(at));
+            for (int i = 0; i < 10; i++) sim.Tick(0.05f);
             Assert.That(plot.Progress, Is.GreaterThan(0f));
             var state = plot.State;
             float progress = plot.Progress;
@@ -63,7 +64,7 @@ namespace TillWinter.Tests
             Assert.AreEqual(progress, plot.Progress);
 
             Assert.IsTrue(sim.SetPlotCrop(at, 0));
-            Assert.AreEqual(PlotState.Dry, plot.State, "a new crop starts from dry soil");
+            Assert.AreEqual(PlotState.Growing, plot.State, "a new crop starts from its seed");
             Assert.AreEqual(0f, plot.Progress);
         }
 
@@ -96,14 +97,15 @@ namespace TillWinter.Tests
                 cfg.Crops[0].Likes = likes;
                 var sim = new FarmSim(cfg, 5);
                 Assert.AreEqual(Season.Spring, sim.State.Season);
-                sim.DebugSetLevel("tap_harvest", 1);
-                sim.DebugForceRipeAll();
+                var at = new GridPos(0, 0);
+                Assert.IsTrue(sim.DebugForceRipe(at));
                 double before = sim.State.Coins;
-                Assert.IsTrue(sim.TapAt(new GridPos(0, 0)));
+                Assert.IsTrue(sim.ReapOne(at));
                 return sim.State.Coins - before;
             }
 
             double inSeason = Coins(Season.Spring), outOfSeason = Coins(Season.Summer);
+            Assert.That(outOfSeason, Is.GreaterThan(0));
             Assert.AreEqual(outOfSeason * new FarmConfig().InSeasonValue, inSeason, 1e-9);
         }
 

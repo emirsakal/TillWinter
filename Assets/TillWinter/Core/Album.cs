@@ -45,13 +45,17 @@ namespace TillWinter.Core
             to.SeedsEarnedTotal = from.SeedsEarnedTotal;
             to.CrowsScared = from.CrowsScared;
             to.Harvests = from.Harvests;
-            to.HarvestsRing = from.HarvestsRing;
+            to.HarvestsHand = from.HarvestsHand;
             to.HarvestsApprentice = from.HarvestsApprentice;
             to.HarvestsTractor = from.HarvestsTractor;
             to.HarvestsLateFrost = from.HarvestsLateFrost;
             to.HarvestsAtGenerationStart = from.Harvests;
             to.GoldenHarvests = from.GoldenHarvests;
             to.BestCombo = from.BestCombo;
+            to.Strikes = from.Strikes;
+            to.Crits = from.Crits;
+            to.Breaks = from.Breaks;
+            to.DeepestLayer = from.DeepestLayer;
             to.TimePlayedSeconds = from.TimePlayedSeconds;
             to.YearsTotal = from.YearsTotal + 1; // and the new round's first year
             to.GoalsMet = from.GoalsMet;
@@ -120,9 +124,9 @@ namespace TillWinter.Core
             var pick = new Rng(seed ^ 0x2545F491); // its own stream: the sim's RNG stays the day's
             int Roll(int min, int max) => min + Math.Min(max - min, (int)(pick.NextDouble() * (max - min + 1)));
             sim.DebugSetLevel("expand_field", Roll(1, 2));
-            sim.DebugSetLevel("ring_radius", Roll(1, 3));
-            sim.DebugSetLevel("irrigation", Roll(1, 3));
-            sim.DebugSetLevel("sun", Roll(0, 2));
+            sim.DebugSetLevel("hoe_damage", Roll(1, 3));
+            sim.DebugSetLevel("growth", Roll(1, 3));
+            sim.DebugSetLevel("soft_ground", Roll(0, 2));
             sim.DebugSetLevel("apprentice_count", Roll(0, 2));
             sim.DebugSetLevel("scarecrow", Roll(0, 1));
             int crops = Roll(1, 3);

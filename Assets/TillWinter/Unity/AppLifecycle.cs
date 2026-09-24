@@ -76,7 +76,9 @@ namespace TillWinter.Unity
             var st = _game.State;
             if (st.Phase != Phase.Year || st.IsDaily) return;
             var stats = st.Stats;
-            bool passive = stats.IrrigationFactor > 0f || stats.SunFactor > 0f || stats.ApprenticeCount > 0 || stats.TractorLevel > 0;
+            bool growing = false;
+            foreach (var p in st.Plots) if (p.IsGrowing) { growing = true; break; }
+            bool passive = growing || stats.ApprenticeCount > 0 || stats.TractorLevel > 0;
             if (!passive) return;
             Reminders.Schedule(_game.Sim.Config.OfflineCapSeconds, Strings.Get("reminder.title"), Strings.Get("reminder.body"));
         }

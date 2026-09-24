@@ -4,8 +4,8 @@ using TillWinter.Core;
 namespace TillWinter.Tests
 {
     /// <summary>
-    /// Fixes from the first full play-test after mechanics round one: offline stays passive, purchases do what they say,
-    /// the daily farm stays apart, and the edge cases around retire, respec and New Game+ hold.
+    /// Fixes from the first full play-test after mechanics round one (re-themed v3): offline stays passive, purchases
+    /// do what they say, the daily farm stays apart, and the edge cases around retire, respec and New Game+ hold.
     /// </summary>
     public class PlaytestFixesTests
     {
@@ -13,6 +13,7 @@ namespace TillWinter.Tests
         {
             var cfg = TestConfig.Classic();
             cfg.CrowSpawnChance = 0f;
+            cfg.BaseCritChance = 0;
             return cfg;
         }
 
@@ -20,8 +21,8 @@ namespace TillWinter.Tests
         private static void EarnAYear(FarmSim sim)
         {
             sim.DebugForceRipeAll();
-            for (int i = 0; i < 200 && sim.State.CoinsThisYear <= 0; i++) sim.Tick(0.05f, new RingInput(1f, 1f));
-            Assert.That(sim.State.CoinsThisYear, Is.GreaterThan(0), "the ring harvested something");
+            sim.ReapAll();
+            Assert.That(sim.State.CoinsThisYear, Is.GreaterThan(0), "the swipe reaped something");
         }
 
         private static void Winter(FarmSim sim, double coins)
@@ -31,24 +32,24 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void Offline_AStormLeftBehind_DoesNotStopTheSun()
+        public void Offline_TheSkyIsClear_AStormLeftBehindDoesNotSpeedTheCrops()
         {
-            var sim = new FarmSim(Cfg(), 1);
-            sim.DebugSetLevel("irrigation", 2);
-            sim.DebugSetLevel("sun", 2);
+            var cfg = Cfg();
+            cfg.Crops[0].Grow = 100f;
+            var sim = new FarmSim(cfg, 1);
+            sim.DebugBreakAll();
             sim.DebugStartWeather(Weather.Storm);
-            sim.SimulateOffline(600);
-            bool anyRipe = false;
-            foreach (var p in sim.State.Plots) anyRipe |= p.IsRipe;
-            Assert.IsTrue(anyRipe, "ten minutes away is clear skies, not one storm frozen for all of it");
+            Assert.AreEqual(Weather.Storm, sim.State.Weather);
+            sim.SimulateOffline(60);
+            // 60 s of a 100 s crop at the plain rate; a storm frozen for the whole stretch would have made it 0.9.
+            Assert.That(sim.State.GetPlot(1, 1).Progress, Is.EqualTo(0.6f).Within(0.01f), "an hour away is clear skies");
         }
 
         [Test]
         public void Offline_ALocustSwarmLeftBehind_DoesNotBlockGrowth()
         {
             var sim = new FarmSim(Cfg(), 1);
-            sim.DebugSetLevel("irrigation", 2);
-            sim.DebugSetLevel("sun", 2);
+            sim.DebugBreakAll();
             sim.DebugSpawnPest(PestKind.Locusts, new GridPos(1, 1));
             sim.SimulateOffline(600);
             Assert.IsTrue(sim.State.GetPlot(1, 1).IsRipe);
@@ -67,26 +68,20 @@ namespace TillWinter.Tests
         public void TheDailyFarm_SurvivesASceneRebuild()
         {
             var daily = AfterEnding.Daily(20260919);
-            for (int i = 0; i < 200; i++) daily.Tick(0.05f, new RingInput(1f, 1f));
+            var centre = new GridPos(1, 1);
+            for (int i = 0; i < 200; i++)
+            {
+                if (daily.CanStrike) daily.Strike(centre);
+                daily.Tick(0.05f);
+            }
+            Assert.That(daily.State.Generation.Strikes, Is.GreaterThan(0));
             var again = AfterEnding.ResumeDaily(daily.ToSave(), 20260919);
             Assert.IsNotNull(again);
             Assert.IsTrue(again.State.IsDaily);
             Assert.AreEqual(daily.State.Coins, again.State.Coins, 1e-9);
             Assert.AreEqual(daily.State.YearTime, again.State.YearTime, 1e-6);
+            Assert.AreEqual(daily.State.GetPlot(centre).Hp, again.State.GetPlot(centre).Hp, 1e-9);
             Assert.IsFalse(again.HintPending(Hint.FirstTouch), "the daily still teaches nothing");
-        }
-
-        [Test]
-        public void TheRingShape_FallsBackToRound_WhenItsLevelIsGone()
-        {
-            var cfg = Cfg();
-            var sim = new FarmSim(cfg, 1);
-            sim.DebugSetLevel("ring_shape", 2);
-            Assert.IsTrue(sim.SetRingShape(RingShape.Cross));
-            sim.DebugSkipToWinter();
-            sim.DebugAddLifetimeCoins(cfg.HeritageThreshold);
-            Assert.IsTrue(sim.Retire());
-            Assert.AreEqual(RingShape.Round, sim.State.RingShape);
         }
 
         [Test]
@@ -104,25 +99,6 @@ namespace TillWinter.Tests
             Assert.AreEqual(coins, sim.State.Coins);
             Assert.IsTrue(sim.IsMaxed("expand_field"));
             Assert.AreEqual(2, sim.GetMaxLevel("expand_field"));
-        }
-
-        [Test]
-        public void FertileStart_PlotsBoughtInWinter_ArriveWet_AndEveryPlotStartsSpringWet()
-        {
-            var cfg = Cfg();
-            var sim = new FarmSim(cfg, 1);
-            Winter(sim, 1e6);
-            sim.DebugSetLevel("fertile_start", 1);
-            Assert.IsTrue(sim.TryBuy("expand_field"));
-            int n = sim.State.GridSize;
-            foreach (var p in sim.State.Plots)
-            {
-                bool added = p.Pos.X == n - 1 || p.Pos.Y == n - 1;
-                Assert.AreEqual(added ? PlotState.Wet : PlotState.Dry, p.State, "in winter " + p.Pos);
-            }
-            sim.StartNextYear();
-            // (v2.8) The node is a spring, not a winter, effect: every plot begins the year Wet.
-            foreach (var p in sim.State.Plots) Assert.AreEqual(PlotState.Wet, p.State, p.Pos.ToString());
         }
 
         [Test]
@@ -160,7 +136,7 @@ namespace TillWinter.Tests
             Assert.IsFalse(crowed.HasCrow);
             Assert.AreEqual(0, sim.State.Crows.Count);
             int lost = sim.State.CropsLostThisYear;
-            for (int i = 0; i < 200; i++) sim.Tick(0.05f, null);
+            for (int i = 0; i < 200; i++) sim.Tick(0.05f);
             Assert.AreEqual(lost, sim.State.CropsLostThisYear, "no crow left to eat the replanted bed");
         }
 
@@ -169,9 +145,9 @@ namespace TillWinter.Tests
         {
             var sim = new FarmSim(Cfg(), 1);
             sim.DebugSetLevel("tractor", 1);
-            for (int i = 0; i < 2000 && sim.TractorCharge < 1f; i++) sim.Tick(0.05f, null);
-            foreach (var p in sim.State.Plots) Assert.IsFalse(p.IsRipe, "nothing grows without irrigation and sun");
-            for (int i = 0; i < 100; i++) sim.Tick(0.05f, null);
+            for (int i = 0; i < 2000 && sim.TractorCharge < 1f; i++) sim.Tick(0.05f);
+            foreach (var p in sim.State.Plots) Assert.IsFalse(p.IsRipe, "nothing grows on unbroken ground");
+            for (int i = 0; i < 100; i++) sim.Tick(0.05f);
             Assert.AreEqual(1f, sim.TractorCharge, 1e-4, "the bar waits full for a ripe row");
         }
 
@@ -180,12 +156,15 @@ namespace TillWinter.Tests
         {
             var sim = new FarmSim(Cfg(), 1);
             sim.MarkHint(Hint.FirstTouch);
-            for (int i = 0; i < 400; i++) sim.Tick(0.05f, new RingInput(1f, 1f));
+            sim.DebugBreakAll();
+            for (int i = 0; i < 60; i++) sim.Tick(0.05f); // 3 s: the carrots ripen
+            Assert.AreEqual(9, sim.ReapAll());
             sim.DebugMarkEndingSeen();
             var plus = AfterEnding.NewGamePlus(sim, Cfg(), 2);
             Assert.IsNotNull(plus);
             Assert.IsFalse(plus.HintPending(Hint.FirstTouch), "a hint never fires twice");
             Assert.AreEqual(sim.State.Generation.Harvests, plus.State.Generation.Harvests);
+            Assert.AreEqual(sim.State.Generation.HarvestsHand, plus.State.Generation.HarvestsHand);
             Assert.AreEqual(sim.State.Generation.LifetimeCoinsTotal, plus.State.Generation.LifetimeCoinsTotal, 1e-9);
             Assert.AreEqual(0, plus.State.Generation.LifetimeCoinsThisGeneration);
             Assert.AreEqual(1, plus.State.Generation.Generation);
@@ -199,7 +178,7 @@ namespace TillWinter.Tests
             Winter(sim, 1e6);
             sim.DebugSetLevel("year_length", 1);
             Assert.IsTrue(sim.TryBuy("greenhouse"));
-            for (int i = 0; i < 200; i++) sim.Tick(0.05f, null);
+            for (int i = 0; i < 200; i++) sim.Tick(0.05f);
             double earned = sim.State.Greenhouse.CoinsThisWinter;
             Assert.That(earned, Is.GreaterThan(0));
             double coins = sim.State.Coins, spent = sim.State.Generation.AlmanacSpent;
@@ -216,7 +195,7 @@ namespace TillWinter.Tests
             sim.DebugSetLevel("year_length", 1);
             Assert.IsTrue(sim.TryBuy("greenhouse"));
             double take = sim.State.CoinsThisYear;
-            for (int i = 0; i < 200; i++) sim.Tick(0.05f, null);
+            for (int i = 0; i < 200; i++) sim.Tick(0.05f);
             Assert.AreEqual(take, sim.State.CoinsThisYear, 1e-9);
         }
 
@@ -237,7 +216,6 @@ namespace TillWinter.Tests
         public void Respec_CannotReRollTheGround()
         {
             var cfg = Cfg();
-            cfg.StonyChance = 0.3;
             cfg.FertileChance = 0.3;
             var sim = new FarmSim(cfg, 1);
             Winter(sim, 1e6);
@@ -258,24 +236,13 @@ namespace TillWinter.Tests
         {
             var sim = new FarmSim(Cfg(), 1);
             sim.DebugSetGoal(GoalType.Coins, 3, 0, 50);
-            for (int i = 0; i < 2000 && !sim.State.Goal.Done; i++) sim.Tick(0.05f, new RingInput(1f, 1f));
+            sim.DebugForceRipeAll();
+            sim.ReapAll(); // 9 carrots x 1.8 combo = 16.2 coins: the goal is met and pays its 50
             Assert.IsTrue(sim.State.Goal.Done);
             double take = sim.State.CoinsThisYear;
+            Assert.That(take, Is.GreaterThan(50));
             sim.DebugSkipToWinter();
             Assert.AreEqual(take - 50, sim.State.LastYearCoins, 1e-6);
-        }
-
-        [Test]
-        public void TheHandsFreeRing_DoesNotWaitOnAMole()
-        {
-            var sim = new FarmSim(Cfg(), 1);
-            sim.DebugForceRipeAll();
-            sim.DebugSpawnPest(PestKind.Mole, new GridPos(0, 0));
-            var ring = new AutoRing();
-            ring.Place(1f, 1f);
-            var at = ring.Step(sim.State, 0.05f).Value;
-            Assert.AreEqual(1f, at.X, 1e-4, "a ripe plot under the home beats a mole the ring cannot move");
-            Assert.AreEqual(1f, at.Y, 1e-4);
         }
 
         private static FarmSim RetiredIntoHeritage(FarmConfig cfg)
@@ -343,14 +310,6 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void RingCombo_DescriptionMatchesWhatItPays()
-        {
-            var sim = new FarmSim(Cfg(), 1);
-            sim.DebugSetLevel("ring_combo", 1);
-            Assert.AreEqual(0.01, sim.State.Stats.RingComboPerStack, 1e-9, "GDD: level x 1% a stack");
-        }
-
-        [Test]
         public void WholeNumbers_UseTheLanguagesSeparator()
         {
             var style = NumberFormat.Style;
@@ -369,14 +328,13 @@ namespace TillWinter.Tests
         public void TheRainCloud_DoesNotGrowUnderASwarm()
         {
             var sim = new FarmSim(Cfg(), 1);
-            sim.DebugSetLevel("irrigation", 5);
             var plot = sim.State.GetPlot(1, 1);
-            while (plot.State != PlotState.Wet) sim.Tick(0.05f, null);
+            Assert.IsTrue(sim.DebugBreak(plot.Pos));
             sim.DebugSpawnPest(PestKind.Locusts, new GridPos(1, 1));
             Assert.IsTrue(sim.DebugSpawnCloud());
             float before = plot.Progress;
             Assert.IsTrue(sim.TapCloud());
-            Assert.AreEqual(PlotState.Wet, plot.State);
+            Assert.AreEqual(PlotState.Growing, plot.State);
             Assert.AreEqual(before, plot.Progress, 1e-6);
         }
 
@@ -394,26 +352,6 @@ namespace TillWinter.Tests
             Assert.IsTrue(sim.Retire());
             Assert.IsFalse(sim.SetChallenge((ChallengeKind)99));
             Assert.AreEqual(ChallengeKind.None, sim.State.Generation.Challenge);
-        }
-
-        [Test]
-        public void TheHandsFreeRing_ComesBackOntoASmallerField_AndChasesAPest()
-        {
-            var auto = new AutoRing();
-            auto.Place(5f, 5f);
-            auto.KeepOnField(3);
-            Assert.AreEqual(2f, auto.HomeX);
-            Assert.AreEqual(2f, auto.HomeY);
-
-            var sim = new FarmSim(Cfg(), 1);
-            sim.DebugForceRipeAll();
-            sim.DebugSpawnPest(PestKind.Rabbit, new GridPos(0, 0));
-            var ring = new AutoRing();
-            ring.Place(1f, 1f);
-            var at = ring.Step(sim.State, 0.05f).Value;
-            Assert.That(at.X, Is.LessThan(1f), "the pest goes first, before the ripe plots all around");
-            Assert.That(at.Y, Is.LessThan(1f));
-            Assert.AreEqual(at.X, at.Y, 1e-4, "straight at it");
         }
     }
 }

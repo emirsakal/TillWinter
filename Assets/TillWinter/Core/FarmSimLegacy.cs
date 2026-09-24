@@ -73,7 +73,7 @@ namespace TillWinter.Core
             var g = State.Generation;
             if (g.Achievements == (1 << Legacy.AchievementCount) - 1) return;
             if (g.Harvests >= 1) Unlock(AchievementId.FirstHarvest);
-            if (g.BestCombo >= 25) Unlock(AchievementId.Combo25);
+            if (g.BestCombo >= 9) Unlock(AchievementId.Combo9);
             if (g.CrowsScared >= 50) Unlock(AchievementId.Crows50);
             if (g.GoldenHarvests >= 10) Unlock(AchievementId.Golden10);
             if (State.LastGrade >= 3) Unlock(AchievementId.ThreeStars);

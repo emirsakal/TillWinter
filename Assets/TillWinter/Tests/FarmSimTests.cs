@@ -5,65 +5,49 @@ using TillWinter.Core;
 
 namespace TillWinter.Tests
 {
+    /// <summary>
+    /// The farm around the core loop (v3): crop timings, passive growth, the year, the Almanac, apprentices and crows.
+    /// The loop itself (strike, beat, stamina, watering, swipe) is <see cref="CoreLoopTests"/>.
+    /// </summary>
     public class FarmSimTests
     {
         private const float Dt = 0.01f;
 
+        /// <summary>Classic numbers and a hoe that never crits by chance, so an off-beat strike is always 3 damage.</summary>
         private static FarmSim NewSim(Action<FarmConfig> tweak = null, int seed = 1)
         {
             var cfg = TestConfig.Classic();
+            cfg.BaseCritChance = 0;
             tweak?.Invoke(cfg);
             return new FarmSim(cfg, seed);
         }
 
-        private static void Run(FarmSim sim, float seconds, RingInput? ring, float dt = Dt)
+        private static void Run(FarmSim sim, float seconds, float dt = Dt)
         {
             int ticks = (int)Math.Round(seconds / dt);
-            for (int i = 0; i < ticks; i++) sim.Tick(dt, ring);
+            for (int i = 0; i < ticks; i++) sim.Tick(dt);
         }
 
         /// <summary>Sets node levels directly (debug hook), leaving the sim in its current season.</summary>
         private static void Grant(FarmSim sim, string nodeId, int level = 1) => sim.DebugSetLevel(nodeId, level);
 
-        /// <summary>Ring centred on (1,1); with the 0.7 starting radius it covers only that plot.</summary>
-        private static readonly RingInput Centre = new RingInput(1, 1);
+        private static readonly GridPos Centre = new GridPos(1, 1);
 
-        private static float TimeUntil(FarmSim sim, RingInput? ring, Func<bool> done, float max = 60f)
+        private static float TimeUntil(FarmSim sim, Func<bool> done, float max = 60f)
         {
             float t = 0f;
             while (!done() && t < max)
             {
-                sim.Tick(Dt, ring);
+                sim.Tick(Dt);
                 t += Dt;
             }
             return t;
         }
 
-        // ---------------------------------------------------------------- three-phase timings
+        // ---------------------------------------------------------------- crop timings
 
         [Test]
-        public void Carrot_UnderRing_Level0_WaterGrowHarvest_MatchCropTable()
-        {
-            var sim = NewSim();
-            var plot = sim.State.GetPlot(1, 1);
-            Assert.AreEqual(PlotState.Dry, plot.State);
-            Assert.AreEqual(0.7f, sim.State.RingRadius, "starting radius covers one plot");
-            sim.Tick(0f, Centre);
-            Assert.IsTrue(sim.State.IsUnderRing(new GridPos(1, 1)));
-            Assert.IsFalse(sim.State.IsUnderRing(new GridPos(0, 1)), "neighbour is outside a 0.7 ring");
-
-            Assert.That(TimeUntil(sim, Centre, () => plot.State == PlotState.Wet), Is.EqualTo(1.0f).Within(0.03f));
-            Assert.That(TimeUntil(sim, Centre, () => plot.State == PlotState.Ripe), Is.EqualTo(1.5f).Within(0.03f));
-            int harvests = 0;
-            sim.Harvested += _ => harvests++;
-            Assert.That(TimeUntil(sim, Centre, () => harvests > 0), Is.EqualTo(0.5f).Within(0.03f));
-            Assert.AreEqual(1, sim.State.Coins);
-            Assert.AreEqual(PlotState.Dry, plot.State, "replanted Dry");
-            Assert.AreEqual(0f, plot.Progress);
-        }
-
-        [Test]
-        public void Corn_UnderRing_Level0_Timings_MatchCropTable()
+        public void Corn_Level0_GrowsInEightSeconds_AndPaysTwelve()
         {
             var sim = NewSim();
             Grant(sim, "unlock_tomato");
@@ -71,149 +55,56 @@ namespace TillWinter.Tests
             sim.DebugSkipToWinter();
             sim.DebugAddCoins(1e6);
             for (int i = 0; i < 18; i++) Assert.IsTrue(sim.TryBuy("upgrade_plot"), "upgrade #" + i);
-            Assert.AreEqual(2, sim.State.GetPlot(1, 1).Tier);
+            Assert.AreEqual(2, sim.State.GetPlot(Centre).Tier);
             sim.StartNextYear();
-            var plot = sim.State.GetPlot(1, 1);
+            var plot = sim.State.GetPlot(Centre);
 
-            Assert.That(TimeUntil(sim, Centre, () => plot.State == PlotState.Wet), Is.EqualTo(2.0f).Within(0.03f));
-            Assert.That(TimeUntil(sim, Centre, () => plot.State == PlotState.Ripe), Is.EqualTo(6.0f).Within(0.03f));
+            Assert.IsTrue(sim.DebugBreak(Centre));
             double before = sim.State.Coins;
-            Assert.That(TimeUntil(sim, Centre, () => sim.State.Coins > before), Is.EqualTo(0.7f).Within(0.03f));
-            Assert.AreEqual(12, sim.State.Coins - before);
-        }
-
-        [Test]
-        public void RipePlot_UnderRing_HarvestsAfterHarvestTime_Once_ReplantsDry()
-        {
-            var sim = NewSim();
-            sim.DebugForceRipeAll();
-            var events = new List<HarvestEvent>();
-            sim.Harvested += events.Add;
-            Run(sim, 0.45f, Centre);
-            Assert.AreEqual(0, events.Count);
-            Run(sim, 0.1f, Centre);
-            Assert.AreEqual(1, events.Count);
-            Assert.AreEqual(new GridPos(1, 1), events[0].Pos);
-            Assert.AreEqual(HarvestSource.Ring, events[0].Source);
-            Assert.AreEqual(-1, events[0].ApprenticeIndex);
-            Assert.AreEqual(1, events[0].Coins);
-            var plot = sim.State.GetPlot(1, 1);
-            Assert.AreEqual(PlotState.Dry, plot.State);
-            Assert.That(plot.Progress, Is.LessThan(0.15f));
-            Assert.IsTrue(sim.State.GetPlot(0, 0).IsRipe, "plots outside the ring wait");
-        }
-
-        [Test]
-        public void ZeroDtTap_DoesNotHarvestInstantly()
-        {
-            var sim = NewSim();
-            sim.DebugForceRipeAll();
-            sim.Tick(0f, Centre);
-            Assert.AreEqual(0, sim.State.Coins);
-            Assert.IsTrue(sim.State.GetPlot(1, 1).IsRipe);
+            Assert.That(TimeUntil(sim, () => plot.State == PlotState.Ripe), Is.EqualTo(8.0f).Within(0.03f));
+            Assert.IsTrue(sim.ReapOne(Centre));
+            Assert.AreEqual(12, sim.State.Coins - before, 1e-9);
+            Assert.AreEqual(PlotState.Hard, plot.State, "back to the ground, a layer deeper");
+            Assert.AreEqual(1, plot.Layer);
         }
 
         // ---------------------------------------------------------------- passive systems
 
         [Test]
-        public void NoPassiveProgress_AtLevel0()
+        public void HardGround_NeverBreaksByItself()
         {
             var sim = NewSim();
-            Run(sim, 10f, null);
+            Run(sim, 10f);
             foreach (var p in sim.State.Plots)
             {
-                Assert.AreEqual(PlotState.Dry, p.State);
-                Assert.AreEqual(0f, p.Progress);
+                Assert.AreEqual(PlotState.Hard, p.State);
+                Assert.AreEqual(p.MaxHp, p.Hp, 1e-9);
             }
+            Assert.AreEqual(0, sim.State.Coins);
+            Assert.AreEqual(sim.Config.BaseStaminaMax, sim.State.Stamina, 1e-4f);
         }
 
         [Test]
-        public void Irrigation2_WatersDryPlot_InExpectedTime()
+        public void SoilQuality_MultipliesGrowth_NotTheHoe()
         {
             var sim = NewSim();
-            Grant(sim, "irrigation", 2); // 0.3 × base water speed -> carrot wet in 1 / 0.3 = 3.33 s
-            var plot = sim.State.GetPlot(0, 0);
-            Assert.That(TimeUntil(sim, null, () => plot.State == PlotState.Wet), Is.EqualTo(3.333f).Within(0.03f));
-            Run(sim, 10f, null);
-            Assert.AreEqual(PlotState.Wet, plot.State, "without Sun a Wet plot never grows");
-            Assert.AreEqual(0f, plot.Progress);
+            Grant(sim, "soil_quality", 2); // 1 + 2 × 0.25 = 1.5×
+            Assert.IsTrue(sim.Strike(new GridPos(0, 0)));
+            Assert.AreEqual(sim.Config.BaseHp - sim.Config.BaseStrikeDamage, sim.State.GetPlot(0, 0).Hp, 1e-9, "soil does not swing the hoe");
+            var plot = sim.State.GetPlot(Centre);
+            sim.DebugBreak(Centre);
+            // Carrot 2.5 s / 1.5 = 1.667 s.
+            Assert.That(TimeUntil(sim, () => plot.State == PlotState.Ripe), Is.EqualTo(1.667f).Within(0.03f));
         }
 
         [Test]
-        public void Sun_DoesNothingToDryPlots_ButGrowsWetOnes()
+        public void CropValue_MultipliesHandReaps()
         {
             var sim = NewSim();
-            Grant(sim, "sun", 1);
-            Run(sim, 10f, null);
-            Assert.AreEqual(PlotState.Dry, sim.State.GetPlot(0, 0).State);
-            Assert.AreEqual(0f, sim.State.GetPlot(0, 0).Progress);
-
-            Grant(sim, "irrigation", 5); // 0.75 × -> wet in 1.33 s
-            var plot = sim.State.GetPlot(2, 2);
-            TimeUntil(sim, null, () => plot.State == PlotState.Wet);
-            // Sun 1 = 0.15 × base grow speed: carrot grows in 1.5 / 0.15 = 10 s
-            Assert.That(TimeUntil(sim, null, () => plot.State == PlotState.Ripe), Is.EqualTo(10f).Within(0.05f));
-        }
-
-        [Test]
-        public void Soil_MultipliesRingAndSunGrowth_NotWatering()
-        {
-            // Ring: soil 2 -> 1.5× -> carrot grows in 1.0 s instead of 1.5 s.
-            var ring = NewSim();
-            Grant(ring, "soil_quality", 2);
-            var plot = ring.State.GetPlot(1, 1);
-            TimeUntil(ring, Centre, () => plot.State == PlotState.Wet);
-            Assert.That(TimeUntil(ring, Centre, () => plot.State == PlotState.Ripe), Is.EqualTo(1.0f).Within(0.03f));
-
-            // Sun 1 + soil 2: 0.15 × 1.5 = 0.225 -> 1.5 / 0.225 = 6.67 s.
-            var sun = NewSim();
-            Grant(sun, "soil_quality", 2);
-            Grant(sun, "sun", 1);
-            Grant(sun, "irrigation", 5);
-            var p2 = sun.State.GetPlot(0, 0);
-            TimeUntil(sun, null, () => p2.State == PlotState.Wet);
-            Assert.That(TimeUntil(sun, null, () => p2.State == PlotState.Ripe), Is.EqualTo(6.667f).Within(0.05f));
-
-            // Soil does not touch watering.
-            var water = NewSim();
-            Grant(water, "soil_quality", 6);
-            var p3 = water.State.GetPlot(1, 1);
-            Assert.That(TimeUntil(water, Centre, () => p3.State == PlotState.Wet), Is.EqualTo(1.0f).Within(0.03f));
-        }
-
-        [Test]
-        public void RingRate_ReplacesPassiveRate_NoStacking()
-        {
-            var sim = NewSim();
-            Grant(sim, "irrigation", 5);
-            Grant(sim, "sun", 5);
-            var plot = sim.State.GetPlot(1, 1);
-            Assert.That(TimeUntil(sim, Centre, () => plot.State == PlotState.Wet), Is.EqualTo(1.0f).Within(0.03f));
-            Assert.That(TimeUntil(sim, Centre, () => plot.State == PlotState.Ripe), Is.EqualTo(1.5f).Within(0.03f));
-        }
-
-        [Test]
-        public void RingSpeedNodes_ScaleEachPhase()
-        {
-            var sim = NewSim();
-            Grant(sim, "ring_water_speed", 5);   // 2.0× -> 0.5 s
-            Grant(sim, "ring_grow_speed", 5);    // 2.0× -> 0.75 s
-            Grant(sim, "ring_harvest_speed", 3); // 1.6× -> 0.3125 s
-            var plot = sim.State.GetPlot(1, 1);
-            Assert.That(TimeUntil(sim, Centre, () => plot.State == PlotState.Wet), Is.EqualTo(0.5f).Within(0.03f));
-            Assert.That(TimeUntil(sim, Centre, () => plot.State == PlotState.Ripe), Is.EqualTo(0.75f).Within(0.03f));
-            Assert.That(TimeUntil(sim, Centre, () => sim.State.Coins > 0), Is.EqualTo(0.3125f).Within(0.03f));
-        }
-
-        [Test]
-        public void RingBonusCoins_And_CropValue_MultiplyRingHarvests()
-        {
-            var sim = NewSim();
-            Grant(sim, "ring_bonus_coins", 4); // 1.4×
-            Grant(sim, "crop_value", 5);       // 1.5×
-            sim.DebugForceRipeAll();
-            Run(sim, 0.6f, Centre);
-            Assert.That(sim.State.Coins, Is.EqualTo(1 * 1.4 * 1.5).Within(1e-9));
+            Grant(sim, "crop_value", 5); // 1 + 5 × 0.1 = 1.5×
+            sim.DebugForceRipe(Centre);
+            Assert.IsTrue(sim.ReapOne(Centre));
+            Assert.That(sim.State.Coins, Is.EqualTo(1 * 1.5).Within(1e-9));
         }
 
         // ---------------------------------------------------------------- year
@@ -224,11 +115,11 @@ namespace TillWinter.Tests
             var sim = NewSim();
             bool winter = false;
             sim.WinterStarted += () => winter = true;
-            Run(sim, 89.9f, null);
+            Run(sim, 89.9f);
             Assert.IsFalse(winter);
             Assert.AreEqual(Season.Autumn, sim.State.Season);
             Assert.IsTrue(sim.State.FrostWarning);
-            Run(sim, 0.2f, null);
+            Run(sim, 0.2f);
             Assert.IsTrue(winter);
             Assert.IsTrue(sim.State.IsWinter);
         }
@@ -241,9 +132,9 @@ namespace TillWinter.Tests
             Assert.AreEqual(105f, sim.State.YearLength);
             Grant(sim, "year_length", 6);
             Assert.AreEqual(180f, sim.State.YearLength);
-            Run(sim, 179.9f, null);
+            Run(sim, 179.9f);
             Assert.IsFalse(sim.State.IsWinter);
-            Run(sim, 0.2f, null);
+            Run(sim, 0.2f);
             Assert.IsTrue(sim.State.IsWinter);
         }
 
@@ -251,9 +142,9 @@ namespace TillWinter.Tests
         public void FrostWarning_Last10Seconds_Plus5PerLevel()
         {
             var sim = NewSim();
-            Run(sim, 79.9f, null);
+            Run(sim, 79.9f);
             Assert.IsFalse(sim.State.FrostWarning);
-            Run(sim, 0.2f, null);
+            Run(sim, 0.2f);
             Assert.IsTrue(sim.State.FrostWarning);
 
             var longer = NewSim();
@@ -261,9 +152,9 @@ namespace TillWinter.Tests
             Assert.AreEqual(15f, longer.State.Stats.FrostWarningSeconds);
             bool frost = false;
             longer.FrostWarningStarted += () => frost = true;
-            Run(longer, 74.9f, null);
+            Run(longer, 74.9f);
             Assert.IsFalse(frost);
-            Run(longer, 0.2f, null);
+            Run(longer, 0.2f);
             Assert.IsTrue(frost);
         }
 
@@ -273,50 +164,55 @@ namespace TillWinter.Tests
             var sim = NewSim();
             var seasons = new List<Season>();
             sim.SeasonChanged += seasons.Add;
-            Run(sim, 29.9f, null);
+            Run(sim, 29.9f);
             Assert.AreEqual(Season.Spring, sim.State.Season);
-            Run(sim, 0.2f, null);
+            Run(sim, 0.2f);
             Assert.AreEqual(Season.Summer, sim.State.Season);
-            Run(sim, 30f, null);
+            Run(sim, 30f);
             Assert.AreEqual(Season.Autumn, sim.State.Season);
-            Run(sim, 30f, null);
+            Run(sim, 30f);
             CollectionAssert.AreEqual(new[] { Season.Summer, Season.Autumn, Season.Winter }, seasons);
         }
 
         [Test]
-        public void Winter_ClearsAllPlotsToDry_KeepsCoinsAndTiers()
+        public void Winter_FrostReapsTheStandingField_KeepsCoinsAndTiers_AndFreezesTheClock()
         {
             var sim = NewSim();
             Grant(sim, "unlock_tomato");
             sim.DebugSkipToWinter();
-            sim.DebugAddCoins(100);
-            Assert.IsTrue(sim.TryBuy("upgrade_plot"));
+            sim.DebugAddCoins(400);
+            Assert.IsTrue(sim.TryBuy("upgrade_plot")); // 100 coins: (0,0) is a tomato bed
             sim.StartNextYear();
             Assert.AreEqual(1, sim.State.GetPlot(0, 0).Tier);
 
             sim.DebugForceRipeAll();
-            Run(sim, 0.6f, Centre); // one harvest
+            Assert.IsTrue(sim.ReapOne(Centre)); // one carrot by hand
             double coins = sim.State.Coins;
-            Assert.That(coins, Is.GreaterThan(75));
-            sim.DebugSpawnCrow();
+            Assert.AreEqual(301, coins, 1e-9);
+            Assert.IsTrue(sim.DebugSpawnCrow());
 
             sim.DebugSkipToWinter();
             Assert.IsTrue(sim.State.IsWinter);
-            Assert.AreEqual(coins, sim.State.Coins);
+            // The frost reaps the eight crops still standing at the plain price: one tomato (4) and seven carrots (1).
+            // The crow it flushes drops no bounty.
+            Assert.AreEqual(coins + 4 + 7, sim.State.Coins, 1e-9);
             Assert.AreEqual(0, sim.State.Crows.Count);
             foreach (var p in sim.State.Plots)
             {
-                Assert.AreEqual(PlotState.Dry, p.State);
-                Assert.AreEqual(0f, p.Progress);
+                Assert.AreEqual(PlotState.Hard, p.State, p.Pos.ToString());
+                Assert.AreEqual(1, p.Layer, "the reaped ground came back a layer deeper");
+                Assert.AreEqual(p.MaxHp, p.Hp, 1e-9);
                 Assert.IsFalse(p.HasCrow);
             }
             Assert.AreEqual(1, sim.State.GetPlot(0, 0).Tier, "tiers kept");
 
-            // Frozen: ring does nothing, timer does not move.
-            Run(sim, 5f, Centre);
-            Assert.AreEqual(coins, sim.State.Coins);
-            Assert.IsNull(sim.State.Ring);
-            Assert.AreEqual(PlotState.Dry, sim.State.GetPlot(1, 1).State);
+            // Frozen: the hoe and the swipe do nothing, the timer does not move.
+            float yearTime = sim.State.YearTime;
+            Run(sim, 5f);
+            Assert.IsFalse(sim.Strike(Centre));
+            Assert.AreEqual(0, sim.ReapAll());
+            Assert.AreEqual(coins + 11, sim.State.Coins, 1e-9);
+            Assert.AreEqual(yearTime, sim.State.YearTime);
 
             sim.StartNextYear();
             Assert.AreEqual(3, sim.State.Year);
@@ -331,9 +227,9 @@ namespace TillWinter.Tests
         {
             var sim = NewSim();
             sim.DebugAddCoins(1e6);
-            Assert.IsFalse(sim.CanBuy("ring_radius"));
-            Assert.IsFalse(sim.TryBuy("ring_radius"));
-            Assert.AreEqual(0, sim.State.GetLevel("ring_radius"));
+            Assert.IsFalse(sim.CanBuy("hoe_damage"));
+            Assert.IsFalse(sim.TryBuy("hoe_damage"));
+            Assert.AreEqual(0, sim.State.GetLevel("hoe_damage"));
             Assert.AreEqual(1e6, sim.State.Coins);
         }
 
@@ -343,15 +239,15 @@ namespace TillWinter.Tests
             var sim = NewSim();
             sim.DebugSkipToWinter();
             sim.DebugAddCoins(1e6);
-            Assert.IsFalse(sim.IsAvailable("ring_water_speed"));
-            Assert.IsFalse(sim.TryBuy("ring_water_speed"));
-            Assert.IsTrue(sim.TryBuy("ring_radius"));
-            Assert.IsTrue(sim.IsAvailable("ring_water_speed"));
-            Assert.IsTrue(sim.TryBuy("ring_water_speed"));
-            // ring_harvest_speed needs water OR grow (GDD §6: at least one prerequisite).
-            Assert.IsTrue(sim.IsAvailable("ring_harvest_speed"));
-            Assert.AreEqual(0, sim.State.GetLevel("ring_grow_speed"));
-            Assert.IsTrue(sim.TryBuy("ring_harvest_speed"));
+            Assert.IsFalse(sim.IsAvailable("stamina_depot"));
+            Assert.IsFalse(sim.TryBuy("stamina_depot"));
+            Assert.IsTrue(sim.TryBuy("hoe_damage"));
+            Assert.IsTrue(sim.IsAvailable("stamina_depot"));
+            Assert.IsTrue(sim.TryBuy("steady_hand"));
+            // strike_speed needs steady_hand OR lucky_hoe (GDD §6: at least one prerequisite).
+            Assert.IsTrue(sim.IsAvailable("strike_speed"));
+            Assert.AreEqual(0, sim.State.GetLevel("lucky_hoe"));
+            Assert.IsTrue(sim.TryBuy("strike_speed"));
             Assert.IsFalse(sim.TryBuy("no_such_node"));
         }
 
@@ -360,34 +256,38 @@ namespace TillWinter.Tests
         {
             var sim = NewSim();
             sim.DebugSkipToWinter();
-            var node = AlmanacData.Get("ring_radius");
+            var node = AlmanacData.Get("hoe_damage");
             for (int n = 0; n < node.MaxLevel; n++)
             {
                 double expected = Math.Round(node.BaseCost * Math.Pow(node.CostGrowth, n));
-                Assert.AreEqual(expected, sim.CostOf("ring_radius"), "cost at level " + n);
+                Assert.AreEqual(expected, sim.CostOf("hoe_damage"), "cost at level " + n);
                 sim.DebugAddCoins(expected - 1 - sim.State.Coins);
-                Assert.IsFalse(sim.TryBuy("ring_radius"), "unaffordable by 1");
+                Assert.IsFalse(sim.TryBuy("hoe_damage"), "unaffordable by 1");
                 sim.DebugAddCoins(1);
-                Assert.IsTrue(sim.TryBuy("ring_radius"));
+                Assert.IsTrue(sim.TryBuy("hoe_damage"));
                 Assert.AreEqual(0, sim.State.Coins);
             }
-            Assert.IsTrue(sim.IsMaxed("ring_radius"));
+            Assert.IsTrue(sim.IsMaxed("hoe_damage"));
             sim.DebugAddCoins(1e9);
-            Assert.IsFalse(sim.TryBuy("ring_radius"));
-            Assert.That(sim.State.RingRadius, Is.EqualTo(1.95f).Within(1e-5f));
+            Assert.IsFalse(sim.TryBuy("hoe_damage"));
+            Assert.AreEqual(sim.Config.BaseStrikeDamage + node.MaxLevel * node.ValuePerLevel, sim.State.Stats.StrikeDamage, 1e-9);
         }
 
         [Test]
-        public void RingRadius_PerLevel_AndCap()
+        public void HoeDamage_AddsOnePerLevel_AndAtEightBreaksClayInOneSwing()
         {
-            var sim = NewSim();
-            Assert.AreEqual(0.7f, sim.State.RingRadius);
-            Grant(sim, "ring_radius", 1);
-            Assert.That(sim.State.RingRadius, Is.EqualTo(0.95f).Within(1e-5f));
-            var cfg = new FarmConfig { BaseRingRadius = 2.0f };
-            var capped = new FarmSim(cfg, 1);
-            capped.DebugSetLevel("ring_radius", 5);
-            Assert.AreEqual(cfg.MaxRingRadius, capped.State.RingRadius);
+            var one = NewSim();
+            Grant(one, "hoe_damage", 1);
+            Assert.AreEqual(4, one.State.Stats.StrikeDamage, 1e-9);
+            Assert.IsTrue(one.Strike(Centre));
+            Assert.AreEqual(10 - 4, one.State.GetPlot(Centre).Hp, 1e-9);
+
+            var max = NewSim();
+            Grant(max, "hoe_damage", 8);
+            Assert.AreEqual(11, max.State.Stats.StrikeDamage, 1e-9);
+            Assert.IsTrue(max.Strike(Centre));
+            Assert.AreEqual(PlotState.Growing, max.State.GetPlot(Centre).State, "11 damage through 10 HP");
+            Assert.AreEqual(max.Config.BreakCoins, max.State.Coins, 1e-9);
         }
 
         [Test]
@@ -398,12 +298,12 @@ namespace TillWinter.Tests
             sim.DebugAddCoins(1e6);
             var events = new List<PurchaseEvent>();
             sim.Purchased += events.Add;
-            sim.TryBuy("irrigation");
-            sim.TryBuy("irrigation");
+            sim.TryBuy("growth");
+            sim.TryBuy("growth");
             Assert.AreEqual(2, events.Count);
-            Assert.AreEqual("irrigation", events[1].NodeId);
+            Assert.AreEqual("growth", events[1].NodeId);
             Assert.AreEqual(2, events[1].Level);
-            Assert.AreEqual(2, sim.State.AlmanacLevels["irrigation"]);
+            Assert.AreEqual(2, sim.State.AlmanacLevels["growth"]);
         }
 
         [Test]
@@ -434,7 +334,7 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void ExpandField_3To6_NewPlotsDryTier0()
+        public void ExpandField_3To6_NewPlotsHardAtLayer0Tier0()
         {
             var sim = NewSim();
             sim.DebugSkipToWinter();
@@ -449,9 +349,13 @@ namespace TillWinter.Tests
             Assert.IsFalse(sim.TryBuy("expand_field"));
             for (int i = 0; i < 36; i++)
             {
-                Assert.AreEqual(new GridPos(i % 6, i / 6), sim.State.Plots[i].Pos);
-                Assert.AreEqual(PlotState.Dry, sim.State.Plots[i].State);
-                Assert.AreEqual(0, sim.State.Plots[i].Tier);
+                var p = sim.State.Plots[i];
+                Assert.AreEqual(new GridPos(i % 6, i / 6), p.Pos);
+                Assert.AreEqual(PlotState.Hard, p.State);
+                Assert.AreEqual(0, p.Layer);
+                Assert.AreEqual(sim.Config.BaseHp, p.MaxHp, 1e-9);
+                Assert.AreEqual(p.MaxHp, p.Hp, 1e-9);
+                Assert.AreEqual(0, p.Tier);
             }
         }
 
@@ -466,41 +370,43 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void Apprentice_TakesHarvestTime_PaysValueTimesYield()
+        public void Picker_TakesWorkTime_PaysValueTimesYield()
         {
             var sim = SimWithApprentices(1);
             Assert.AreEqual(1, sim.State.Apprentices.Count);
             var a = sim.State.Apprentices[0];
+            Assert.AreEqual(ApprenticeRole.Picker, a.Role);
             Assert.That(a.X, Is.EqualTo(1f).Within(1e-4f));
             Assert.That(a.Y, Is.EqualTo(-1.2f).Within(1e-4f));
 
             var harvests = new List<HarvestEvent>();
             sim.Harvested += harvests.Add;
             sim.DebugForceRipeAll();
-            // Nearest ripe plot is (1,0): 1.2 plots at 1.5 plots/s = 0.8 s, then 1.0 s harvest.
-            float t = TimeUntil(sim, null, () => harvests.Count > 0);
+            // Nearest ripe plot is (1,0): 1.2 plots at 1.5 plots/s = 0.8 s, then 1.0 s of work.
+            float t = TimeUntil(sim, () => harvests.Count > 0);
             Assert.That(t, Is.EqualTo(1.8f).Within(0.05f));
             Assert.AreEqual(HarvestSource.Apprentice, harvests[0].Source);
             Assert.AreEqual(0, harvests[0].ApprenticeIndex);
             Assert.AreEqual(new GridPos(1, 0), harvests[0].Pos);
             Assert.AreEqual(0.5, harvests[0].Coins, "value 1 × yield 0.5 at level 0");
             Assert.AreEqual(0.5, sim.State.Coins);
+            Assert.AreEqual(PlotState.Hard, sim.State.GetPlot(1, 0).State, "the ground came back");
         }
 
         [Test]
-        public void Apprentice_HarvestTimeAndYieldNodes()
+        public void Apprentice_WorkTimeAndYieldNodes()
         {
             var sim = SimWithApprentices(1, s =>
             {
-                Grant(s, "apprentice_harvest_time", 3); // 1.0 - 0.6 = 0.4
-                Grant(s, "apprentice_yield", 4);        // 1.3
+                Grant(s, "apprentice_work_time", 3); // 1.0 - 3 × 0.2 = 0.4
+                Grant(s, "apprentice_yield", 4);     // 1.3
             });
-            Assert.That(sim.State.Stats.ApprenticeHarvestTime, Is.EqualTo(0.4f).Within(1e-5f));
+            Assert.That(sim.State.Stats.ApprenticeWorkTime, Is.EqualTo(0.4f).Within(1e-5f));
             Assert.AreEqual(1.3, sim.State.Stats.ApprenticeYield);
             sim.DebugForceRipeAll();
             var harvests = new List<HarvestEvent>();
             sim.Harvested += harvests.Add;
-            float t = TimeUntil(sim, null, () => harvests.Count > 0);
+            float t = TimeUntil(sim, () => harvests.Count > 0);
             Assert.That(t, Is.EqualTo(0.8f + 0.4f).Within(0.05f));
             Assert.AreEqual(1.3, harvests[0].Coins);
         }
@@ -514,11 +420,11 @@ namespace TillWinter.Tests
                 sim.DebugForceRipeAll();
                 var a = sim.State.Apprentices[0];
                 float x0 = a.X, y0 = a.Y;
-                Run(sim, seconds, null);
+                Run(sim, seconds);
                 return (float)Math.Sqrt((a.X - x0) * (a.X - x0) + (a.Y - y0) * (a.Y - y0));
             }
             Assert.That(DistanceIn(0, 0.4f), Is.EqualTo(0.6f).Within(0.03f));  // 1.5 plots/s
-            Assert.That(DistanceIn(4, 0.2f), Is.EqualTo(0.7f).Within(0.03f));  // 3.5 plots/s
+            Assert.That(DistanceIn(4, 0.2f), Is.EqualTo(0.7f).Within(0.03f));  // 1.5 + 4 × 0.5 = 3.5 plots/s
         }
 
         [Test]
@@ -534,7 +440,7 @@ namespace TillWinter.Tests
             int bothTargeting = 0;
             for (int i = 0; i < 600; i++)
             {
-                sim.Tick(Dt, null);
+                sim.Tick(Dt);
                 if (a0.HasTarget && a1.HasTarget)
                 {
                     bothTargeting++;
@@ -546,25 +452,24 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void Apprentice_Retargets_WhenRingHarvestsItsTarget_AndIdlesAtEdge()
+        public void Apprentice_Retargets_WhenTheHandReapsItsTarget_AndIdlesAtEdge()
         {
             var sim = SimWithApprentices(1);
             sim.DebugForceRipeAll();
-            Run(sim, 0.3f, null);
+            Run(sim, 0.3f);
             var a = sim.State.Apprentices[0];
             Assert.IsTrue(a.HasTarget);
             Assert.IsTrue(a.IsWalking);
             var target = a.Target;
-            Run(sim, 0.55f, new RingInput(target.X, target.Y)); // ring harvests it (0.5 s)
+            Assert.IsTrue(sim.ReapOne(target)); // the hand gets there first
             Assert.IsFalse(sim.State.GetPlot(target).IsRipe);
-            sim.Tick(Dt, null);
+            sim.Tick(Dt);
             Assert.IsTrue(a.HasTarget);
             Assert.AreNotEqual(target, a.Target);
 
-            // Harvest with a huge ring, leave the rest to the apprentice, then it walks home.
-            sim.DebugSetRingRadiusOverride(10f);
-            Run(sim, 3f, Centre);
-            Run(sim, 30f, null); // GDD §2.1 v1.4: the ring harvests one plot at a time; the apprentice takes what it left
+            // The hand takes the rest in one swipe; with nothing ripe the apprentice walks home.
+            Assert.That(sim.ReapAll(), Is.GreaterThan(0));
+            Run(sim, 5f);
             Assert.IsFalse(a.HasTarget);
             Assert.That(a.X, Is.EqualTo(a.IdleX).Within(1e-3f));
             Assert.That(a.Y, Is.EqualTo(a.IdleY).Within(1e-3f));
@@ -579,30 +484,33 @@ namespace TillWinter.Tests
             sim.DebugForceRipeAll();
             var byIndex = new HashSet<int>();
             sim.Harvested += e => byIndex.Add(e.ApprenticeIndex);
-            Run(sim, 4f, null);
-            Assert.AreEqual(6, byIndex.Count, "every apprentice harvested at least once");
+            Run(sim, 4f);
+            Assert.AreEqual(6, byIndex.Count, "every apprentice reaped at least once");
         }
 
         // ---------------------------------------------------------------- crows
 
         [Test]
-        public void Crow_EatsAfter4Seconds_PlotBackToDry()
+        public void Crow_EatsAfter4Seconds_GroundComesBackALayerDeeper()
         {
             var sim = NewSim();
             Assert.IsTrue(sim.DebugSpawnCrow());
             var plot = sim.State.GetPlot(sim.State.Crows[0].Pos);
+            Assert.IsTrue(plot.IsRipe);
             var ate = new List<CrowEvent>();
             sim.CrowAte += ate.Add;
-            Run(sim, 3.9f, null);
+            Run(sim, 3.9f);
             Assert.IsTrue(plot.HasCrow);
-            Run(sim, 0.2f, null);
+            Run(sim, 0.2f);
             Assert.IsFalse(plot.HasCrow);
-            Assert.AreEqual(PlotState.Dry, plot.State);
+            Assert.AreEqual(PlotState.Hard, plot.State);
+            Assert.AreEqual(1, plot.Layer);
             Assert.AreEqual(1, ate.Count);
+            Assert.AreEqual(1, sim.State.CropsLostThisYear);
         }
 
         [Test]
-        public void Crow_TapScare_PaysTwiceCropValue_CropStays()
+        public void Crow_TapScare_PaysTwiceCropValue_AndReapsTheCrop()
         {
             var sim = NewSim();
             Grant(sim, "unlock_tomato");
@@ -611,50 +519,59 @@ namespace TillWinter.Tests
             for (int i = 0; i < 9; i++) Assert.IsTrue(sim.TryBuy("upgrade_plot")); // all tomato (value 4)
             sim.DebugAddCoins(-sim.State.Coins);
             sim.StartNextYear();
-            sim.DebugSpawnCrow();
+            Assert.IsTrue(sim.DebugSpawnCrow());
             var pos = sim.State.Crows[0].Pos;
             var scared = new List<CrowEvent>();
             sim.CrowScared += scared.Add;
-            Run(sim, 2f, null);
+            Run(sim, 2f);
             Assert.IsTrue(sim.TapAt(pos));
             Assert.AreEqual(1, scared.Count);
-            Assert.AreEqual(8, scared[0].Coins);
-            Assert.AreEqual(8, sim.State.Coins);
-            Assert.IsTrue(sim.State.GetPlot(pos).IsRipe);
-            Assert.IsFalse(sim.TapAt(pos));
+            Assert.AreEqual(8, scared[0].Coins, 1e-9, "2 × the tomato");
+            Assert.AreEqual(8 + 4, sim.State.Coins, 1e-9, "the bounty and the crop under it");
+            Assert.AreEqual(PlotState.Hard, sim.State.GetPlot(pos).State);
+            Assert.IsFalse(sim.TapAt(pos), "hard ground is the strike's");
             Assert.IsFalse(sim.TapAt(new GridPos(-1, 0)));
         }
 
         [Test]
-        public void Crow_HarvestScare_PaysNothing()
+        public void Crow_HelperScare_PaysNothing()
         {
-            var sim = NewSim();
-            sim.DebugSpawnCrow();
-            var pos = sim.State.Crows[0].Pos;
+            var sim = SimWithApprentices(1);
+            var at = new GridPos(1, 0);
+            Assert.IsTrue(sim.DebugForceRipe(at));
+            Assert.IsTrue(sim.DebugSpawnCrow());
+            Assert.AreEqual(at, sim.State.Crows[0].Pos);
             var scared = new List<CrowEvent>();
             sim.CrowScared += scared.Add;
-            Run(sim, 0.6f, new RingInput(pos.X, pos.Y));
+            Run(sim, 2f); // the picker reaps it at 1.8 s, before the crow eats at 4 s
             Assert.AreEqual(1, scared.Count);
             Assert.AreEqual(0, scared[0].Coins);
-            Assert.AreEqual(1, sim.State.Coins, "just the harvest");
+            Assert.AreEqual(0.5, sim.State.Coins, 1e-9, "just the apprentice's harvest");
             Assert.AreEqual(0, sim.State.Crows.Count);
+            Assert.AreEqual(PlotState.Hard, sim.State.GetPlot(at).State);
         }
 
         private static int CountSpawns(int scarecrowLevel, int seed)
         {
-            var sim = NewSim(null, seed);
+            // Every ripe plot is a target at once, and a landed crow is tapped and its plot ripened again, so every
+            // spawn check has a candidate and the chance alone decides.
+            var sim = NewSim(c => c.CrowMinRipe = 0f, seed);
             Grant(sim, "scarecrow", scarecrowLevel);
             int landed = 0;
-            sim.CrowLanded += _ => landed++;
-            sim.CrowLanded += e => sim.TapAt(e.Pos); // scare immediately so the slot frees up
+            sim.CrowLanded += e =>
+            {
+                landed++;
+                sim.TapAt(e.Pos);
+                sim.DebugForceRipeAll();
+            };
             for (int year = 0; year < 5; year++)
             {
                 sim.DebugSkipToWinter();
                 sim.StartNextYear(); // years 2..6
                 sim.DebugForceRipeAll();
-                Run(sim, 88f, null); // 22 spawn checks per year
+                Run(sim, 88f, 0.05f); // 88 spawn checks per year
             }
-            return landed; // 110 checks per seed
+            return landed; // 440 checks per seed
         }
 
         [Test]
@@ -667,42 +584,42 @@ namespace TillWinter.Tests
                 l1 += CountSpawns(1, seed);
                 l2 += CountSpawns(2, seed);
             }
-            // GDD §5.1 (v2.0): 550 checks at 25% ≈ 137 with no scarecrow. One scarecrow leaves one plot of the 3x3
-            // field open, which still draws every crow; two guard the whole field.
-            Assert.That(l0, Is.InRange(100, 180));
-            Assert.That(l1, Is.InRange(100, 180), "the chance is unchanged: the crows all go to the open plot");
+            // GDD §5.1 (v2.0): 2200 checks at 8% ≈ 176 (sd 13) with no scarecrow. One scarecrow leaves one plot of
+            // the 3x3 field open, which still draws every crow; two guard the whole field.
+            Assert.That(l0, Is.InRange(125, 230));
+            Assert.That(l1, Is.InRange(125, 230), "the chance is unchanged: the crows all go to the open plot");
             Assert.AreEqual(0, l2, "a fully guarded field draws no crow");
         }
 
         [Test]
-        public void Crows_OnlyFromYear2_MaxTwo_NeverUnderRing()
+        public void Crows_OnlyFromYear2_MaxTwo_NeverOnAFreshCrop()
         {
             var y1 = NewSim();
             int landed = 0;
             y1.CrowLanded += _ => landed++;
             y1.DebugForceRipeAll();
-            Run(y1, 60f, null);
+            Run(y1, 60f);
             Assert.AreEqual(0, landed, "year 1");
 
             var y2 = NewSim(c => { c.CrowSpawnChance = 1f; c.CrowEatTime = 100f; });
             y2.DebugSkipToWinter();
             y2.StartNextYear();
             y2.DebugForceRipeAll();
-            Run(y2, 12f, null);
+            Run(y2, 12f);
             Assert.AreEqual(2, y2.State.Crows.Count);
 
-            var ring = NewSim(c => c.CrowSpawnChance = 1f);
-            ring.DebugSkipToWinter();
-            ring.StartNextYear();
-            ring.DebugSetRingRadiusOverride(10f);
-            int landedRing = 0;
-            ring.CrowLanded += _ => landedRing++;
+            var fresh = NewSim(c => c.CrowSpawnChance = 1f);
+            fresh.DebugSkipToWinter();
+            fresh.StartNextYear();
+            int landedFresh = 0;
+            fresh.CrowLanded += _ => landedFresh++;
             for (int i = 0; i < 100; i++)
             {
-                ring.DebugForceRipeAll();
-                ring.Tick(0.1f, Centre); // everything is under the ring, so nothing is a crow target
+                fresh.ReapAll();
+                fresh.DebugForceRipeAll(); // no crop stands ripe longer than 0.1 s: none is a crow target
+                fresh.Tick(0.1f);
             }
-            Assert.AreEqual(0, landedRing);
+            Assert.AreEqual(0, landedFresh);
         }
 
         // ---------------------------------------------------------------- misc
@@ -714,13 +631,13 @@ namespace TillWinter.Tests
             var b = NewSim(null, 42);
             foreach (var s in new[] { a, b })
             {
-                Grant(s, "irrigation", 3);
-                Grant(s, "sun", 3);
+                Grant(s, "growth", 3);
                 Grant(s, "apprentice_count", 2);
+                Assert.IsTrue(s.SetApprenticeRole(1, ApprenticeRole.Digger));
                 s.DebugSkipToWinter();
                 s.StartNextYear();
-                Run(s, 40f, null);
-                Run(s, 5f, Centre);
+                s.DebugBreakAll();
+                Run(s, 40f);
             }
             Assert.AreEqual(a.State.Coins, b.State.Coins);
             Assert.AreEqual(a.State.Crows.Count, b.State.Crows.Count);
@@ -728,6 +645,7 @@ namespace TillWinter.Tests
             {
                 Assert.AreEqual(a.State.Plots[i].State, b.State.Plots[i].State);
                 Assert.AreEqual(a.State.Plots[i].Progress, b.State.Plots[i].Progress);
+                Assert.AreEqual(a.State.Plots[i].Hp, b.State.Plots[i].Hp);
             }
         }
 
@@ -739,21 +657,19 @@ namespace TillWinter.Tests
             Assert.AreEqual(5, c.MaxTier);
             var expected = new[]
             {
-                ("crop.carrot", 1.0f, 1.5f, 0.5f, 2.0, Season.Spring), // S9 balance (GDD §2.3 v1.4), M.2 spring bonus (v1.7), M.3 (v1.9)
-                ("crop.tomato", 1.5f, 3.5f, 0.5f, 4.0, Season.Summer),
-                ("crop.corn", 2.0f, 6.0f, 0.7f, 12.0, Season.Summer),
-                ("crop.pumpkin", 3.0f, 10f, 1.0f, 35.0, Season.Autumn),
-                ("crop.grapes", 4.0f, 15f, 1.0f, 100.0, Season.Autumn),
-                ("crop.golden_wheat", 5.0f, 22f, 1.2f, 300.0, Season.Spring),
+                ("crop.carrot", 2.5f, 2.0, Season.Spring), // GDD §2v3.6 timings, M.2 seasons (v1.7)
+                ("crop.tomato", 5f, 4.0, Season.Summer),
+                ("crop.corn", 8f, 12.0, Season.Summer),
+                ("crop.pumpkin", 13f, 35.0, Season.Autumn),
+                ("crop.grapes", 19f, 100.0, Season.Autumn),
+                ("crop.golden_wheat", 27f, 300.0, Season.Spring),
             };
             for (int i = 0; i < expected.Length; i++)
             {
                 Assert.AreEqual(expected[i].Item1, c.Crops[i].Key);
-                Assert.AreEqual(expected[i].Item2, c.Crops[i].Water);
-                Assert.AreEqual(expected[i].Item3, c.Crops[i].Grow);
-                Assert.AreEqual(expected[i].Item4, c.Crops[i].Harvest);
-                Assert.AreEqual(expected[i].Item5, c.Crops[i].Value);
-                Assert.AreEqual(expected[i].Item6, c.Crops[i].Likes, c.Crops[i].Key);
+                Assert.AreEqual(expected[i].Item2, c.Crops[i].Grow);
+                Assert.AreEqual(expected[i].Item3, c.Crops[i].Value);
+                Assert.AreEqual(expected[i].Item4, c.Crops[i].Likes, c.Crops[i].Key);
             }
         }
     }

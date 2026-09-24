@@ -9,13 +9,13 @@ namespace TillWinter.Tests
     {
         private static FarmSim NewSim(int seed = 7) => new FarmSim(new FarmConfig(), seed);
 
-        private static void Run(FarmSim sim, float seconds, RingInput? ring, float dt = 0.01f)
+        private static void Run(FarmSim sim, float seconds, float dt = 0.01f)
         {
             int ticks = (int)Math.Round(seconds / dt);
-            for (int i = 0; i < ticks; i++) sim.Tick(dt, ring);
+            for (int i = 0; i < ticks; i++) sim.Tick(dt);
         }
 
-        /// <summary>A busy mid-year sim in generation 2 with both trees, crows, apprentices and mixed plot states.</summary>
+        /// <summary>A busy mid-year sim in generation 2 with both trees, crows, apprentices and every plot state.</summary>
         private static FarmSim BusySim()
         {
             var sim = NewSim();
@@ -28,38 +28,52 @@ namespace TillWinter.Tests
             sim.StartNewGeneration();
             sim.DebugSkipToWinter();
             sim.DebugAddCoins(2000);
-            Assert.IsTrue(sim.TryBuy("irrigation"));
-            Assert.IsTrue(sim.TryBuy("sun"));
+            Assert.IsTrue(sim.TryBuy("hoe_damage"));
+            Assert.IsTrue(sim.TryBuy("growth"));
             Assert.IsTrue(sim.TryBuy("expand_field"));
             Assert.IsTrue(sim.TryBuy("unlock_tomato"));
             Assert.IsTrue(sim.TryBuy("upgrade_plot"));
             Assert.IsTrue(sim.TryBuy("apprentice_count"));
             sim.StartNextYear();
-            // A seed-bag pick survives the round trip; picking the crop already growing keeps the timings of this fixture.
+            // The two apprentices dig and water (a picker would reap the crow's crop before the save).
+            Assert.IsTrue(sim.SetApprenticeRole(0, ApprenticeRole.Digger));
+            Assert.IsTrue(sim.SetApprenticeRole(1, ApprenticeRole.Waterer));
+            // A seed-bag pick survives the round trip.
             Assert.IsTrue(sim.SetPlotCrop(new GridPos(0, 0), 1));
             Assert.AreEqual(1, sim.State.GetPlot(0, 0).Choice);
-            sim.DebugSetPlotKind(new GridPos(2, 2), PlotKind.Fertile); // special ground survives too (v9)
-            Run(sim, 12f, new RingInput(1, 1));
-            Run(sim, 3f, null);
+            sim.DebugSetPlotKind(new GridPos(2, 2), PlotKind.Fertile); // special ground survives too
+            // Cracks, a growing crop (the tomato: a carrot would ripen before the save), a ripe one, a deep layer, a
+            // watered plot, half a depot.
+            sim.Strike(new GridPos(0, 1));
+            sim.DebugBreak(new GridPos(0, 0));
+            sim.DebugSetLayer(new GridPos(2, 1), 5);
+            sim.DebugBreak(new GridPos(2, 0));
+            sim.DebugForceRipe(new GridPos(2, 0));
+            sim.SetWatering(new GridPos(0, 0));
+            Run(sim, 0.5f);
+            sim.SetWatering(null);
+            sim.DebugSetStamina(41f);
             sim.DebugSpawnCrow();
-            Run(sim, 1.3f, null);
-            // v10: a goal part-way and a heat wave under way.
+            Run(sim, 1.3f);
+            // A goal part-way and a heat wave under way.
             sim.DebugSetGoal(GoalType.HarvestCrop, 500, 0, 40);
             sim.DebugStartWeather(Weather.HeatWave);
-            Run(sim, 0.4f, null);
-            // v11: two scarecrows, one moved; a waterer (switched last, so it carries no half-done work into the save).
+            Run(sim, 0.4f);
+            // Two scarecrows, one moved; the roles switched last, so no apprentice carries half-done work into the save.
             sim.DebugSetLevel("scarecrow", 2);
             Assert.IsTrue(sim.MoveScarecrow(1, new GridPos(0, 0)));
-            Assert.IsTrue(sim.SetApprenticeRole(0, ApprenticeRole.Waterer));
-            // v12: a mole, a clover, the trader.
-            sim.DebugSpawnPest(PestKind.Mole, new GridPos(1, 1));
+            Assert.IsTrue(sim.SetApprenticeRole(0, ApprenticeRole.Picker));
+            Assert.IsTrue(sim.SetApprenticeRole(0, ApprenticeRole.Digger));
+            Assert.IsTrue(sim.SetApprenticeRole(1, ApprenticeRole.Picker));
+            Assert.IsTrue(sim.SetApprenticeRole(1, ApprenticeRole.Waterer));
+            // A mole, a clover, the trader.
+            sim.DebugSpawnPest(PestKind.Mole, new GridPos(1, 2));
             sim.DebugSpawnLucky(LuckyKind.Clover, new GridPos(0, 1));
             sim.DebugBringTrader();
-            // v13: a barn taking half the harvest (the Almanac spend is already counted by the purchases above).
+            // A barn taking half the harvest (the Almanac spend is already counted by the purchases above).
             sim.DebugSetLevel("barn", 1);
             Assert.IsTrue(sim.SetStoreShare(0.5f));
-            sim.SetAwayPlan(AwayPlan.Balanced); // v16
-            sim.DebugSetTapCooldown(1.25f); // v17
+            sim.SetAwayPlan(AwayPlan.Balanced);
             return sim;
         }
 
@@ -74,7 +88,7 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.FrostWarning, sb.FrostWarning);
             Assert.AreEqual(sa.Coins, sb.Coins);
             Assert.AreEqual(sa.GridSize, sb.GridSize);
-            Assert.AreEqual(sa.RingRadius, sb.RingRadius);
+            Assert.AreEqual(sa.Stamina, sb.Stamina, 1e-6f);
             var ga = sa.Generation;
             var gb = sb.Generation;
             Assert.AreEqual(ga.Generation, gb.Generation);
@@ -85,6 +99,12 @@ namespace TillWinter.Tests
             Assert.AreEqual(ga.SeedsEarnedTotal, gb.SeedsEarnedTotal);
             Assert.AreEqual(ga.CrowsScared, gb.CrowsScared);
             Assert.AreEqual(ga.Harvests, gb.Harvests);
+            Assert.AreEqual(ga.HarvestsHand, gb.HarvestsHand);
+            Assert.AreEqual(ga.Strikes, gb.Strikes);
+            Assert.AreEqual(ga.Crits, gb.Crits);
+            Assert.AreEqual(ga.Breaks, gb.Breaks);
+            Assert.AreEqual(ga.DeepestLayer, gb.DeepestLayer);
+            Assert.AreEqual(ga.BestCombo, gb.BestCombo);
             Assert.AreEqual(sa.Plots.Count, sb.Plots.Count);
             for (int i = 0; i < sa.Plots.Count; i++)
             {
@@ -99,7 +119,13 @@ namespace TillWinter.Tests
                 Assert.AreEqual(sa.Plots[i].HasCrow, sb.Plots[i].HasCrow, "crow " + i);
                 Assert.AreEqual(sa.Plots[i].IsGolden, sb.Plots[i].IsGolden, "golden " + i);
                 Assert.AreEqual(sa.Plots[i].RipeAge, sb.Plots[i].RipeAge, "ripe age " + i);
-                Assert.AreEqual(sa.Plots[i].DryTimer, sb.Plots[i].DryTimer, "dry timer " + i);
+                Assert.AreEqual(sa.Plots[i].Layer, sb.Plots[i].Layer, "layer " + i);
+                Assert.AreEqual(sa.Plots[i].Ground, sb.Plots[i].Ground, "ground " + i);
+                Assert.AreEqual(sa.Plots[i].Hardpan, sb.Plots[i].Hardpan, "hardpan " + i);
+                Assert.AreEqual(sa.Plots[i].Chest, sb.Plots[i].Chest, "chest " + i);
+                Assert.AreEqual(sa.Plots[i].Hp, sb.Plots[i].Hp, 1e-9, "hp " + i);
+                Assert.AreEqual(sa.Plots[i].MaxHp, sb.Plots[i].MaxHp, 1e-9, "max hp " + i);
+                Assert.AreEqual(sa.Plots[i].CropLayer, sb.Plots[i].CropLayer, "crop layer " + i);
             }
             Assert.AreEqual(sa.Crows.Count, sb.Crows.Count);
             // A save lists crows by plot, not by landing order: compare them as a set keyed by plot.
@@ -115,12 +141,13 @@ namespace TillWinter.Tests
             {
                 Assert.AreEqual(sa.Apprentices[i].X, sb.Apprentices[i].X);
                 Assert.AreEqual(sa.Apprentices[i].Y, sb.Apprentices[i].Y);
+                Assert.AreEqual(sa.Apprentices[i].Role, sb.Apprentices[i].Role, "role " + i);
             }
             CollectionAssert.AreEquivalent(sa.AlmanacLevels, sb.AlmanacLevels);
             CollectionAssert.AreEquivalent(sa.HeritageLevels, sb.HeritageLevels);
             Assert.AreEqual(sa.Stats.ApprenticeCount, sb.Stats.ApprenticeCount);
             Assert.AreEqual(sa.Stats.TargetGridSize, sb.Stats.TargetGridSize);
-            Assert.AreEqual(sa.RingShape, sb.RingShape);
+            Assert.AreEqual(sa.Stats.StrikeDamage, sb.Stats.StrikeDamage);
             CollectionAssert.AreEqual(sa.Scarecrows, sb.Scarecrows);
             Assert.AreEqual(sa.DogCooldown, sb.DogCooldown);
             Assert.AreEqual(sa.Pest.Kind, sb.Pest.Kind);
@@ -156,7 +183,6 @@ namespace TillWinter.Tests
             Assert.AreEqual(sa.NgPlus, sb.NgPlus);
             Assert.AreEqual(sa.ChecklistBits, sb.ChecklistBits);
             Assert.AreEqual(sa.AwayPlan, sb.AwayPlan);
-            Assert.AreEqual(sa.TapCooldown, sb.TapCooldown, 1e-6);
             Assert.AreEqual(sa.Album.Count, sb.Album.Count);
             for (int i = 0; i < sa.Album.Count; i++)
             {
@@ -167,7 +193,6 @@ namespace TillWinter.Tests
                 Assert.AreEqual(sa.Album[i].Harvests, sb.Album[i].Harvests);
                 Assert.AreEqual(sa.Album[i].Trait, sb.Album[i].Trait);
             }
-            for (int i = 0; i < sa.Apprentices.Count; i++) Assert.AreEqual(sa.Apprentices[i].Role, sb.Apprentices[i].Role, "role " + i);
             Assert.AreEqual(sa.Goal.Type, sb.Goal.Type);
             Assert.AreEqual(sa.Goal.Tier, sb.Goal.Tier);
             Assert.AreEqual(sa.Goal.Target, sb.Goal.Target);
@@ -192,6 +217,9 @@ namespace TillWinter.Tests
             var sim = BusySim();
             Assert.AreEqual(Phase.Year, sim.State.Phase);
             Assert.That(sim.State.Crows.Count, Is.GreaterThan(0));
+            bool hard = false, growing = false, ripe = false;
+            foreach (var p in sim.State.Plots) { hard |= p.IsHard; growing |= p.IsGrowing; ripe |= p.IsRipe; }
+            Assert.IsTrue(hard && growing && ripe, "every plot state is in the fixture");
             var data = sim.ToSave();
             Assert.AreEqual(SaveData.CurrentSchemaVersion, data.SchemaVersion);
             var loaded = FarmSim.FromSave(data, new FarmConfig());
@@ -207,7 +235,7 @@ namespace TillWinter.Tests
             var w = FarmSim.FromSave(winter.ToSave(), new FarmConfig());
             AssertSameState(winter, w);
             Assert.AreEqual(Phase.Winter, w.State.Phase);
-            Assert.IsTrue(w.CanBuy("ring_radius") == winter.CanBuy("ring_radius"));
+            Assert.IsTrue(w.CanBuy("hoe_damage") == winter.CanBuy("hoe_damage"));
 
             var heritage = BusySim();
             heritage.DebugSkipToWinter();
@@ -217,18 +245,20 @@ namespace TillWinter.Tests
             AssertSameState(heritage, h);
             Assert.AreEqual(Phase.Heritage, h.State.Phase);
             h.DebugAddSeeds(10);
-            Assert.IsTrue(h.TryBuy("h_start_radius"));
+            Assert.IsTrue(h.TryBuy("h_start_damage"));
             h.StartNewGeneration();
             Assert.AreEqual(Phase.Year, h.State.Phase);
         }
 
         [Test]
-        public void UnknownSchemaVersion_ReturnsNull()
+        public void UnknownSchemaVersion_ReturnsNull_AndSoDoesTheRingGamesSave()
         {
             var data = BusySim().ToSave();
             data.SchemaVersion = SaveData.CurrentSchemaVersion + 1;
             Assert.IsNull(FarmSim.FromSave(data, new FarmConfig()));
             data.SchemaVersion = 0;
+            Assert.IsNull(FarmSim.FromSave(data, new FarmConfig()));
+            data.SchemaVersion = 17; // the last save of the ring game: a different field, a different Almanac (v3 decision)
             Assert.IsNull(FarmSim.FromSave(data, new FarmConfig()));
             Assert.IsNull(FarmSim.FromSave(null, new FarmConfig()));
             Assert.IsNull(SaveMigrations.Migrate(new SaveData { SchemaVersion = 99 }));
@@ -250,11 +280,23 @@ namespace TillWinter.Tests
         {
             var a = BusySim();
             var b = FarmSim.FromSave(a.ToSave(), new FarmConfig());
+            var path = new List<GridPos>();
             for (int i = 0; i < 4000; i++)
             {
-                var ring = i % 700 < 400 ? new RingInput(1 + (i / 200) % 2, 1) : (RingInput?)null;
-                a.Tick(0.01f, ring);
-                b.Tick(0.01f, ring);
+                var pos = a.State.Plots[i % a.State.Plots.Count].Pos;
+                if (i % 40 == 0) { a.Strike(pos); b.Strike(pos); }
+                if (i % 300 == 0)
+                {
+                    path.Clear();
+                    foreach (var p in a.State.Plots) path.Add(p.Pos);
+                    a.Reap(path);
+                    b.Reap(path);
+                }
+                var water = i % 700 < 400 ? (GridPos?)a.State.Plots[(i / 200) % 4].Pos : null;
+                a.SetWatering(water);
+                b.SetWatering(water);
+                a.Tick(0.01f);
+                b.Tick(0.01f);
             }
             Assert.AreEqual(a.State.Coins, b.State.Coins);
             Assert.AreEqual(a.State.Crows.Count, b.State.Crows.Count);
@@ -271,17 +313,17 @@ namespace TillWinter.Tests
                 Assert.IsFalse(typeof(System.Collections.IDictionary).IsAssignableFrom(f.FieldType), f.Name + " must not be a dictionary");
         }
 
-        // ---------------------------------------------------------------- offline (GDD §9)
+        // ---------------------------------------------------------------- offline (GDD §9, §2v3.10)
 
         [Test]
-        public void Offline_NothingWithoutPassiveChain_AndNoOpOutsideYear()
+        public void Offline_NothingGrowsOnHardGround_AndNoOpOutsideYear()
         {
             var sim = NewSim();
             var r = sim.SimulateOffline(3600);
             Assert.AreEqual(0, r.CoinsEarned);
             Assert.AreEqual(0, r.Harvests);
             Assert.That(r.SecondsSimulated, Is.EqualTo(3600).Within(1));
-            foreach (var p in sim.State.Plots) Assert.AreEqual(PlotState.Dry, p.State);
+            foreach (var p in sim.State.Plots) Assert.AreEqual(PlotState.Hard, p.State);
 
             sim.DebugSkipToWinter();
             var w = sim.SimulateOffline(3600);
@@ -291,19 +333,22 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void Offline_PassiveChainEarns_MatchesDirectSimulation_YearTimerUnchanged()
+        public void Offline_HelpersEarn_MatchesDirectSimulation_YearTimerUnchanged()
         {
-            FarmSim Make()
+            FarmSim Make(FarmConfig cfg)
             {
-                var s = NewSim(3);
-                s.DebugSetLevel("irrigation", 3);
-                s.DebugSetLevel("sun", 3);
-                s.DebugSetLevel("apprentice_count", 2);
-                Run(s, 5f, null);
+                var s = new FarmSim(cfg, 3);
+                s.DebugSetLevel("apprentice_count", 3);
+                s.SetApprenticeRole(1, ApprenticeRole.Digger);
+                s.SetApprenticeRole(2, ApprenticeRole.Waterer);
+                s.DebugBreakAll();
+                Run(s, 5f);
                 return s;
             }
 
-            var offline = Make();
+            // Ripe crops do not age while the game is closed (GDD §9), so both farms run without over-ripening: with it
+            // the direct sim's waiting crops would pay less than the frozen offline ones.
+            var offline = Make(new FarmConfig { RipeGraceSeconds = 1e9f });
             float yearTime = offline.State.YearTime;
             var season = offline.State.Season;
             var report = offline.SimulateOffline(600);
@@ -316,25 +361,18 @@ namespace TillWinter.Tests
             Assert.AreEqual(Phase.Year, offline.State.Phase);
             Assert.AreEqual(0, offline.State.Crows.Count, "no crows offline");
 
-            // Direct simulation of the same passive systems at the same step (year timer would run, so compare coins only).
-            var direct = Make();
-            direct.DebugSetLevel("year_length", 6); // 180 s; still shorter than 600 -> use a config with a long year instead
-            var cfgLong = new FarmConfig { BaseYearLength = 100000f, MaxYearLength = 100000f, CrowFirstYear = 99 };
-            var direct2 = new FarmSim(cfgLong, 3);
-            direct2.DebugSetLevel("irrigation", 3);
-            direct2.DebugSetLevel("sun", 3);
-            direct2.DebugSetLevel("apprentice_count", 2);
-            Run(direct2, 5f, null);
-            double before = direct2.State.Coins;
-            for (int i = 0; i < 600; i++) direct2.Tick(1f, null);
-            Assert.That(report.CoinsEarned, Is.EqualTo(direct2.State.Coins - before).Within(1e-6));
+            // Direct simulation of the same passive systems at the same step, on a year too long to end.
+            var cfgLong = new FarmConfig { BaseYearLength = 100000f, MaxYearLength = 100000f, CrowFirstYear = 99, WeatherFirstYear = 99, PestFirstYear = 99, LuckyFirstYear = 99, TraderFirstYear = 99, RipeGraceSeconds = 1e9f };
+            var direct = Make(cfgLong);
+            double before = direct.State.Coins;
+            for (int i = 0; i < 600; i++) direct.Tick(1f);
+            Assert.That(report.CoinsEarned, Is.EqualTo(direct.State.Coins - before).Within(1e-6));
         }
 
         [Test]
         public void Offline_CapsAtEightHours()
         {
             var sim = NewSim();
-            sim.DebugSetLevel("irrigation", 1);
             var r = sim.SimulateOffline(20 * 3600);
             Assert.IsTrue(r.Capped);
             Assert.That(r.SecondsSimulated, Is.EqualTo(8 * 3600).Within(1));

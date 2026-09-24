@@ -21,6 +21,8 @@ namespace TillWinter.Unity
         MarketSale, TraderArrive,
         PestArrive, PestStruck, ScarecrowPlace,
         DogBark, HensFlutter,
+        // Core loop v3 (GDD §2v3): the hoe.
+        Strike, StrikeCrit, StrikeTired, Break,
     }
 
     /// <summary>Which Kenney clips back each <see cref="SfxId"/> (Resources/Kenney). Tests assert every id resolves; no generated fallback exists.</summary>
@@ -72,6 +74,10 @@ namespace TillWinter.Unity
             { SfxId.HensFlutter, new Row(0.45f, 0.12f, 4, "cloth4") },
             { SfxId.PestArrive, new Row("Creatures", 0.5f, 0.08f, 3, "bug_01") },
             { SfxId.DogBark, new Row("Creatures", 0.45f, 0.1f, 3, "barking_01", "barking_02") },
+            { SfxId.Strike, new Row(0.6f, 0.1f, 8, "impactWood_medium_000", "impactPlank_medium_001", "impactSoft_medium_001") },
+            { SfxId.StrikeCrit, new Row(0.8f, 0.04f, 6, "impactBell_heavy_001", "impactWood_medium_000") },
+            { SfxId.StrikeTired, new Row(0.35f, 0.12f, 8, "impactSoft_medium_000", "impactSoft_medium_002") },
+            { SfxId.Break, new Row(0.75f, 0.06f, 6, "impactPlank_medium_001", "chop") },
         };
 
         /// <summary>Ids whose clips did not all load (empty when the audio folder is complete).</summary>
