@@ -272,31 +272,12 @@ namespace TillWinter.EditorTools
             Debug.Log("[UiSetup] theme created: " + ThemePath);
         }
 
-        /// <summary>Brings an existing theme asset up to <see cref="TreeTheme.CurrentStyle"/> in place (S9: dark Almanac page, opaque overlays).</summary>
+        /// <summary>Brings an existing theme asset up to <see cref="TreeTheme.CurrentStyle"/> in place (style 8: the field look, every token reset).</summary>
         private static void Restyle(TreeTheme theme, bool heritage)
         {
             if (theme == null || theme.StyleVersion >= TreeTheme.CurrentStyle) { Debug.Log("[UiSetup] theme already present"); return; }
-            if (heritage)
-            {
-                var o = theme.Overlay;
-                theme.Overlay = new Color(o.r, o.g, o.b, 1f);
-                var d = ScriptableObject.CreateInstance<TreeTheme>();
-                TreeTheme.ApplyHeritageDefaults(d);
-                theme.InkMuted = d.InkMuted; // S9: readable on the dark page
-                theme.EdgeDim = d.EdgeDim;
-                theme.ZoomMin = d.ZoomMin; // S9: the radial tree opens fully framed
-                theme.InitialZoom = d.InitialZoom; // S9: the star needs more room than the old lanes
-                UnityEngine.Object.DestroyImmediate(d);
-            }
-            else TreeTheme.ApplyAlmanacPage(theme);
-            // Style 7: a locked node keeps more of its branch colour, so an unexplored tree reads as five branches
-            // rather than one grey constellation.
-            if (theme.StyleVersion < 7)
-            {
-                var defaults = ScriptableObject.CreateInstance<TreeTheme>();
-                theme.LockedSaturation = defaults.LockedSaturation;
-                UnityEngine.Object.DestroyImmediate(defaults);
-            }
+            if (heritage) TreeTheme.ApplyHeritageDefaults(theme);
+            else TreeTheme.ApplyFieldDefaults(theme);
             theme.StyleVersion = TreeTheme.CurrentStyle;
             EditorUtility.SetDirty(theme);
             Debug.Log("[UiSetup] " + theme.name + " restyled to style " + TreeTheme.CurrentStyle);

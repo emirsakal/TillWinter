@@ -120,6 +120,10 @@ namespace TillWinter.Unity
             _coinIcon = icon.rectTransform;
             UiKit.CircleImage(icon.transform, "Inner", _theme.CoinInner, Vector2.zero, 48f);
             _coinText = UiKit.Label(_coinGroup, "Value", "0", (int)_theme.CoinFontSize, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // TMP grows its character arrays the first time a longer string arrives, an allocation in the middle of
+            // play. The longest coin string (rich-text suffix included) is set once here instead.
+            _coinText.SetText(new string('8', 96));
+            _coinText.SetText("0");
             UiKit.Stretch(_coinText.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 0f), new Vector2(50f, 0f));
             UiKit.Outline(_coinText);
             _coinText.richText = true; // the K/M suffix is set smaller, in the coin colour

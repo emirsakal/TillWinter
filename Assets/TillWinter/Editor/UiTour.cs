@@ -88,7 +88,7 @@ namespace TillWinter.EditorTools
             // Winter, reached through the new End year button.
             new Step("14b-end-year-confirm", 0.7f, () => Click("EndYear")),
             new Step("15-winter", 1.8f, () => Click("EndYearYes", "EndYearConfirm")),
-            new Step("16-node-sheet", 0.7f, () => Click("Ring", "Node hoe_damage")),
+            new Step("16-node-sheet", 0.7f, () => Click("Bed", "Node hoe_damage")),
             new Step("17-retire-ready", 0.8f, GrantRetire),
             new Step("18-retire-confirm", 0.6f, () => Click("Retire")),
             new Step(null, 0.4f, () => Click("No", "ConfirmDim")),
@@ -97,7 +97,12 @@ namespace TillWinter.EditorTools
 
             // Back to a year, then the away card.
             new Step("20-next-year", 1.8f, () => Click("NextYear")),
-            new Step(null, 0.6f, ProbeField), // the ring must still reach the field after Next Year
+            new Step(null, 0.6f, ProbeField), // the field must still take input after Next Year
+            // The field grows: every old plot moves half a step to keep the field centred (it used to snap back).
+            new Step(null, 0.5f, () => Game?.Sim.DebugSkipToWinter()),
+            new Step(null, 0.3f, () => { var g = Game; if (g == null) return; g.Sim.DebugAddCoins(4000); g.Sim.TryBuy("expand_field"); }),
+            new Step("20b-field-expanded", 2.4f, () => Click("NextYear")),
+            new Step(null, 0.4f, ProbeField),
             new Step(null, 0.2f, GrantHelpers),
             new Step(null, 0.4f, () => Click("DebugToggle")),
             new Step(null, 0.3f, () => Click("Offline 1 h")),
@@ -154,8 +159,8 @@ namespace TillWinter.EditorTools
             new Step("35-winter-barn", 2.4f, () => Game?.Sim.DebugSkipToWinter()),
 
             // Handing the farm on (GDD §7.4 v2.3): the heirs on offer and the challenge.
-            new Step(null, 0.4f, () => { var g = Game; if (g == null) return; g.Sim.DebugAddLifetimeCoins(g.Sim.Config.HeritageThreshold); g.Sim.Retire(); }),
-            new Step("36-heirs", 4.5f, () => Click("Continue", "GenerationCard", optional: true)),
+            new Step("36-album", 2.6f, () => { var g = Game; if (g == null) return; g.Sim.DebugAddLifetimeCoins(g.Sim.Config.HeritageThreshold); g.Sim.Retire(); }),
+            new Step("36b-heritage", 1.2f, () => Click("Continue", "GenerationCard")),
 
             // After the ending (GDD §8.2–§8.3 v2.4): New Game+ in the pause sheet, and the album's first page.
             new Step(null, 2.0f, () => Click("StartGeneration")),

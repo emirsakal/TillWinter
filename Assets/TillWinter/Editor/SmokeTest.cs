@@ -220,12 +220,8 @@ namespace TillWinter.EditorTools
                         var screen = UnityEngine.Object.FindFirstObjectByType<WinterScreen>();
                         Check(screen != null && screen.IsOpen, "winter screen open");
                         var view = screen.AlmanacView;
-                        var panBefore = view.Pan;
-                        view.PanBy(new Vector2(120f, 80f));
-                        Check((view.Pan - panBefore).magnitude > 1f, "pan moved the canvas");
-                        float zoomBefore = view.Zoom;
-                        view.ZoomBy(1.3f);
-                        Check(view.Zoom > zoomBefore, "zoom changed");
+                        Check(view.Zoom > 0.2f && view.Zoom < 2f, "field fitted to the canvas (zoom " + view.Zoom.ToString("0.00") + ")");
+                        Check(GameObject.Find("Node hoe_damage") != null, "hoe_damage bed exists");
                         view.Select("hoe_damage");
                         Check(screen.SelectedId == "hoe_damage", "hoe_damage selected");
                         _selectedAt = EditorApplication.timeSinceStartup;
