@@ -1,6 +1,6 @@
 # Till Winter — Game Design Document
 
-**Version 3.0 - September 2026 (the core loop v3 migration is complete and shipped: Kaz, Kır, Ek, Biç — strike, grow, reap — replaces the ring as the game's one active loop; §2v3 is no longer a prototype, §2.1 "The ring" and §2.2 "Plot state machine" are superseded by it; a bedrock cap, the final tuned break/HP curve, the re-themed Almanac and Heritage tables and the measured acceptance numbers are marked *(v3.3)* inline; play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline; an art pass reworked apprentice locomotion, crop-stage easing, frost/storm readability, skill-tree branch colour and layout, coin iconography and the generation card, marked *(v2.8)* inline; round particles moved from opaque primitives to soft billboards on a fourth shader, `TW_Particle`, marked *(v2.9)* inline; a balance/content pass fixed the greenhouse winter cap, the Heritage `h_ring_master`/`h_long_summer` pair, crow immunity, `fertile_start`/`spring_head_start`, the ring radius ceiling, Almanac advisor weights, offline heirloom counting, family-album story parity and the statistics/how-to-play/loading-tip screens, marked *(v2.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
+**Version 3.4 - September 2026 (the Winter screen's skill trees and handover are redrawn as a minimalist top-down field, marked *(v3.4)* inline; the core loop v3 migration is complete and shipped: Kaz, Kır, Ek, Biç — strike, grow, reap — replaces the ring as the game's one active loop; §2v3 is no longer a prototype, §2.1 "The ring" and §2.2 "Plot state machine" are superseded by it; a bedrock cap, the final tuned break/HP curve, the re-themed Almanac and Heritage tables and the measured acceptance numbers are marked *(v3.3)* inline; play-test fixes after mechanics round one — bulk_upgrade no longer raises the same plot twice; play-test fixes round two — smoke-test render budget re-based after profiling and cutting particle/shadow cost, marked *(v2.6)* inline; play-test fixes round three — No-helpers challenge also closes `helper_water` and `SeedDivisor` retuned to 37 after fixing the balance bot's spending, marked *(v2.7)* inline; music and a five-layer season ambience mix replace the silent Ambience slider, marked *(v2.8)* inline; an art pass reworked apprentice locomotion, crop-stage easing, frost/storm readability, skill-tree branch colour and layout, coin iconography and the generation card, marked *(v2.8)* inline; round particles moved from opaque primitives to soft billboards on a fourth shader, `TW_Particle`, marked *(v2.9)* inline; a balance/content pass fixed the greenhouse winter cap, the Heritage `h_ring_master`/`h_long_summer` pair, crow immunity, `fertile_start`/`spring_head_start`, the ring radius ceiling, Almanac advisor weights, offline heirloom counting, family-album story parity and the statistics/how-to-play/loading-tip screens, marked *(v2.8)* inline).** This is the source of truth for what the game is. Session prompts reference it; Claude Code updates it at the end of every session that changes a rule. Numbers marked *(tune)* are first guesses and will be adjusted from playtests, not from reasoning.
 
 ---
 
@@ -356,7 +356,7 @@ Apprentices: each has its own position and target; they never target the same pl
 
 ## 6. Almanac (winter skill tree, bought with coins, reset on rebirth)
 
-- Opens only in Winter. Full-screen panel over the frozen field; pannable/zoomable canvas; nodes with prerequisites; a node is available when at least one prerequisite is at level ≥ 1.
+- Opens only in Winter. *(v3.4)* Drawn as a field seen from above, fitted whole to the screen — no panning, no zooming, no hub. Nodes with prerequisites; a node is available when at least one prerequisite is at level ≥ 1.
 - **Data-driven.** Nodes are rows in a data table (`AlmanacNode`: id, branch, prerequisites, maxLevel, baseCost, costGrowth, effect type, effect value per level, EN/TR name keys). Adding a node is data, not code.
 - Cost of level *n* = `baseCost × costGrowth^n`, default growth **1.6** *(tune)*.
 
@@ -406,6 +406,29 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
   `Generation.AlmanacSpent`). Beds return to carrots (`BedTier` 0, `Choice` -1) and the field
   shrinks to the size the Heritage tree now gives (plots nearest the house stay; `FieldExpanded`
   fires). Retiring clears `AlmanacSpent` and `RespecUsed`. Winter strip button "Free respec +X".
+
+### 6.4 The field layout *(v3.4)*
+
+- Replaces the pannable/zoomable radial canvas. `SkillTreeLayout` (Core) still treats trees as
+  data — nodes are never hand-placed — but now lays a tree out as a field seen from above: a fixed
+  portrait rectangle of 10 × 13.5 layout units, fitted whole to the screen.
+- Each branch is a lane starting at its own corner/edge of the field and running inward one
+  `LayerStep` (1.15 units) per prerequisite layer, turning a few degrees per layer so no lane is a
+  ruler line. Hand and Soil hang from the top corners, Helpers comes in from the right, Calendar
+  from the left, Field (the crop chain, the deepest) runs along the bottom edge. Within a layer the
+  child with the most descendants keeps the lane; the others hang off it sideways one
+  `SiblingSpacing` (1 unit), so the crop chain stays straight and side upgrades (barn, bulk) read
+  as side beds. Per-node jitter 0.08; guaranteed minimum distance 0.8. Branch names are written on
+  the soil near each lane's start, in small capitals.
+- A node is a bed (`SkillTreeView` + `TreeTheme`, style 8): grown (level > 0) is a green bed with a
+  crop dot, gold when maxed; tilled (available, level 0) is dark soil with a seed dot, dimmer when
+  unaffordable; hard (locked) is a smaller, lighter cracked square. No icons, no level numbers, no
+  padlocks on the beds themselves — the node detail card carries that. Prerequisites are furrows
+  (straight lines); a furrow between two grown beds warms to gold. The selected bed gets a cream
+  outline; affordable beds breathe gently; buying punches the bed and throws a few clods. The
+  suggested node (§6.3) keeps its star badge and "Suggested" pill.
+- Page colour: pale winter-day paper for the Almanac; the same field at dusk (lilac page, cooler
+  soil, golden-wheat beds for what is owned, lilac seed dots) for Heritage.
 
 ---
 
@@ -459,8 +482,16 @@ Branch roots (`ring_radius`, `irrigation`, `expand_field`, `apprentice_count`, `
   - Steady: crop value +4%.
   - Shepherd: apprentice speed +15%.
   - Watchful: 30% fewer crows.
-- Heritage screen: an heir strip of three buttons and the challenge button (§7.5) sit above "Start
-  the new generation".
+- *(v3.4)* The heir strip no longer sits on the Heritage screen. The heir and the challenge button
+  (§7.5) are chosen on the **album page** (`GenerationCard`), which opens on the `Retired` event
+  (Retire on the farm → confirm dialog unchanged in content → `Retire()` → album page): "Generation
+  N" and "Y years", a photograph of the field (a deterministic 6×6 mini field drawn from the
+  generation's harvest count) in a tilted white frame captioned with the flavour line, the album
+  line split into margin notes, the three grade stars, the seeds earned counting up with ticks,
+  then "Choose the heir" — the three heirs on offer as cards (the chosen one warm) and the
+  challenge switch — and a "Continue »" button. There is no tap-to-skip and no auto-close; the
+  player chooses and continues. On the Heritage field, the left link becomes "Heir: <name> »" and
+  reopens the album page (seeds shown static, not counting up again).
 
 ### 7.5 Challenge generations *(v2.3)*
 
@@ -578,8 +609,8 @@ local only) and returns to the title. Offline, no online services, no live-ops.
 ## 10. Screens
 
 1. **Farm** — field, ring, HUD. *(v1.3, Session 5)* HUD (`HudView`, every colour/spacing from `HudTheme`): coins big and centred with a punch on change, "Year N · Gen G" small underneath, a four-segment season bar (Spring/Summer/Autumn/Winter) filling left-to-right with a frost span and the season name fading in at each boundary, a combo "xN" readout from combo ≥ 2, and a seed chip "Retire now: N seeds" once `CanRetire`. Safe area is applied to the HUD only on mobile platforms (editor `Screen.safeArea` is unreliable). No bottom bar during the year.
-2. **Almanac** (Winter) — tree canvas (`SkillTreeView` + `TreeTheme`), node detail card, "Next Year" and "Pass on the farm" buttons. A "Heritage" tab in the Winter top bar opens the Heritage tree without leaving Winter.
-3. **Heritage** — *(v1.3, Session 5)* the same `SkillTreeView` shown full screen, themed by a second asset (`HeritageTheme`: deep green paper, gold accents, seed currency, darker branch colours, tighter initial zoom so all five branches fit). Reached after rebirth (Retire on the farm -> confirm dialog -> `Retire()` -> a full-screen **Generation card**: "Generation N", one flavour line, seeds counting up, skip after 0.5 s / auto-continue at 6 s -> Heritage screen), before Spring of the new generation; also reachable as the Winter tab above. Starting the new generation reveals plots one by one bottom-left to top-right, clears snow, and pops in generation-appropriate decor (`FarmDecorSet`/`FarmDecorView`, data-driven, `MinGeneration`-gated). Pan/zoom is remembered per tree (Almanac and Heritage separately) across sessions.
+2. **Almanac** (Winter) — *(v3.4)* redrawn as a field seen from above (§6.4); the dark starfield page, snowfall/lamp/grain/frost, branch name plates, hub, pan and zoom are all removed. `WinterScreen` top line: "Winter — Year N · Generation G" left, coins (or seeds on the Heritage field) right. Under the field, centred: "Tap a bed" (or "nothing affordable, move on" when nothing can be bought and the farm cannot be handed on), "This year: H harvests · C coins", a caption with the year's grade ("2/3 stars"), the grade bonus, the goal result and the greenhouse line (Heritage field: "Heritage done/total"); the barn strip appears above the links only when relevant. Two text links: left "Heritage »" / "« Almanac" (in the Heritage phase, "Heir: <name> »", reopening the album page, §7.4), right "Pass on the farm · +N seeds" or muted "Pass on the farm · earn X more coins" (hidden in the Heritage phase). One full-width button: "Next Year »" or "Start new generation »". The selected bed's card slides up over the lines: name, one line of effect ("Strike damage: 4 » 5."), level as a row of pips (a number for uncapped nodes), one note (what it unlocks, or why it cannot be bought), one button carrying the price ("Buy · 119 coins" / "Maxed" / "Locked"); the node sheet's old branch tag/badge/effect bar are gone. The separate Retire button and its hint line are removed — retiring happens from the seed link.
+3. **Heritage** — *(v1.3, Session 5; v3.4)* the same `SkillTreeView` field, themed by a second asset (`HeritageTheme`: the field at dusk, lilac page, cooler soil, golden-wheat beds for what is owned, seeds as the currency, deeper branch colours). Reached after rebirth (Pass on the farm -> confirm sheet -> `Retire()` -> the **album page** (§7.4 v3.4: the generation, its photograph, its lines, the seeds counting up, the heir and challenge choice, Continue) -> Heritage screen), before Spring of the new generation; also reachable through the Heritage link in Winter. Starting the new generation reveals plots one by one bottom-left to top-right, clears snow, and pops in generation-appropriate decor (`FarmDecorSet`/`FarmDecorView`, data-driven, `MinGeneration`-gated). *(v3.4)* Nothing is panned or zoomed any more, so no view is remembered per tree; the saved view fields stay in the save unused.
 4. **Pause / Settings** — language, sound, haptics, reset save, credits. Last.
 5. **Onboarding** — no tutorial screen; a `Hint` enum + `OnboardingFlags` in Core make every hint fire once and only once, saved. *(v1.3, Session 5)* Shipped hints: first touch on a Dry plot (pulsing hand + hold caption), first Ripe plot outside the ring, first frost warning, first crow; first Winter (the tree centres on `ring_radius`/`irrigation` with a pulse and caption until the first purchase); the first time `CanRetire` (a one-time explanatory sheet); first entry to Heritage ("Seeds never reset."). *(v3.3)* Re-themed for the hoe loop: tap the hard ground; strike on the beat (fires after the second strike); hold to water; swipe over the ripe crop; tap the crow. Hints never block input. **While-you-were-away card** (`AwayCard`, shown on resume when offline sim earned coins): duration in h/min, total coins, a line per source (apprentices, tractor), a note when capped at the 8 h offline cap; the HUD coin counter withholds the earned coins (`HudView.HeldCoins`) until the card is dismissed. *(v2.8)* The "How to play" sheet (Settings) ends with a crop table (name, tier, liked season, seconds dry→ripe at ring level one, value); loading tips grew from 6 to 14.
 

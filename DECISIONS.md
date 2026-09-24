@@ -1455,3 +1455,37 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   since those fixtures describe a save shape (`PlotSave` with Dry/Wet/Ripe fields) that no longer
   exists — patching them one migration at a time would have meant maintaining a save-format history
   for a format nobody ever saved to outside this repo.
+
+# Session 13 — the Almanac as a field (2026-09-24)
+
+- **Top-down field chosen over three other mockups.** Open: the developer found the radial
+  dark-page tree screens noisy (40 small circles with counters and padlocks, floating branch
+  plates, pan and zoom, a heavy sheet). Chosen: four directions were mocked up (night-sky
+  constellations, soil cross-section with roots, a top-down field of beds, a list); the developer
+  picked the top-down field, "especially the state with nothing selected".
+- **A new Core layout instead of fitting the radial one.** Open: whether `SkillTreeLayout` could
+  keep its existing radial-canopy algorithm and just be re-skinned. Chosen: no — the radial
+  canopy's sibling spacing would have left beds 40 px wide on a phone once laid out as a flat
+  field; the field needed its own lane-based layout (fixed rectangle, per-branch corner/edge start,
+  turning lanes) rather than a reskin.
+- **No pan, no zoom.** Open: the old tree remembered pan/zoom per tree across sessions. Chosen: the
+  field is a fixed portrait rectangle fitted whole to the screen — dropped entirely rather than
+  kept as an option, since the redesign's point was removing navigation, not relocating it.
+- **No icons, levels or locks on the beds themselves.** Open: how much a bed should show before
+  it's selected. Chosen: beds carry only grown/tilled/hard state and a crop/seed dot; icons, level
+  numbers and padlocks all moved to the node detail card, which already opens on selection.
+- **Heirs and the challenge switch moved to the album page.** Open: the Heritage screen's heir
+  strip sat above "Start the new generation" as a persistent row. Chosen: heir choice belongs to
+  the handover moment, not the Heritage tree, so it moved to `GenerationCard` (now an album page)
+  which opens on the `Retired` event and is the only place the heir and challenge are chosen; "Heir:
+  <name> »" on the Heritage screen reopens it afterward.
+- **The album page has no auto-close and no tap-to-skip.** Open: the old Generation card
+  auto-continued after 6 s. Chosen: since the album page is now also where the heir is chosen,
+  auto-continuing would risk locking in the preselected heir without a look — the player must press
+  "Continue »".
+- **Guillemets instead of single chevrons.** Open: the mockups used "‹ ›" for the tree-toggle and
+  heir links. Chosen: "« »" — the body font (Figtree) has no single-chevron glyphs.
+- **TMP char-array pre-sizing in the HUD coin counter.** Open: a first longer coin string during
+  this session's playtesting allocated mid-play. Chosen: the coin counter's `char[]` buffer is now
+  sized for the longest string it will ever need up front, matching the no-per-frame-allocation
+  rule rather than growing lazily the first time a bigger number appears.
