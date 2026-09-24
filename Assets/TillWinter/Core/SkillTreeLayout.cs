@@ -17,52 +17,93 @@ namespace TillWinter.Core
     }
 
     /// <summary>
-    /// Deterministic radial layout (GDD §6). Five branches leave one centre 72° apart and grow outward, but nothing
-    /// about it is straight: each branch curves a little further round with every layer, siblings fan out along an
-    /// arc, and every node carries a small fixed offset of its own. A perfect star read as a diagram rather than a
-    /// thing that grew, so the shape is a rounded canopy with five lobes, not five spokes.
+    /// Deterministic field layout (GDD §6, v3.4): the tree is a field seen from above, a fixed portrait rectangle
+    /// <see cref="Width"/> × <see cref="Height"/> units that the screen fits whole, no panning or zooming. Each
+    /// branch is one lane: it starts at its own corner of the field and runs inward, one <see cref="LayerStep"/>
+    /// per prerequisite layer, turning a few degrees each layer so no lane is a ruler line. Within a layer the child
+    /// with the most descendants keeps the lane and the others hang off it sideways, so a long chain (Field's crops)
+    /// stays straight and its side nodes (barn, bulk upgrade) read as side beds.
     ///
-    /// Layer = prerequisite depth inside the branch, so a node always sits further out than what it needs.
-    /// Cross-branch prerequisites do not move nodes.
+    /// Layer = prerequisite depth inside the branch, so a node always sits further along its lane than what it
+    /// needs. Cross-branch prerequisites do not move nodes.
     /// </summary>
     public static class SkillTreeLayout
     {
-        /// <summary>Distance from the centre to a branch's first nodes. Wide enough that a branch's fan cannot reach its neighbour's.</summary>
-        public const float RootRadius = 2.6f;
-        /// <summary>Each prerequisite layer sits this much further out.</summary>
-        public const float LayerStep = 1.6f;
-        /// <summary>Spacing between siblings, measured along their arc so it holds at any radius.</summary>
-        public const float SiblingSpacing = 1.15f;
-        /// <summary>How far each layer swings round: the gentle curve that keeps a branch from reading as a spoke.</summary>
-        public const float CurveDegreesPerLayer = 9f;
-        /// <summary>
-        /// Per-node variation. Both are measured in layout units, never degrees: a fixed angle is a small nudge near
-        /// the centre and a large one at the rim, which would pull the outermost siblings under
-        /// <see cref="MinDistance"/>. As an arc offset the worst case is the same wherever a node sits.
-        /// </summary>
-        public const float JitterRadius = 0.12f;
-        public const float JitterArc = 0.1f;
-        /// <summary>Guaranteed by the geometry: siblings sit 1.15 apart along their arc and jitter can close at most 0.2 of it.</summary>
-        public const float MinDistance = 0.85f;
-        /// <summary>The first branch points straight up; the rest follow clockwise.</summary>
-        public const float FirstAngleDegrees = 90f;
+        /// <summary>The field rectangle, in layout units; (0,0) is the bottom-left corner.</summary>
+        public const float Width = 10f;
+        public const float Height = 13.5f;
+        /// <summary>Each prerequisite layer sits this much further along its lane.</summary>
+        public const float LayerStep = 1.15f;
+        /// <summary>Spacing between siblings, measured across the lane.</summary>
+        public const float SiblingSpacing = 1f;
+        /// <summary>Per-node wander, in layout units, so the rows read as beds someone dug rather than a grid.</summary>
+        public const float Jitter = 0.08f;
+        /// <summary>Guaranteed by the geometry: siblings sit 1 apart, layers 1.15, and jitter can close at most 0.16 of it.</summary>
+        public const float MinDistance = 0.8f;
 
-        /// <summary>
-        /// Clockwise from the top. Field, the deepest branch, starts down-left so its curve carries it towards straight
-        /// down, where a portrait screen has room; started at -54 degrees it curved out flat to the right edge.
-        /// </summary>
-        public static readonly Branch[] BranchOrder = { Branch.Hand, Branch.Soil, Branch.Helpers, Branch.Field, Branch.Calendar };
-
-        /// <summary>The direction a branch leaves the centre in, in degrees (90 = up), before any curve.</summary>
-        public static float AngleOf(Branch branch)
+        /// <summary>One branch's lane: where it starts, which way it first runs (degrees, 0 = right, 90 = up), how much it turns per layer, and where its name goes.</summary>
+        public readonly struct Lane
         {
-            int index = Array.IndexOf(BranchOrder, branch);
-            if (index < 0) index = BranchOrder.Length;
-            return FirstAngleDegrees - index * (360f / BranchOrder.Length);
+            public readonly Branch Branch;
+            public readonly LayoutPos Start;
+            public readonly float Degrees;
+            public readonly float TurnPerLayer;
+            public readonly LayoutPos Label;
+
+            public Lane(Branch branch, LayoutPos start, float degrees, float turnPerLayer, LayoutPos label)
+            {
+                Branch = branch;
+                Start = start;
+                Degrees = degrees;
+                TurnPerLayer = turnPerLayer;
+                Label = label;
+            }
         }
 
-        /// <summary>The direction a branch faces once it has curved out to <paramref name="layer"/>.</summary>
-        public static float AxisAt(Branch branch, int layer) => AngleOf(branch) + layer * CurveDegreesPerLayer;
+        /// <summary>
+        /// Hand and Soil hang from the top corners and run down; Helpers comes in from the right, Calendar from the
+        /// left; Field, the deepest branch, runs along the bottom edge where a portrait field has its width.
+        /// </summary>
+        public static readonly Lane[] Lanes =
+        {
+            new Lane(Branch.Hand, new LayoutPos(2.3f, 12.3f), -90f, 9f, new LayoutPos(2.3f, 13.05f)),
+            new Lane(Branch.Soil, new LayoutPos(7.7f, 12.3f), -90f, -9f, new LayoutPos(7.7f, 13.05f)),
+            new Lane(Branch.Helpers, new LayoutPos(8.4f, 7.4f), -140f, 10f, new LayoutPos(8.6f, 8.2f)),
+            new Lane(Branch.Calendar, new LayoutPos(1.5f, 6.2f), -60f, -8f, new LayoutPos(1.4f, 7.05f)),
+            new Lane(Branch.Field, new LayoutPos(1.5f, 1.6f), 0f, 4f, new LayoutPos(1.5f, 0.75f)),
+        };
+
+        public static readonly Branch[] BranchOrder = { Branch.Hand, Branch.Soil, Branch.Helpers, Branch.Calendar, Branch.Field };
+
+        public static Lane LaneOf(Branch branch)
+        {
+            foreach (var lane in Lanes) if (lane.Branch == branch) return lane;
+            return Lanes[Lanes.Length - 1];
+        }
+
+        /// <summary>Where a branch's name sits, in layout units.</summary>
+        public static LayoutPos LabelOf(Branch branch) => LaneOf(branch).Label;
+
+        /// <summary>The point on a branch's lane at <paramref name="layer"/>, before any sibling offset or jitter.</summary>
+        public static LayoutPos LanePoint(Branch branch, int layer)
+        {
+            var lane = LaneOf(branch);
+            float x = lane.Start.X, y = lane.Start.Y;
+            for (int k = 0; k < layer; k++)
+            {
+                double radians = (lane.Degrees + k * lane.TurnPerLayer) * Math.PI / 180.0;
+                x += (float)Math.Cos(radians) * LayerStep;
+                y += (float)Math.Sin(radians) * LayerStep;
+            }
+            return new LayoutPos(x, y);
+        }
+
+        /// <summary>The direction a lane runs in at <paramref name="layer"/>, in degrees.</summary>
+        public static float DegreesAt(Branch branch, int layer)
+        {
+            var lane = LaneOf(branch);
+            return lane.Degrees + layer * lane.TurnPerLayer;
+        }
 
         public static Dictionary<string, LayoutPos> Compute(IReadOnlyList<SkillNode> nodes)
         {
@@ -71,6 +112,8 @@ namespace TillWinter.Core
 
             var depth = new Dictionary<string, int>();
             foreach (var n in nodes) Depth(n, byId, depth, 0);
+            var weight = new Dictionary<string, int>();
+            foreach (var n in nodes) Descendants(n, nodes, weight, 0);
 
             // Group by branch, then by layer, preserving table order.
             var layers = new Dictionary<Branch, SortedDictionary<int, List<SkillNode>>>();
@@ -82,25 +125,43 @@ namespace TillWinter.Core
             }
 
             var result = new Dictionary<string, LayoutPos>();
+            var offsets = new Dictionary<string, float>();
             foreach (var kv in layers)
             {
                 foreach (var layer in kv.Value)
                 {
                     var list = layer.Value;
-                    float baseRadius = RootRadius + layer.Key * LayerStep;
-                    float axis = AxisAt(kv.Key, layer.Key);
-                    for (int k = 0; k < list.Count; k++)
+                    var centre = LanePoint(kv.Key, layer.Key);
+                    double radians = DegreesAt(kv.Key, layer.Key) * Math.PI / 180.0;
+                    // Across the lane: the lane's direction turned a quarter turn to the left.
+                    float px = -(float)Math.Sin(radians), py = (float)Math.Cos(radians);
+                    // The child with the most descendants keeps the lane; the rest hang off it, alternating sides,
+                    // each on the side its own parent leans toward when the parent is off the lane itself.
+                    var order = new List<SkillNode>(list);
+                    order.Sort((a, b) =>
                     {
-                        var n = list[k];
-                        // Siblings fan along the arc, so they stay the same distance apart however far out they are,
-                        // and the node's own wander is an arc offset for the same reason.
-                        float arc = (k - (list.Count - 1) * 0.5f) * SiblingSpacing + Jitter(n.Id, 31) * JitterArc;
-                        float radius = baseRadius + Jitter(n.Id, 17) * JitterRadius;
-                        float degrees = axis + arc / Math.Max(0.001f, radius) * (180.0f / (float)Math.PI);
-
-                        double radians = degrees * Math.PI / 180.0;
-                        float x = (float)Math.Cos(radians) * radius;
-                        float y = (float)Math.Sin(radians) * radius;
+                        int w = weight[b.Id].CompareTo(weight[a.Id]);
+                        return w != 0 ? w : list.IndexOf(a).CompareTo(list.IndexOf(b));
+                    });
+                    int side = 1, step = 0;
+                    for (int k = 0; k < order.Count; k++)
+                    {
+                        var n = order[k];
+                        float across;
+                        if (k == 0) across = 0f;
+                        else
+                        {
+                            if (side > 0) step++;
+                            across = side * step * SiblingSpacing;
+                            float lean = ParentOffset(n, offsets);
+                            if (k == 1 && lean != 0f) { side = lean > 0f ? 1 : -1; across = side * step * SiblingSpacing; }
+                            side = -side;
+                        }
+                        offsets[n.Id] = across;
+                        float along = Jitter * Wander(n.Id, 17);
+                        float wander = Jitter * Wander(n.Id, 31);
+                        float x = centre.X + px * (across + wander) + (float)Math.Cos(radians) * along;
+                        float y = centre.Y + py * (across + wander) + (float)Math.Sin(radians) * along;
                         if (n.LayoutOverride.HasValue) { x += n.LayoutOverride.Value.X; y += n.LayoutOverride.Value.Y; }
                         result[n.Id] = new LayoutPos(x, y);
                     }
@@ -109,8 +170,14 @@ namespace TillWinter.Core
             return result;
         }
 
+        private static float ParentOffset(SkillNode n, Dictionary<string, float> offsets)
+        {
+            foreach (var p in n.Prerequisites) if (offsets.TryGetValue(p, out float o) && o != 0f) return o;
+            return 0f;
+        }
+
         /// <summary>A stable -1..1 offset for a node: the same id always lands in the same place.</summary>
-        private static float Jitter(string id, int salt)
+        private static float Wander(string id, int salt)
         {
             unchecked
             {
@@ -131,6 +198,19 @@ namespace TillWinter.Core
                         best = Math.Max(best, Depth(pn, byId, memo, guard + 1) + 1);
             memo[n.Id] = best;
             return best;
+        }
+
+        /// <summary>How many same-branch nodes need this one, directly or through others.</summary>
+        private static int Descendants(SkillNode n, IReadOnlyList<SkillNode> nodes, Dictionary<string, int> memo, int guard)
+        {
+            if (memo.TryGetValue(n.Id, out int d)) return d;
+            int count = 0;
+            if (guard < 64)
+                foreach (var c in nodes)
+                    if (c.Branch == n.Branch && Array.IndexOf(c.Prerequisites, n.Id) >= 0)
+                        count += 1 + Descendants(c, nodes, memo, guard + 1);
+            memo[n.Id] = count;
+            return count;
         }
 
         /// <summary>Bounds of a layout (min x, min y, max x, max y).</summary>
