@@ -6,18 +6,33 @@ namespace TillWinter.Core
     /// <summary>Every derived number the sim uses, computed from both trees' levels by <see cref="StatResolver"/>.</summary>
     public sealed class Stats
     {
-        public float RingRadius;
-        /// <summary>Multipliers over crop base times (level 0 = 1.0).</summary>
-        public float RingWaterMult = 1f, RingGrowMult = 1f, RingHarvestMult = 1f;
-        /// <summary>1 + 0.25 × soil_quality (× Heritage global growth). Applies to ring and passive growing.</summary>
+        // The hoe (GDD §2v3.4–5)
+        public double StrikeDamage;
+        public float CritWindow;
+        public double CritChance;
+        public float StrikeCooldown;
+        /// <summary>Share of a strike's damage the four side neighbours take (0 = none).</summary>
+        public float SplashShare;
+        public float StaminaMax, StaminaRegen;
+        /// <summary>Multiplier on what a break pays.</summary>
+        public double BreakBonusMult = 1;
+        /// <summary>Extra value per crop beyond the first in one swipe.</summary>
+        public double ComboPerCrop;
+
+        // Soil
+        /// <summary>1 + growth levels (× Heritage global growth × heirlooms): applies to every growing crop.</summary>
+        public float GrowthMult = 1f;
+        /// <summary>1 + 0.25 × soil_quality, on top of <see cref="GrowthMult"/>.</summary>
         public float SoilMultiplier = 1f;
-        /// <summary>Fraction of base water/grow speed applied passively (0.15 × level).</summary>
-        public float IrrigationFactor, SunFactor;
-        public double RingBonusMult = 1, CropValueMult = 1;
+        /// <summary>Multiplier on hard ground's HP (softness lowers it).</summary>
+        public float HpMult = 1f;
+        public double CropValueMult = 1;
 
         public int ApprenticeCount;
-        public float ApprenticeSpeed, ApprenticeHarvestTime;
+        public float ApprenticeSpeed, ApprenticeWorkTime;
         public double ApprenticeYield;
+        /// <summary>A digger's blow as a share of the player's strike damage.</summary>
+        public double ApprenticeDigShare;
 
         public float CrowSpawnChance;
         /// <summary>Scarecrows the player can place (GDD §5.1 v2.0).</summary>
@@ -34,10 +49,6 @@ namespace TillWinter.Core
 
         /// <summary>Highest crop tier plots may be upgraded to.</summary>
         public int MaxTierUnlocked;
-        /// <summary>`ring_shape` level: 1 unlocks the rake, 2 the cross.</summary>
-        public int RingShapeLevel;
-        /// <summary>`tap_harvest` level: a tap finishes one Ripe plot, on a cooldown.</summary>
-        public int TapHarvestLevel;
         /// <summary>Field size the Heritage tree starts a generation at (before Almanac expansions).</summary>
         public int StartGridSize;
         public int TargetGridSize;
@@ -46,10 +57,8 @@ namespace TillWinter.Core
         public double AlmanacCostMult = 1;
 
         // Feature levels and flags applied by FarmSim rather than as a rate.
-        public int RingComboLevel, TractorLevel, GreenhouseLevel, CrowBountyLevel;
-        /// <summary>ring_combo: extra ring value per combo stack (level x the table value).</summary>
-        public double RingComboPerStack;
-        public bool BulkUpgrade, FertileStart, SpringHeadStart, LateFrost, HelperWater;
+        public int TractorLevel, GreenhouseLevel, CrowBountyLevel;
+        public bool BulkUpgrade, EarlyThaw, SpringHeadStart, LateFrost;
         public bool RainCloudUnlocked, ScarecrowImmunity;
         public double GoldenCropChance;
         public int GreenhouseX2Level;
@@ -65,10 +74,17 @@ namespace TillWinter.Core
             heritageNodes = heritageNodes ?? HeritageData.Nodes;
             var s = new Stats
             {
-                RingRadius = cfg.BaseRingRadius,
+                StrikeDamage = cfg.BaseStrikeDamage,
+                CritWindow = cfg.BaseCritWindow,
+                CritChance = cfg.BaseCritChance,
+                StrikeCooldown = cfg.BaseStrikeCooldown,
+                StaminaMax = cfg.BaseStaminaMax,
+                StaminaRegen = cfg.BaseStaminaRegen,
+                ComboPerCrop = cfg.ComboPerCrop,
                 ApprenticeSpeed = cfg.ApprenticeBaseSpeed,
-                ApprenticeHarvestTime = cfg.ApprenticeBaseHarvestTime,
+                ApprenticeWorkTime = cfg.ApprenticeBaseWorkTime,
                 ApprenticeYield = cfg.ApprenticeYieldByLevel[0],
+                ApprenticeDigShare = cfg.ApprenticeDigShare,
                 CrowSpawnChance = cfg.CrowSpawnChance,
                 YearLength = cfg.BaseYearLength,
                 FrostWarningSeconds = cfg.BaseFrostWarningSeconds,
@@ -77,9 +93,9 @@ namespace TillWinter.Core
             };
 
             // --- Heritage: base modifiers, applied first (GDD §7).
-            float ringSpeedMult = 1f, globalGrowth = 1f;
-            double ringCoinsMult = 1, apprenticeYieldMult = 1;
-            int startIrrigation = 0, startSun = 0;
+            float strikeSpeed = 0f, globalGrowth = 1f;
+            double breakCoins = 1, apprenticeYieldMult = 1;
+            int startGrowth = 0, startSoft = 0;
             foreach (var n in heritageNodes)
             {
                 int level = Level(heritageLevels, n.Id);
@@ -87,11 +103,11 @@ namespace TillWinter.Core
                 double v = n.ValuePerLevel * level;
                 switch (n.Effect)
                 {
-                    case EffectType.HeritageStartRadius: s.RingRadius += (float)v; break;
-                    case EffectType.HeritageRingSpeeds: ringSpeedMult += (float)v; break;
-                    case EffectType.HeritageRingCoins: ringCoinsMult += v; break;
-                    case EffectType.HeritageStartIrrigation: startIrrigation = (int)Math.Round(v); break;
-                    case EffectType.HeritageStartSun: startSun = (int)Math.Round(v); break;
+                    case EffectType.HeritageStartDamage: s.StrikeDamage += v; break;
+                    case EffectType.HeritageStrikeSpeed: strikeSpeed += (float)v; break;
+                    case EffectType.HeritageBreakCoins: breakCoins += v; break;
+                    case EffectType.HeritageStartGrowth: startGrowth = (int)Math.Round(v); break;
+                    case EffectType.HeritageStartSoft: startSoft = (int)Math.Round(v); break;
                     case EffectType.HeritageGlobalGrowth: globalGrowth += (float)v; break;
                     case EffectType.HeritageStartField: s.StartGridSize = cfg.StartGridSize + (int)Math.Round(v); break;
                     case EffectType.HeritageStartTomato: s.MaxTierUnlocked = Math.Max(s.MaxTierUnlocked, 1); break;
@@ -100,8 +116,8 @@ namespace TillWinter.Core
                     case EffectType.HeritageStartYearLength: s.YearLength += (float)v; break;
                     // Long Summer counts past the ceiling, or it would be dead once the Almanac's year_length is maxed.
                     case EffectType.LongSummer: s.YearLength += (float)v; s.YearLengthCapBonus += (float)v; break;
-                    // Ring Master pays the active player twice: faster ring, and more coins from what it picks.
-                    case EffectType.HeritageRingMaster: ringSpeedMult += (float)v; ringCoinsMult += cfg.RingMasterCoinsPerLevel * level; break;
+                    // Hoe Master pays the active player twice: a faster hoe, and more coins from what it breaks.
+                    case EffectType.HeritageHoeMaster: strikeSpeed += (float)v; breakCoins += cfg.HoeMasterCoinsPerLevel * level; break;
                     case EffectType.AlmanacDiscount: s.AlmanacCostMult = Math.Max(0.05, 1 - v); break;
                     case EffectType.UnlockRainCloud: s.RainCloudUnlocked = true; break;
                     case EffectType.GoldenCropChance: s.GoldenCropChance = v; break;
@@ -112,7 +128,7 @@ namespace TillWinter.Core
             s.TargetGridSize = s.StartGridSize;
 
             // --- Almanac.
-            int irrigation = 0, sun = 0;
+            int growth = 0, soft = 0;
             foreach (var n in almanacNodes)
             {
                 int level = Level(almanacLevels, n.Id);
@@ -120,21 +136,26 @@ namespace TillWinter.Core
                 double v = n.ValuePerLevel * level;
                 switch (n.Effect)
                 {
-                    case EffectType.RingRadius: s.RingRadius += (float)v; break;
-                    case EffectType.RingWaterSpeed: s.RingWaterMult += (float)v; break;
-                    case EffectType.RingGrowSpeed: s.RingGrowMult += (float)v; break;
-                    case EffectType.RingHarvestSpeed: s.RingHarvestMult += (float)v; break;
-                    case EffectType.RingBonusCoins: s.RingBonusMult += v; break;
-                    case EffectType.Irrigation: irrigation = level; break;
-                    case EffectType.Sun: sun = level; break;
+                    case EffectType.StrikeDamage: s.StrikeDamage += v; break;
+                    case EffectType.CritWindow: s.CritWindow += (float)v; break;
+                    case EffectType.CritChance: s.CritChance += v; break;
+                    case EffectType.StrikeSpeed: s.StrikeCooldown -= (float)v; break;
+                    case EffectType.Splash: s.SplashShare += (float)v; break;
+                    case EffectType.StaminaMax: s.StaminaMax += (float)v; break;
+                    case EffectType.StaminaRegen: s.StaminaRegen += (float)v; break;
+                    case EffectType.BreakBonus: s.BreakBonusMult += v; break;
+                    case EffectType.ReapCombo: s.ComboPerCrop += v; break;
+                    case EffectType.Growth: growth = level; break;
+                    case EffectType.Softness: soft = level; break;
                     case EffectType.SoilQuality: s.SoilMultiplier += (float)v; break;
                     case EffectType.CropValue: s.CropValueMult += v; break;
                     case EffectType.ExpandField: s.TargetGridSize += level; break;
                     case EffectType.UnlockTier: s.MaxTierUnlocked = Math.Max(s.MaxTierUnlocked, (int)Math.Round(n.ValuePerLevel)); break;
                     case EffectType.ApprenticeCount: s.ApprenticeCount += level; break;
                     case EffectType.ApprenticeSpeed: s.ApprenticeSpeed += (float)v; break;
-                    case EffectType.ApprenticeHarvestTime: s.ApprenticeHarvestTime -= (float)v; break;
+                    case EffectType.ApprenticeWorkTime: s.ApprenticeWorkTime -= (float)v; break;
                     case EffectType.ApprenticeYield: s.ApprenticeYield = Index(cfg.ApprenticeYieldByLevel, level); break;
+                    case EffectType.ApprenticeDig: s.ApprenticeDigShare += v; break;
                     case EffectType.Scarecrow: s.ScarecrowCount = level; break;
                     case EffectType.FarmDog: s.FarmDog = true; break;
                     case EffectType.Beehive: s.Beehive = true; break;
@@ -142,40 +163,34 @@ namespace TillWinter.Core
                     case EffectType.Barn: s.BarnCapacity = cfg.BarnCapacityByLevel[Math.Max(0, Math.Min(cfg.BarnCapacityByLevel.Length - 1, level))]; break;
                     case EffectType.YearLength: s.YearLength += (float)v; break;
                     case EffectType.FrostWarning: s.FrostWarningSeconds += (float)v; break;
-                    case EffectType.RingCombo: s.RingComboLevel = level; s.RingComboPerStack = v; break;
                     case EffectType.Tractor: s.TractorLevel = level; break;
                     case EffectType.Greenhouse: s.GreenhouseLevel = level; break;
                     case EffectType.CrowBounty: s.CrowBountyLevel = level; break;
                     case EffectType.BulkUpgrade: s.BulkUpgrade = true; break;
-                    case EffectType.FertileStart: s.FertileStart = true; break;
+                    case EffectType.EarlyThaw: s.EarlyThaw = true; break;
                     case EffectType.SpringHeadStart: s.SpringHeadStart = true; break;
                     case EffectType.LateFrost: s.LateFrost = true; break;
-                    case EffectType.HelperWater: s.HelperWater = true; break;
-                    case EffectType.RingShape: s.RingShapeLevel = level; break;
-                    case EffectType.TapHarvest: s.TapHarvestLevel = level; break;
                     case EffectType.UpgradePlot: break; // applied at purchase time, not a stat
                 }
             }
 
-            // Heritage "start with Irrigation/Sun 1" acts as a floor on the Almanac level.
-            float perLevel = PerLevel(almanacNodes, EffectType.Irrigation, 0.15);
-            s.IrrigationFactor = perLevel * Math.Max(irrigation, startIrrigation);
-            s.SunFactor = PerLevel(almanacNodes, EffectType.Sun, 0.15) * Math.Max(sun, startSun);
+            // Heritage "start with growth/soft ground 1" acts as a floor on the Almanac level.
+            s.GrowthMult = 1f + PerLevel(almanacNodes, EffectType.Growth, 0.15) * Math.Max(growth, startGrowth);
+            s.HpMult = Math.Max(0.2f, 1f - PerLevel(almanacNodes, EffectType.Softness, 0.06) * Math.Max(soft, startSoft));
 
-            s.RingWaterMult *= ringSpeedMult;
-            s.RingGrowMult *= ringSpeedMult;
-            s.RingHarvestMult *= ringSpeedMult;
-            s.RingBonusMult *= ringCoinsMult;
-            s.SoilMultiplier *= globalGrowth;
+            s.StrikeCooldown /= 1f + strikeSpeed;
+            s.BreakBonusMult *= breakCoins;
+            s.GrowthMult *= globalGrowth;
             s.ApprenticeYield *= apprenticeYieldMult;
 
-            // GDD §7 (v2.8): Heritage Old Scarecrow + Almanac scarecrow 2 -> crows come a quarter as often, never never:
-            // at zero the crow bounty and the watchful heir had nothing left to act on.
+            // GDD §7 (v2.8): Heritage Old Scarecrow + Almanac scarecrow 2 -> crows come a quarter as often, never never.
             if (s.ScarecrowImmunity && Level(almanacLevels, "scarecrow") >= 2) s.CrowSpawnChance *= cfg.ScarecrowImmunityCrowFactor;
 
-            s.RingRadius = Math.Min(cfg.MaxRingRadius, s.RingRadius);
+            s.CritWindow = Math.Min(cfg.MaxCritWindow, s.CritWindow);
+            s.CritChance = Math.Min(cfg.MaxCritChance, s.CritChance);
+            s.StrikeCooldown = Math.Max(cfg.MinStrikeCooldown, s.StrikeCooldown);
             s.YearLength = Math.Min(cfg.MaxYearLength + s.YearLengthCapBonus, s.YearLength);
-            s.ApprenticeHarvestTime = Math.Max(cfg.ApprenticeMinHarvestTime, s.ApprenticeHarvestTime);
+            s.ApprenticeWorkTime = Math.Max(cfg.ApprenticeMinWorkTime, s.ApprenticeWorkTime);
             s.StartGridSize = Math.Min(cfg.MaxGridSize, s.StartGridSize);
             s.TargetGridSize = Math.Min(cfg.MaxGridSize, s.TargetGridSize);
             s.MaxTierUnlocked = Math.Min(cfg.MaxTier, s.MaxTierUnlocked);
@@ -191,7 +206,6 @@ namespace TillWinter.Core
             return (float)fallback;
         }
 
-        private static float Index(float[] table, int level) => table[Math.Max(0, Math.Min(table.Length - 1, level))];
         private static double Index(double[] table, int level) => table[Math.Max(0, Math.Min(table.Length - 1, level))];
     }
 }

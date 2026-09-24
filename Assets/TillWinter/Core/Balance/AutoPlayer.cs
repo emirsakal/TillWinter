@@ -11,13 +11,15 @@ namespace TillWinter.Core.Balance
         public int Generation, Year;
         public double CoinsThisYear, TotalCoins;
         public int Seeds, NodesBought, Apprentices, FieldSize, TopTier;
-        public float RingRadius, FirstRipeTime;
-        public int HarvestsRing, HarvestsApprentice, HarvestsTractor, HarvestsLateFrost;
-        public int TotalHarvests => HarvestsRing + HarvestsApprentice + HarvestsTractor + HarvestsLateFrost;
+        public double Damage;
+        public float FirstRipeTime;
+        public int Strikes, Crits, Tired, Breaks, DeepestLayer;
+        public int HarvestsHand, HarvestsApprentice, HarvestsTractor, HarvestsLateFrost, HarvestsFrost;
+        public int TotalHarvests => HarvestsHand + HarvestsApprentice + HarvestsTractor + HarvestsLateFrost + HarvestsFrost;
         public double SimSecondsEnd;
     }
 
-    /// <summary>The GDD §15 targets measured on one run (Session 9). -1 = never happened.</summary>
+    /// <summary>The GDD §15 targets measured on one run. -1 = never happened.</summary>
     public sealed class BalanceSummary
     {
         public double Year1Coins;
@@ -27,7 +29,8 @@ namespace TillWinter.Core.Balance
         public int SeedsAtFirstRetire = -1;
         public int GenerationsToMaxHeritage = -1;
         public double SimSecondsToEnding = -1;
-        public double RingShareYear1, RingShareAtFirstRetire, RingShareGen4 = -1;
+        /// <summary>Share of harvests reaped by the player's own hand (the active layer's weight).</summary>
+        public double HandShareYear1, HandShareAtFirstRetire, HandShareGen4 = -1;
         public double MaxNodeSpendShare;
         public string MaxNodeSpendId = "";
         public int MaxNodeSpendGeneration;
@@ -37,15 +40,23 @@ namespace TillWinter.Core.Balance
     }
 
     /// <summary>
-    /// Scripted player that runs <see cref="FarmSim"/> headlessly for balance tables (no Unity).
-    /// Ring: highest-urgency plot with a reaction delay and a max ring speed. Winter: greedy
-    /// weight/cost purchases; retires once this generation's seeds reach <see cref="RetireGrowth"/> × every seed
-    /// earned before (at least <see cref="RetireAtSeeds"/>), then greedy Heritage. Taps crows and clouds.
+    /// Scripted player that runs <see cref="FarmSim"/> headlessly for balance tables (no Unity), GDD §2v3.13.
+    /// Smart (the default): strikes the hard plot worth the most per hit, on the beat with probability
+    /// <see cref="Skill"/>, spends tired swings only to finish a plot, waters the crop nearest ripe while the depot
+    /// is more than half full, reaps everything ripe in one swipe. <see cref="Dumb"/>: a random plot at a random
+    /// moment, never waters, reaps one at a time. Both shop the same way in winter: greedy weight/cost purchases;
+    /// retire once this generation's seeds reach <see cref="RetireGrowth"/> × every seed earned before (at least
+    /// <see cref="RetireAtSeeds"/>), then greedy Heritage. Taps crows, pests and clouds.
     /// </summary>
     public sealed class AutoPlayer
     {
         public float ReactionDelay = 0.3f;
-        public float MaxRingSpeed = 6f;
+        /// <summary>Share of strikes the smart player times onto the beat.</summary>
+        public float Skill = 0.8f;
+        /// <summary>The smart player swipes once this many crops stand ripe (sooner when one is about to draw a crow).</summary>
+        public int SwipeAt = 2;
+        /// <summary>The player who taps at random (the acceptance yardstick, GDD §2v3.13).</summary>
+        public bool Dumb;
         /// <summary>Never retire below this many seeds.</summary>
         public int RetireAtSeeds = 8;
         /// <summary>Retire once this generation's seeds reach this multiple of every seed earned before it.</summary>
@@ -67,22 +78,22 @@ namespace TillWinter.Core.Balance
         private double _coinsAtYearStart;
         private float _yearClock;
         private float _sinceDecision;
-        private GridPos? _target;
-        private float _ringX, _ringY;
         private readonly Dictionary<GridPos, float> _crowSeen = new Dictionary<GridPos, float>();
         private readonly List<GridPos> _crowKeys = new List<GridPos>();
+        private readonly List<GridPos> _swipe = new List<GridPos>();
         private float _cloudSeen = -1f;
         private int _boughtThisWinter;
         private readonly Dictionary<string, double> _spend = new Dictionary<string, double>();
         private double _spendTotal;
+        private bool _nextStrikeOffBeat;
+        private int _strikesAtRow, _critsAtRow, _breaksAtRow, _tired;
 
         public AutoPlayer(FarmSim sim, int seed)
         {
             Sim = sim;
             _rng = new Rng(seed);
-            _ringX = (sim.State.GridSize - 1) * 0.5f;
-            _ringY = _ringX;
             sim.Harvested += OnHarvested;
+            sim.Struck += e => { if (e.Tired && !e.Splash && e.ApprenticeIndex < 0) _tired++; };
             sim.CrowLanded += e => _crowSeen[e.Pos] = 0f;
             sim.RainCloudAppeared += () => _cloudSeen = 0f;
             sim.PlotRipened += _ => { if (_row != null && _row.FirstRipeTime < 0f) _row.FirstRipeTime = _yearClock; };
@@ -97,6 +108,25 @@ namespace TillWinter.Core.Balance
             while (Sim.State.Generation.Generation < startGen + generations && ticks < MaxTicks)
             {
                 Step();
+                ticks++;
+            }
+        }
+
+        /// <summary>Runs until this many years have been played (winters shopped, no retiring): the acceptance table.</summary>
+        public void RunYears(int years)
+        {
+            int ticks = 0;
+            int startYears = Sim.State.Generation.YearsTotal;
+            while (Sim.State.Generation.YearsTotal < startYears + years && ticks < MaxTicks)
+            {
+                if (Sim.State.Phase == Phase.Year) TickYear();
+                else if (Sim.State.Phase == Phase.Winter)
+                {
+                    BuyGreedy(Sim.Nodes, true);
+                    Sim.StartNextYear();
+                    StartRow();
+                }
+                else DoHeritage();
                 ticks++;
             }
         }
@@ -135,7 +165,6 @@ namespace TillWinter.Core.Balance
             if (_sinceDecision >= ReactionDelay)
             {
                 _sinceDecision = 0f;
-                _target = PickTarget();
                 if (_crowSeen.Count > 0)
                 {
                     _crowKeys.Clear();
@@ -143,65 +172,107 @@ namespace TillWinter.Core.Balance
                     foreach (var pos in _crowKeys)
                     {
                         _crowSeen[pos] += ReactionDelay;
-                        if (_crowSeen[pos] >= ReactionDelay && s.InBounds(pos) && s.GetPlot(pos).HasCrow) Sim.TapAt(pos);
+                        if (_crowSeen[pos] >= ReactionDelay && s.InBounds(pos) && s.GetPlot(pos).HasCrow && (!Dumb || _rng.NextDouble() < 0.3)) Sim.TapAt(pos);
                         if (!s.InBounds(pos) || !s.GetPlot(pos).HasCrow) _crowSeen.Remove(pos);
                     }
                 }
                 var pest = s.Pest;
-                if (pest.Kind == PestKind.Mole || pest.Kind == PestKind.Rabbit)
+                if (!Dumb && (pest.Kind == PestKind.Mole || pest.Kind == PestKind.Rabbit))
                 {
                     _pestSeen += ReactionDelay;
                     if (_pestSeen >= ReactionDelay) Sim.TapAt(pest.Pos);
                 }
                 else _pestSeen = 0f;
-                if (s.Cloud.Active)
+                if (!Dumb && s.Cloud.Active)
                 {
                     _cloudSeen += ReactionDelay;
                     if (_cloudSeen >= ReactionDelay) Sim.TapCloud();
                 }
             }
-            RingInput? ring = null;
-            if (_target.HasValue)
-            {
-                float tx = _target.Value.X, ty = _target.Value.Y;
-                float dx = tx - _ringX, dy = ty - _ringY;
-                float dist = (float)Math.Sqrt(dx * dx + dy * dy);
-                float step = MaxRingSpeed * Dt;
-                if (dist <= step) { _ringX = tx; _ringY = ty; }
-                else { _ringX += dx / dist * step; _ringY += dy / dist * step; }
-                ring = new RingInput(_ringX, _ringY);
-            }
-            Sim.Tick(Dt, ring);
+            if (Dumb) ActDumb(); else ActSmart();
+            Sim.Tick(Dt);
             SimSeconds += Dt;
             if (s.Phase == Phase.Winter) FinishRow();
         }
 
-        private float _pestSeen;
-        private bool _winterBooked;
-
-        /// <summary>Urgency: a locust swarm first, then Ripe, then highest Wet progress, then Dry (nearest wins ties).</summary>
-        private GridPos? PickTarget()
+        /// <summary>Random plot, random moment: strikes whatever is hard, reaps whatever is ripe, one at a time.</summary>
+        private void ActDumb()
         {
             var s = Sim.State;
-            if (s.Pest.Kind == PestKind.Locusts) return s.Pest.Pos;
-            Plot best = null;
-            double bestScore = double.NegativeInfinity;
+            if (!Sim.CanStrike) return;
+            var p = s.Plots[_rng.Next(s.Plots.Count)];
+            if (p.IsHard) Sim.Strike(p.Pos);
+            else if (p.IsRipe) Sim.ReapOne(p.Pos);
+        }
+
+        private void ActSmart()
+        {
+            var s = Sim.State;
+            // Reap in one swipe once a few crops stand ripe, once one has stood long enough to draw a crow, or when
+            // there is nothing left to strike: a player does not lift the hoe for every single carrot, and the pickers
+            // get their share of the field in between.
+            _swipe.Clear();
+            bool urgent = false, anyHard = false;
             foreach (var p in s.Plots)
             {
-                double score = p.State == PlotState.Ripe ? 3 : p.State == PlotState.Wet ? 1 + p.Progress : 0;
-                float dx = p.Pos.X - _ringX, dy = p.Pos.Y - _ringY;
-                score -= 0.01 * Math.Sqrt(dx * dx + dy * dy);
+                if (p.IsRipe) { _swipe.Add(p.Pos); if (p.RipeAge >= 1.5f) urgent = true; }
+                else if (p.IsHard) anyHard = true;
+            }
+            if (_swipe.Count > 0 && (_swipe.Count >= SwipeAt || urgent || !anyHard || s.Tired))
+            {
+                Sim.Reap(_swipe);
+                return;
+            }
+            // The hard plot worth the most per hit (the type is visible, the bonus is not: use its expectation).
+            Plot best = null;
+            double bestScore = 0;
+            var cfg = Sim.Config;
+            foreach (var p in s.Plots)
+            {
+                if (!p.IsHard) continue;
+                double bonus = cfg.BreakCoins * Math.Pow(cfg.BreakGrowth, p.Layer) * (p.Hardpan ? cfg.HardpanCoinsMult : 1);
+                double crop = cfg.Crops[Math.Min(p.Tier, cfg.MaxTier)].Value * (1 + cfg.DepthValue * p.Layer);
+                double score = (bonus + crop) / Math.Max(1, Sim.HitsLeft(p));
+                if (s.Pest.Kind == PestKind.Locusts && Sim.InLocusts(p.Pos)) score *= 4;
                 if (score > bestScore) { bestScore = score; best = p; }
             }
-            return best?.Pos;
+            if (best != null && Sim.CanStrike)
+            {
+                // Tired swings are 40% and never crit: worth it only to finish a plot; otherwise let the depot refill.
+                if (s.Tired && best.Hp > s.Stats.StrikeDamage * cfg.TiredDamage * 1.3) { WaterWhileWaiting(best); return; }
+                if (_nextStrikeOffBeat || s.OnBeat)
+                {
+                    Sim.Strike(best.Pos);
+                    _nextStrikeOffBeat = _rng.NextDouble() > Skill; // decided per strike: did I read the next pulse right?
+                }
+                return;
+            }
+            WaterWhileWaiting(best);
         }
+
+        /// <summary>Nothing to strike, or no stamina to strike well: water the crop closest to ripe while the depot is more than half full.</summary>
+        private void WaterWhileWaiting(Plot hard)
+        {
+            var s = Sim.State;
+            Plot grow = null;
+            foreach (var p in s.Plots)
+            {
+                if (!p.IsGrowing) continue;
+                if (grow == null || p.Progress > grow.Progress) grow = p;
+            }
+            bool water = grow != null && (hard == null || s.Tired) && s.Stamina > s.Stats.StaminaMax * 0.5f;
+            Sim.SetWatering(water ? grow.Pos : (GridPos?)null);
+        }
+
+        private float _pestSeen;
+        private bool _winterBooked;
 
         private void DoWinter()
         {
             // Let the greenhouse accrue its full cap before leaving winter.
             if (Sim.State.Greenhouse.SecondsLeftThisWinter > 0f && Sim.State.Stats.GreenhouseLevel > 0)
             {
-                Sim.Tick(1f, null);
+                Sim.Tick(1f);
                 SimSeconds += 1f;
                 return;
             }
@@ -224,7 +295,7 @@ namespace TillWinter.Core.Balance
                 if (Summary.SeedsAtFirstRetire < 0)
                 {
                     Summary.SeedsAtFirstRetire = Sim.SeedsIfRetiredNow;
-                    Summary.RingShareAtFirstRetire = Rows.Count > 0 ? Share(Rows[Rows.Count - 1]) : 0;
+                    Summary.HandShareAtFirstRetire = Rows.Count > 0 ? Share(Rows[Rows.Count - 1]) : 0;
                 }
                 FinishGenerationSpend();
                 Sim.Retire();
@@ -237,8 +308,8 @@ namespace TillWinter.Core.Balance
 
         /// <summary>
         /// Retire when allowed and this generation's seeds reach <see cref="RetireGrowth"/> × all seeds earned so far
-        /// (at least <see cref="RetireAtSeeds"/>) — the usual "prestige when it multiplies your progress" instinct —
-        /// or cover the rest of the Heritage tree. A finished tree never retires again: the bot plays the Golden Year.
+        /// (at least <see cref="RetireAtSeeds"/>), or cover the rest of the Heritage tree. A finished tree never retires
+        /// again: the bot plays the Golden Year.
         /// </summary>
         private bool ShouldRetire()
         {
@@ -282,11 +353,10 @@ namespace TillWinter.Core.Balance
         }
 
         /// <summary>
-        /// Nodes whose effect only exists through a choice the bot never makes (a ring shape, tapping a ripe plot, a
-        /// store share): buying them would only sink coins and make the balance table read poorer than a player plays.
+        /// Nodes whose effect only exists through a choice the bot never makes (a store share): buying them would only
+        /// sink coins and make the balance table read poorer than a player plays.
         /// </summary>
-        private static bool BotCanUse(SkillNode n) =>
-            n.Effect != EffectType.RingShape && n.Effect != EffectType.TapHarvest && n.Effect != EffectType.Barn;
+        private static bool BotCanUse(SkillNode n) => n.Effect != EffectType.Barn;
 
         private int BuyGreedy(IReadOnlyList<SkillNode> nodes, bool coins)
         {
@@ -353,6 +423,11 @@ namespace TillWinter.Core.Balance
             _row.NodesBought = _boughtThisWinter;
             _boughtThisWinter = 0;
             _winterBooked = false;
+            _strikesAtRow = s.Generation.Strikes;
+            _critsAtRow = s.Generation.Crits;
+            _breaksAtRow = s.Generation.Breaks;
+            _tired = 0;
+            Sim.SetWatering(null);
         }
 
         private void FinishRow()
@@ -363,7 +438,12 @@ namespace TillWinter.Core.Balance
             _row.Seeds = s.Seeds;
             _row.Apprentices = s.Apprentices.Count;
             _row.FieldSize = s.GridSize;
-            _row.RingRadius = s.RingRadius;
+            _row.Damage = s.Stats.StrikeDamage;
+            _row.Strikes = s.Generation.Strikes - _strikesAtRow;
+            _row.Crits = s.Generation.Crits - _critsAtRow;
+            _row.Breaks = s.Generation.Breaks - _breaksAtRow;
+            _row.Tired = _tired;
+            _row.DeepestLayer = s.Generation.DeepestLayer;
             _row.SimSecondsEnd = SimSeconds;
             int top = 0;
             foreach (var p in s.Plots) top = Math.Max(top, p.Tier);
@@ -372,43 +452,52 @@ namespace TillWinter.Core.Balance
             if (_row.Generation == 1 && _row.Year == 1)
             {
                 Summary.Year1Coins = _row.CoinsThisYear;
-                Summary.RingShareYear1 = Share(_row);
+                Summary.HandShareYear1 = Share(_row);
             }
             if (_row.Generation == 4)
             {
-                int ring = 0, all = 0;
-                foreach (var r in Rows) if (r.Generation == 4) { ring += r.HarvestsRing; all += r.TotalHarvests; }
-                Summary.RingShareGen4 = all > 0 ? (double)ring / all : 0;
+                int hand = 0, all = 0;
+                foreach (var r in Rows) if (r.Generation == 4) { hand += r.HarvestsHand; all += r.TotalHarvests; }
+                Summary.HandShareGen4 = all > 0 ? (double)hand / all : 0;
             }
             _row = null;
         }
 
-        private static double Share(YearRow r) => r.TotalHarvests > 0 ? (double)r.HarvestsRing / r.TotalHarvests : 0;
+        private static double Share(YearRow r) => r.TotalHarvests > 0 ? (double)r.HarvestsHand / r.TotalHarvests : 0;
 
         private void OnHarvested(HarvestEvent e)
         {
             if (_row == null) return;
             switch (e.Source)
             {
-                case HarvestSource.Ring: _row.HarvestsRing++; break;
+                case HarvestSource.Hand: _row.HarvestsHand++; break;
                 case HarvestSource.Apprentice: _row.HarvestsApprentice++; break;
                 case HarvestSource.Tractor: _row.HarvestsTractor++; break;
                 case HarvestSource.LateFrost: _row.HarvestsLateFrost++; break;
+                case HarvestSource.Frost: _row.HarvestsFrost++; break;
             }
+        }
+
+        /// <summary>Coins over every row (the acceptance yardstick).</summary>
+        public double TotalCoins
+        {
+            get { double sum = 0; foreach (var r in Rows) sum += r.CoinsThisYear; return sum; }
         }
 
         public string ToCsv()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("generation,year,coins_year,coins_total,seeds,nodes_bought,apprentices,field,ring_radius,top_tier,first_ripe_s,harvests,share_ring,share_apprentice,share_tractor,share_late_frost,sim_seconds");
+            sb.AppendLine("generation,year,coins_year,coins_total,seeds,nodes_bought,apprentices,field,damage,top_tier,first_ripe_s,strikes,crit_pct,tired_pct,breaks,deepest,harvests,share_hand,share_apprentice,share_tractor,share_frost,sim_seconds");
             foreach (var r in Rows)
             {
                 int h = Math.Max(1, r.TotalHarvests);
+                int st = Math.Max(1, r.Strikes);
                 sb.AppendLine(string.Join(",", new[]
                 {
                     r.Generation.ToString(), r.Year.ToString(), F(r.CoinsThisYear), F(r.TotalCoins), r.Seeds.ToString(), r.NodesBought.ToString(),
-                    r.Apprentices.ToString(), r.FieldSize.ToString(), F(r.RingRadius), r.TopTier.ToString(), F(r.FirstRipeTime), r.TotalHarvests.ToString(),
-                    P(r.HarvestsRing, h), P(r.HarvestsApprentice, h), P(r.HarvestsTractor, h), P(r.HarvestsLateFrost, h), F(r.SimSecondsEnd),
+                    r.Apprentices.ToString(), r.FieldSize.ToString(), F(r.Damage), r.TopTier.ToString(), F(r.FirstRipeTime), r.Strikes.ToString(),
+                    P(r.Crits, st), P(r.Tired, st), r.Breaks.ToString(), r.DeepestLayer.ToString(), r.TotalHarvests.ToString(),
+                    P(r.HarvestsHand, h), P(r.HarvestsApprentice, h), P(r.HarvestsTractor, h), P(r.HarvestsLateFrost + r.HarvestsFrost, h), F(r.SimSecondsEnd),
                 }));
             }
             return sb.ToString();
@@ -417,13 +506,15 @@ namespace TillWinter.Core.Balance
         public string ToTable()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("gen year  coins/yr   total  seeds bought appr field ring  tier ripe@   harv  ring% appr% trac% frost%");
+            sb.AppendLine("gen year  coins/yr   total  seeds bought appr field  dmg tier strikes crit% tired% breaks deep   harv  hand% appr% trac% frost%");
             foreach (var r in Rows)
             {
                 int h = Math.Max(1, r.TotalHarvests);
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0,3} {1,4} {2,9:0} {3,7:0} {4,6} {5,6} {6,4} {7,5} {8,5:0.00} {9,4} {10,6:0.0} {11,6} {12,5:0}% {13,5:0}% {14,5:0}% {15,5:0}%",
-                    r.Generation, r.Year, r.CoinsThisYear, r.TotalCoins, r.Seeds, r.NodesBought, r.Apprentices, r.FieldSize + "x" + r.FieldSize, r.RingRadius, r.TopTier,
-                    r.FirstRipeTime, r.TotalHarvests, 100.0 * r.HarvestsRing / h, 100.0 * r.HarvestsApprentice / h, 100.0 * r.HarvestsTractor / h, 100.0 * r.HarvestsLateFrost / h));
+                int st = Math.Max(1, r.Strikes);
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0,3} {1,4} {2,9:0} {3,7:0} {4,6} {5,6} {6,4} {7,5} {8,4:0} {9,4} {10,7} {11,5:0}% {12,5:0}% {13,6} {14,4} {15,6} {16,5:0}% {17,5:0}% {18,5:0}% {19,5:0}%",
+                    r.Generation, r.Year, r.CoinsThisYear, r.TotalCoins, r.Seeds, r.NodesBought, r.Apprentices, r.FieldSize + "x" + r.FieldSize, r.Damage, r.TopTier,
+                    r.Strikes, 100.0 * r.Crits / st, 100.0 * r.Tired / st, r.Breaks, r.DeepestLayer, r.TotalHarvests,
+                    100.0 * r.HarvestsHand / h, 100.0 * r.HarvestsApprentice / h, 100.0 * r.HarvestsTractor / h, 100.0 * (r.HarvestsLateFrost + r.HarvestsFrost) / h));
             }
             return sb.ToString();
         }
@@ -439,7 +530,7 @@ namespace TillWinter.Core.Balance
             sb.AppendLine("seeds at first retire   " + m.SeedsAtFirstRetire);
             sb.AppendLine("generations to max H.   " + m.GenerationsToMaxHeritage);
             sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "sim time to ending      {0:0.00} h", m.SimSecondsToEnding / 3600.0));
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "ring share              year 1 {0:0}%, first retire {1:0}%, gen 4 {2:0}%", 100 * m.RingShareYear1, 100 * m.RingShareAtFirstRetire, 100 * m.RingShareGen4));
+            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "hand share              year 1 {0:0}%, first retire {1:0}%, gen 4 {2:0}%", 100 * m.HandShareYear1, 100 * m.HandShareAtFirstRetire, 100 * m.HandShareGen4));
             sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "largest node share      {0:0}% of a generation's coins ({1}, gen {2}); open-ended upgrade_plot {3:0}%", 100 * m.MaxNodeSpendShare, m.MaxNodeSpendId, m.MaxNodeSpendGeneration, 100 * m.MaxSinkShare));
             return sb.ToString();
         }

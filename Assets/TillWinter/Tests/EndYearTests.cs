@@ -12,21 +12,22 @@ namespace TillWinter.Tests
         private static FarmSim NewSim(Action<FarmConfig> tweak = null, int seed = 1)
         {
             var cfg = TestConfig.Classic();
+            cfg.BaseCritChance = 0;
             tweak?.Invoke(cfg);
             return new FarmSim(cfg, seed);
         }
 
-        private static void Run(FarmSim sim, float seconds, RingInput? ring, float dt = Dt)
+        private static void Run(FarmSim sim, float seconds, float dt = Dt)
         {
             int ticks = (int)Math.Round(seconds / dt);
-            for (int i = 0; i < ticks; i++) sim.Tick(dt, ring);
+            for (int i = 0; i < ticks; i++) sim.Tick(dt);
         }
 
         [Test]
         public void EndYearNow_DuringAYear_EntersWinterImmediately()
         {
             var sim = NewSim();
-            Run(sim, 5f, null);
+            Run(sim, 5f);
             Assert.AreEqual(Phase.Year, sim.State.Phase);
             Assert.Greater(sim.State.SecondsUntilWinter, 0f, "the year is still running");
 
@@ -55,7 +56,7 @@ namespace TillWinter.Tests
         public void EndYearNow_ThenNextYear_ContinuesNormally()
         {
             var sim = NewSim();
-            Run(sim, 3f, null);
+            Run(sim, 3f);
             sim.EndYearNow();
             int year = sim.State.Year;
 
@@ -67,16 +68,32 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void EndYearNow_LosesTheStandingCropJustAsFrostWould()
+        public void EndYearNow_ResolvesTheStandingFieldJustAsFrostWould()
         {
-            var sim = NewSim();
-            Run(sim, 4f, new RingInput(1, 1));
+            var sim = NewSim(c => c.Crops[0].Grow = 1000f);
+            var ripe = sim.State.GetPlot(0, 0);
+            var growing = sim.State.GetPlot(1, 1);
+            var cracked = sim.State.GetPlot(2, 2);
+            sim.DebugBreak(ripe.Pos);
+            sim.DebugForceRipe(ripe.Pos);
+            sim.DebugBreak(growing.Pos);
+            Run(sim, 1f);
+            Assert.IsTrue(growing.IsGrowing);
+            float progress = growing.Progress;
+            CoreLoopTests.WaitForBeat(sim, false);
+            Assert.IsTrue(sim.Strike(cracked.Pos));
+            Assert.AreEqual(cracked.MaxHp - 3, cracked.Hp, 1e-9);
+            double coins = sim.State.Coins;
+
             sim.EndYearNow();
-            foreach (var p in sim.State.Plots)
-            {
-                Assert.AreEqual(PlotState.Dry, p.State);
-                Assert.AreEqual(0f, p.Progress, 1e-4f);
-            }
+
+            Assert.AreEqual(PlotState.Hard, ripe.State, "the frost reaped it");
+            Assert.AreEqual(1, ripe.Layer, "and the ground came back a layer deeper");
+            Assert.AreEqual(coins + 1, sim.State.Coins, 1e-9, "one carrot at the plain price");
+            Assert.AreEqual(PlotState.Growing, growing.State, "a growing crop waits for spring");
+            Assert.AreEqual(progress, growing.Progress, 1e-6f);
+            Assert.AreEqual(0, cracked.Layer, "hard ground keeps its layer");
+            Assert.AreEqual(cracked.MaxHp, cracked.Hp, 1e-9, "and the winter closes its cracks");
         }
     }
 }

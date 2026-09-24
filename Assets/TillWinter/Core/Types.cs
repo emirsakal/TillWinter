@@ -22,35 +22,22 @@ namespace TillWinter.Core
         public static bool operator !=(GridPos a, GridPos b) => !a.Equals(b);
     }
 
-    /// <summary>Ring centre in plot space. Plot (x,y) has its centre at exactly (x,y).</summary>
-    public readonly struct RingInput
-    {
-        public readonly float X;
-        public readonly float Y;
-
-        public RingInput(float x, float y)
-        {
-            X = x;
-            Y = y;
-        }
-    }
-
     /// <summary>GDD §5.5 (v2.1): the pests that come from year 3.</summary>
     public enum PestKind
     {
         None = 0,
-        /// <summary>Digs its plot back to Dry unless tapped (bonking it drops a crop's worth).</summary>
+        /// <summary>Digs up the crop on its plot unless tapped (bonking it drops a crop's worth).</summary>
         Mole = 1,
-        /// <summary>Eats a growing or ripe carrot unless tapped or the ring passes over it.</summary>
+        /// <summary>Eats a growing or ripe carrot unless tapped.</summary>
         Rabbit = 2,
-        /// <summary>A swarm over a 3x3 patch: nothing grows there; the ring drives it off, or it strips the patch.</summary>
+        /// <summary>A swarm over a 3x3 patch: nothing grows there; striking inside it drives it off, or it strips the patch.</summary>
         Locusts = 3,
     }
 
     /// <summary>GDD §5.6 (v2.1): rare lucky moments.</summary>
     public enum LuckyKind
     {
-        /// <summary>A four-leaf clover on a plot: sweep the ring over it for a handful of crop values.</summary>
+        /// <summary>A four-leaf clover on a plot: strike, tap or reap that plot for a handful of crop values.</summary>
         Clover = 0,
         /// <summary>The hens' golden egg, left after they eat a pest.</summary>
         GoldenEgg = 1,
@@ -67,54 +54,64 @@ namespace TillWinter.Core
         RareSeed = 1,
     }
 
-    /// <summary>GDD §4.2 (v2.0): what an apprentice does.</summary>
+    /// <summary>GDD §2v3.9: what an apprentice does. The player switches it by tapping the apprentice.</summary>
     public enum ApprenticeRole
     {
-        /// <summary>Walks to Ripe plots and harvests them.</summary>
-        Harvester = 0,
-        /// <summary>Walks to Dry plots and waters them.</summary>
+        /// <summary>Walks to Ripe plots and reaps them.</summary>
+        Picker = 0,
+        /// <summary>Walks to Growing plots and waters them (a burst of growth).</summary>
         Waterer = 1,
+        /// <summary>Walks to Hard plots and strikes them, slowly, never a crit.</summary>
+        Digger = 2,
     }
 
     /// <summary>GDD §3.3 (v1.9): the one goal a year sets.</summary>
     public enum GoalType
     {
         None = 0,
-        /// <summary>Harvest a number of one crop.</summary>
+        /// <summary>Reap a number of one crop.</summary>
         HarvestCrop = 1,
-        /// <summary>Reach a combo length.</summary>
+        /// <summary>Reap this many crops in one swipe.</summary>
         Combo = 2,
         /// <summary>Earn more coins than last year.</summary>
         Coins = 3,
     }
 
-    /// <summary>GDD §5.4 (v1.9): a weather spell, at most one a year.</summary>
+    /// <summary>GDD §5.4 (v1.9, re-themed v3): a weather spell, at most one a year.</summary>
     public enum Weather
     {
         Clear = 0,
-        /// <summary>Rain waters every Dry plot, the sun is gone, the crows hide.</summary>
+        /// <summary>Rain grows every crop faster and softens the ground; the crows hide.</summary>
         Storm = 1,
-        /// <summary>Strong sun, but unshaded Wet plots dry out twice as fast.</summary>
+        /// <summary>Strong sun: crops grow slower and the ground bakes hard.</summary>
         HeatWave = 2,
         /// <summary>Cool mist: ripe crops keep, crows cannot find the field.</summary>
         Fog = 3,
     }
 
-    /// <summary>GDD §2.4 (v1.8): what kind of ground a plot is. New plots from a field expansion may be special.</summary>
+    /// <summary>GDD §2.4 (v1.8): what kind of ground a plot is. New plots from a field expansion may be fertile.</summary>
     public enum PlotKind
     {
         Normal = 0,
         /// <summary>Rich soil: its crop sells for more.</summary>
         Fertile = 1,
-        /// <summary>Grows nothing until the ring has cleared the stones off it.</summary>
-        Stony = 2,
     }
 
-    /// <summary>GDD §2.2. Each state has its own 0..1 progress.</summary>
+    /// <summary>GDD §2v3.3: the layer's material, by depth. Visible on the plot; the reward inside is not.</summary>
+    public enum GroundType
+    {
+        Clay = 0,
+        Stone = 1,
+        Roots = 2,
+        Gravel = 3,
+        Rock = 4,
+    }
+
+    /// <summary>GDD §2v3.2. Hard ground with HP, then a growing crop (0..1 Progress), then a ripe one waiting for a swipe.</summary>
     public enum PlotState
     {
-        Dry = 0,
-        Wet = 1,
+        Hard = 0,
+        Growing = 1,
         Ripe = 2,
     }
 
@@ -140,6 +137,7 @@ namespace TillWinter.Core
         Heritage,
     }
 
+    /// <summary>The five branches of both trees. Hand is the hoe branch since v3 (the string tables name it).</summary>
     public enum Branch
     {
         Hand,
@@ -152,52 +150,57 @@ namespace TillWinter.Core
     /// <summary>What a tree node does. Every member is applied by StatResolver or a FarmSim feature switch.</summary>
     public enum EffectType
     {
-        // Almanac
-        RingRadius,
-        RingWaterSpeed,
-        RingGrowSpeed,
-        RingHarvestSpeed,
-        RingBonusCoins,
-        RingCombo,
-        Irrigation,
-        Sun,
+        // Almanac — the hoe (GDD §2v3.4–5)
+        StrikeDamage,
+        CritWindow,
+        CritChance,
+        StrikeSpeed,
+        Splash,
+        StaminaMax,
+        StaminaRegen,
+        BreakBonus,
+        ReapCombo,
+        // Almanac — soil
+        Growth,
+        Softness,
         SoilQuality,
         CropValue,
-        FertileStart,
+        EarlyThaw,
+        // Almanac — field
         ExpandField,
         UpgradePlot,
         UnlockTier,
         BulkUpgrade,
+        // Almanac — helpers
         ApprenticeCount,
         ApprenticeSpeed,
-        ApprenticeHarvestTime,
+        ApprenticeWorkTime,
         ApprenticeYield,
+        ApprenticeDig,
         Tractor,
         Scarecrow,
         /// <summary>The dog chases off a crow that settles (GDD §4.3 v2.0).</summary>
         FarmDog,
-        /// <summary>Bees speed the Sun on the columns by the sunflowers (GDD §4.3 v2.0).</summary>
+        /// <summary>Bees speed growth on the columns by the sunflowers (GDD §4.3 v2.0).</summary>
         Beehive,
         /// <summary>Hens eat pests, and now and then lay a golden egg (GDD §4.3/§5.5 v2.1).</summary>
         Hens,
         /// <summary>A barn that keeps part of the harvest for the winter market (GDD §3.5 v2.2).</summary>
         Barn,
-        HelperWater,
+        // Almanac — calendar
         YearLength,
         FrostWarning,
         LateFrost,
         Greenhouse,
         CrowBounty,
         SpringHeadStart,
-        RingShape,
-        TapHarvest,
 
         // Heritage (GDD §7): base modifiers applied before Almanac effects
-        HeritageStartRadius,
-        HeritageRingSpeeds,
-        HeritageRingCoins,
-        HeritageStartIrrigation,
-        HeritageStartSun,
+        HeritageStartDamage,
+        HeritageStrikeSpeed,
+        HeritageBreakCoins,
+        HeritageStartGrowth,
+        HeritageStartSoft,
         HeritageGlobalGrowth,
         UnlockRainCloud,
         HeritageStartField,
@@ -207,31 +210,23 @@ namespace TillWinter.Core
         HeritageApprenticeYield,
         ScarecrowImmunity,
         HeritageStartYearLength,
-        /// <summary>Ring speeds and the ring's coin bonus together: the active-play path (GDD §7.3 v2.8).</summary>
-        HeritageRingMaster,
+        /// <summary>Strike speed and the break bonus together: the active-play path (GDD §7.3 v2.8, re-themed v3).</summary>
+        HeritageHoeMaster,
         /// <summary>Years longer, and the year-length ceiling raised by the same amount (GDD §7.3 v2.8).</summary>
         LongSummer,
         GreenhouseX2,
         AlmanacDiscount,
     }
 
-    /// <summary>
-    /// The ring's footprint (GDD §2.1 v1.6). Round is the classic ring; the others are unlocked by `ring_shape`
-    /// and chosen by the player: a wide rake for watering rows, a cross for reaching four ways at once.
-    /// </summary>
-    public enum RingShape
-    {
-        Round,
-        Rake,
-        Cross,
-    }
-
     public enum HarvestSource
     {
-        Ring,
+        /// <summary>The player's swipe or tap.</summary>
+        Hand,
         Apprentice,
         Tractor,
         LateFrost,
+        /// <summary>The frost reaps what stands ripe at the end of the year (GDD §2v3.2 v3.2).</summary>
+        Frost,
     }
 
     public readonly struct HarvestEvent
@@ -240,11 +235,13 @@ namespace TillWinter.Core
         public readonly int Tier;
         public readonly double Coins;
         public readonly HarvestSource Source;
-        /// <summary>Index into <see cref="FarmState.Apprentices"/>, or -1 for the ring.</summary>
+        /// <summary>Index into <see cref="FarmState.Apprentices"/>, or -1 for the hand.</summary>
         public readonly int ApprenticeIndex;
         public readonly bool WasGolden;
+        /// <summary>Crops in the swipe this one was part of (1 for a tap or a helper).</summary>
+        public readonly int Combo;
 
-        public HarvestEvent(GridPos pos, int tier, double coins, HarvestSource source, int apprenticeIndex, bool wasGolden = false)
+        public HarvestEvent(GridPos pos, int tier, double coins, HarvestSource source, int apprenticeIndex, bool wasGolden = false, int combo = 1)
         {
             Pos = pos;
             Tier = tier;
@@ -252,6 +249,49 @@ namespace TillWinter.Core
             Source = source;
             ApprenticeIndex = apprenticeIndex;
             WasGolden = wasGolden;
+            Combo = combo;
+        }
+    }
+
+    /// <summary>One strike landed (GDD §2v3.4): where, how hard, and whether it was a crit or a tired swing.</summary>
+    public readonly struct StrikeEvent
+    {
+        public readonly GridPos Pos;
+        public readonly double Damage;
+        public readonly bool Crit;
+        public readonly bool Tired;
+        /// <summary>True for the splash on a neighbour, not the strike itself.</summary>
+        public readonly bool Splash;
+        /// <summary>Who struck: -1 for the player's hoe, else the apprentice index.</summary>
+        public readonly int ApprenticeIndex;
+
+        public StrikeEvent(GridPos pos, double damage, bool crit, bool tired, bool splash, int apprenticeIndex)
+        {
+            Pos = pos;
+            Damage = damage;
+            Crit = crit;
+            Tired = tired;
+            Splash = splash;
+            ApprenticeIndex = apprenticeIndex;
+        }
+    }
+
+    /// <summary>Hard ground broke (GDD §2v3.3): the layer, the coins it hid, and whether it was a chest or golden hardpan.</summary>
+    public readonly struct BreakEvent
+    {
+        public readonly GridPos Pos;
+        public readonly int Layer;
+        public readonly double Coins;
+        public readonly bool Chest;
+        public readonly bool Hardpan;
+
+        public BreakEvent(GridPos pos, int layer, double coins, bool chest, bool hardpan)
+        {
+            Pos = pos;
+            Layer = layer;
+            Coins = coins;
+            Chest = chest;
+            Hardpan = hardpan;
         }
     }
 
@@ -318,16 +358,21 @@ namespace TillWinter.Core
         }
     }
 
-    /// <summary>One-shot onboarding hints (GDD §10.5). Each fires once, ever; the flag lives in Core and is saved.</summary>
+    /// <summary>One-shot onboarding hints (GDD §10.5, v3 set). Each fires once, ever; the flag lives in Core and is saved.</summary>
     public enum Hint
     {
+        /// <summary>Tap hard ground to strike it.</summary>
         FirstTouch = 0,
+        /// <summary>Hold a growing crop to water it.</summary>
         Hold = 1,
-        FirstRipeOutside = 2,
+        /// <summary>Swipe over ripe crops to reap them.</summary>
+        FirstRipe = 2,
         FirstFrost = 3,
         FirstWinter = 4,
         FirstCrow = 5,
         FirstCanRetire = 6,
         FirstHeritage = 7,
+        /// <summary>Strike on the beat for a certain crit.</summary>
+        Beat = 8,
     }
 }

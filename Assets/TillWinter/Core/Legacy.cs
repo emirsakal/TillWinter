@@ -6,9 +6,9 @@ namespace TillWinter.Core
     public enum HeirTrait
     {
         None = 0,
-        /// <summary>Irrigation and the Sun work faster.</summary>
+        /// <summary>Crops grow faster.</summary>
         GreenThumb = 1,
-        /// <summary>The ring waters, grows and harvests faster.</summary>
+        /// <summary>The hoe swings faster (shorter strike cooldown).</summary>
         QuickHands = 2,
         /// <summary>The Almanac costs less.</summary>
         Merchant = 3,
@@ -34,7 +34,7 @@ namespace TillWinter.Core
     public enum AchievementId
     {
         FirstHarvest = 0,
-        Combo25 = 1,
+        Combo9 = 1,
         Crows50 = 2,
         Golden10 = 3,
         ThreeStars = 4,
@@ -51,8 +51,8 @@ namespace TillWinter.Core
     public enum HeirloomBonus
     {
         CropValue,
-        RingSpeeds,
-        PassiveGrowth,
+        StrikeSpeed,
+        Growth,
         FewerCrows,
         GoldenChance,
         AlmanacDiscount,
@@ -73,16 +73,16 @@ namespace TillWinter.Core
             switch (id)
             {
                 case AchievementId.FirstHarvest: return (HeirloomBonus.CropValue, 0.01);
-                case AchievementId.Combo25: return (HeirloomBonus.RingSpeeds, 0.015);
+                case AchievementId.Combo9: return (HeirloomBonus.StrikeSpeed, 0.015);
                 case AchievementId.Crows50: return (HeirloomBonus.FewerCrows, 0.05);
                 case AchievementId.Golden10: return (HeirloomBonus.GoldenChance, 0.003);
                 case AchievementId.ThreeStars: return (HeirloomBonus.CropValue, 0.01);
-                case AchievementId.Harvests1000: return (HeirloomBonus.PassiveGrowth, 0.015);
+                case AchievementId.Harvests1000: return (HeirloomBonus.Growth, 0.015);
                 case AchievementId.SecondGeneration: return (HeirloomBonus.AlmanacDiscount, 0.01);
                 case AchievementId.GoldenWheat: return (HeirloomBonus.CropValue, 0.015);
-                case AchievementId.Goals5: return (HeirloomBonus.RingSpeeds, 0.015);
+                case AchievementId.Goals5: return (HeirloomBonus.StrikeSpeed, 0.015);
                 case AchievementId.TraderDeal: return (HeirloomBonus.AlmanacDiscount, 0.01);
-                case AchievementId.Pests10: return (HeirloomBonus.PassiveGrowth, 0.015);
+                case AchievementId.Pests10: return (HeirloomBonus.Growth, 0.015);
                 case AchievementId.MarketSale: return (HeirloomBonus.CropValue, 0.01);
                 default: return (HeirloomBonus.CropValue, 0);
             }
@@ -93,7 +93,7 @@ namespace TillWinter.Core
         /// <summary>Heirlooms, then the heir's trait, then the challenge, on top of the resolved stats.</summary>
         public static void Apply(Stats s, FarmConfig cfg, int achievements, HeirTrait trait, ChallengeKind challenge, int ngPlus = 0)
         {
-            double crop = 0, ring = 0, passive = 0, crows = 0, golden = 0, discount = 0;
+            double crop = 0, speed = 0, growth = 0, crows = 0, golden = 0, discount = 0;
             for (int i = 0; i < AchievementCount; i++)
             {
                 if ((achievements & (1 << i)) == 0) continue;
@@ -101,8 +101,8 @@ namespace TillWinter.Core
                 switch (bonus)
                 {
                     case HeirloomBonus.CropValue: crop += v; break;
-                    case HeirloomBonus.RingSpeeds: ring += v; break;
-                    case HeirloomBonus.PassiveGrowth: passive += v; break;
+                    case HeirloomBonus.StrikeSpeed: speed += v; break;
+                    case HeirloomBonus.Growth: growth += v; break;
                     case HeirloomBonus.FewerCrows: crows += v; break;
                     case HeirloomBonus.GoldenChance: golden += v; break;
                     case HeirloomBonus.AlmanacDiscount: discount += v; break;
@@ -110,21 +110,16 @@ namespace TillWinter.Core
             }
             switch (trait)
             {
-                case HeirTrait.GreenThumb: passive += cfg.TraitGreenThumb; break;
-                case HeirTrait.QuickHands: ring += cfg.TraitQuickHands; break;
+                case HeirTrait.GreenThumb: growth += cfg.TraitGreenThumb; break;
+                case HeirTrait.QuickHands: speed += cfg.TraitQuickHands; break;
                 case HeirTrait.Merchant: discount += cfg.TraitMerchant; break;
                 case HeirTrait.Steady: crop += cfg.TraitSteady; break;
                 case HeirTrait.Shepherd: s.ApprenticeSpeed *= 1f + cfg.TraitShepherd; break;
                 case HeirTrait.Watchful: crows += cfg.TraitWatchful; break;
             }
             s.CropValueMult *= 1 + crop;
-            float r = 1f + (float)ring;
-            s.RingWaterMult *= r;
-            s.RingGrowMult *= r;
-            s.RingHarvestMult *= r;
-            float p = 1f + (float)passive;
-            s.IrrigationFactor *= p;
-            s.SunFactor *= p;
+            s.StrikeCooldown = Math.Max(cfg.MinStrikeCooldown, s.StrikeCooldown / (1f + (float)speed));
+            s.GrowthMult *= 1f + (float)growth;
             s.CrowSpawnChance *= (float)Math.Max(0, 1 - crows);
             if (golden > 0) s.GoldenCropChance += golden;
             s.AlmanacCostMult = Math.Max(0.05, s.AlmanacCostMult * (1 - discount));

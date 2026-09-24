@@ -3,9 +3,9 @@ using System;
 namespace TillWinter.Core
 {
     /// <summary>
-    /// M.5, events and threats (GDD §5.5–§5.7 v2.1): pests (a mole, a rabbit, a locust swarm) and the hens that eat
-    /// them, lucky moments (a four-leaf clover, a golden egg, a shooting star) and the travelling trader. None of it
-    /// runs while the game is closed: offline advances plots, apprentices and the tractor only.
+    /// M.5, events and threats (GDD §5.5–§5.7 v2.1, re-themed v3): pests (a mole, a rabbit, a locust swarm) and the
+    /// hens that eat them, lucky moments (a four-leaf clover, a golden egg, a shooting star) and the travelling trader.
+    /// None of it runs while the game is closed: offline advances crops, apprentices and the tractor only.
     /// </summary>
     public sealed partial class FarmSim
     {
@@ -67,33 +67,28 @@ namespace TillWinter.Core
             {
                 case PestKind.Mole:
                     if (pest.Timer < Config.MoleDigSeconds) return;
-                    Strike(pest, plot);
+                    PestStrikes(pest, plot);
                     return;
                 case PestKind.Rabbit:
-                    if (State.IsUnderRing(pest.Pos)) { ClearPest(pest, 0); return; } // the ring sends it off
                     if (pest.Timer < Config.RabbitEatSeconds) return;
-                    Strike(pest, plot);
+                    PestStrikes(pest, plot);
                     return;
                 case PestKind.Locusts:
-                    // Driven off by working the ring over the swarm.
-                    if (LocustsUnderRing(pest.Pos)) pest.Shoo += dt / Math.Max(0.01f, Config.LocustShooSeconds);
-                    if (pest.Shoo >= 1f) { ClearPest(pest, 0); return; }
+                    // Driven off by striking inside the swarm (ShooLocustsAt), else it strips the patch.
+                    if (pest.Shoo >= 0.999f) { ClearPest(pest, 0); return; }
                     if (pest.Timer < Config.LocustSeconds) return;
-                    Strike(pest, plot);
+                    PestStrikes(pest, plot);
                     return;
             }
         }
 
-        private bool LocustsUnderRing(GridPos centre)
+        /// <summary>A strike inside the swarm drives it a step off (GDD §5.5 v2.1, re-themed v3).</summary>
+        private void ShooLocustsAt(GridPos pos)
         {
-            int r = Config.LocustRadius;
-            for (int dy = -r; dy <= r; dy++)
-            for (int dx = -r; dx <= r; dx++)
-            {
-                var p = new GridPos(centre.X + dx, centre.Y + dy);
-                if (State.InBounds(p) && State.IsUnderRing(p)) return true;
-            }
-            return false;
+            var pest = State.Pest;
+            if (pest.Kind != PestKind.Locusts || !InLocusts(pos)) return;
+            pest.Shoo += 1f / Math.Max(1, Config.LocustShooStrikes);
+            if (pest.Shoo >= 0.999f) ClearPest(pest, 0); // three thirds must make one, whatever the float says
         }
 
         /// <summary>True for a plot inside a locust swarm: nothing grows there while it stays.</summary>
@@ -108,10 +103,10 @@ namespace TillWinter.Core
         private void SpawnPest()
         {
             var pest = State.Pest;
-            // Which kinds can come now: a rabbit needs a carrot to eat.
+            // Which kinds can come now: a rabbit needs a carrot to eat, a mole a crop to dig up.
             _scratch.Clear();
             foreach (var p in State.PlotArray)
-                if (p.Tier == 0 && !p.IsStony && (p.State == PlotState.Wet || p.IsRipe) && !State.IsUnderRing(p.Pos)) _scratch.Add(p);
+                if (p.Tier == 0 && !p.IsHard) _scratch.Add(p);
             bool rabbit = _scratch.Count > 0;
             int kinds = rabbit ? 3 : 2;
             int pick = Math.Min(kinds - 1, (int)(_rng.NextDouble() * kinds));
@@ -119,7 +114,8 @@ namespace TillWinter.Core
             if (kind != PestKind.Rabbit)
             {
                 _scratch.Clear();
-                foreach (var p in State.PlotArray) if (!p.IsStony && !p.HasCrow) _scratch.Add(p);
+                foreach (var p in State.PlotArray) if (!p.HasCrow && (kind == PestKind.Locusts || !p.IsHard)) _scratch.Add(p);
+                if (_scratch.Count == 0) foreach (var p in State.PlotArray) if (!p.HasCrow) _scratch.Add(p);
             }
             if (_scratch.Count == 0) return;
             var target = _scratch[Math.Min(_scratch.Count - 1, (int)(_rng.NextDouble() * _scratch.Count))];
@@ -130,18 +126,18 @@ namespace TillWinter.Core
             PestArrived?.Invoke(kind, target.Pos);
         }
 
-        /// <summary>The pest does its damage: a mole digs the plot up, a rabbit eats the carrot, locusts strip their patch.</summary>
-        private void Strike(PestState pest, Plot plot)
+        /// <summary>The pest does its damage: a mole digs the crop up, a rabbit eats the carrot, locusts strip their patch.</summary>
+        private void PestStrikes(PestState pest, Plot plot)
         {
             var kind = pest.Kind;
             var at = pest.Pos;
             switch (kind)
             {
                 case PestKind.Mole:
-                    Ruin(plot);
+                    LoseCrop(plot);
                     break;
                 case PestKind.Rabbit:
-                    if (plot.Tier == 0 && (plot.State == PlotState.Wet || plot.IsRipe)) Ruin(plot);
+                    if (plot.Tier == 0 && !plot.IsHard) LoseCrop(plot);
                     break;
                 case PestKind.Locusts:
                 {
@@ -152,8 +148,8 @@ namespace TillWinter.Core
                         var p = new GridPos(at.X + dx, at.Y + dy);
                         if (!State.InBounds(p)) continue;
                         var q = State.GetPlot(p);
-                        if (q.IsRipe) Ruin(q);
-                        else if (q.State == PlotState.Wet) q.Progress = 0f;
+                        if (q.IsRipe) LoseCrop(q);
+                        else if (q.IsGrowing) q.Progress = 0f;
                     }
                     break;
                 }
@@ -162,14 +158,6 @@ namespace TillWinter.Core
             pest.Timer = 0f;
             pest.Shoo = 0f;
             PestStruck?.Invoke(kind, at);
-        }
-
-        /// <summary>A crop lost to a pest: back to Dry, counted like a crop a crow ate.</summary>
-        private void Ruin(Plot plot)
-        {
-            if (plot.IsRipe) State.CropsLostThisYear++;
-            if (plot.HasCrow) RemoveCrowAt(plot.Pos);
-            plot.Reset();
         }
 
         private void ClearPest(PestState pest, double coins)
@@ -221,13 +209,6 @@ namespace TillWinter.Core
             if (luck.CloverLeft > 0f)
             {
                 luck.CloverLeft = Math.Max(0f, luck.CloverLeft - dt);
-                if (State.IsUnderRing(luck.CloverPos))
-                {
-                    double coins = Crop(State.GetPlot(luck.CloverPos)).Value * State.Stats.CropValueMult * Config.CloverValue;
-                    luck.CloverLeft = 0f;
-                    AddCoins(coins);
-                    LuckyFound?.Invoke(LuckyKind.Clover, coins);
-                }
                 return;
             }
             if (State.Year < Config.LuckyFirstYear || State.GoldenYearActive) return;
@@ -235,12 +216,22 @@ namespace TillWinter.Core
             if (_luckyCheckTimer < Config.LuckyCheckSeconds) return;
             _luckyCheckTimer -= Config.LuckyCheckSeconds;
             if (_rng.NextDouble() >= Config.CloverChance) return;
-            _scratch.Clear();
-            foreach (var p in State.PlotArray) if (!p.IsStony && !State.IsUnderRing(p.Pos)) _scratch.Add(p);
-            if (_scratch.Count == 0) return;
-            luck.CloverPos = _scratch[Math.Min(_scratch.Count - 1, (int)(_rng.NextDouble() * _scratch.Count))].Pos;
+            if (State.PlotArray.Length == 0) return;
+            luck.CloverPos = State.PlotArray[Math.Min(State.PlotArray.Length - 1, (int)(_rng.NextDouble() * State.PlotArray.Length))].Pos;
             luck.CloverLeft = Config.CloverSeconds;
             LuckyAppeared?.Invoke(LuckyKind.Clover);
+        }
+
+        /// <summary>A strike, tap or reap on the clover's plot takes it (GDD §5.6 v2.1, re-themed v3).</summary>
+        private bool TakeCloverAt(GridPos pos)
+        {
+            var luck = State.Luck;
+            if (luck.CloverLeft <= 0f || luck.CloverPos != pos) return false;
+            double coins = Crop(State.GetPlot(pos)).Value * State.Stats.CropValueMult * Config.CloverValue;
+            luck.CloverLeft = 0f;
+            AddCoins(coins);
+            LuckyFound?.Invoke(LuckyKind.Clover, coins);
+            return true;
         }
 
         /// <summary>At the frost warning a shooting star may cross the evening sky (GDD §5.6 v2.1).</summary>
@@ -322,7 +313,7 @@ namespace TillWinter.Core
 
         /// <summary>
         /// Buys one of the trader's two offers, once each a visit: a Heritage Seed for coins, or rare seed that turns
-        /// <see cref="FarmConfig.TraderRarePlots"/> plots golden now.
+        /// <see cref="FarmConfig.TraderRarePlots"/> growing crops golden now (a hard plot's next seed).
         /// </summary>
         public bool TraderBuy(TraderOffer offer)
         {
@@ -333,7 +324,7 @@ namespace TillWinter.Core
             if (offer == TraderOffer.RareSeed)
             {
                 _scratch.Clear();
-                foreach (var p in State.PlotArray) if (!p.IsStony && !p.IsGolden) _scratch.Add(p);
+                foreach (var p in State.PlotArray) if (!p.IsGolden) _scratch.Add(p);
                 if (_scratch.Count == 0) return false;
                 for (int i = 0; i < Config.TraderRarePlots && _scratch.Count > 0; i++)
                 {

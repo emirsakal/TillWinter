@@ -2,12 +2,15 @@ using System;
 
 namespace TillWinter.Core
 {
-    /// <summary>GDD §10.5 (v2.5): the first generation's checklist, in the order a new player meets them.</summary>
+    /// <summary>GDD §10.5 (v2.5, re-themed v3): the first generation's checklist, in the order a new player meets them.</summary>
     public enum ChecklistStep
     {
-        Water = 0,
+        /// <summary>Break the ground with a strike.</summary>
+        Strike = 0,
+        /// <summary>Grow a crop until it is ripe.</summary>
         Grow = 1,
         Harvest5 = 2,
+        /// <summary>Reap three crops in one swipe.</summary>
         Combo3 = 3,
         BuyNode = 4,
     }
@@ -17,9 +20,9 @@ namespace TillWinter.Core
     {
         /// <summary>Each keeps the role the player gave it.</summary>
         AsTheyAre = 0,
-        /// <summary>Everyone harvests.</summary>
+        /// <summary>Everyone picks.</summary>
         AllHarvest = 1,
-        /// <summary>Every other apprentice waters, the rest harvest.</summary>
+        /// <summary>Every other apprentice waters, the rest pick.</summary>
         Balanced = 2,
     }
 
@@ -47,14 +50,14 @@ namespace TillWinter.Core
         {
             if (!ChecklistActive) return;
             var g = State.Generation;
-            bool wet = g.Harvests > 0, ripe = g.Harvests > 0;
-            if (!wet || !ripe)
+            bool broke = g.Breaks > 0, ripe = g.Harvests > 0;
+            if (!broke || !ripe)
                 foreach (var p in State.PlotArray)
                 {
-                    if (p.State != PlotState.Dry) wet = true;
+                    if (!p.IsHard) broke = true;
                     if (p.IsRipe) ripe = true;
                 }
-            if (wet) MarkStep(ChecklistStep.Water);
+            if (broke) MarkStep(ChecklistStep.Strike);
             if (ripe) MarkStep(ChecklistStep.Grow);
             if (g.Harvests >= 5) MarkStep(ChecklistStep.Harvest5);
             if (g.BestCombo >= 3) MarkStep(ChecklistStep.Combo3);
@@ -84,7 +87,7 @@ namespace TillWinter.Core
             foreach (var a in State.ApprenticeList) _rolesBeforeAway.Add(a.Role);
             if (State.AwayPlan == AwayPlan.AsTheyAre) return;
             foreach (var a in State.ApprenticeList)
-                a.Role = State.AwayPlan == AwayPlan.Balanced && a.Index % 2 == 1 ? ApprenticeRole.Waterer : ApprenticeRole.Harvester;
+                a.Role = State.AwayPlan == AwayPlan.Balanced && a.Index % 2 == 1 ? ApprenticeRole.Waterer : ApprenticeRole.Picker;
         }
 
         private void RestoreRolesAfterAway()

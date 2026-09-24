@@ -83,8 +83,8 @@ namespace TillWinter.Tests
             var layout = SkillTreeLayout.Compute(AlmanacData.Nodes);
             // A branch root (nothing in its own branch comes first) sits on the root ring, give or take its own jitter.
             float tolerance = SkillTreeLayout.JitterRadius + 1e-3f;
-            Assert.That(Radius(layout["ring_radius"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(tolerance));
-            Assert.That(Radius(layout["irrigation"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(tolerance));
+            Assert.That(Radius(layout["hoe_damage"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(tolerance));
+            Assert.That(Radius(layout["growth"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(tolerance));
             Assert.That(Radius(layout["expand_field"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(tolerance));
             // Everything a node needs sits closer to the centre than the node itself: a layer step dwarfs the jitter.
             foreach (var n in AlmanacData.Nodes)
@@ -127,13 +127,13 @@ namespace TillWinter.Tests
         {
             var nodes = new List<SkillNode>(AlmanacData.Nodes);
             var plain = SkillTreeLayout.Compute(nodes);
-            var root = AlmanacData.Get("ring_radius");
+            var root = AlmanacData.Get("hoe_damage");
             nodes[nodes.IndexOf(root)] = new SkillNode(root.Id, root.Branch, root.Prerequisites, root.MaxLevel, root.BaseCost, root.CostGrowth,
                 root.Effect, root.ValuePerLevel, root.NameKey, root.DescKey, new LayoutPos(0.2f, -0.1f));
             var nudged = SkillTreeLayout.Compute(nodes);
-            Assert.That(nudged["ring_radius"].X, Is.EqualTo(plain["ring_radius"].X + 0.2f).Within(1e-5f));
-            Assert.That(nudged["ring_radius"].Y, Is.EqualTo(plain["ring_radius"].Y - 0.1f).Within(1e-5f));
-            Assert.AreEqual(plain["ring_water_speed"].X, nudged["ring_water_speed"].X);
+            Assert.That(nudged["hoe_damage"].X, Is.EqualTo(plain["hoe_damage"].X + 0.2f).Within(1e-5f));
+            Assert.That(nudged["hoe_damage"].Y, Is.EqualTo(plain["hoe_damage"].Y - 0.1f).Within(1e-5f));
+            Assert.AreEqual(plain["stamina_depot"].X, nudged["stamina_depot"].X);
         }
 
         [Test]
@@ -141,8 +141,8 @@ namespace TillWinter.Tests
         {
             var nodes = new List<SkillNode>
             {
-                new SkillNode("a", Branch.Hand, new string[0], 1, 1, 1.6, EffectType.RingRadius, 0.25, "a", "a"),
-                new SkillNode("b", Branch.Soil, new[] { "a" }, 1, 1, 1.6, EffectType.Irrigation, 0.15, "b", "b"),
+                new SkillNode("a", Branch.Hand, new string[0], 1, 1, 1.6, EffectType.StrikeDamage, 1, "a", "a"),
+                new SkillNode("b", Branch.Soil, new[] { "a" }, 1, 1, 1.6, EffectType.Growth, 0.15, "b", "b"),
             };
             var layout = SkillTreeLayout.Compute(nodes);
             Assert.That(Radius(layout["b"]), Is.EqualTo(SkillTreeLayout.RootRadius).Within(SkillTreeLayout.JitterRadius + 1e-3f),

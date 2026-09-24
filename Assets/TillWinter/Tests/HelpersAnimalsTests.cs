@@ -1,31 +1,19 @@
 using NUnit.Framework;
 using TillWinter.Core;
+using static TillWinter.Tests.CoreLoopTests;
 
 namespace TillWinter.Tests
 {
     /// <summary>
-    /// M.4, helpers and animals (GDD §4/§5.1 v2.0): placed scarecrows guard an area, apprentices can water, the farm
-    /// dog chases crows, the beehive speeds the Sun by the sunflowers, and the tractor can be sent by hand.
+    /// M.4, helpers and animals (GDD §4/§5.1 v2.0, re-themed v3): placed scarecrows guard an area, apprentices take
+    /// roles, the farm dog chases crows, and the tractor can be sent by hand. (The beehive's columns and the digger
+    /// are in <see cref="CoreLoopTests"/>.)
     /// </summary>
     public class HelpersAnimalsTests
     {
-        private static FarmConfig Cfg()
+        private static FarmSim SecondYear(System.Action<FarmConfig> tweak, int seed = 2)
         {
-            var cfg = new FarmConfig();
-            cfg.WeatherFirstYear = int.MaxValue; // fog and storms keep crows away; the rules here need them
-            cfg.GoalFirstYear = int.MaxValue;
-            cfg.StonyChance = cfg.FertileChance = 0;
-            return cfg;
-        }
-
-        private static void Run(FarmSim sim, float seconds, RingInput? ring = null)
-        {
-            for (float t = 0f; t < seconds; t += 0.05f) sim.Tick(0.05f, ring);
-        }
-
-        private static FarmSim SecondYear(FarmConfig cfg, int seed = 2)
-        {
-            var sim = new FarmSim(cfg, seed);
+            var sim = NewSim(tweak, seed);
             sim.DebugSkipToWinter();
             sim.StartNextYear();
             return sim;
@@ -34,7 +22,7 @@ namespace TillWinter.Tests
         [Test]
         public void EachScarecrowLevel_PlacesOne_WhereItGuardsTheMost()
         {
-            var sim = new FarmSim(Cfg(), 1);
+            var sim = NewSim();
             Assert.AreEqual(0, sim.State.Scarecrows.Count);
             sim.DebugSetLevel("scarecrow", 1);
             Assert.AreEqual(1, sim.State.Scarecrows.Count);
@@ -50,9 +38,7 @@ namespace TillWinter.Tests
         [Test]
         public void CrowsNeverLand_OnAGuardedPlot()
         {
-            var cfg = Cfg();
-            cfg.CrowSpawnChance = 1f;
-            var sim = SecondYear(cfg);
+            var sim = SecondYear(c => c.CrowSpawnChance = 1f);
             sim.DebugSetLevel("scarecrow", 1);
             Assert.IsTrue(sim.MoveScarecrow(0, new GridPos(0, 0)), "to the bottom-left corner");
             int landed = 0;
@@ -61,10 +47,10 @@ namespace TillWinter.Tests
                 landed++;
                 Assert.IsFalse(sim.IsGuarded(e.Pos), "a crow landed on " + e.Pos);
             };
-            for (int i = 0; i < 20; i++)
+            for (int i = 0; i < 10; i++)
             {
                 sim.DebugForceRipeAll();
-                Run(sim, 2f);
+                Run(sim, 4f); // a crop must have stood ripe CrowMinRipe (3 s) before a crow comes
             }
             Assert.That(landed, Is.GreaterThan(0), "the unguarded plots still draw crows");
         }
@@ -72,7 +58,7 @@ namespace TillWinter.Tests
         [Test]
         public void MovingAScarecrow_StaysOnTheFieldsCorners()
         {
-            var sim = new FarmSim(Cfg(), 1);
+            var sim = NewSim();
             sim.DebugSetLevel("scarecrow", 2);
             Assert.IsTrue(sim.MoveScarecrow(0, new GridPos(3, 3)), "the far corner of a 3x3 field");
             Assert.AreEqual(new GridPos(3, 3), sim.State.Scarecrows[0]);
@@ -84,9 +70,7 @@ namespace TillWinter.Tests
         [Test]
         public void TheFarmDog_ChasesASettledCrow_WithoutABounty_ThenRests()
         {
-            var cfg = Cfg();
-            cfg.CrowSpawnChance = 0f; // only the crows this test places
-            var sim = SecondYear(cfg);
+            var sim = SecondYear(c => c.CrowSpawnChance = 0f); // only the crows this test places
             sim.DebugSetLevel("farm_dog", 1);
             int chased = 0;
             sim.DogChased += _ => chased++;
@@ -103,48 +87,28 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void TheBeehive_SpeedsTheSun_OnlyByTheSunflowers()
-        {
-            float Grown(bool hive, GridPos at)
-            {
-                var sim = new FarmSim(Cfg(), 1);
-                sim.DebugSetLevel("sun", 1);
-                if (hive) sim.DebugSetLevel("beehive", 1);
-                var plot = sim.State.GetPlot(at);
-                while (plot.State == PlotState.Dry) sim.Tick(0.05f, new RingInput(at.X, at.Y));
-                float before = plot.Progress;
-                Run(sim, 0.5f);
-                return plot.Progress - before;
-            }
-
-            var edge = new GridPos(2, 0);
-            var far = new GridPos(0, 0);
-            Assert.AreEqual(Grown(false, edge) * new FarmConfig().BeeSunBoost, Grown(true, edge), 1e-3);
-            Assert.AreEqual(Grown(false, far), Grown(true, far), 1e-5, "the left side is out of the bees' reach");
-        }
-
-        [Test]
-        public void AWaterer_WatersDryPlots_AndAHarvesterDoesNot()
+        public void AWaterer_VisitsGrowingCrops_AndAPickerDoesNot()
         {
             int Watered(ApprenticeRole role)
             {
-                var sim = new FarmSim(Cfg(), 1);
+                var sim = NewSim(c => c.Crops[0].Grow = 1000f); // nothing ripens by itself
                 sim.DebugSetLevel("apprentice_count", 1);
-                Assert.IsTrue(role == ApprenticeRole.Harvester || sim.SetApprenticeRole(0, role));
+                Assert.IsTrue(role == ApprenticeRole.Picker || sim.SetApprenticeRole(0, role));
+                sim.DebugBreakAll();
                 int n = 0;
                 sim.PlotWatered += _ => n++;
                 Run(sim, 8f);
                 return n;
             }
 
-            Assert.AreEqual(0, Watered(ApprenticeRole.Harvester), "no irrigation, no ring, nothing ripe: nothing to do");
+            Assert.AreEqual(0, Watered(ApprenticeRole.Picker), "nothing ripe: nothing to do");
             Assert.That(Watered(ApprenticeRole.Waterer), Is.GreaterThan(1));
         }
 
         [Test]
         public void TheTractor_CanBeSentByHand_OnceHalfCharged()
         {
-            var sim = new FarmSim(Cfg(), 1);
+            var sim = NewSim();
             sim.DebugSetLevel("tractor", 1);
             sim.DebugForceRipeAll();
             Assert.IsFalse(sim.TriggerTractor(), "just bought: not charged");

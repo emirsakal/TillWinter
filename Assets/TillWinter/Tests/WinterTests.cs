@@ -16,19 +16,20 @@ namespace TillWinter.Tests
             return cfg;
         }
 
-        private static double TapHarvest(FarmSim sim)
+        private static readonly GridPos Origin = new GridPos(0, 0);
+
+        /// <summary>Coins from one hand reap of plot (0,0), ripened on its own so nothing else stands at the frost.</summary>
+        private static double HandReap(FarmSim sim)
         {
-            sim.DebugForceRipeAll();
-            sim.DebugClearTapCooldown();
+            Assert.IsTrue(sim.DebugForceRipe(Origin));
             double before = sim.State.Coins;
-            Assert.IsTrue(sim.TapAt(new GridPos(0, 0)));
+            Assert.IsTrue(sim.ReapOne(Origin));
             return sim.State.Coins - before;
         }
 
         private static FarmSim WithBarn(float share = 0.5f)
         {
             var sim = new FarmSim(Cfg(), 1);
-            sim.DebugSetLevel("tap_harvest", 2);
             sim.DebugSetLevel("barn", 1);
             Assert.IsTrue(sim.SetStoreShare(share));
             return sim;
@@ -51,7 +52,7 @@ namespace TillWinter.Tests
             int stored = 0;
             sim.Stored += (p, v) => stored++;
             double paid = 0;
-            for (int i = 0; i < 4; i++) paid += TapHarvest(sim);
+            for (int i = 0; i < 4; i++) paid += HandReap(sim);
             Assert.AreEqual(2, stored);
             Assert.AreEqual(2, sim.State.Barn.Count);
             Assert.That(sim.State.Barn.Stock, Is.GreaterThan(0));
@@ -63,7 +64,7 @@ namespace TillWinter.Tests
         {
             var sim = WithBarn();
             int cap = sim.Config.BarnCapacityByLevel[1];
-            for (int i = 0; i < cap * 2 + 10; i++) TapHarvest(sim);
+            for (int i = 0; i < cap * 2 + 10; i++) HandReap(sim);
             Assert.AreEqual(cap, sim.State.Barn.Count);
         }
 
@@ -71,7 +72,7 @@ namespace TillWinter.Tests
         public void TheWinterMarket_SellsAtItsPrice_OutsideTheYearsTake()
         {
             var sim = WithBarn();
-            for (int i = 0; i < 6; i++) TapHarvest(sim);
+            for (int i = 0; i < 6; i++) HandReap(sim);
             Assert.IsFalse(sim.SellBarn(), "the market is a winter thing");
             sim.DebugSkipToWinter();
             var barn = sim.State.Barn;
@@ -87,7 +88,7 @@ namespace TillWinter.Tests
         public void Preserves_PayAFixedMultiple_NextSpring()
         {
             var sim = WithBarn();
-            for (int i = 0; i < 6; i++) TapHarvest(sim);
+            for (int i = 0; i < 6; i++) HandReap(sim);
             sim.DebugSkipToWinter();
             double stock = sim.State.Barn.Stock;
             Assert.IsTrue(sim.MakePreserves());
@@ -103,7 +104,7 @@ namespace TillWinter.Tests
         public void StockHeldIntoANewYear_Spoils()
         {
             var sim = WithBarn();
-            for (int i = 0; i < 6; i++) TapHarvest(sim);
+            for (int i = 0; i < 6; i++) HandReap(sim);
             sim.DebugSkipToWinter();
             double stock = sim.State.Barn.Stock;
             sim.StartNextYear();
@@ -120,7 +121,7 @@ namespace TillWinter.Tests
             Assert.IsTrue(sim.TryBuy("expand_field"));
             Assert.IsTrue(sim.TryBuy("unlock_tomato"));
             Assert.IsTrue(sim.TryBuy("upgrade_plot"));
-            Assert.IsTrue(sim.TryBuy("ring_radius"));
+            Assert.IsTrue(sim.TryBuy("hoe_damage"));
             double spent = 2000 - sim.State.Coins;
             Assert.AreEqual(spent, sim.State.Generation.AlmanacSpent, 1e-9);
             Assert.AreEqual(4, sim.State.GridSize);
@@ -130,8 +131,9 @@ namespace TillWinter.Tests
             Assert.AreEqual(0, sim.Almanac.Levels.Count);
             Assert.AreEqual(3, sim.State.GridSize, "the field goes back to its size");
             foreach (var p in sim.State.Plots) Assert.AreEqual(0, p.BedTier);
+            Assert.AreEqual(sim.Config.BaseStrikeDamage, sim.State.Stats.StrikeDamage, 1e-9, "the hoe is plain again");
             Assert.IsFalse(sim.CanRespec, "once a generation");
-            Assert.IsTrue(sim.TryBuy("ring_radius"));
+            Assert.IsTrue(sim.TryBuy("hoe_damage"));
             Assert.IsFalse(sim.RespecAlmanac());
 
             sim.DebugAddLifetimeCoins(sim.Config.HeritageThreshold);
@@ -147,7 +149,7 @@ namespace TillWinter.Tests
             Assert.IsNull(AlmanacAdvisor.Suggest(sim), "not during the year");
             sim.DebugSkipToWinter();
             Assert.IsNull(AlmanacAdvisor.Suggest(sim), "nothing affordable");
-            sim.DebugAddCoins(100);
+            sim.DebugAddCoins(400);
             string id = AlmanacAdvisor.Suggest(sim);
             Assert.IsNotNull(id);
             Assert.IsTrue(sim.CanBuy(id));

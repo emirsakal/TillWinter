@@ -4,18 +4,19 @@ using TillWinter.Core;
 namespace TillWinter.Tests
 {
     /// <summary>
-    /// M.2, the rest of crops and field (GDD §2.3/§2.4 v1.8): mixed neighbours, crop rotation, and the fertile or
-    /// stony ground a field expansion adds.
+    /// M.2, the rest of crops and field (GDD §2.3/§2.4 v1.8): mixed neighbours, crop rotation, the fertile ground a
+    /// field expansion may add, and the rain cloud's burst on a growing field.
     /// </summary>
     public class FieldVarietyTests
     {
-        /// <summary>Only the rule under test pays: seasons off, no special ground unless a test asks for it.</summary>
+        /// <summary>Only the rule under test pays: seasons off, no special ground or depth bonus unless a test asks for it.</summary>
         private static FarmConfig Plain()
         {
             var cfg = new FarmConfig();
             cfg.InSeasonValue = 1;
-            cfg.StonyChance = 0;
             cfg.FertileChance = 0;
+            cfg.ChestChance = cfg.HardpanChance = 0;
+            cfg.DepthValue = 0;
             return cfg;
         }
 
@@ -45,14 +46,6 @@ namespace TillWinter.Tests
             Assert.AreEqual(1, sim.DifferentNeighbours(sim.State.GetPlot(1, 0)));
             Assert.AreEqual(0, sim.DifferentNeighbours(sim.State.GetPlot(2, 2)), "carrots among carrots");
             Assert.AreEqual(1.0, sim.PlotValueMultiplier(sim.State.GetPlot(2, 2)), 1e-9);
-        }
-
-        [Test]
-        public void AStonyNeighbour_IsNotVariety()
-        {
-            var sim = TomatoBed(Plain());
-            sim.DebugSetPlotKind(new GridPos(1, 0), PlotKind.Stony);
-            Assert.AreEqual(1, sim.DifferentNeighbours(sim.State.GetPlot(0, 0)));
         }
 
         [Test]
@@ -87,51 +80,28 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void AStonyPlot_GrowsNothing_UntilTheRingHasClearedIt()
-        {
-            var cfg = Plain();
-            var sim = new FarmSim(cfg, 3);
-            sim.DebugSetLevel("irrigation", 3);
-            var at = new GridPos(1, 1);
-            var plot = sim.State.GetPlot(at);
-            sim.DebugSetPlotKind(at, PlotKind.Stony);
-            int cleared = 0;
-            sim.PlotCleared += p => { cleared++; Assert.AreEqual(at, p); };
-
-            for (int i = 0; i < 100; i++) sim.Tick(0.05f, null);
-            Assert.IsTrue(plot.IsStony, "irrigation does not move stones");
-            Assert.AreEqual(PlotState.Dry, plot.State);
-            Assert.IsFalse(sim.SetPlotCrop(at, 0), "nothing can be planted on stones");
-
-            float t = 0f;
-            while (t < cfg.StoneClearSeconds - 0.2f) { sim.Tick(0.05f, new RingInput(1f, 1f)); t += 0.05f; }
-            Assert.IsTrue(plot.IsStony, "not cleared yet");
-            Assert.AreEqual(PlotState.Dry, plot.State, "the ring over stones waters nothing");
-            for (int i = 0; i < 8; i++) sim.Tick(0.05f, new RingInput(1f, 1f));
-            Assert.IsFalse(plot.IsStony);
-            Assert.AreEqual(PlotKind.Normal, plot.Kind);
-            Assert.AreEqual(1, cleared);
-
-            for (int i = 0; i < 40; i++) sim.Tick(0.05f, new RingInput(1f, 1f));
-            Assert.AreNotEqual(PlotState.Dry, plot.State, "cleared ground grows like any other");
-        }
-
-        [Test]
-        public void TheRainCloud_PassesOverStones()
+        public void TheRainCloud_GivesEveryGrowingCropABurst_AndLeavesHardGroundAlone()
         {
             var sim = new FarmSim(Plain(), 3);
-            sim.DebugSetPlotKind(new GridPos(0, 0), PlotKind.Stony);
+            var at = new GridPos(1, 1);
+            Assert.IsTrue(sim.DebugBreak(at));
+            int watered = 0;
+            sim.PlotWatered += p => { watered++; Assert.AreEqual(at, p); };
             Assert.IsTrue(sim.DebugSpawnCloud());
             Assert.IsTrue(sim.TapCloud());
-            Assert.AreEqual(PlotState.Dry, sim.State.GetPlot(0, 0).State);
-            Assert.AreEqual(PlotState.Wet, sim.State.GetPlot(1, 1).State);
+            Assert.AreEqual(1, watered);
+            Assert.AreEqual(sim.Config.CloudGrowBoost, sim.State.GetPlot(at).Progress, 1e-6f);
+            var hard = sim.State.GetPlot(0, 0);
+            Assert.AreEqual(PlotState.Hard, hard.State, "rain does not dig");
+            Assert.AreEqual(hard.MaxHp, hard.Hp, 1e-9);
+            Assert.IsFalse(sim.State.Cloud.Active, "one tap and it is spent");
         }
 
         [Test]
-        public void AFieldExpansion_MayAddSpecialGround_ButTheOldFieldStaysPlain()
+        public void AFieldExpansion_MayAddFertileGround_ButTheOldFieldStaysPlain()
         {
             var cfg = Plain();
-            cfg.StonyChance = 1; // every new plot stony, so the rule shows
+            cfg.FertileChance = 1; // every new plot fertile, so the rule shows
             var sim = new FarmSim(cfg, 3);
             sim.DebugSkipToWinter();
             sim.DebugAddCoins(5000);
@@ -139,7 +109,7 @@ namespace TillWinter.Tests
             foreach (var p in sim.State.Plots)
             {
                 bool added = p.Pos.X >= 3 || p.Pos.Y >= 3;
-                Assert.AreEqual(added ? PlotKind.Stony : PlotKind.Normal, p.Kind, p.Pos.ToString());
+                Assert.AreEqual(added ? PlotKind.Fertile : PlotKind.Normal, p.Kind, p.Pos.ToString());
             }
 
             var plain = new FarmSim(Plain(), 3);

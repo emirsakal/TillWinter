@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace TillWinter.Core
 {
-    /// <summary>Static Heritage table (GDD §7). Costs in Heritage Seeds, placeholders to tune. Never reset.</summary>
+    /// <summary>Static Heritage table (GDD §7, re-themed for the hoe in v3). Costs in Heritage Seeds. Never reset.</summary>
     public static class HeritageData
     {
         /// <summary>Cost growth per level, per branch (S9: the balance pass tunes growth per branch before base costs).</summary>
@@ -26,12 +26,12 @@ namespace TillWinter.Core
         /// <summary>Node id -> sprite name in the node icon atlas (Kenney Game Icons). Every node must have one (IconTests).</summary>
         public static readonly System.Collections.Generic.Dictionary<string, string> Icons = new System.Collections.Generic.Dictionary<string, string>
         {
-            { "h_start_radius", "zoom" },
-            { "h_ring_speeds", "fastForward" },
-            { "h_ring_coins", "star" },
-            { "h_start_irrigation", "import" },
-            { "h_start_sun", "contrast" },
-            { "h_global_growth", "arrowUp" },
+            { "h_start_damage", "arrowUp" },
+            { "h_strike_speed", "fastForward" },
+            { "h_break_coins", "star" },
+            { "h_start_growth", "contrast" },
+            { "h_start_soft", "import" },
+            { "h_global_growth", "signal1" },
             { "h_unlock_rain_cloud", "export" },
             { "h_start_field", "larger" },
             { "h_start_tomato", "plus" },
@@ -42,7 +42,7 @@ namespace TillWinter.Core
             { "h_start_year_length", "scrollHorizontal" },
             { "h_greenhouse_x2", "home" },
             { "h_almanac_discount", "minus" },
-            { "h_ring_master", "target" },
+            { "h_hoe_master", "target" },
             { "h_steward", "multiplayer" },
             { "h_long_summer", "scrollHorizontal" },
             { "h_rich_soil", "contrast" },
@@ -52,15 +52,15 @@ namespace TillWinter.Core
 
         public static readonly SkillNode[] Nodes =
         {
-            // Hand
-            N("h_start_radius", Branch.Hand, None, 3, 3, EffectType.HeritageStartRadius, 0.25),
-            N("h_ring_speeds", Branch.Hand, new[] { "h_start_radius" }, 5, 4, EffectType.HeritageRingSpeeds, 0.10),
-            N("h_ring_coins", Branch.Hand, new[] { "h_ring_speeds" }, 4, 6, EffectType.HeritageRingCoins, 0.05),
+            // Hand: the hoe
+            N("h_start_damage", Branch.Hand, None, 3, 3, EffectType.HeritageStartDamage, 1),
+            N("h_strike_speed", Branch.Hand, new[] { "h_start_damage" }, 5, 4, EffectType.HeritageStrikeSpeed, 0.05),
+            N("h_break_coins", Branch.Hand, new[] { "h_strike_speed" }, 4, 6, EffectType.HeritageBreakCoins, 0.05),
 
             // Soil
-            N("h_start_irrigation", Branch.Soil, None, 1, 3, EffectType.HeritageStartIrrigation, 1),
-            N("h_start_sun", Branch.Soil, new[] { "h_start_irrigation" }, 1, 4, EffectType.HeritageStartSun, 1),
-            N("h_global_growth", Branch.Soil, new[] { "h_start_sun" }, 5, 5, EffectType.HeritageGlobalGrowth, 0.05),
+            N("h_start_growth", Branch.Soil, None, 1, 3, EffectType.HeritageStartGrowth, 1),
+            N("h_start_soft", Branch.Soil, new[] { "h_start_growth" }, 1, 4, EffectType.HeritageStartSoft, 1),
+            N("h_global_growth", Branch.Soil, new[] { "h_start_soft" }, 5, 5, EffectType.HeritageGlobalGrowth, 0.05),
             N("h_unlock_rain_cloud", Branch.Soil, new[] { "h_global_growth" }, 1, 12, EffectType.UnlockRainCloud, 1),
 
             // Field
@@ -79,8 +79,8 @@ namespace TillWinter.Core
             N("h_almanac_discount", Branch.Calendar, new[] { "h_start_year_length" }, 4, 6, EffectType.AlmanacDiscount, 0.05),
 
             // Paths (GDD §7.3 v2.3): two pairs where taking one rules out the other.
-            X(N("h_ring_master", Branch.Hand, new[] { "h_ring_coins" }, 2, 6, EffectType.HeritageRingMaster, 0.08), "h_steward"),
-            X(N("h_steward", Branch.Helpers, new[] { "h_apprentice_yield" }, 2, 6, EffectType.HeritageApprenticeYield, 0.1), "h_ring_master"),
+            X(N("h_hoe_master", Branch.Hand, new[] { "h_break_coins" }, 2, 6, EffectType.HeritageHoeMaster, 0.08), "h_steward"),
+            X(N("h_steward", Branch.Helpers, new[] { "h_apprentice_yield" }, 2, 6, EffectType.HeritageApprenticeYield, 0.1), "h_hoe_master"),
             X(N("h_long_summer", Branch.Calendar, new[] { "h_start_year_length" }, 1, 8, EffectType.LongSummer, 15), "h_rich_soil"),
             X(N("h_rich_soil", Branch.Soil, new[] { "h_global_growth" }, 1, 8, EffectType.HeritageGlobalGrowth, 0.08), "h_long_summer"),
         };

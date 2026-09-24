@@ -17,9 +17,14 @@ namespace TillWinter.Tests
             return cfg;
         }
 
-        private static void Run(FarmSim sim, float seconds, RingInput? ring)
+        /// <summary>A scripted player: strikes the plot the tick points at if it is hard, swipes the whole field every 50 ticks.</summary>
+        private static void Play(FarmSim sim, int tick)
         {
-            for (float t = 0f; t < seconds; t += 0.05f) sim.Tick(0.05f, ring);
+            var plots = sim.State.Plots;
+            var p = plots[tick % plots.Count];
+            if (p.IsHard) sim.Strike(p.Pos);
+            if (tick % 50 == 0) sim.ReapAll();
+            sim.Tick(0.05f);
         }
 
         [Test]
@@ -28,7 +33,7 @@ namespace TillWinter.Tests
             var cfg = Cfg();
             var sim = new FarmSim(cfg, 1);
             sim.DebugForceRipeAll();
-            Run(sim, 2f, new RingInput(1f, 1f));
+            Assert.AreEqual(9, sim.ReapAll());
             int harvests = sim.State.Generation.Harvests;
             Assert.That(harvests, Is.GreaterThan(0));
             sim.DebugSkipToWinter();
@@ -113,9 +118,8 @@ namespace TillWinter.Tests
             Assert.AreNotEqual(Weather.Clear, a.State.PlannedWeather, "a spell every day");
             for (int i = 0; i < 4000 && a.State.Phase == Phase.Year; i++)
             {
-                var ring = new RingInput(1f + (i / 40) % 3, 1f + (i / 120) % 3);
-                a.Tick(0.05f, ring);
-                b.Tick(0.05f, ring);
+                Play(a, i);
+                Play(b, i);
             }
             Assert.AreEqual(Phase.Winter, a.State.Phase, "one year and it is over");
             Assert.AreEqual(a.State.CoinsThisYear, b.State.CoinsThisYear, 1e-9);

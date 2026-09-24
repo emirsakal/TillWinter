@@ -24,7 +24,7 @@ namespace TillWinter.Tests
             int ticks = 0;
             while (sim.State.Phase == Phase.Year && ticks < 100_000)
             {
-                sim.Tick(0.5f, null);
+                sim.Tick(0.5f);
                 eachTick?.Invoke(sim);
                 ticks++;
             }
@@ -76,6 +76,8 @@ namespace TillWinter.Tests
             {
                 Assert.AreEqual(sim.Config.MaxTier, p.Tier, "golden wheat");
                 Assert.IsTrue(p.IsGolden, "all golden");
+                Assert.AreEqual(PlotState.Growing, p.State, "already planted: no ground to break");
+                Assert.AreEqual(0f, p.Progress);
             }
             Assert.AreEqual(300f, sim.State.Stats.YearLength, 1e-4f);
         }
@@ -110,7 +112,13 @@ namespace TillWinter.Tests
             Assert.IsTrue(sim.State.EndingSeen);
             Assert.IsFalse(sim.State.GoldenYearActive);
             Assert.AreEqual(sim.State.Stats.TargetGridSize, sim.State.GridSize, "normal starting field again");
-            foreach (var p in sim.State.Plots) Assert.AreEqual(0, p.Tier);
+            foreach (var p in sim.State.Plots)
+            {
+                Assert.AreEqual(0, p.Tier);
+                Assert.AreEqual(PlotState.Hard, p.State, "a fresh first layer");
+                Assert.AreEqual(0, p.Layer);
+                Assert.IsFalse(p.IsGolden);
+            }
             Assert.Less(sim.State.Stats.YearLength, 300f, "normal year length again");
 
             // Next generation: still fully maxed, but the Golden Year never comes back.
@@ -121,22 +129,32 @@ namespace TillWinter.Tests
         }
 
         [Test]
-        public void Stats_CountHarvestsBySource_Golden_BestCombo_AndPlayTime()
+        public void Stats_CountHarvestsBySource_Golden_BestCombo_Strikes_AndPlayTime()
         {
             var sim = new FarmSim(new FarmConfig(), 3);
+            var centre = new GridPos(1, 1);
             sim.DebugNextHarvestGolden();
+            Assert.IsTrue(sim.DebugBreak(centre), "the golden seed drops at the break");
+            Assert.IsTrue(sim.State.GetPlot(centre).IsGolden);
             sim.DebugForceRipeAll();
-            var ring = new RingInput(1f, 1f);
-            for (int i = 0; i < 200; i++) sim.Tick(0.05f, ring);
-            sim.DebugForceRipeAll();
-            for (int i = 0; i < 200; i++) sim.Tick(0.05f, ring);
+            Assert.AreEqual(9, sim.ReapAll());
 
             var g = sim.State.Generation;
-            Assert.Greater(g.HarvestsRing, 0, "ring harvests");
-            Assert.AreEqual(g.Harvests, g.HarvestsRing + g.HarvestsApprentice + g.HarvestsTractor + g.HarvestsLateFrost, "split sums to the total");
-            Assert.GreaterOrEqual(g.GoldenHarvests, 1, "golden harvest counted");
-            Assert.GreaterOrEqual(g.BestCombo, 1);
+            Assert.AreEqual(9, g.HarvestsHand, "hand harvests");
+            Assert.AreEqual(g.Harvests, g.HarvestsHand + g.HarvestsApprentice + g.HarvestsTractor + g.HarvestsLateFrost, "split sums to the total");
+            Assert.AreEqual(1, g.GoldenHarvests, "golden harvest counted");
+            Assert.AreEqual(9, g.BestCombo);
             Assert.GreaterOrEqual(g.BestCombo, sim.State.Combo);
+
+            // The hoe's counters: one break so far, every plot now at layer 1, one strike on it.
+            Assert.AreEqual(1, g.Breaks);
+            Assert.AreEqual(0, g.DeepestLayer, "the break was at layer 0");
+            Assert.IsTrue(sim.Strike(centre));
+            Assert.AreEqual(1, g.Strikes);
+            Assert.LessOrEqual(g.Crits, g.Strikes);
+            Assert.IsTrue(sim.DebugBreak(centre));
+            Assert.AreEqual(2, g.Breaks);
+            Assert.AreEqual(1, g.DeepestLayer);
 
             sim.AddPlayTime(12.5);
             sim.AddPlayTime(-3);
@@ -148,15 +166,25 @@ namespace TillWinter.Tests
         public void Stats_SurviveARetire()
         {
             var sim = new FarmSim(new FarmConfig(), 3);
+            var centre = new GridPos(1, 1);
             sim.DebugForceRipeAll();
-            for (int i = 0; i < 200; i++) sim.Tick(0.05f, new RingInput(1f, 1f));
+            Assert.AreEqual(9, sim.ReapAll());
+            Assert.IsTrue(sim.Strike(centre));
+            Assert.IsTrue(sim.DebugBreak(centre));
             sim.AddPlayTime(30);
-            int ring = sim.State.Generation.HarvestsRing;
+            var g = sim.State.Generation;
+            int hand = g.HarvestsHand, best = g.BestCombo, strikes = g.Strikes, crits = g.Crits, breaks = g.Breaks, deepest = g.DeepestLayer;
+            Assert.AreEqual(1, deepest);
             sim.DebugAddLifetimeCoins(sim.Config.HeritageThreshold);
             sim.DebugSkipToWinter();
             Assert.IsTrue(sim.Retire());
-            Assert.AreEqual(ring, sim.State.Generation.HarvestsRing);
-            Assert.AreEqual(30, sim.State.Generation.TimePlayedSeconds, 1e-9);
+            Assert.AreEqual(hand, g.HarvestsHand);
+            Assert.AreEqual(best, g.BestCombo);
+            Assert.AreEqual(strikes, g.Strikes);
+            Assert.AreEqual(crits, g.Crits);
+            Assert.AreEqual(breaks, g.Breaks);
+            Assert.AreEqual(deepest, g.DeepestLayer, "the deepest layer is the family's record, not the field's");
+            Assert.AreEqual(30, g.TimePlayedSeconds, 1e-9);
         }
     }
 }

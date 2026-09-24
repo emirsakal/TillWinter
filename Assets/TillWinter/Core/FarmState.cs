@@ -2,6 +2,7 @@ using System.Collections.Generic;
 
 namespace TillWinter.Core
 {
+    /// <summary>One plot (GDD §2v3.2): hard ground with a layer and HP, then a growing crop, then a ripe one, then the next layer.</summary>
     public sealed class Plot
     {
         public GridPos Pos { get; }
@@ -9,42 +10,60 @@ namespace TillWinter.Core
         public int BedTier { get; internal set; }
         /// <summary>The crop picked from the seed bag, or -1 to follow the bed (GDD §2.3 v1.7).</summary>
         public int Choice { get; internal set; } = -1;
-        /// <summary>The crop in the ground: the chosen one, never above what the bed can grow.</summary>
+        /// <summary>The crop the next seed will be, or the one growing: the chosen one, never above what the bed can grow.</summary>
         public int Tier => Choice < 0 ? BedTier : System.Math.Min(Choice, BedTier);
         public PlotState State { get; internal set; }
-        /// <summary>0..1 progress of the current state (Dry: watering, Wet: growing, Ripe: ring harvest).</summary>
+        /// <summary>0..1 growth while Growing (unused in the other states).</summary>
         public float Progress { get; internal set; }
         public bool IsRipe => State == PlotState.Ripe;
+        public bool IsHard => State == PlotState.Hard;
+        public bool IsGrowing => State == PlotState.Growing;
+        /// <summary>How many times this plot has been broken and reaped: the next layer is tougher and richer (GDD §2v3.3).</summary>
+        public int Layer { get; internal set; }
+        public GroundType Ground { get; internal set; }
+        /// <summary>Golden hardpan: visible, three times the HP, eight times the break bonus.</summary>
+        public bool Hardpan { get; internal set; }
+        /// <summary>A buried chest, hidden until the break.</summary>
+        public bool Chest { get; internal set; }
+        public double Hp { get; internal set; }
+        public double MaxHp { get; internal set; }
+        /// <summary>0..1: how much of the layer is cracked (for the presentation).</summary>
+        public float Cracks => MaxHp <= 0 ? 0f : (float)System.Math.Max(0, System.Math.Min(1, 1 - Hp / MaxHp));
+        /// <summary>What the break pays, decided when the layer appears and hidden until it breaks.</summary>
+        internal double HiddenBonus;
+        /// <summary>The layer the growing or ripe crop was dug from (its depth bonus).</summary>
+        public int CropLayer { get; internal set; }
         public bool HasCrow { get; internal set; }
         /// <summary>Golden crop: same timings, 10x value (GDD §5.3).</summary>
         public bool IsGolden { get; internal set; }
         /// <summary>Seconds this plot has stood Ripe; past the grace the crop is worth less (GDD §2.5 v1.6).</summary>
         public float RipeAge { get; internal set; }
-        /// <summary>Fertile, stony or plain ground (GDD §2.4 v1.8). A stony plot's Progress is how far its clearing has got.</summary>
+        /// <summary>Fertile or plain ground (GDD §2.4 v1.8).</summary>
         public PlotKind Kind { get; internal set; }
         /// <summary>The crop this plot grew last year, or -1; a different crop this year is a rotation (GDD §2.3 v1.8).</summary>
         public int LastYearTier { get; internal set; } = -1;
-        public bool IsStony => Kind == PlotKind.Stony;
-        /// <summary>Seconds a Wet plot has stood with nothing growing it in a drought (GDD §3.2 v1.9).</summary>
-        public float DryTimer { get; internal set; }
         /// <summary>Growing something other than last year's crop.</summary>
         public bool IsRotated => LastYearTier >= 0 && Tier != LastYearTier;
+        /// <summary>True while the player's finger (or a waterer) is watering this growing crop this tick.</summary>
+        public bool Watering { get; internal set; }
 
         internal Plot(GridPos pos, int tier)
         {
             Pos = pos;
             BedTier = tier;
-            State = PlotState.Dry;
+            State = PlotState.Hard;
             Progress = 0f;
+            Layer = -1;
         }
 
-        internal void Reset()
+        /// <summary>The crop is gone (reaped, eaten, frozen): back to hard ground at the layer given.</summary>
+        internal void ClearCrop()
         {
-            State = PlotState.Dry;
+            State = PlotState.Hard;
             Progress = 0f;
             IsGolden = false;
             RipeAge = 0f;
-            DryTimer = 0f;
+            Watering = false;
         }
     }
 
@@ -93,7 +112,7 @@ namespace TillWinter.Core
         public GridPos Pos { get; internal set; }
         /// <summary>Seconds it has been there.</summary>
         public float Timer { get; internal set; }
-        /// <summary>0..1: how far the ring has driven a locust swarm off.</summary>
+        /// <summary>0..1: how far strikes have driven a locust swarm off.</summary>
         public float Shoo { get; internal set; }
     }
 
@@ -137,16 +156,17 @@ namespace TillWinter.Core
         /// <summary>Position in plot space.</summary>
         public float X { get; internal set; }
         public float Y { get; internal set; }
-        /// <summary>Where it waits when nothing is Ripe.</summary>
+        /// <summary>Where it waits when nothing needs it.</summary>
         public float IdleX { get; internal set; }
         public float IdleY { get; internal set; }
         public bool HasTarget { get; internal set; }
         public GridPos Target { get; internal set; }
-        public bool IsHarvesting { get; internal set; }
-        public float HarvestProgress { get; internal set; }
+        /// <summary>Bent over the plot: reaping, watering or digging, by role.</summary>
+        public bool IsWorking { get; internal set; }
+        public float WorkProgress { get; internal set; }
         /// <summary>True while moving (toward a target or back to the idle spot).</summary>
         public bool IsWalking { get; internal set; }
-        /// <summary>Harvester or waterer (GDD §4.2 v2.0); the player switches it by tapping the apprentice.</summary>
+        /// <summary>Picker, waterer or digger (GDD §2v3.9); the player switches it by tapping the apprentice.</summary>
         public ApprenticeRole Role { get; internal set; }
     }
 
@@ -215,12 +235,18 @@ namespace TillWinter.Core
         public int CrowsScared { get; internal set; }
         public int Harvests { get; internal set; }
         // v4: stats screen (never reset by a retire)
-        public int HarvestsRing { get; internal set; }
+        public int HarvestsHand { get; internal set; }
         public int HarvestsApprentice { get; internal set; }
         public int HarvestsTractor { get; internal set; }
         public int HarvestsLateFrost { get; internal set; }
         public int GoldenHarvests { get; internal set; }
+        /// <summary>Most crops reaped in one swipe.</summary>
         public int BestCombo { get; internal set; }
+        /// <summary>v3: strikes, crits and layers broken, lifetime.</summary>
+        public int Strikes { get; internal set; }
+        public int Crits { get; internal set; }
+        public int Breaks { get; internal set; }
+        public int DeepestLayer { get; internal set; }
         /// <summary>Real seconds the game was open and not paused (fed by the presentation layer through FarmSim.AddPlayTime).</summary>
         public double TimePlayedSeconds { get; internal set; }
         /// <summary>Years played across every generation.</summary>
@@ -288,15 +314,24 @@ namespace TillWinter.Core
         public Plot GetPlot(int x, int y) => PlotArray[y * GridSize + x];
         public bool InBounds(GridPos pos) => pos.X >= 0 && pos.Y >= 0 && pos.X < GridSize && pos.Y < GridSize;
 
-        public RingInput? Ring { get; internal set; }
-        /// <summary>The ring's footprint; Rake and Cross need `ring_shape` (GDD §2.1 v1.6).</summary>
-        public RingShape RingShape { get; internal set; } = RingShape.Round;
-        /// <summary>0..1: how much the ring is "flowing" (moving), which speeds it up.</summary>
-        public float Flow { get; internal set; }
-        /// <summary>Seconds until the next tap harvest is allowed (`tap_harvest`).</summary>
-        public float TapCooldown { get; internal set; }
-        /// <summary>Effective radius (debug override or <see cref="Stats"/>).</summary>
-        public float RingRadius { get; internal set; }
+        // ---- the hoe (GDD §2v3.4–5)
+        /// <summary>Stamina in the depot, 0..Stats.StaminaMax.</summary>
+        public float Stamina { get; internal set; }
+        /// <summary>Seconds until the next strike is allowed.</summary>
+        public float StrikeCooldownLeft { get; internal set; }
+        /// <summary>Seconds into the field's beat, 0..PulseSeconds; the beat itself is at the middle.</summary>
+        public float PulseTime { get; internal set; }
+        /// <summary>0..1 through the beat; the beat is at 0.5.</summary>
+        public float Pulse { get; internal set; }
+        /// <summary>A strike now would land inside the crit window.</summary>
+        public bool OnBeat { get; internal set; }
+        /// <summary>No stamina for a rested strike: the next swing is tired (GDD §2v3.5).</summary>
+        public bool Tired => Stamina < StrikeCost;
+        internal float StrikeCost;
+        /// <summary>The plot the player's finger is watering, if any (set each frame by the presentation).</summary>
+        public GridPos? WateringPos { get; internal set; }
+        /// <summary>Where the last strike landed (the beat halo sits there).</summary>
+        public GridPos? LastStrikePos { get; internal set; }
 
         internal readonly List<Crow> CrowList = new List<Crow>();
         public IReadOnlyList<Crow> Crows => CrowList;
@@ -332,9 +367,9 @@ namespace TillWinter.Core
         public CloudState Cloud { get; } = new CloudState();
         public TractorState Tractor { get; } = new TractorState();
         public GreenhouseState Greenhouse { get; } = new GreenhouseState();
-        /// <summary>Consecutive ring harvests within the combo window (ring_combo).</summary>
+        /// <summary>Crops reaped by the last swipe (the HUD shows ×n); 0 once it has faded.</summary>
         public int Combo { get; internal set; }
-        /// <summary>Seconds since the last ring harvest (combo window is 1 s).</summary>
+        /// <summary>Seconds since the last swipe.</summary>
         public float ComboTimer { get; internal set; }
 
         public OnboardingFlags Onboarding { get; } = new OnboardingFlags();
@@ -350,34 +385,5 @@ namespace TillWinter.Core
 
         /// <summary>Derived numbers; recomputed after every purchase.</summary>
         public Stats Stats { get; internal set; } = new Stats();
-
-        /// <summary>Shape metrics, set from <see cref="FarmConfig"/> when the sim is built.</summary>
-        internal float RakeLength = 1.7f, RakeWidth = 0.5f, CrossLength = 1.5f, CrossWidth = 0.42f;
-
-        /// <summary>Is the centre of this plot inside the ring right now (whatever shape it has)?</summary>
-        public bool IsUnderRing(GridPos pos)
-        {
-            if (Ring == null) return false;
-            var r = Ring.Value;
-            float dx = pos.X - r.X;
-            float dy = pos.Y - r.Y;
-            float radius = RingRadius;
-            switch (RingShape)
-            {
-                case RingShape.Rake:
-                    return Inside(dx, dy, radius * RakeLength, radius * RakeWidth);
-                case RingShape.Cross:
-                    return Inside(dx, dy, radius * CrossLength, radius * CrossWidth)
-                        || Inside(dx, dy, radius * CrossWidth, radius * CrossLength);
-                default:
-                    return dx * dx + dy * dy <= radius * radius;
-            }
-        }
-
-        private static bool Inside(float dx, float dy, float halfX, float halfY)
-        {
-            float nx = dx / halfX, ny = dy / halfY;
-            return nx * nx + ny * ny <= 1f;
-        }
     }
 }

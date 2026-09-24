@@ -4,119 +4,124 @@ using TillWinter.Core;
 namespace TillWinter.Tests
 {
     /// <summary>
-    /// M.3, seasons, year and weather (GDD §3/§5.4 v1.9): spring rain, summer drought, the autumn festival, the frost
-    /// rush, the year's grade, yearly goals, and storms, heat waves and fog.
+    /// M.3, seasons, year and weather (GDD §3/§5.4 v1.9, re-themed v3): spring rain softens the ground, summer
+    /// drought bakes it and slows growth, the autumn festival stretches the swipe combo, the frost rush, the year's
+    /// grade, yearly goals, and storms, heat waves and fog.
     /// </summary>
     public class SeasonYearTests
     {
-        /// <summary>Only the rule under test moves: no crop preferences, no weather or goals drawn, no special ground.</summary>
+        /// <summary>
+        /// Only the rule under test moves: no crop preferences, no weather or goals drawn, no special ground, no depth
+        /// bonus, and a hoe that never crits by chance. The season and weather numbers stay at their defaults.
+        /// </summary>
         private static FarmConfig Cfg()
         {
             var cfg = new FarmConfig();
             cfg.InSeasonValue = 1;
-            cfg.StonyChance = cfg.FertileChance = 0;
+            cfg.FertileChance = 0;
+            cfg.ChestChance = cfg.HardpanChance = 0;
+            cfg.DepthValue = 0;
+            cfg.BaseCritChance = 0;
             cfg.WeatherFirstYear = int.MaxValue;
             cfg.GoalFirstYear = int.MaxValue;
+            cfg.HeirloomsEnabled = false; // a first harvest must not nudge the crop value mid-test
             return cfg;
         }
 
-        private static void Run(FarmSim sim, float seconds, RingInput? ring)
+        private static void Run(FarmSim sim, float seconds)
         {
-            for (float t = 0f; t < seconds; t += 0.05f) sim.Tick(0.05f, ring);
+            int ticks = (int)System.Math.Round(seconds / 0.05f);
+            for (int i = 0; i < ticks; i++) sim.Tick(0.05f);
         }
 
-        /// <summary>Coins from one fresh tap-harvest of plot (0,0).</summary>
-        private static double TapHarvest(FarmSim sim)
+        private static readonly GridPos Origin = new GridPos(0, 0);
+
+        /// <summary>Coins from one fresh hand reap of plot (0,0), ripened on its own so nothing else stands at the frost.</summary>
+        private static double HandReap(FarmSim sim)
         {
-            sim.DebugForceRipeAll();
-            sim.DebugClearTapCooldown();
+            Assert.IsTrue(sim.DebugForceRipe(Origin));
             double before = sim.State.Coins;
-            Assert.IsTrue(sim.TapAt(new GridPos(0, 0)));
+            Assert.IsTrue(sim.ReapOne(Origin));
             return sim.State.Coins - before;
         }
 
+        /// <summary>HP taken off (0,0) by one rested, off-beat strike now (a fresh or just-jumped sim is off the beat).</summary>
+        private static double StrikeDamage(FarmSim sim)
+        {
+            var plot = sim.State.GetPlot(Origin);
+            Assert.IsFalse(sim.State.OnBeat);
+            double before = plot.Hp;
+            Assert.IsTrue(sim.Strike(Origin));
+            return before - plot.Hp;
+        }
+
         [Test]
-        public void SpringRain_WatersFaster()
+        public void SpringRain_SoftensTheGround()
         {
             var spring = new FarmSim(Cfg(), 1);
             var cfgOff = Cfg();
-            cfgOff.SpringWaterBoost = 1f;
+            cfgOff.SpringSoftness = 1f;
             var plain = new FarmSim(cfgOff, 1);
-            spring.DebugSetLevel("irrigation", 1);
-            plain.DebugSetLevel("irrigation", 1);
-            Run(spring, 0.5f, null);
-            Run(plain, 0.5f, null);
-            float a = spring.State.GetPlot(0, 0).Progress, b = plain.State.GetPlot(0, 0).Progress;
-            Assert.That(b, Is.GreaterThan(0f));
-            Assert.AreEqual(b * Cfg().SpringWaterBoost, a, 1e-3);
+            Assert.AreEqual(Season.Spring, spring.State.Season);
+            Assert.AreEqual(3, StrikeDamage(plain), 1e-9);
+            Assert.AreEqual(3 * Cfg().SpringSoftness, StrikeDamage(spring), 1e-9);
         }
 
         [Test]
-        public void SummerDrought_DriesANeglectedWetPlot_ButNotOneTheSunGrows()
+        public void SummerDrought_BakesTheGround_AndSlowsGrowth()
         {
             var sim = new FarmSim(Cfg(), 1);
             sim.DebugSetSeason(Season.Summer);
-            var at = new GridPos(0, 0);
-            var plot = sim.State.GetPlot(at);
-            while (plot.State == PlotState.Dry) sim.Tick(0.05f, new RingInput(0f, 0f));
-            Assert.AreEqual(PlotState.Wet, plot.State);
-            int dried = 0;
-            sim.PlotDriedOut += p => dried++;
-            Run(sim, sim.Config.SummerDryOutSeconds - 0.5f, null);
-            Assert.AreEqual(PlotState.Wet, plot.State, "not yet");
-            Run(sim, 1f, null);
-            Assert.AreEqual(PlotState.Dry, plot.State, "dried out in the heat");
-            Assert.That(dried, Is.GreaterThan(0));
+            Assert.AreEqual(Season.Summer, sim.State.Season);
+            Assert.AreEqual(3 * Cfg().SummerHardness, StrikeDamage(sim), 1e-6);
 
-            var sunny = new FarmSim(Cfg(), 1);
-            sunny.DebugSetLevel("sun", 1);
-            sunny.DebugSetSeason(Season.Summer);
-            var p2 = sunny.State.GetPlot(at);
-            while (p2.State == PlotState.Dry) sunny.Tick(0.05f, new RingInput(0f, 0f));
-            Run(sunny, sunny.Config.SummerDryOutSeconds + 1f, null);
-            Assert.AreNotEqual(PlotState.Dry, p2.State, "the sun keeps it growing");
+            var plot = sim.State.GetPlot(1, 1);
+            sim.DebugBreak(plot.Pos);
+            Run(sim, 1f);
+            // Carrot 2.5 s at 0.8×: 0.32 after a second.
+            Assert.That(plot.Progress, Is.EqualTo(Cfg().SummerGrowth / sim.Config.Crops[0].Grow).Within(0.02f));
         }
 
         [Test]
-        public void TheAutumnFestival_GivesTheComboLongerToBreathe()
+        public void TheAutumnFestival_PaysMorePerCropInASwipe()
         {
-            int ComboAfterTwo(Season season)
+            double SwipeAll(Season season)
             {
-                var sim = new FarmSim(Cfg(), 1);
-                sim.DebugSetLevel("tap_harvest", 2);
+                var cfg = Cfg();
+                cfg.FrostRushValue = 1; // the autumn jump lands inside the frost warning: keep the rush out of this sum
+                var sim = new FarmSim(cfg, 1);
                 if (season != Season.Spring) sim.DebugSetSeason(season);
-                sim.Tick(0.01f, null);
-                TapHarvest(sim);
-                Run(sim, 1.2f, null); // longer than the plain window, inside the festival's
-                TapHarvest(sim);
-                return sim.State.Combo;
+                sim.DebugForceRipeAll();
+                double before = sim.State.Coins;
+                Assert.AreEqual(9, sim.ReapAll());
+                return sim.State.Coins - before;
             }
 
-            Assert.AreEqual(1, ComboAfterTwo(Season.Spring));
-            Assert.AreEqual(2, ComboAfterTwo(Season.Autumn));
+            var c = Cfg();
+            double carrot = c.Crops[0].Value; // 2
+            // Nine in one swipe: each pays 1 + 0.1 × 8 = 1.8× in spring, 1 + 0.1 × 1.5 × 8 = 2.2× at the festival.
+            Assert.AreEqual(9 * carrot * (1 + c.ComboPerCrop * 8), SwipeAll(Season.Spring), 1e-9);
+            Assert.AreEqual(9 * carrot * (1 + c.ComboPerCrop * c.AutumnCombo * 8), SwipeAll(Season.Autumn), 1e-9);
         }
 
         [Test]
-        public void TheFrostRush_PaysDouble()
+        public void TheFrostRush_PaysMore()
         {
             var spring = new FarmSim(Cfg(), 1);
-            spring.DebugSetLevel("tap_harvest", 2);
-            double normal = TapHarvest(spring);
+            double normal = HandReap(spring);
 
             var frost = new FarmSim(Cfg(), 1);
-            frost.DebugSetLevel("tap_harvest", 2);
             frost.DebugSetSeason(Season.Autumn);
-            frost.Tick(0.01f, null);
+            frost.Tick(0.01f);
             Assert.IsTrue(frost.State.FrostWarning);
-            Assert.AreEqual(normal * frost.Config.FrostRushValue, TapHarvest(frost), 1e-9);
+            Assert.AreEqual(normal * frost.Config.FrostRushValue, HandReap(frost), 1e-9);
         }
 
         [Test]
         public void AYearOfFreshHarvests_EarnsThreeStars_AndTheirBonus()
         {
             var sim = new FarmSim(Cfg(), 1);
-            sim.DebugSetLevel("tap_harvest", 2);
-            for (int i = 0; i < 5; i++) TapHarvest(sim);
+            for (int i = 0; i < 5; i++) HandReap(sim);
             double year = sim.State.CoinsThisYear;
             int stars = 0;
             double paid = -1;
@@ -134,11 +139,9 @@ namespace TillWinter.Tests
         public void StaleHarvests_EarnOneStar_AndNoBonus()
         {
             var sim = new FarmSim(Cfg(), 1);
-            sim.DebugSetLevel("tap_harvest", 2);
-            sim.DebugForceRipeAll();
-            Run(sim, sim.Config.RipeGraceSeconds + sim.Config.OverripeDecaySeconds, null);
-            sim.DebugClearTapCooldown();
-            Assert.IsTrue(sim.TapAt(new GridPos(0, 0)));
+            Assert.IsTrue(sim.DebugForceRipe(Origin));
+            Run(sim, sim.Config.RipeGraceSeconds + sim.Config.OverripeDecaySeconds);
+            Assert.IsTrue(sim.ReapOne(Origin));
             sim.DebugSkipToWinter();
             Assert.AreEqual(1, sim.State.LastGrade);
             Assert.AreEqual(0, sim.State.LastGradeBonus, 1e-9);
@@ -160,8 +163,7 @@ namespace TillWinter.Tests
             Assert.IsFalse(sim.State.Goal.Active, "year 1 is for learning the field");
             YearGoal set = null;
             sim.GoalSet += g => set = g;
-            sim.DebugSetLevel("tap_harvest", 2);
-            for (int i = 0; i < 4; i++) TapHarvest(sim);
+            for (int i = 0; i < 4; i++) HandReap(sim);
             sim.DebugSkipToWinter();
             sim.StartNextYear();
             Assert.IsNotNull(set);
@@ -175,16 +177,15 @@ namespace TillWinter.Tests
         public void AHarvestGoal_PaysOnce_WhenMet()
         {
             var sim = new FarmSim(Cfg(), 1);
-            sim.DebugSetLevel("tap_harvest", 2);
             sim.DebugSetGoal(GoalType.HarvestCrop, 2, 0, 50);
             int done = 0;
             sim.GoalCompleted += g => done++;
-            double first = TapHarvest(sim);
+            double first = HandReap(sim);
             Assert.IsFalse(sim.State.Goal.Done);
-            double second = TapHarvest(sim);
+            double second = HandReap(sim);
             Assert.IsTrue(sim.State.Goal.Done);
             Assert.AreEqual(first + 50, second, 1e-9, "the reward lands with the harvest that meets it");
-            TapHarvest(sim);
+            HandReap(sim);
             Assert.AreEqual(1, done);
         }
 
@@ -192,34 +193,34 @@ namespace TillWinter.Tests
         public void ComboAndCoinGoals_TrackTheirOwnNumbers()
         {
             var combo = new FarmSim(Cfg(), 1);
-            combo.DebugSetLevel("tap_harvest", 2);
             combo.DebugSetGoal(GoalType.Combo, 3);
-            for (int i = 0; i < 3; i++) TapHarvest(combo);
-            Assert.IsTrue(combo.State.Goal.Done, "three quick harvests make a combo of three");
+            combo.DebugForceRipeAll();
+            Assert.AreEqual(2, combo.Reap(new[] { new GridPos(0, 0), new GridPos(1, 0) }));
+            Assert.IsFalse(combo.State.Goal.Done, "two in a swipe is not three");
+            Assert.AreEqual(3, combo.Reap(new[] { new GridPos(0, 1), new GridPos(1, 1), new GridPos(2, 1) }));
+            Assert.IsTrue(combo.State.Goal.Done, "three in one swipe");
 
             var coins = new FarmSim(Cfg(), 1);
-            coins.DebugSetLevel("tap_harvest", 2);
             coins.DebugSetGoal(GoalType.Coins, 5);
-            while (!coins.State.Goal.Done && coins.State.CoinsThisYear < 100) TapHarvest(coins);
+            while (!coins.State.Goal.Done && coins.State.CoinsThisYear < 100) HandReap(coins);
             Assert.IsTrue(coins.State.Goal.Done);
         }
 
         [Test]
-        public void AStorm_StopsTheSun_WatersEveryDryPlot_AndPasses()
+        public void AStorm_GrowsEveryCropFaster_SoftensTheGround_AndPasses()
         {
             var sim = new FarmSim(Cfg(), 1);
-            sim.DebugSetLevel("sun", 1);
-            var dry = sim.State.GetPlot(2, 2);
-            var wet = sim.State.GetPlot(0, 0);
-            while (wet.State == PlotState.Dry) sim.Tick(0.05f, new RingInput(0f, 0f));
-            float grown = wet.Progress;
+            var growing = sim.State.GetPlot(1, 1);
+            sim.DebugBreak(growing.Pos);
             Weather last = Weather.Clear;
             sim.WeatherChanged += w => last = w;
             sim.DebugStartWeather(Weather.Storm);
-            Run(sim, 1f, null);
-            Assert.AreEqual(grown, wet.Progress, 1e-6, "no sun in a storm");
-            Assert.That(dry.Progress, Is.GreaterThan(0f), "the rain waters without irrigation");
-            Run(sim, sim.Config.StormSeconds, null);
+            Assert.AreEqual(Weather.Storm, last);
+            // Spring rain × the storm: 3 × 1.25 × 1.25.
+            Assert.AreEqual(3 * Cfg().SpringSoftness * Cfg().StormSoftness, StrikeDamage(sim), 1e-6);
+            Run(sim, 1f);
+            Assert.That(growing.Progress, Is.EqualTo(Cfg().StormGrowth / sim.Config.Crops[0].Grow).Within(0.02f), "1.5× growth in the rain");
+            Run(sim, sim.Config.StormSeconds);
             Assert.AreEqual(Weather.Clear, sim.State.Weather);
             Assert.AreEqual(Weather.Clear, last);
         }
@@ -230,26 +231,24 @@ namespace TillWinter.Tests
             var sim = new FarmSim(Cfg(), 1);
             sim.DebugForceRipeAll();
             sim.DebugStartWeather(Weather.Fog);
-            Run(sim, sim.Config.FogSeconds - 1f, null);
+            Run(sim, sim.Config.FogSeconds - 1f);
             Assert.AreEqual(0f, sim.State.GetPlot(0, 0).RipeAge, 1e-6);
         }
 
         [Test]
-        public void AHeatWave_StrengthensTheSun()
+        public void AHeatWave_SlowsGrowth_AndBakesTheGround()
         {
             var hot = new FarmSim(Cfg(), 1);
             var mild = new FarmSim(Cfg(), 1);
-            foreach (var s in new[] { hot, mild })
-            {
-                s.DebugSetLevel("sun", 1);
-                while (s.State.GetPlot(0, 0).State == PlotState.Dry) s.Tick(0.05f, new RingInput(0f, 0f));
-            }
+            foreach (var s in new[] { hot, mild }) s.DebugBreak(new GridPos(1, 1));
             hot.DebugStartWeather(Weather.HeatWave);
-            float h0 = hot.State.GetPlot(0, 0).Progress, m0 = mild.State.GetPlot(0, 0).Progress;
-            Run(hot, 0.5f, null);
-            Run(mild, 0.5f, null);
-            float h = hot.State.GetPlot(0, 0).Progress - h0, m = mild.State.GetPlot(0, 0).Progress - m0;
-            Assert.AreEqual(m * hot.Config.HeatWaveSun, h, 1e-3);
+            Run(hot, 0.5f);
+            Run(mild, 0.5f);
+            float h = hot.State.GetPlot(1, 1).Progress, m = mild.State.GetPlot(1, 1).Progress;
+            Assert.That(m, Is.GreaterThan(0f));
+            Assert.AreEqual(m * hot.Config.HeatWaveGrowth, h, 1e-3);
+            // Spring rain × the heat: 3 × 1.25 × 0.8.
+            Assert.AreEqual(StrikeDamage(mild) * hot.Config.HeatWaveHardness, StrikeDamage(hot), 1e-6);
         }
 
         [Test]
@@ -267,7 +266,7 @@ namespace TillWinter.Tests
                 Assert.AreNotEqual(Weather.Clear, kind, "seed " + seed);
                 Season? seen = null;
                 sim.WeatherChanged += w => { if (w != Weather.Clear && seen == null) seen = sim.State.Season; };
-                while (sim.State.Phase == Phase.Year && seen == null) sim.Tick(0.1f, null);
+                while (sim.State.Phase == Phase.Year && seen == null) sim.Tick(0.1f);
                 Assert.IsNotNull(seen, "the spell came, seed " + seed);
                 if (kind == Weather.Fog) Assert.AreEqual(Season.Spring, seen.Value);
                 if (kind == Weather.HeatWave) Assert.AreEqual(Season.Summer, seen.Value);
