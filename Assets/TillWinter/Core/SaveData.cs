@@ -12,7 +12,7 @@ namespace TillWinter.Core
     public sealed class SaveData
     {
         /// <summary>v18: core loop v3 (GDD §2v3). Saves of the ring game (v1–v17) start fresh: the field was a different game.</summary>
-        public const int CurrentSchemaVersion = 18;
+        public const int CurrentSchemaVersion = 19;
         /// <summary>The oldest schema that still loads.</summary>
         public const int OldestSupportedSchemaVersion = 18;
 
@@ -29,6 +29,8 @@ namespace TillWinter.Core
         public uint RngState;
         /// <summary>v18: the depot (GDD §2v3.5).</summary>
         public float Stamina;
+        /// <summary>v19: the swing still settling at the save, so the loaded farm regenerates and strikes on the same beat.</summary>
+        public float StrikeCooldownLeft;
 
         // Generation stats
         public int Generation = 1;
@@ -60,6 +62,8 @@ namespace TillWinter.Core
         public int Combo;
         public float ComboTimer;
         public float GreenhouseSecondsLeft;
+        /// <summary>v19: the winter's greenhouse rate, fixed at the frost from the field's value then.</summary>
+        public double GreenhouseRate;
         public double GreenhouseCoinsThisWinter;
 
         // Onboarding flags, per-tree canvas memory
@@ -179,6 +183,10 @@ namespace TillWinter.Core
         public float X, Y;
         /// <summary><see cref="ApprenticeRole"/>.</summary>
         public int Role;
+        /// <summary>v19: mid-errand state, so a loaded apprentice finishes the plot it was on instead of starting over.</summary>
+        public bool HasTarget, IsWorking, IsWalking;
+        public int TargetX, TargetY;
+        public float WorkProgress, IdleX, IdleY;
     }
 
     [Serializable]
@@ -203,6 +211,9 @@ namespace TillWinter.Core
             {
                 switch (data.SchemaVersion)
                 {
+                    // v18 -> v19: the swing cooldown, the greenhouse rate and the apprentices' errands are new fields;
+                    // their zero defaults mean 'settled, recomputed at the next frost, idle', which is what v18 loads meant.
+                    case 18: data.SchemaVersion = 19; break;
                     default: return null;
                 }
             }

@@ -381,5 +381,81 @@ namespace TillWinter.Tests
             Assert.IsTrue(r2.Capped);
             Assert.AreEqual(100, r2.SecondsSimulated);
         }
+    
+        [Test]
+        public void V19_ErrandsCooldownAndGreenhouseRate_SurviveALoad_SoTheFarmPlaysOnIdentically()
+        {
+            // v19: an apprentice bent over a plot, a swing still settling and this winter's greenhouse rate are saved.
+            // Without them a loaded farm restarted its helpers idle, regenerated stamina at the rested rate and
+            // recomputed the greenhouse from today's field, and drifted from the farm that was saved within seconds.
+            var a = BusySim();
+            // Catch a digger mid-errand and a swing mid-cooldown.
+            for (int i = 0; i < 4000; i++)
+            {
+                a.Tick(0.01f);
+                bool errand = false;
+                foreach (var ap in a.State.Apprentices) if (ap.IsWorking && ap.WorkProgress > 0.2f) errand = true;
+                if (errand) break;
+            }
+            bool caught = false;
+            foreach (var ap in a.State.Apprentices) if (ap.IsWorking) caught = true;
+            Assert.IsTrue(caught, "an apprentice is working when the save is taken");
+            foreach (var p in a.State.Plots) if (p.IsHard && a.CanStrike) { a.Strike(p.Pos); break; }
+            Assert.That(a.State.StrikeCooldownLeft, Is.GreaterThan(0f), "a swing is settling when the save is taken");
+
+            var data = a.ToSave();
+            Assert.AreEqual(19, data.SchemaVersion);
+            Assert.That(data.StrikeCooldownLeft, Is.GreaterThan(0f));
+            bool savedErrand = false;
+            foreach (var ap in data.Apprentices) if (ap.IsWorking && ap.WorkProgress > 0f) savedErrand = true;
+            Assert.IsTrue(savedErrand, "the errand is in the save");
+            var b = FarmSim.FromSave(data, new FarmConfig());
+            for (int i = 0; i < a.State.Apprentices.Count; i++)
+            {
+                Assert.AreEqual(a.State.Apprentices[i].IsWorking, b.State.Apprentices[i].IsWorking, "apprentice " + i + " working");
+                Assert.AreEqual(a.State.Apprentices[i].HasTarget, b.State.Apprentices[i].HasTarget, "apprentice " + i + " target");
+                Assert.AreEqual(a.State.Apprentices[i].WorkProgress, b.State.Apprentices[i].WorkProgress, 1e-6f, "apprentice " + i + " progress");
+            }
+            Assert.AreEqual(a.State.StrikeCooldownLeft, b.State.StrikeCooldownLeft, 1e-6f);
+            for (int i = 0; i < 3000; i++) { a.Tick(0.01f); b.Tick(0.01f); }
+            AssertSameState(a, b);
+            for (int i = 0; i < a.State.Plots.Count; i++)
+            {
+                Assert.AreEqual(a.State.Plots[i].State, b.State.Plots[i].State, "plot " + i + " state after 30 s");
+                Assert.AreEqual(a.State.Plots[i].Hp, b.State.Plots[i].Hp, 1e-6, "plot " + i + " hp after 30 s");
+            }
+        }
+
+        [Test]
+        public void V19_GreenhouseRate_IsTheSavedOne_NotRecomputedFromTodaysField()
+        {
+            var a = BusySim();
+            a.DebugAddCoins(50000);
+            a.DebugSkipToWinter();
+            Assert.IsTrue(a.TryBuy("year_length"));
+            Assert.IsTrue(a.TryBuy("greenhouse"), "a greenhouse for this winter");
+            double rate = a.State.Greenhouse.CoinsPerSecond;
+            Assert.That(rate, Is.GreaterThan(0));
+            // The frost reaps what is ripe as the winter runs, so today's field is worth less than at the purchase.
+            for (int i = 0; i < 300; i++) a.Tick(0.01f);
+            var b = FarmSim.FromSave(a.ToSave(), new FarmConfig());
+            Assert.AreEqual(rate, b.State.Greenhouse.CoinsPerSecond, 1e-9, "the loaded winter earns at the saved rate");
+            for (int i = 0; i < 2000; i++) { a.Tick(0.01f); b.Tick(0.01f); }
+            Assert.AreEqual(a.State.Coins, b.State.Coins, 1e-6);
+        }
+
+        [Test]
+        public void V18Save_Migrates_ToV19_WithSettledDefaults()
+        {
+            var data = BusySim().ToSave();
+            data.SchemaVersion = 18;
+            data.StrikeCooldownLeft = 0.3f; // a v18 file never carries these; the migration must not invent them either
+            var migrated = SaveMigrations.Migrate(data, new FarmConfig());
+            Assert.IsNotNull(migrated);
+            Assert.AreEqual(19, migrated.SchemaVersion);
+            var sim = FarmSim.FromSave(migrated, new FarmConfig());
+            Assert.IsNotNull(sim);
+            Assert.AreEqual(Phase.Year, sim.State.Phase);
+        }
     }
 }
