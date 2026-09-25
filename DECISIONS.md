@@ -1489,3 +1489,71 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   this session's playtesting allocated mid-play. Chosen: the coin counter's `char[]` buffer is now
   sized for the longest string it will ever need up front, matching the no-per-frame-allocation
   rule rather than growing lazily the first time a bigger number appears.
+
+# Session 14 — mechanics audit (2026-09-25)
+
+- **The "dead field after a year" bug: the apprentice's hit area, not the year.** Open: the developer
+  saw taps on tiles doing nothing after a year passed and asked whether the year, another mechanic or a
+  UI panel was to blame. The play-mode probe (`mechanics-probe.bat`) found no UI over the field and Core
+  accepting a direct strike, but zero strikes from taps in generation 2, year 2 — the apprentice bought
+  the winter before stood beside the tapped bed, and `GameController.OnPress` gave apprentices (a
+  90 px finger-sized hit radius that covers a bed and its neighbours) priority over the plot, so every
+  tap cycled its role instead. Chosen: the plot wins unless the finger is nearer the apprentice's body
+  than the bed's centre (`NearerThanPlot`); the press remembers which apprentice it landed on so the
+  release toggles that one and not whoever walked under the finger since; the dog only takes taps off
+  the field; the cloud keeps priority. Not chosen: a smaller radius alone (apprentices stand on the
+  beds they work, so any radius covers that bed) or "apprentices only tappable at their idle row"
+  (a working apprentice must still be re-roled).
+- **A tap on a growing crop answers.** Growing crops wait for spring over winter (v3.2), so the year after
+  a frost the field is full of them and a tap on one did nothing at all; it now wobbles the crop and
+  banners the hold hint at most every 3 s (`GameController.TappedGrowing`). The rule is unchanged.
+- **The debug finger keeps its own clock.** `GameController.DebugPointerScreen` (the held finger the smoke
+  test and the probe use) never accumulated `HeldSeconds` because `Pointer.Current` is a struct copy, so a
+  debug hold could never water; the smoke's "held finger waters" check only passed because the carrot
+  ripened anyway. Fixed with a private accumulator; the smoke check now means what it says.
+
+- **Heritage head starts grant Almanac levels rather than refusing the no-op purchase.** Open: the
+  audit found a Heritage head start (`h_start_growth`, `h_start_soft`) only set a floor in
+  `StatResolver`, so the player could still buy Almanac `growth` level 1 or `soft_ground` level 1
+  for coins and get nothing. Two fixes were on the table: refuse the purchase, or grant the level
+  free at generation start. Chosen: grant — `FarmSim.GrantHeritageStarts` now sets the Almanac
+  level directly (free, uncounted in `AlmanacSpent`), the same way it already granted
+  `unlock_tomato` for `h_start_tomato`; a refused level 1 sitting next to a purchasable level 2 on
+  the same card would have read as a bug, not a feature.
+- **`year_length` reads as maxed at the Heritage-lifted ceiling, matching `expand_field`'s existing
+  rule.** Open: with `h_start_year_length` and `h_long_summer` in play, the Almanac's last
+  `year_length` levels could exceed `MaxYearLength` and change nothing, so the card offered a dead
+  level. Chosen: the node reads as maxed (and `GetMaxLevel` reports the current level) once
+  `Stats.YearLength >= MaxYearLength + YearLengthCapBonus`, reusing the field cap's rule rather than
+  inventing a second one.
+- **The 1-ulp HP difference after a load was left alone.** Open: the invariant fuzz flagged a
+  sub-float-epsilon `MaxHp` mismatch after a save/load round trip. Chosen: not a bug — `MaxHp` is
+  recomputed from the layer formula on load rather than saved, and the float rounding is harmless;
+  saving `MaxHp` itself to chase an exact match would add a redundant persistent field for no
+  behavioural gain.
+- **Stale apprentice/pest positions behind an inactive flag are not restored.** Open: whether a
+  clover or a pest's last on-screen position needed a save field so it reappears in the same spot
+  after a load. Chosen: no — both are gated by an `Active`/inactive flag the save already carries
+  correctly, and the position underneath is never read while inactive, so it is harmless dead data
+  rather than a bug worth a new field.
+- **Save schema 19.** The invariant fuzz (12 seeds × 40 000 ticks of random play through the public
+  API, 96 save round trips) found a loaded farm drifting from the saved one within 20 seconds:
+  apprentices restarted idle (a digger's plot HP and a picker's harvest count differed), stamina
+  regenerated at the rested rate because the settling swing was forgotten, and the greenhouse rate
+  was recomputed from the field as it stood at load rather than at the last purchase. Added
+  `StrikeCooldownLeft`, the winter's `GreenhouseRate`, and each apprentice's errand
+  (`HasTarget, TargetX/Y, IsWorking, WorkProgress, IsWalking, IdleX/Y`) to `SaveData`; `FromSave`
+  now keeps the saved greenhouse rate instead of recomputing it. The fuzz found no other invariant
+  violation over 283 years and 7 generations (coins, stamina, plot HP/progress/layers, field size vs
+  target, apprentice counts, bounds all held). A v18 file still loads through the new
+  `V18ToV19` migration (`SaveV18Tests` fixture); `SaveTests` gained tests for the errands, the
+  cooldown, the greenhouse rate and the migration.
+- **Audit tooling: a scratchpad harness plus a new in-repo play-mode probe.** Open: how to find
+  mechanics bugs that unit tests, which each check one rule in isolation, don't catch. Chosen: a
+  Core-only stats matrix and the invariant fuzz above were built and compiled with Unity's Roslyn in
+  the session scratchpad (outside the repo, throwaway); alongside them, `mechanics-probe.bat` /
+  `Assets/TillWinter/Editor/MechanicsProbe.cs` was added to the repo as a lasting play-mode probe —
+  it plays strike → water → reap → winter purchases → next year → expansion → retire → album page →
+  Heritage purchases → new generation through the real input and UI paths and reports whether a tap
+  on the field still lands after each screen change (and what UI sits under the finger when it does
+  not), catching input-blocking regressions the EditMode suite can't see.
