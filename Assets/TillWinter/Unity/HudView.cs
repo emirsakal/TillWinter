@@ -256,6 +256,7 @@ namespace TillWinter.Unity
             _game.Sim.ComboMilestone += OnComboMilestone;
             _game.Sim.CrowScared += OnCrowScared;
             _game.Sim.YearStarted += OnYearStarted;
+            _game.TappedGrowing += OnTappedGrowing;
             _game.Sim.WinterStarted += OnWinter;
             _game.Sim.FrostWarningStarted += OnFrostWarning;
             _game.Sim.GoalCompleted += OnGoalCompleted;
@@ -891,6 +892,18 @@ namespace TillWinter.Unity
             _game.Sim.CrowScared -= OnCrowScared;
             _game.Sim.YearStarted -= OnYearStarted;
             _game.Sim.WinterStarted -= OnWinter;
+        }
+
+        private float _holdNudgeAt = -10f;
+
+        /// <summary>A tap on a growing crop does nothing by rule (a held finger waters it); after a winter the field is
+        /// full of them and a silent tap reads as a dead screen, so the banner says what the crop wants, a few seconds apart.</summary>
+        private void OnTappedGrowing(GridPos pos)
+        {
+            if (Time.unscaledTime - _holdNudgeAt < 3f) return;
+            _holdNudgeAt = Time.unscaledTime;
+            Banner(Strings.Get("hint.hold"));
+            Haptics.Play(HapticKind.Light);
         }
 
         private void OnYearStarted()
