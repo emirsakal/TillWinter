@@ -1557,3 +1557,20 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   Heritage purchases → new generation through the real input and UI paths and reports whether a tap
   on the field still lands after each screen change (and what UI sits under the finger when it does
   not), catching input-blocking regressions the EditMode suite can't see.
+
+---
+
+# Session 15 — the year clock moves to the top (2026-09-26)
+
+- **The season timeline hangs under the coins, above the island.** The developer found the bottom of
+  the field screen crowded and the stamina bar unreadable as stamina: two thin bars stacked under the
+  island read as one clock. Chosen: the season band (bar, season glyphs, season name) is anchored to the
+  top of the safe area, `HudTheme.SeasonBandTop` below the top padding — under the coins, the Year line
+  and the goal plate — and the season name drops from Heading to Body size so the coins stay the
+  headline. The two sky islets in `DioramaView` float a unit lower so the bar does not cross them.
+- **Stamina stands alone and says what it is.** It takes the band's old place under the island
+  (`HudTheme.StaminaY/StaminaWidth/StaminaHeight`), a little thicker, with the Almanac's stamina icon
+  (`barsVertical`, the same one `stamina_depot` wears) on its left and the word above it (`hud.stamina`:
+  "Stamina" / "Dayanıklılık") in the year card's dark ink — the pale HUD text vanished on the light
+  ground there. Not chosen: moving the camera down instead of the islets (on 16:9 the island then ran
+  into the stamina row).

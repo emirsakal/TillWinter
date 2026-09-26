@@ -167,6 +167,7 @@
   "ui.rate": "+{coins}/s",
   "ui.seeds": "seeds",
   "ui.level": "Level {level}/{max}",
+  "hud.stamina": "Stamina",
   "ui.level_open": "Level {level}",
   "ui.tap_a_bed": "Tap a bed",
   "ui.heir_link": "Heir: {heir}  »",

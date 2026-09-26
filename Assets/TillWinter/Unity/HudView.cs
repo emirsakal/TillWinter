@@ -31,8 +31,8 @@ namespace TillWinter.Unity
         private RectTransform _coinGroup;
         private TMP_Text _coinText, _subText, _seasonName, _combo, _seedChip;
         private RectTransform _seedChipRt;
-        private RectTransform _bottomBand;
-        private CanvasGroup _bottomGroup;
+        private RectTransform _seasonBand;
+        private CanvasGroup _seasonGroup;
         private RectTransform _coinIcon;
         private Image _coinGlow, _seedChipFace, _seedGlow;
         private double _displayCoins;
@@ -186,18 +186,19 @@ namespace TillWinter.Unity
             SplitTemplate(Strings.Get("ui.year_summary"), "{harvests}", "{coins}", out _ySeg0, out _ySeg1, out _ySeg2);
             SplitTemplate(Strings.Get("hud.next_generation"), "{percent}", null, out _nSeg0, out _nSeg1, out _);
 
-            // The year's progress belongs next to the farm it measures, so the bar and the season's name sit in their
-            // own band under the island; the top keeps the coins. Its own CanvasGroup, because it no longer hangs off
-            // the top band that fades outside the Year phase.
-            _bottomBand = UiKit.Rect("SeasonBand", _safe);
-            UiKit.Stretch(_bottomBand, new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(0f, _theme.SeasonBandY), new Vector2(0f, _theme.SeasonBandY + _theme.SeasonBandHeight));
-            _bottomGroup = _bottomBand.gameObject.AddComponent<CanvasGroup>();
+            // v3.6: the year's clock sits at the top, under the coins and above the island. Under the island it shared
+            // a crowded bottom with the stamina bar, and the two thin bars read as one. Its own CanvasGroup, faded with
+            // the top band outside the Year phase.
+            _seasonBand = UiKit.Rect("SeasonBand", _safe);
+            float bandTop = _theme.TopPadding + _theme.SeasonBandTop;
+            UiKit.Stretch(_seasonBand, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0f, -bandTop - _theme.SeasonBandHeight), new Vector2(0f, -bandTop));
+            _seasonGroup = _seasonBand.gameObject.AddComponent<CanvasGroup>();
 
-            BuildSeasonBar(_bottomBand);
+            BuildSeasonBar(_seasonBand);
 
             // No plate behind the name: a strong outline and a soft shadow carry it over any sky, in any season.
-            _seasonName = UiKit.Label(_bottomBand, "SeasonName", "", UiType.Heading, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _seasonName = UiKit.Label(_seasonBand, "SeasonName", "", UiType.Body, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_seasonName.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameYInBand), new Vector2(520f, 50f));
             UiKit.OutlineStrong(_seasonName);
 
@@ -899,8 +900,6 @@ namespace TillWinter.Unity
 
         private float _holdNudgeAt = -10f;
 
-        /// <summary>A tap on a growing crop does nothing by rule (a held finger waters it); after a winter the field is
-        /// full of them and a silent tap reads as a dead screen, so the banner says what the crop wants, a few seconds apart.</summary>
         /// <summary>
         /// The counter's width as TMP will lay it out: each glyph's advance from the font's character table (the
         /// K/M suffix at its smaller size), plus the label's character spacing. No allocation.
@@ -928,6 +927,8 @@ namespace TillWinter.Unity
             return width;
         }
 
+        /// <summary>A tap on a growing crop does nothing by rule (a held finger waters it); after a winter the field is
+        /// full of them and a silent tap reads as a dead screen, so the banner says what the crop wants, a few seconds apart.</summary>
         private void OnTappedGrowing(GridPos pos)
         {
             if (Time.unscaledTime - _holdNudgeAt < 3f) return;
@@ -1007,14 +1008,24 @@ namespace TillWinter.Unity
         private bool _hasReapPos;
 
         /// <summary>The depot (GDD §2v3.5): a slim bar under the season band, brick when the next swing would be tired.</summary>
+        /// <summary>
+        /// v3.6: the stamina bar alone under the island, with the Almanac's stamina icon at its left and its name
+        /// above it; a bare thin bar under the season timeline read as part of the clock.
+        /// </summary>
         private void BuildStamina()
         {
             _staminaTrackImage = UiKit.Panel(_safe, "StaminaTrack", _theme.BarBackground, true, false);
             _staminaTrack = _staminaTrackImage.rectTransform;
-            UiKit.Box(_staminaTrack, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, _theme.SeasonBandY - 34f), new Vector2(_theme.BarWidth * 0.6f, 14f));
+            UiKit.Box(_staminaTrack, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(24f, _theme.StaminaY), new Vector2(_theme.StaminaWidth, _theme.StaminaHeight));
             _staminaFillImage = UiKit.Panel(_staminaTrack, "Fill", _theme.Seed, true, false);
             _staminaFill = _staminaFillImage.rectTransform;
             UiKit.Stretch(_staminaFill, Vector2.zero, new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            // Dark ink, like the year card below it: the pale HUD text vanished against the light ground under the island.
+            var icon = NodeIcons.Image(_staminaTrack, "barsVertical", _theme.YearCardText);
+            UiKit.Box(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), Vector2.one * 40f);
+            var label = UiKit.Label(_staminaTrack, "StaminaLabel", Strings.Get("hud.stamina"), UiType.Caption, _theme.YearCardText, TextAnchor.LowerLeft, FontStyle.Bold);
+            UiKit.Stretch(label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 6f), new Vector2(0f, 40f));
+            label.enableWordWrapping = false;
         }
 
         /// <summary>A strike's number over the plot: rising, fading; a crit bigger and in the hot colour, a tired swing grey and small.</summary>
@@ -1328,10 +1339,10 @@ namespace TillWinter.Unity
             MCoinFlight.End();
 
             _topGroup.alpha = Prims.Damp(_topGroup.alpha, state.Phase == Phase.Year ? 1f : 0f, 8f, dt);
-            _bottomGroup.alpha = _topGroup.alpha; // the season band leaves with the rest of the year HUD
+            _seasonGroup.alpha = _topGroup.alpha; // the season band leaves with the rest of the year HUD
             // A CanvasGroup at alpha 0 still takes taps: the End year button must be untouchable once the year is over.
             bool inYear = state.Phase == Phase.Year;
-            if (_bottomGroup.blocksRaycasts != inYear) _bottomGroup.blocksRaycasts = _bottomGroup.interactable = inYear;
+            if (_seasonGroup.blocksRaycasts != inYear) _seasonGroup.blocksRaycasts = _seasonGroup.interactable = inYear;
             MCoinText.Begin();
             double shown = System.Math.Max(0, state.Coins - _pending - HeldCoins);
             // The counter counts up to its value instead of jumping; spending snaps straight down.

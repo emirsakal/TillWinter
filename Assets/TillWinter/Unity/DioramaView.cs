@@ -212,7 +212,8 @@ namespace TillWinter.Unity
                 var islet = new GameObject("Islet" + i).transform;
                 islet.SetParent(_scenery, false);
                 // Small and well clear of the island: larger and closer they read as stray floor tiles in the sky.
-                islet.localPosition = new Vector3(i == 0 ? -edge * 0.45f : edge * 0.72f, -2.4f - i * 0.4f, far + 3.5f + i * 0.7f);
+                // v3.6: a unit lower than before, so they float under the season timeline that now crosses the top of the sky.
+                islet.localPosition = new Vector3(i == 0 ? -edge * 0.45f : edge * 0.72f, -3.3f - i * 0.4f, far + 3.5f + i * 0.7f);
                 islet.localScale = Vector3.one * (i == 0 ? 0.34f : 0.28f);
                 islet.gameObject.AddComponent<MeshFilter>().sharedMesh = BuildBlock(1, 0.45f, 0.9f, 0f);
                 var mr = islet.gameObject.AddComponent<MeshRenderer>();
