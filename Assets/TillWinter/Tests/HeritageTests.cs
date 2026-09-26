@@ -272,5 +272,59 @@ namespace TillWinter.Tests
             Assert.AreEqual(1, sim.State.Generation.YearsThisGeneration);
             Assert.AreEqual(2, sim.State.Year);
         }
+    
+        [Test]
+        public void HeritageStartLevels_AreGrantedAsAlmanacLevels_SoTheyAreNeverSoldTwice()
+        {
+            // GDD §7 (v3.5): "start with growth 1" is the Almanac level itself, owned for free, not a hidden floor the
+            // player can pay to reach a second time.
+            var sim = NewSim();
+            sim.DebugSkipToWinter();
+            sim.DebugAddLifetimeCoins(5000);
+            sim.DebugAddSeeds(200);
+            Assert.IsTrue(sim.Retire());
+            Assert.IsTrue(sim.TryBuy("h_start_growth"));
+            Assert.IsTrue(sim.TryBuy("h_start_soft"));
+            sim.StartNewGeneration();
+            var s = sim.State;
+            Assert.AreEqual(1, s.GetLevel("growth"), "growth level 1 owned at the start");
+            Assert.AreEqual(1, s.GetLevel("soft_ground"), "soft ground level 1 owned at the start");
+            Assert.AreEqual(0, s.Generation.AlmanacSpent, 1e-9, "granted levels cost nothing");
+            sim.DebugSkipToWinter();
+            sim.DebugAddCoins(100000);
+            double coins = s.Coins;
+            float growth = s.Stats.GrowthMult;
+            Assert.IsTrue(sim.TryBuy("growth"), "the next purchase is level 2");
+            Assert.AreEqual(2, s.GetLevel("growth"));
+            Assert.That(s.Stats.GrowthMult, Is.GreaterThan(growth), "and it changes the number");
+            Assert.That(coins - s.Coins, Is.GreaterThan(0), "at level 2's price");
+            // A respec keeps the family's levels.
+            Assert.IsTrue(sim.RespecAlmanac());
+            Assert.AreEqual(1, s.GetLevel("growth"));
+            Assert.AreEqual(1, s.GetLevel("soft_ground"));
+        }
+
+        [Test]
+        public void YearLength_StopsAtTheCeiling_SoNoLevelBuysNothing()
+        {
+            // With Heritage's longer years the Almanac's last year_length levels would sit past the ceiling; they are
+            // shown as done instead of sold.
+            var sim = NewSim();
+            sim.DebugSkipToWinter();
+            sim.DebugAddLifetimeCoins(5000);
+            sim.DebugAddSeeds(200);
+            Assert.IsTrue(sim.Retire());
+            for (int i = 0; i < 4; i++) Assert.IsTrue(sim.TryBuy("h_start_year_length"));
+            sim.StartNewGeneration();
+            sim.DebugSkipToWinter();
+            sim.DebugAddCoins(1e9);
+            int bought = 0;
+            while (sim.CanBuy("year_length")) { Assert.IsTrue(sim.TryBuy("year_length")); bought++; Assert.That(bought, Is.LessThan(10)); }
+            var s = sim.State;
+            Assert.AreEqual(sim.Config.MaxYearLength, s.Stats.YearLength, 1e-4, "the year is at its ceiling");
+            Assert.IsTrue(sim.IsMaxed("year_length"), "and the node reads as done");
+            Assert.AreEqual(s.GetLevel("year_length"), sim.GetMaxLevel("year_length"), "with no dead levels left to show");
+            Assert.That(bought, Is.LessThan(6), "fewer levels than the table's six, because Heritage covered the rest");
+        }
     }
 }

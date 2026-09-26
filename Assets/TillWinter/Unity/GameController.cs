@@ -36,6 +36,8 @@ namespace TillWinter.Unity
         public Vector2? DebugPointerScreen;
         /// <summary>Debug/smoke-test hook: a one-shot tap (press and release) at this screen position; cleared after use.</summary>
         public Vector2? DebugTapScreen;
+        private float _debugHeld;
+        private int _pressApprentice = -1;
         /// <summary>Set by CloudView: is this screen point on the rain cloud?</summary>
         public System.Func<Vector2, bool> CloudHitTest;
         /// <summary>Set by DogView: is this screen point on the dog? Returns true when it took the tap.</summary>
@@ -48,6 +50,8 @@ namespace TillWinter.Unity
         public System.Func<Vector2, int> ApprenticeHitTest;
         /// <summary>A tapped apprentice switched role (GDD §2v3.9): its index.</summary>
         public event System.Action<int> ApprenticeRoleToggled;
+        /// <summary>A tap landed on a growing crop, which only a held finger can help: the views answer so the tap is not silent.</summary>
+        public event System.Action<GridPos> TappedGrowing;
 
         /// <summary>Sim seconds elapsed (respects TimeScale). Use for animation that should follow the sim.</summary>
         public float SimTime { get; private set; }
@@ -124,8 +128,10 @@ namespace TillWinter.Unity
                 {
                     s.IsDown = true;
                     s.Position = DebugPointerScreen.Value;
-                    if (!_debugWasDown) { s.Pressed = true; s.DownPosition = s.Position; s.MaxMove = 0f; }
-                    s.HeldSeconds += Time.unscaledDeltaTime;
+                    if (!_debugWasDown) { s.Pressed = true; s.DownPosition = s.Position; s.MaxMove = 0f; _debugHeld = 0f; }
+                    // Pointer.Current is a copy: the debug finger keeps its own clock, or a hold never reaches HoldSeconds.
+                    _debugHeld += Time.unscaledDeltaTime;
+                    s.HeldSeconds = _debugHeld;
                     _debugWasDown = true;
                 }
                 else if (_debugWasDown)
@@ -164,14 +170,20 @@ namespace TillWinter.Unity
             _path.Clear();
             _pressPlot = null;
             PressedPlot = null;
-            // Things that take the whole press: the cloud, the dog, an apprentice, a placing or picking mode. They act on release.
-            if ((CloudHitTest != null && CloudHitTest(screen)) || (DogHitTest != null && DogHitTest(screen))
-                || (ApprenticeHitTest != null && ApprenticeHitTest(screen) >= 0) || FieldTapOverride != null)
+            // Things that take the whole press: the cloud, a placing or picking mode, the dog off the field, and an
+            // apprentice when the finger is nearer to it than to the bed under it. An apprentice's finger-sized hit area
+            // covers the bed it works and its neighbours, and used to swallow every tap there as a role change, so the
+            // field went dead the year after the first apprentice was bought. They act on release.
+            bool overPlot = TryScreenToCell(screen, out var cell);
+            _pressApprentice = ApprenticeHitTest != null ? ApprenticeHitTest(screen) : -1;
+            if (_pressApprentice >= 0 && overPlot && !NearerThanPlot(screen, _pressApprentice, cell)) _pressApprentice = -1;
+            if ((CloudHitTest != null && CloudHitTest(screen)) || FieldTapOverride != null || _pressApprentice >= 0
+                || (!overPlot && DogHitTest != null && DogHitTest(screen)))
             {
                 _pressHandled = true;
                 return;
             }
-            if (!TryScreenToCell(screen, out var cell)) return;
+            if (!overPlot) return;
             _pressPlot = cell;
             PressedPlot = cell;
             var plot = State.GetPlot(cell);
@@ -228,6 +240,10 @@ namespace TillWinter.Unity
             {
                 Sim.ReapOne(_pressPlot.Value);
             }
+            else if (tap && _pressPlot.HasValue && !_watering && State.GetPlot(_pressPlot.Value).IsGrowing)
+            {
+                TappedGrowing?.Invoke(_pressPlot.Value);
+            }
             EndPress();
         }
 
@@ -235,24 +251,33 @@ namespace TillWinter.Unity
         private void ReleaseTap(Vector2 screen)
         {
             if (CloudHitTest != null && CloudHitTest(screen) && Sim.TapCloud()) return;
-            if (DogHitTest != null && DogHitTest(screen)) return; // the dog swallows its own tap: petting it never strikes the plot behind it
-            if (ApprenticeHitTest != null)
+            bool overPlot = TryScreenToCell(screen, out _);
+            if (!overPlot && DogHitTest != null && DogHitTest(screen)) return; // the dog swallows its own tap: petting it never strikes the plot behind it
+            if (_pressApprentice >= 0 && _pressApprentice < State.Apprentices.Count)
             {
-                int index = ApprenticeHitTest(screen);
-                if (index >= 0)
-                {
-                    // Picker → waterer → digger → picker.
-                    var role = (ApprenticeRole)(((int)State.Apprentices[index].Role + 1) % 3);
-                    if (Sim.SetApprenticeRole(index, role)) ApprenticeRoleToggled?.Invoke(index);
-                    return;
-                }
+                // Picker → waterer → digger → picker. The one the press landed on, not whoever walked under the finger since.
+                int index = _pressApprentice;
+                var role = (ApprenticeRole)(((int)State.Apprentices[index].Role + 1) % 3);
+                if (Sim.SetApprenticeRole(index, role)) ApprenticeRoleToggled?.Invoke(index);
+                return;
             }
             if (FieldTapOverride != null && TryScreenToPlot(screen, out var fp) && FieldTapOverride(new Vector2(fp.x, fp.y))) return;
             if (PlotTapOverride != null && TryScreenToCell(screen, out var cell)) PlotTapOverride(cell);
         }
 
+        /// <summary>Is the finger nearer the apprentice's body than the centre of the bed under it? Then the tap was for the apprentice.</summary>
+        private bool NearerThanPlot(Vector2 screen, int apprentice, GridPos cell)
+        {
+            if (Cam == null || apprentice < 0 || apprentice >= State.Apprentices.Count) return false;
+            var a = State.Apprentices[apprentice];
+            var apprenticeScreen = (Vector2)Cam.WorldToScreenPoint(PlotToWorld(a.X, a.Y, 0.3f));
+            var plotScreen = (Vector2)Cam.WorldToScreenPoint(PlotToWorld(cell, 0f));
+            return (apprenticeScreen - screen).sqrMagnitude < (plotScreen - screen).sqrMagnitude;
+        }
+
         private void EndPress()
         {
+            _pressApprentice = -1;
             if (_watering) Sim.SetWatering(null);
             _watering = false;
             _pressActive = false;

@@ -102,7 +102,8 @@ namespace TillWinter.Core
                 PurchaseAllowed = () => State.Phase == Phase.Winter,
                 Blocked = BlockedByChallenge,
                 IsMaxedOverride = n => (n.Effect == EffectType.UpgradePlot && FindLowestUpgradablePlot(null) == null)
-                    || (n.Effect == EffectType.ExpandField && FieldAtMax),
+                    || (n.Effect == EffectType.ExpandField && FieldAtMax)
+                    || (n.Effect == EffectType.YearLength && YearAtMax),
                 CostMultiplier = () => State.Stats.AlmanacCostMult,
             };
             Heritage = new SkillTree(TreeKind.Heritage, heritageNodes)
@@ -386,6 +387,9 @@ namespace TillWinter.Core
             // A head start from Heritage fills the field sooner: the levels left then buy nothing, so they are not offered.
             if (node.Effect == EffectType.ExpandField && FieldAtMax && Almanac.Contains(nodeId))
                 return Math.Min(node.MaxLevel, Almanac.GetLevel(nodeId));
+            // Likewise a year that Heritage has already stretched to the ceiling: the Almanac's remaining levels are not offered.
+            if (node.Effect == EffectType.YearLength && YearAtMax && Almanac.Contains(nodeId))
+                return Math.Min(node.MaxLevel, Almanac.GetLevel(nodeId));
             return node.MaxLevel;
         }
 
@@ -586,18 +590,31 @@ namespace TillWinter.Core
         }
 
         /// <summary>
-        /// Heritage head starts that are Almanac nodes (GDD §7, `h_start_tomato`): the generation starts owning them,
-        /// free (not in <see cref="GenerationStats.AlmanacSpent"/>), so everything behind them opens as if bought.
+        /// Heritage head starts that stand for Almanac levels (GDD §7 v3.5: `h_start_tomato`, `h_start_growth`,
+        /// `h_start_soft`): the generation starts owning those levels, free (not in
+        /// <see cref="GenerationStats.AlmanacSpent"/>), so everything behind them opens as if bought and the player is
+        /// never sold a level the family already has. The resolver keeps the same floor, so the numbers do not change.
         /// </summary>
         private void GrantHeritageStarts()
         {
-            bool tomato = false;
+            int tomato = 0, growth = 0, soft = 0;
             foreach (var n in Heritage.Nodes)
-                if (n.Effect == EffectType.HeritageStartTomato && Heritage.GetLevel(n.Id) > 0) tomato = true;
-            if (!tomato) return;
+            {
+                int level = Heritage.GetLevel(n.Id);
+                if (level <= 0) continue;
+                int v = (int)Math.Round(n.ValuePerLevel * level);
+                if (n.Effect == EffectType.HeritageStartTomato) tomato = Math.Max(tomato, 1);
+                else if (n.Effect == EffectType.HeritageStartGrowth) growth = Math.Max(growth, v);
+                else if (n.Effect == EffectType.HeritageStartSoft) soft = Math.Max(soft, v);
+            }
             foreach (var n in Almanac.Nodes)
-                if (n.Effect == EffectType.UnlockTier && (int)Math.Round(n.ValuePerLevel) == 1 && Almanac.GetLevel(n.Id) < 1)
-                    Almanac.SetLevel(n.Id, 1);
+            {
+                int want = n.Effect == EffectType.UnlockTier && (int)Math.Round(n.ValuePerLevel) == 1 ? tomato
+                    : n.Effect == EffectType.Growth ? growth
+                    : n.Effect == EffectType.Softness ? soft : 0;
+                if (n.MaxLevel > 0) want = Math.Min(want, n.MaxLevel);
+                if (want > Almanac.GetLevel(n.Id)) Almanac.SetLevel(n.Id, want);
+            }
         }
 
         /// <summary>
@@ -659,6 +676,7 @@ namespace TillWinter.Core
                 CrowSpawnTimer = _crowSpawnTimer,
                 RngState = _rng.State,
                 Stamina = s.Stamina,
+                StrikeCooldownLeft = s.StrikeCooldownLeft,
                 Generation = s.Generation.Generation,
                 LifetimeCoinsThisGeneration = s.Generation.LifetimeCoinsThisGeneration,
                 LifetimeCoinsTotal = s.Generation.LifetimeCoinsTotal,
@@ -685,6 +703,7 @@ namespace TillWinter.Core
                 Combo = s.Combo,
                 ComboTimer = s.ComboTimer,
                 GreenhouseSecondsLeft = s.Greenhouse.SecondsLeftThisWinter,
+                GreenhouseRate = s.Greenhouse.CoinsPerSecond,
                 GreenhouseCoinsThisWinter = s.Greenhouse.CoinsThisWinter,
                 OnboardingBits = s.Onboarding.Bits,
                 AlmanacViewHas = s.AlmanacView.HasView, AlmanacViewX = s.AlmanacView.PanX, AlmanacViewY = s.AlmanacView.PanY, AlmanacViewZoom = s.AlmanacView.Zoom,
@@ -734,7 +753,14 @@ namespace TillWinter.Core
                 };
             }
             for (int i = 0; i < s.ApprenticeList.Count; i++)
-                d.Apprentices[i] = new ApprenticeSave { X = s.ApprenticeList[i].X, Y = s.ApprenticeList[i].Y, Role = (int)s.ApprenticeList[i].Role };
+            {
+                var a = s.ApprenticeList[i];
+                d.Apprentices[i] = new ApprenticeSave
+                {
+                    X = a.X, Y = a.Y, Role = (int)a.Role, HasTarget = a.HasTarget, TargetX = a.Target.X, TargetY = a.Target.Y,
+                    IsWorking = a.IsWorking, WorkProgress = a.WorkProgress, IsWalking = a.IsWalking, IdleX = a.IdleX, IdleY = a.IdleY,
+                };
+            }
             d.ScarecrowX = new int[s.ScarecrowList.Count];
             d.ScarecrowY = new int[s.ScarecrowList.Count];
             for (int i = 0; i < s.ScarecrowList.Count; i++)
@@ -888,6 +914,15 @@ namespace TillWinter.Core
                 s.ApprenticeList[i].X = saved[i].X;
                 s.ApprenticeList[i].Y = saved[i].Y;
                 s.ApprenticeList[i].Role = saved[i].Role >= 0 && saved[i].Role <= (int)ApprenticeRole.Digger ? (ApprenticeRole)saved[i].Role : ApprenticeRole.Picker;
+                // v19: the errand it was on. A target outside the field (a shrunk grid) sends it back to idle.
+                var target = new GridPos(saved[i].TargetX, saved[i].TargetY);
+                bool errand = saved[i].HasTarget && s.InBounds(target);
+                s.ApprenticeList[i].HasTarget = errand;
+                s.ApprenticeList[i].Target = s.InBounds(target) ? target : new GridPos(0, 0);
+                s.ApprenticeList[i].IsWorking = errand && saved[i].IsWorking;
+                s.ApprenticeList[i].WorkProgress = errand ? Math.Max(0f, Math.Min(1f, saved[i].WorkProgress)) : 0f;
+                s.ApprenticeList[i].IsWalking = saved[i].IsWalking && !s.ApprenticeList[i].IsWorking;
+                if (saved[i].IdleX != 0f || saved[i].IdleY != 0f) { s.ApprenticeList[i].IdleX = saved[i].IdleX; s.ApprenticeList[i].IdleY = saved[i].IdleY; }
             }
             if (data.ScarecrowX != null && data.ScarecrowY != null && data.ScarecrowX.Length == data.ScarecrowY.Length && data.ScarecrowX.Length > 0)
             {
@@ -943,6 +978,7 @@ namespace TillWinter.Core
             s.AwayPlan = data.AwayPlan >= 0 && data.AwayPlan <= (int)AwayPlan.Balanced ? (AwayPlan)data.AwayPlan : AwayPlan.AsTheyAre;
             sim.ResolveStats(); // heirlooms, trait and challenge on top of the trees
             s.Stamina = Math.Max(0f, Math.Min(s.Stats.StaminaMax, data.Stamina));
+            s.StrikeCooldownLeft = Math.Max(0f, Math.Min(s.Stats.StrikeCooldown, data.StrikeCooldownLeft));
             sim._luckyCheckTimer = data.LuckyCheckTimer;
             s.Cloud.Active = data.CloudActive;
             s.Cloud.X = data.CloudX;
@@ -961,7 +997,9 @@ namespace TillWinter.Core
             s.Onboarding.Bits = data.OnboardingBits;
             s.AlmanacView.HasView = data.AlmanacViewHas; s.AlmanacView.PanX = data.AlmanacViewX; s.AlmanacView.PanY = data.AlmanacViewY; s.AlmanacView.Zoom = data.AlmanacViewZoom <= 0f ? 1f : data.AlmanacViewZoom;
             s.HeritageView.HasView = data.HeritageViewHas; s.HeritageView.PanX = data.HeritageViewX; s.HeritageView.PanY = data.HeritageViewY; s.HeritageView.Zoom = data.HeritageViewZoom <= 0f ? 1f : data.HeritageViewZoom;
-            sim.UpdateGreenhouseRate();
+            // v19: the saved greenhouse rate stands (ResolveStats above already recomputed it from today's field; the
+            // farm that was saved kept the rate of its last purchase, and the loaded one must earn the same winter).
+            if (data.SchemaVersion >= 19 && data.GreenhouseRate > 0) s.Greenhouse.CoinsPerSecond = data.GreenhouseRate;
             return sim;
         }
 
@@ -2511,6 +2549,8 @@ namespace TillWinter.Core
 
         /// <summary>True once the field is as large as it gets: another `expand_field` level would add nothing.</summary>
         private bool FieldAtMax => State.GridSize >= Config.MaxGridSize;
+        /// <summary>The year has reached its ceiling (GDD §6, Long Summer raises it), so another year_length level would change nothing.</summary>
+        private bool YearAtMax => State.Stats.YearLength >= Config.MaxYearLength + State.Stats.YearLengthCapBonus - 1e-3f;
 
         private void ApplyPurchase(SkillNode node)
         {

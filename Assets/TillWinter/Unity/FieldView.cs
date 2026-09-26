@@ -40,6 +40,7 @@ namespace TillWinter.Unity
             _game.Sim.RainCloudTapped += OnRainSweep;
             _game.Sim.Retired += _ => Rebuild();
             _game.Sim.GenerationStarted += OnGenerationStarted;
+            _game.TappedGrowing += pos => { if (_plots.TryGetValue(pos, out var view)) view.SproutPop(); }; // the crop answers the tap
             _decor = new GameObject("FarmDecor").AddComponent<FarmDecorView>();
             _decor.transform.SetParent(transform, false);
             _decor.Init(game, catalog);
