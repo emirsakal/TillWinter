@@ -36,7 +36,10 @@ namespace TillWinter.Unity
         private RectTransform _coinIcon;
         private Image _coinGlow, _seedChipFace, _seedGlow;
         private double _displayCoins;
-        private int _coinTextLength = -1;
+        private const float CoinSuffixScale = 0.64f;
+        private const float CoinIconDiameter = 76f;
+        /// <summary>The counter is centred this far right of the coin group's middle; the icon sits to its left.</summary>
+        private const float CoinTextOffset = 50f;
         // The "this year" card: numbers are written into char buffers so nothing is allocated when they change.
         private CanvasGroup _yearGroup;
         private TMP_Text _yearLine, _nextGenLabel;
@@ -116,7 +119,7 @@ namespace TillWinter.Unity
             // edge, so a short "0" no longer sat far from its coin.
             _coinGlow = UiKit.CircleImage(_coinGroup, "Glow", _theme.Coin, Vector2.zero, 170f);
             _coinGlow.sprite = GlowSprite;
-            var icon = UiKit.CircleImage(_coinGroup, "Icon", _theme.Coin, Vector2.zero, 76f);
+            var icon = UiKit.CircleImage(_coinGroup, "Icon", _theme.Coin, Vector2.zero, CoinIconDiameter);
             _coinIcon = icon.rectTransform;
             UiKit.CircleImage(icon.transform, "Inner", _theme.CoinInner, Vector2.zero, 48f);
             _coinText = UiKit.Label(_coinGroup, "Value", "0", (int)_theme.CoinFontSize, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -124,10 +127,10 @@ namespace TillWinter.Unity
             // play. The longest coin string (rich-text suffix included) is set once here instead.
             _coinText.SetText(new string('8', 96));
             _coinText.SetText("0");
-            UiKit.Stretch(_coinText.rectTransform, Vector2.zero, Vector2.one, new Vector2(50f, 0f), new Vector2(50f, 0f));
+            UiKit.Stretch(_coinText.rectTransform, Vector2.zero, Vector2.one, new Vector2(CoinTextOffset, 0f), new Vector2(CoinTextOffset, 0f));
             UiKit.Outline(_coinText);
             _coinText.richText = true; // the K/M suffix is set smaller, in the coin colour
-            _coinRich = new RichNumber(0.64f, _theme.Coin);
+            _coinRich = new RichNumber(CoinSuffixScale, _theme.Coin);
             // Size TMP's buffers for the longest counter once, so growing numbers never resize them mid-play.
             _coinText.SetText("-999.9Qi");
             _coinText.ForceMeshUpdate(true);
@@ -898,6 +901,33 @@ namespace TillWinter.Unity
 
         /// <summary>A tap on a growing crop does nothing by rule (a held finger waters it); after a winter the field is
         /// full of them and a silent tap reads as a dead screen, so the banner says what the crop wants, a few seconds apart.</summary>
+        /// <summary>
+        /// The counter's width as TMP will lay it out: each glyph's advance from the font's character table (the
+        /// K/M suffix at its smaller size), plus the label's character spacing. No allocation.
+        /// </summary>
+        private float CoinTextWidth(char[] chars, int len)
+        {
+            float size = _coinText.fontSize;
+            var font = _coinText.font;
+            if (font == null || font.characterLookupTable == null) return len * size * 0.62f;
+            var face = font.faceInfo;
+            float em = size / Mathf.Max(1f, face.pointSize) * (face.scale > 0f ? face.scale : 1f);
+            float spacing = _coinText.characterSpacing * 0.01f * size;
+            int digitsEnd = len;
+            while (digitsEnd > 0 && char.IsLetter(chars[digitsEnd - 1])) digitsEnd--;
+            var table = font.characterLookupTable;
+            float width = 0f;
+            for (int i = 0; i < len; i++)
+            {
+                float scale = i >= digitsEnd ? CoinSuffixScale : 1f;
+                float advance = table.TryGetValue(chars[i], out var ch) && ch.glyph != null
+                    ? ch.glyph.metrics.horizontalAdvance * em
+                    : size * 0.62f;
+                width += (advance + (i < len - 1 ? spacing : 0f)) * scale;
+            }
+            return width;
+        }
+
         private void OnTappedGrowing(GridPos pos)
         {
             if (Time.unscaledTime - _holdNudgeAt < 3f) return;
@@ -1314,16 +1344,13 @@ namespace TillWinter.Unity
                 int len = NumberFormat.Short(whole, _coinChars);
                 int richLen = _coinRich.Write(_coinChars, len);
                 _coinText.SetText(_coinRich.Buffer, 0, richLen);
-                if (len != _coinTextLength)
-                {
-                    // The icon sits against the number's left edge; only a change of length can move that edge much.
-                    // Width is estimated from the character count: preferredWidth forces a text generation (and an
-                    // allocation) every time the length changes.
-                    _coinTextLength = len;
-                    float half = len * _coinText.fontSize * 0.3f;
-                    _coinIcon.anchoredPosition = new Vector2(-half - 12f, 0f);
-                    _coinGlow.rectTransform.anchoredPosition = _coinIcon.anchoredPosition;
-                }
+                // The icon sits a fixed gap left of the number's left edge. The number is centred, so every value
+                // moves that edge; its width comes from the font's own glyph advances (preferredWidth would force a
+                // text generation, and an allocation, on every change). A count of characters guessed too narrow
+                // for the display font's wide digits and let the coin sit on the first one.
+                float left = CoinTextOffset - CoinTextWidth(_coinChars, len) * 0.5f;
+                _coinIcon.anchoredPosition = new Vector2(left - _theme.CoinIconGap - CoinIconDiameter * 0.5f, 0f);
+                _coinGlow.rectTransform.anchoredPosition = _coinIcon.anchoredPosition;
             }
             _counterPunch = Mathf.Max(0f, _counterPunch - dt * 5f);
             _coinGroup.localScale = Vector3.one * (1f + 0.22f * Prims.EaseOutQuad(_counterPunch));

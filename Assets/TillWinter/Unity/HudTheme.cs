@@ -79,6 +79,8 @@ namespace TillWinter.Unity
         public Color MenuSecondary = new Color(0.1f, 0.08f, 0.06f, 0.72f);
         public Color MenuButtonText = new Color(1f, 0.97f, 0.9f);
         public float CoinFontSize = 96f;
+        /// <summary>Clear space between the coin icon's rim and the first digit of the counter.</summary>
+        public float CoinIconGap = 18f;
         public float SubFontSize = 38f;
         public float BarWidth = 960f;
         public float BarHeight = 18f;
