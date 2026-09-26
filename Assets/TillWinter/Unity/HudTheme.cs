@@ -92,6 +92,9 @@ namespace TillWinter.Unity
         public float StaminaY = 600f;
         public float StaminaWidth = 600f;
         public float StaminaHeight = 18f;
+        /// <summary>v3.6: one size for every corner button (barn, seeds, tractor, scarecrow, end year, inspect), so the stacks line up.</summary>
+        public float SideButtonWidth = 170f;
+        public float SideButtonHeight = 110f;
         public float SeasonBandHeight = 132f;
         /// <summary>Bar and season name inside that band, measured down from its top edge.</summary>
         public float BarYInBand = -40f;

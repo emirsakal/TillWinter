@@ -37,6 +37,8 @@ namespace TillWinter.Unity
         private Image _coinGlow, _seedChipFace, _seedGlow;
         private double _displayCoins;
         private const float CoinSuffixScale = 0.64f;
+        /// <summary>Every corner button's size: the barn button used to be wider than the seed bag under it.</summary>
+        private Vector2 SideButton => new Vector2(_theme.SideButtonWidth, _theme.SideButtonHeight);
         private const float CoinIconDiameter = 76f;
         /// <summary>The counter is centred this far right of the coin group's middle; the icon sits to its left.</summary>
         private const float CoinTextOffset = 50f;
@@ -206,7 +208,7 @@ namespace TillWinter.Unity
             // costs the standing crop exactly as frost would, so it sits out at the edge of the band rather than
             // anywhere a thumb rests during play.
             var endYear = UiKit.Button(_safe, "EndYear", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, OpenEndYearConfirm);
-            UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-190f, 54f), new Vector2(130f, 110f));
+            UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f - _theme.SideButtonWidth - 20f, 54f), SideButton);
             UiKit.ButtonCaption(endYear, UiIcons.Time, Strings.Get("ui.end_year")); // beside Inspect, the same shape as its neighbours
 
             // A long streak pays out: the milestone says so over the ring.
@@ -311,12 +313,12 @@ namespace TillWinter.Unity
         private void BuildHelperButtons()
         {
             _scarecrowButton = UiKit.Button(_safe, "Scarecrow", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleScarecrowMode);
-            UiKit.Box(_scarecrowButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 300f), new Vector2(130f, 110f));
+            UiKit.Box(_scarecrowButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 300f), SideButton);
             UiKit.ButtonCaption(_scarecrowButton, "warning", Strings.Get("hud.cap_scarecrow"));
             _scarecrowButton.gameObject.SetActive(false);
 
             _tractorButton = UiKit.Button(_safe, "TractorGo", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, SendTractor);
-            UiKit.Box(_tractorButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 420f), new Vector2(130f, 110f));
+            UiKit.Box(_tractorButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 420f), SideButton);
             UiKit.ButtonCaption(_tractorButton, "gear", Strings.Get("hud.cap_tractor"));
             var face = _tractorButton.targetGraphic.transform;
             var track = UiKit.Panel(face, "Charge", _theme.BarBackground, true, false);
@@ -463,7 +465,7 @@ namespace TillWinter.Unity
             _inspectButton = UiKit.Button(_safe, "Inspect", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleInspect);
             // Bottom right, where the pause button used to be; End year sits to its left. The bottom band's corner used
             // to hold it alone at the top of the left column, which read as a stray.
-            UiKit.Box(_inspectButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), new Vector2(130f, 110f));
+            UiKit.Box(_inspectButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), SideButton);
             UiKit.ButtonCaption(_inspectButton, "zoomIn", Strings.Get("hud.cap_inspect"));
 
             var card = UiKit.Card(_safe, "PlotCard", _theme.YearCard, false);
@@ -569,7 +571,7 @@ namespace TillWinter.Unity
         private void BuildStoreButton()
         {
             _storeButton = UiKit.Button(_safe, "StoreShare", "", UiType.Caption, _theme.SheetIdle, _theme.SheetButtonText, CycleStoreShare);
-            UiKit.Box(_storeButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 300f), new Vector2(170f, 110f));
+            UiKit.Box(_storeButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 300f), SideButton);
             UiKit.ButtonCaption(_storeButton, "home", Strings.Format("hud.cap_barn", ("percent", 0)));
             _storeButton.gameObject.SetActive(false);
         }
@@ -1109,7 +1111,7 @@ namespace TillWinter.Unity
         private void BuildSeedBag()
         {
             _bagButton = UiKit.Button(_safe, "SeedBag", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleSeedBag);
-            UiKit.Box(_bagButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 180f), new Vector2(130f, 110f));
+            UiKit.Box(_bagButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 180f), SideButton);
             UiKit.ButtonCaption(_bagButton, "basket", Strings.Get("hud.cap_seeds"));
             _bagButton.gameObject.SetActive(false);
 

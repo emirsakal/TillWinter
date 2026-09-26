@@ -212,8 +212,10 @@ namespace TillWinter.Unity
                 var islet = new GameObject("Islet" + i).transform;
                 islet.SetParent(_scenery, false);
                 // Small and well clear of the island: larger and closer they read as stray floor tiles in the sky.
-                // v3.6: a unit lower than before, so they float under the season timeline that now crosses the top of the sky.
-                islet.localPosition = new Vector3(i == 0 ? -edge * 0.45f : edge * 0.72f, -3.3f - i * 0.4f, far + 3.5f + i * 0.7f);
+                // v3.6: the top of the sky now carries the season timeline, which they kept crossing, so they float in
+                // the open sky under the island instead, either side of the stamina bar. Placed from the camera's
+                // framing, so they land on the same spot of the screen for every field size and screen shape.
+                islet.localPosition = AtScreen(n, i == 0 ? 0.27f : 0.74f, i == 0 ? 0.2f : 0.185f, far + 1f + i * 0.5f);
                 islet.localScale = Vector3.one * (i == 0 ? 0.34f : 0.28f);
                 islet.gameObject.AddComponent<MeshFilter>().sharedMesh = BuildBlock(1, 0.45f, 0.9f, 0f);
                 var mr = islet.gameObject.AddComponent<MeshRenderer>();
@@ -231,6 +233,26 @@ namespace TillWinter.Unity
                     under.transform.localScale = Vector3.one * 1.3f;
                 }
             }
+        }
+
+        /// <summary>
+        /// The point at depth <paramref name="z"/> that <see cref="CameraRig"/>'s framing of an <paramref name="n"/>-wide field
+        /// draws at (<paramref name="sx"/>, <paramref name="sy"/>), fractions of the screen from the bottom left. The rig fits the
+        /// field's width and never shows less height than the reference phone, so the fractions hold on every screen.
+        /// </summary>
+        private static Vector3 AtScreen(int n, float sx, float sy, float z)
+        {
+            var rig = CameraRig.Instance;
+            float side = rig != null ? rig.SideMargin : 0.45f;
+            float extra = rig != null ? rig.ExtraWidth : 2.7f;
+            float fieldY = rig != null ? rig.FieldScreenY : 0.46f;
+            float tilt = rig != null ? rig.TiltFromTopDown : 40f;
+            float width = n + 2f * side + extra;
+            float size = width / (2f * CameraRig.ReferenceAspect);
+            float pitch = (90f - tilt) * Mathf.Deg2Rad;
+            float upY = Mathf.Cos(pitch), upZ = Mathf.Sin(pitch); // the camera's up in world space
+            float along = (sy - fieldY) * 2f * size;
+            return new Vector3((sx - 0.5f) * width, (along - upZ * z) / upY, z);
         }
 
         private static float Jit(System.Random rnd, float amount) => ((float)rnd.NextDouble() - 0.5f) * 2f * amount;

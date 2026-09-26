@@ -1574,3 +1574,10 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   "Stamina" / "Dayanıklılık") in the year card's dark ink — the pale HUD text vanished on the light
   ground there. Not chosen: moving the camera down instead of the islets (on 16:9 the island then ran
   into the stamina row).
+- **The sky islets move under the island, placed from the camera.** A unit lower was not enough: they
+  still sat against the timeline. They now float in the open sky under the island, either side of the
+  stamina bar, at fixed screen fractions computed from `CameraRig`'s framing (`DioramaView.AtScreen`),
+  so they land in the same place for every field size and on 19.5:9 and 16:9 alike.
+- **One size for every corner button.** The barn button was 170 wide and the seed bag under it 130; all
+  six (barn, seeds, tractor, scarecrow, end year, inspect) now take `HudTheme.SideButtonWidth/Height`
+  (170 × 110), and End year steps left to stay clear of the wider Inspect.
