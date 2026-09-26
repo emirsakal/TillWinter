@@ -6,7 +6,7 @@ skill tree, and when a farm has given all it can you hand it to the next generat
 hours to the ending — then it ends, on purpose.
 
 Unity 6000.3.22f1 · portrait mobile (iOS + Android) · English & Turkish · no ads, no in-app
-purchases, no analytics, no network · 330 automated tests
+purchases, no analytics, no network · 319 automated tests
 
 | The field | Winter: the Almanac | Heritage: rebirth |
 |---|---|---|
@@ -27,15 +27,17 @@ reap combo. The last ten seconds before frost are a rush: everything pays more a
 like a heart. Then winter: the year is graded on how fresh your harvests were, the ground keeps every
 layer you dug to, hard patches heal, and whatever was ripe gets reaped for you, one tile at a time.
 
-**Winter is the breath.** Coins buy nodes in the Almanac, a skill tree of 38 nodes across five
-branches: a harder-hitting hoe, deeper stamina and faster growth, apprentices who dig, water and
+**Winter is the breath.** Coins buy nodes in the Almanac, a skill tree drawn as a field seen from
+above: 39 beds in five lanes, grown, tilled or still hard ground. The lanes: a harder-hitting hoe, deeper stamina and faster growth, apprentices who dig, water and
 harvest on their own, a tractor, a barn that stores part of each harvest for the market, scarecrows,
 a dog, hens.
 
-**Then you let go.** When a farm stalls, you pass it on. The Almanac, the coins and the field are
-gone; Heritage Seeds remain and buy 20 permanent nodes for every generation that follows. An heir
-brings a trait, you may take on a challenge generation for extra seeds, and twelve achievements
-become heirlooms that never leave the family.
+**Then you let go.** When a farm stalls, you pass it on. The generation writes a page in the family
+album — a photograph of its field, what it earned, the seeds it leaves — and you choose the heir
+there. The Almanac, the coins and the field are gone; Heritage Seeds remain and buy 20 permanent
+nodes for every generation that follows, drawn as the same field at dusk. An heir brings a trait,
+you may take on a challenge generation for extra seeds, and twelve achievements become heirlooms
+that never leave the family.
 
 **It has an ending.** Finish the Heritage tree and you play one Golden Year on a full field of
 golden wheat. Afterwards: the family album, New Game+ for a harder run, and a daily farm — the same
@@ -45,9 +47,9 @@ Other things living on the farm: weather (storms, heat waves, fog), yearly goals
 rabbits and locust swarms, four-leaf clovers and shooting stars, a travelling trader, crop rotation
 and neighbour variety, stony and fertile ground, a greenhouse that earns through winter.
 
-| Title screen | A storm and a goal | The family album | Turkish |
+| Title screen | A storm and a goal | Handing the farm on | Turkish |
 |---|---|---|---|
-| ![Menu](docs/screenshots/readme-0-menu.png) | ![Storm](docs/screenshots/readme-5-weather.png) | ![Album](docs/screenshots/readme-4-album.png) | ![Turkish](docs/screenshots/readme-6-turkish.png) |
+| ![Menu](docs/screenshots/readme-0-menu.png) | ![Storm](docs/screenshots/readme-5-weather.png) | ![Handing the farm on](docs/screenshots/readme-4-album.png) | ![Turkish](docs/screenshots/readme-6-turkish.png) |
 
 **Comfort.** A getting-started checklist for the first generation, a plan for what the helpers do
 while the app is closed, reduce-motion, larger text, and a quality tier chosen from the device. A
@@ -63,9 +65,9 @@ heard of Unity.**
 
 | Assembly | Size | Rule |
 |---|---|---|
-| `TillWinter.Core` | 22 files, ~6.4k lines | Pure C#, `noEngineReferences`. State, economy, timers, save format. Deterministic for a fixed `dt` and seed. Holds no user-facing strings, only keys. |
-| `TillWinter.Unity` | 66 files, ~12.2k lines | Presentation and input only. Reads `FarmState`, plays VFX and sound, forwards taps. No game rules. |
-| `TillWinter.Tests` | 51 files, ~7.3k lines | EditMode NUnit against Core alone. 330 tests. |
+| `TillWinter.Core` | 22 files, ~6.7k lines | Pure C#, `noEngineReferences`. State, economy, timers, save format. Deterministic for a fixed `dt` and seed. Holds no user-facing strings, only keys. |
+| `TillWinter.Unity` | 71 files, ~13.3k lines | Presentation and input only. Reads `FarmState`, plays VFX and sound, forwards taps. No game rules. |
+| `TillWinter.Tests` | 42 files, ~6.7k lines | EditMode NUnit against Core alone. 319 tests. |
 
 What that buys, and what it costs, is written down in [`CLAUDE.md`](CLAUDE.md) (the rules every
 change must keep) and [`DECISIONS.md`](DECISIONS.md) (every choice the design left open, with the
@@ -79,7 +81,7 @@ That is what makes the balance simulator and the save fixtures possible.
 curve and an effect type. `StatResolver` is the single place where levels become numbers, so no
 system can quietly invent its own multiplier. Tunables live in `FarmConfig`.
 
-**Save versioning.** One DTO, schema version 17 today. Every bump ships a migration step *and* a
+**Save versioning.** One DTO, schema version 19 today. Every bump ships a migration step *and* a
 hand-written JSON fixture of the previous version that must load and then play deterministically —
 so a save written by any older build still opens.
 
@@ -92,16 +94,20 @@ asserts the targets: year-1 income, hours to the ending, generations to a full H
 much of the take comes from your own hand rather than the helpers, seeds at the first rebirth. A
 tuning change that breaks one fails the suite.
 
-**Four gates, not one.**
+**Five gates, not one.**
 
 | Gate | What it does |
 |---|---|
-| `run-tests.bat` | 330 EditMode tests against Core |
+| `run-tests.bat` | 319 EditMode tests against Core |
 | `balance-sim.bat` | Headless full playthrough; prints the year table and the target summary |
 | `smoke-test.bat` | Drives the real game in play mode with a virtual mouse: a full year, purchases, year two, a crow, the ending; checks draw calls, triangles and per-frame allocations |
 | `ui-tour.bat <folder>` | Opens all 40-odd screens and sheets through their own buttons and writes a screenshot of each (the images above came from it) |
+| `mechanics-probe.bat <folder>` | Plays the mechanics through the real input path — strike, water, reap, winter purchases, next year, expansion, retire, the album page, Heritage, a new generation — and reports whether a tap on the field still lands after every screen change, and what sits under the finger when it does not |
 
-Plus `release-compile-check.bat`, which fails if debug-only code leaks into a release build.
+Plus `release-compile-check.bat`, which fails if debug-only code leaks into a release build. Outside
+the repo, an invariant fuzz plays Core at random through its public API for hundreds of farm years and
+checks every tick that coins, stamina, plot health, layers, field size and helpers stay in bounds, and
+that a farm saved and reloaded plays on identically; it is how save schema 19 earned its fields.
 
 [`docs/STORE.md`](docs/STORE.md) has the store listing package (texts, screenshots, form answers);
 [`docs/RELEASE.md`](docs/RELEASE.md) has the steps to cut a release.
@@ -162,7 +168,8 @@ birlikte geliyor.
 
 Kod tarafında dikkat çeken şey ayrım: **bütün kurallar Unity'yi hiç tanımayan saf bir C# kütüphanesinde.**
 Bu sayede oyun sabit bir adım ve tohumla her seferinde aynı şekilde işliyor; denge bir simülasyonla
-ölçülüyor, kayıt dosyasının her sürümü eski kayıtlarla test ediliyor ve 330 test yalnızca kuralları
+ölçülüyor, kayıt dosyasının her sürümü eski kayıtlarla test ediliyor ve 319 test yalnızca kuralları
 sınıyor. Tasarım `docs/GDD.md`'de, mimari kuralları `CLAUDE.md`'de, açık bırakılan her karar
-`DECISIONS.md`'de yazılı. Mağaza paketi `docs/STORE.md`'de, sürüm çıkarma adımları
+`DECISIONS.md`'de yazılı. Kış ekranı bir ağaç değil, yukarıdan görülen bir tarla: yeşermiş, sürülmüş ya da
+hâlâ sert 39 yatak. Mağaza paketi `docs/STORE.md`'de, sürüm çıkarma adımları
 `docs/RELEASE.md`'de.
