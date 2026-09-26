@@ -167,6 +167,7 @@
   "ui.rate": "+{coins}/sn",
   "ui.seeds": "tohum",
   "ui.level": "Seviye {level}/{max}",
+  "hud.stamina": "Dayanıklılık",
   "ui.level_open": "Seviye {level}",
   "ui.tap_a_bed": "Bir yatağa dokun",
   "ui.heir_link": "Vâris: {heir}  »",

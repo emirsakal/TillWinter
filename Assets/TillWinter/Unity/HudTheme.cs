@@ -86,6 +86,15 @@ namespace TillWinter.Unity
         public float BarHeight = 18f;
         /// <summary>The season band sits below the island, not at the top: this is its height above the safe area's bottom.</summary>
         public float SeasonBandY = 540f;
+        /// <summary>v3.6: the season band hangs this far below the top padding, under the coins, the Year line and the goal.</summary>
+        public float SeasonBandTop = 398f;
+        /// <summary>v3.6: the stamina row takes the season band's old place under the island (bottom of the row, from the safe bottom).</summary>
+        public float StaminaY = 600f;
+        public float StaminaWidth = 600f;
+        public float StaminaHeight = 18f;
+        /// <summary>v3.6: one size for every corner button (barn, seeds, tractor, scarecrow, end year, inspect), so the stacks line up.</summary>
+        public float SideButtonWidth = 170f;
+        public float SideButtonHeight = 110f;
         public float SeasonBandHeight = 132f;
         /// <summary>Bar and season name inside that band, measured down from its top edge.</summary>
         public float BarYInBand = -40f;

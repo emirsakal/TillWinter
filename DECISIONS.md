@@ -1557,3 +1557,27 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
   Heritage purchases → new generation through the real input and UI paths and reports whether a tap
   on the field still lands after each screen change (and what UI sits under the finger when it does
   not), catching input-blocking regressions the EditMode suite can't see.
+
+---
+
+# Session 15 — the year clock moves to the top (2026-09-26)
+
+- **The season timeline hangs under the coins, above the island.** The developer found the bottom of
+  the field screen crowded and the stamina bar unreadable as stamina: two thin bars stacked under the
+  island read as one clock. Chosen: the season band (bar, season glyphs, season name) is anchored to the
+  top of the safe area, `HudTheme.SeasonBandTop` below the top padding — under the coins, the Year line
+  and the goal plate — and the season name drops from Heading to Body size so the coins stay the
+  headline. The two sky islets in `DioramaView` float a unit lower so the bar does not cross them.
+- **Stamina stands alone and says what it is.** It takes the band's old place under the island
+  (`HudTheme.StaminaY/StaminaWidth/StaminaHeight`), a little thicker, with the Almanac's stamina icon
+  (`barsVertical`, the same one `stamina_depot` wears) on its left and the word above it (`hud.stamina`:
+  "Stamina" / "Dayanıklılık") in the year card's dark ink — the pale HUD text vanished on the light
+  ground there. Not chosen: moving the camera down instead of the islets (on 16:9 the island then ran
+  into the stamina row).
+- **The sky islets move under the island, placed from the camera.** A unit lower was not enough: they
+  still sat against the timeline. They now float in the open sky under the island, either side of the
+  stamina bar, at fixed screen fractions computed from `CameraRig`'s framing (`DioramaView.AtScreen`),
+  so they land in the same place for every field size and on 19.5:9 and 16:9 alike.
+- **One size for every corner button.** The barn button was 170 wide and the seed bag under it 130; all
+  six (barn, seeds, tractor, scarecrow, end year, inspect) now take `HudTheme.SideButtonWidth/Height`
+  (170 × 110), and End year steps left to stay clear of the wider Inspect.

@@ -31,12 +31,14 @@ namespace TillWinter.Unity
         private RectTransform _coinGroup;
         private TMP_Text _coinText, _subText, _seasonName, _combo, _seedChip;
         private RectTransform _seedChipRt;
-        private RectTransform _bottomBand;
-        private CanvasGroup _bottomGroup;
+        private RectTransform _seasonBand;
+        private CanvasGroup _seasonGroup;
         private RectTransform _coinIcon;
         private Image _coinGlow, _seedChipFace, _seedGlow;
         private double _displayCoins;
         private const float CoinSuffixScale = 0.64f;
+        /// <summary>Every corner button's size: the barn button used to be wider than the seed bag under it.</summary>
+        private Vector2 SideButton => new Vector2(_theme.SideButtonWidth, _theme.SideButtonHeight);
         private const float CoinIconDiameter = 76f;
         /// <summary>The counter is centred this far right of the coin group's middle; the icon sits to its left.</summary>
         private const float CoinTextOffset = 50f;
@@ -186,18 +188,19 @@ namespace TillWinter.Unity
             SplitTemplate(Strings.Get("ui.year_summary"), "{harvests}", "{coins}", out _ySeg0, out _ySeg1, out _ySeg2);
             SplitTemplate(Strings.Get("hud.next_generation"), "{percent}", null, out _nSeg0, out _nSeg1, out _);
 
-            // The year's progress belongs next to the farm it measures, so the bar and the season's name sit in their
-            // own band under the island; the top keeps the coins. Its own CanvasGroup, because it no longer hangs off
-            // the top band that fades outside the Year phase.
-            _bottomBand = UiKit.Rect("SeasonBand", _safe);
-            UiKit.Stretch(_bottomBand, new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(0f, _theme.SeasonBandY), new Vector2(0f, _theme.SeasonBandY + _theme.SeasonBandHeight));
-            _bottomGroup = _bottomBand.gameObject.AddComponent<CanvasGroup>();
+            // v3.6: the year's clock sits at the top, under the coins and above the island. Under the island it shared
+            // a crowded bottom with the stamina bar, and the two thin bars read as one. Its own CanvasGroup, faded with
+            // the top band outside the Year phase.
+            _seasonBand = UiKit.Rect("SeasonBand", _safe);
+            float bandTop = _theme.TopPadding + _theme.SeasonBandTop;
+            UiKit.Stretch(_seasonBand, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0f, -bandTop - _theme.SeasonBandHeight), new Vector2(0f, -bandTop));
+            _seasonGroup = _seasonBand.gameObject.AddComponent<CanvasGroup>();
 
-            BuildSeasonBar(_bottomBand);
+            BuildSeasonBar(_seasonBand);
 
             // No plate behind the name: a strong outline and a soft shadow carry it over any sky, in any season.
-            _seasonName = UiKit.Label(_bottomBand, "SeasonName", "", UiType.Heading, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _seasonName = UiKit.Label(_seasonBand, "SeasonName", "", UiType.Body, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_seasonName.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, _theme.SeasonNameYInBand), new Vector2(520f, 50f));
             UiKit.OutlineStrong(_seasonName);
 
@@ -205,7 +208,7 @@ namespace TillWinter.Unity
             // costs the standing crop exactly as frost would, so it sits out at the edge of the band rather than
             // anywhere a thumb rests during play.
             var endYear = UiKit.Button(_safe, "EndYear", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, OpenEndYearConfirm);
-            UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-190f, 54f), new Vector2(130f, 110f));
+            UiKit.Box(endYear.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f - _theme.SideButtonWidth - 20f, 54f), SideButton);
             UiKit.ButtonCaption(endYear, UiIcons.Time, Strings.Get("ui.end_year")); // beside Inspect, the same shape as its neighbours
 
             // A long streak pays out: the milestone says so over the ring.
@@ -310,12 +313,12 @@ namespace TillWinter.Unity
         private void BuildHelperButtons()
         {
             _scarecrowButton = UiKit.Button(_safe, "Scarecrow", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleScarecrowMode);
-            UiKit.Box(_scarecrowButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 300f), new Vector2(130f, 110f));
+            UiKit.Box(_scarecrowButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 300f), SideButton);
             UiKit.ButtonCaption(_scarecrowButton, "warning", Strings.Get("hud.cap_scarecrow"));
             _scarecrowButton.gameObject.SetActive(false);
 
             _tractorButton = UiKit.Button(_safe, "TractorGo", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, SendTractor);
-            UiKit.Box(_tractorButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 420f), new Vector2(130f, 110f));
+            UiKit.Box(_tractorButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 420f), SideButton);
             UiKit.ButtonCaption(_tractorButton, "gear", Strings.Get("hud.cap_tractor"));
             var face = _tractorButton.targetGraphic.transform;
             var track = UiKit.Panel(face, "Charge", _theme.BarBackground, true, false);
@@ -462,7 +465,7 @@ namespace TillWinter.Unity
             _inspectButton = UiKit.Button(_safe, "Inspect", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleInspect);
             // Bottom right, where the pause button used to be; End year sits to its left. The bottom band's corner used
             // to hold it alone at the top of the left column, which read as a stray.
-            UiKit.Box(_inspectButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), new Vector2(130f, 110f));
+            UiKit.Box(_inspectButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 54f), SideButton);
             UiKit.ButtonCaption(_inspectButton, "zoomIn", Strings.Get("hud.cap_inspect"));
 
             var card = UiKit.Card(_safe, "PlotCard", _theme.YearCard, false);
@@ -568,7 +571,7 @@ namespace TillWinter.Unity
         private void BuildStoreButton()
         {
             _storeButton = UiKit.Button(_safe, "StoreShare", "", UiType.Caption, _theme.SheetIdle, _theme.SheetButtonText, CycleStoreShare);
-            UiKit.Box(_storeButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 300f), new Vector2(170f, 110f));
+            UiKit.Box(_storeButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 300f), SideButton);
             UiKit.ButtonCaption(_storeButton, "home", Strings.Format("hud.cap_barn", ("percent", 0)));
             _storeButton.gameObject.SetActive(false);
         }
@@ -899,8 +902,6 @@ namespace TillWinter.Unity
 
         private float _holdNudgeAt = -10f;
 
-        /// <summary>A tap on a growing crop does nothing by rule (a held finger waters it); after a winter the field is
-        /// full of them and a silent tap reads as a dead screen, so the banner says what the crop wants, a few seconds apart.</summary>
         /// <summary>
         /// The counter's width as TMP will lay it out: each glyph's advance from the font's character table (the
         /// K/M suffix at its smaller size), plus the label's character spacing. No allocation.
@@ -928,6 +929,8 @@ namespace TillWinter.Unity
             return width;
         }
 
+        /// <summary>A tap on a growing crop does nothing by rule (a held finger waters it); after a winter the field is
+        /// full of them and a silent tap reads as a dead screen, so the banner says what the crop wants, a few seconds apart.</summary>
         private void OnTappedGrowing(GridPos pos)
         {
             if (Time.unscaledTime - _holdNudgeAt < 3f) return;
@@ -1007,14 +1010,24 @@ namespace TillWinter.Unity
         private bool _hasReapPos;
 
         /// <summary>The depot (GDD §2v3.5): a slim bar under the season band, brick when the next swing would be tired.</summary>
+        /// <summary>
+        /// v3.6: the stamina bar alone under the island, with the Almanac's stamina icon at its left and its name
+        /// above it; a bare thin bar under the season timeline read as part of the clock.
+        /// </summary>
         private void BuildStamina()
         {
             _staminaTrackImage = UiKit.Panel(_safe, "StaminaTrack", _theme.BarBackground, true, false);
             _staminaTrack = _staminaTrackImage.rectTransform;
-            UiKit.Box(_staminaTrack, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, _theme.SeasonBandY - 34f), new Vector2(_theme.BarWidth * 0.6f, 14f));
+            UiKit.Box(_staminaTrack, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(24f, _theme.StaminaY), new Vector2(_theme.StaminaWidth, _theme.StaminaHeight));
             _staminaFillImage = UiKit.Panel(_staminaTrack, "Fill", _theme.Seed, true, false);
             _staminaFill = _staminaFillImage.rectTransform;
             UiKit.Stretch(_staminaFill, Vector2.zero, new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            // Dark ink, like the year card below it: the pale HUD text vanished against the light ground under the island.
+            var icon = NodeIcons.Image(_staminaTrack, "barsVertical", _theme.YearCardText);
+            UiKit.Box(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), Vector2.one * 40f);
+            var label = UiKit.Label(_staminaTrack, "StaminaLabel", Strings.Get("hud.stamina"), UiType.Caption, _theme.YearCardText, TextAnchor.LowerLeft, FontStyle.Bold);
+            UiKit.Stretch(label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 6f), new Vector2(0f, 40f));
+            label.enableWordWrapping = false;
         }
 
         /// <summary>A strike's number over the plot: rising, fading; a crit bigger and in the hot colour, a tired swing grey and small.</summary>
@@ -1098,7 +1111,7 @@ namespace TillWinter.Unity
         private void BuildSeedBag()
         {
             _bagButton = UiKit.Button(_safe, "SeedBag", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleSeedBag);
-            UiKit.Box(_bagButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 180f), new Vector2(130f, 110f));
+            UiKit.Box(_bagButton.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 180f), SideButton);
             UiKit.ButtonCaption(_bagButton, "basket", Strings.Get("hud.cap_seeds"));
             _bagButton.gameObject.SetActive(false);
 
@@ -1328,10 +1341,10 @@ namespace TillWinter.Unity
             MCoinFlight.End();
 
             _topGroup.alpha = Prims.Damp(_topGroup.alpha, state.Phase == Phase.Year ? 1f : 0f, 8f, dt);
-            _bottomGroup.alpha = _topGroup.alpha; // the season band leaves with the rest of the year HUD
+            _seasonGroup.alpha = _topGroup.alpha; // the season band leaves with the rest of the year HUD
             // A CanvasGroup at alpha 0 still takes taps: the End year button must be untouchable once the year is over.
             bool inYear = state.Phase == Phase.Year;
-            if (_bottomGroup.blocksRaycasts != inYear) _bottomGroup.blocksRaycasts = _bottomGroup.interactable = inYear;
+            if (_seasonGroup.blocksRaycasts != inYear) _seasonGroup.blocksRaycasts = _seasonGroup.interactable = inYear;
             MCoinText.Begin();
             double shown = System.Math.Max(0, state.Coins - _pending - HeldCoins);
             // The counter counts up to its value instead of jumping; spending snaps straight down.
