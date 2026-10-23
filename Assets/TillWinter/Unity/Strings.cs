@@ -45,6 +45,14 @@ namespace TillWinter.Unity
             return NodeText.Fill(Get(key), d);
         }
 
+        /// <summary>A span of minutes as people say it: "12 min", "1 h", "2 h 5 min" (never "0 h 12 min" or "1 h 0 min").</summary>
+        public static string Duration(long minutes)
+        {
+            if (minutes < 60) return Format("time.minutes", ("minutes", minutes));
+            if (minutes % 60 == 0) return Format("time.hours", ("hours", minutes / 60));
+            return Format("time.hours_minutes", ("hours", minutes / 60), ("minutes", minutes % 60));
+        }
+
         public static string Name(SkillNode node) => Get(node.NameKey);
         public static string Branch(Core.Branch b) => Get("branch." + b);
         public static string Crop(CropDef crop) => Get(crop.Key);

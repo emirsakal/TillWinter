@@ -45,6 +45,7 @@ namespace TillWinter.Unity
             _group = _panel.AddComponent<CanvasGroup>();
             var page = UiKit.Rect("Page", bg.transform);
             UiKit.Stretch(page, Vector2.zero, Vector2.one, new Vector2(44f, 40f), new Vector2(-44f, -60f));
+            _page = page;
 
             // The generation, and how long it farmed.
             _title = UiKit.Label(page, "Title", "", UiType.Title, theme.Ink, TextAnchor.MiddleLeft);
@@ -86,8 +87,8 @@ namespace TillWinter.Unity
             }
 
             // The seeds, counting up.
-            var seedDot = UiKit.CircleImage(page, "Seed", theme.Seed, Vector2.zero, 40f);
-            UiKit.Box(seedDot.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(20f, -800f), Vector2.one * 40f);
+            var seedDot = UiKit.SeedIcon(page, "Seed", theme.Seed, Vector2.zero, 52f);
+            UiKit.Box(seedDot.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(18f, -800f), Vector2.one * 52f);
             _seeds = UiKit.Label(page, "Seeds", "", UiType.Big, theme.Seed, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Stretch(_seeds.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(84f, -850f), new Vector2(0f, -750f));
             _seeds.enableWordWrapping = false;
@@ -125,6 +126,9 @@ namespace TillWinter.Unity
         }
 
         /// <summary>The page for a farm just handed on: the seeds count up with a tick.</summary>
+        private RectTransform _page;
+        private const float ContentHeight = 1290f, ButtonRoom = 220f;
+
         public void Show(RetireEvent e, Action onDone)
         {
             Fill(e.Generation - 1, e.SeedsEarned);
@@ -153,6 +157,10 @@ namespace TillWinter.Unity
             _lastTick = 0f;
             _heirKey = -1;
             _panel.transform.SetAsLastSibling();
+            // The content is about 1300 units tall, pinned to the top of a page that is 2200 on a tall phone: it moves
+            // down by a third of the spare room so the lower half of the screen is not one blank sheet.
+            float spare = ((RectTransform)_panel.transform).rect.height - 100f - ContentHeight - ButtonRoom;
+            _page.offsetMax = new Vector2(-44f, -60f - Mathf.Max(0f, spare * 0.33f));
             _panel.SetActive(true);
             _group.alpha = 0f;
             _open = true;
@@ -213,11 +221,11 @@ namespace TillWinter.Unity
                 if (!show) continue;
                 var t = g.HeirOffer[i];
                 UiKit.ButtonLabel(_heirs[i]).text = "<b>" + Strings.Get("heir." + t) + "</b>\n<size=78%>" + Strings.Get("heir." + t + ".desc") + "</size>";
-                _heirs[i].targetGraphic.color = t == g.Trait ? _theme.Accent : _theme.Paper;
+                UiKit.Paint(_heirs[i], t == g.Trait ? _theme.Accent : _theme.Paper);
             }
             if (!show) return;
             _challenge.text = Strings.Get("challenge." + g.Challenge);
-            _challengeButton.targetGraphic.color = g.Challenge != ChallengeKind.None ? _theme.Seed : _theme.Paper;
+            UiKit.Paint(_challengeButton, g.Challenge != ChallengeKind.None ? _theme.Seed : _theme.Paper);
             _challenge.color = g.Challenge != ChallengeKind.None ? _theme.Card : _theme.Ink;
         }
 

@@ -264,12 +264,13 @@ namespace TillWinter.Unity
             title.fontSizeMin = title.fontSize * 0.55f;
             _title = title.rectTransform;
             UiKit.Box(_title, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -230f), new Vector2(1040f, 200f));
-            UiKit.Outline(title, 0.24f);
+            // A shadow under the name: cream and ice blue on a pale morning sky had nothing to stand on.
+            UiKit.OutlineStrong(title, 0.2f);
             _titleBase = _title.anchoredPosition;
             BuildOrnament(safe, new Vector2(0f, -432f));
             var subtitle = UiKit.Label(safe, "Subtitle", Strings.Get("menu.subtitle"), UiType.Heading, _theme.MenuSubtitle, TextAnchor.MiddleCenter);
             UiKit.Box(subtitle.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -466f), new Vector2(1000f, 70f));
-            UiKit.Outline(subtitle, 0.16f);
+            UiKit.OutlineStrong(subtitle, 0.14f);
 
             RectTransform progressRt = null;
             // What the farm scene will load: the save or its .bak. A file that cannot be read is no farm to continue.
@@ -307,7 +308,12 @@ namespace TillWinter.Unity
                 string text = Strings.Get(key) + (sub != null ? "\n<size=62%>" + sub + "</size>" : "");
                 var b = UiKit.Button(safe, key, text, primary ? UiType.Title : UiType.Heading, primary ? _theme.MenuPrimary : _theme.MenuSecondary, _theme.MenuButtonText, action);
                 if (primary) UiKit.ButtonLabel(b).fontStyle = FontStyles.Bold;
-                if (sub != null) UiKit.ButtonLabel(b).richText = true; // the second line is set smaller with a size tag
+                if (sub != null)
+                {
+                    UiKit.ButtonLabel(b).richText = true; // the second line is set smaller with a size tag
+                    // Tighter lines, so the pair fits the button at the size of its neighbours instead of shrinking.
+                    UiKit.ButtonLabel(b).lineSpacing = -18f;
+                }
                 var rt = b.GetComponent<RectTransform>();
                 float y = BottomMargin + (entries.Count - 1 - i) * (ButtonHeight + ButtonGap) + (primary ? ButtonGap : 0f);
                 UiKit.Box(rt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, y), new Vector2(primary ? ButtonWidth + 60f : ButtonWidth, primary ? ButtonHeight + 20f : ButtonHeight));
@@ -340,9 +346,10 @@ namespace TillWinter.Unity
             var body = UiKit.Label(page.transform, "Body", Strings.Get("menu.new_game_body"), UiType.Body, _theme.SheetMuted, TextAnchor.MiddleCenter);
             UiKit.Box(body.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -150f), new Vector2(800f, 160f));
             var yes = UiKit.Button(page.transform, "Yes", Strings.Get("menu.new_game_yes"), UiType.Body, _theme.SheetDanger, _theme.SheetButtonText, NewGame);
-            UiKit.Box(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-200f, 50f), new Vector2(360f, 104f));
+            // Cancel on the left, the act on the right, as in every other confirm in the game.
+            UiKit.Box(yes.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(200f, 50f), new Vector2(360f, 104f));
             var no = UiKit.Button(page.transform, "Cancel", Strings.Get("ui.cancel"), UiType.Body, _theme.SheetIdle, _theme.SheetButtonText, () => _confirm.SetActive(false));
-            UiKit.Box(no.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(200f, 50f), new Vector2(360f, 104f));
+            UiKit.Box(no.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-200f, 50f), new Vector2(360f, 104f));
             _confirm.AddComponent<SheetTransition>().Page = page.rectTransform;
             _confirm.SetActive(false);
         }
@@ -444,7 +451,7 @@ namespace TillWinter.Unity
             PaletteBinder.SetSeason(look.SnowAmount, look.LeafTint, look.GrassTint);
             bool winter = season == Season.Winter;
             _fx.SetRate(VfxId.Snow, winter ? 45f : 0f);
-            _fx.SetRate(VfxId.Petals, season == Season.Spring ? 4f : 0f);
+            _fx.SetRate(VfxId.Petals, season == Season.Spring ? 2.5f : 0f);
             _fx.SetRate(VfxId.Leaves, season == Season.Autumn ? 7f : 0f);
 
             // Growing year: 0..1 across Spring to Autumn; each plot starts a little later along a diagonal wave.

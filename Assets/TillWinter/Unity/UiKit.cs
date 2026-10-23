@@ -105,6 +105,34 @@ namespace TillWinter.Unity
             return img;
         }
 
+        /// <summary>
+        /// The coin as the HUD counter draws it, a gold disc with a darker face, for every place that shows coins: a plain
+        /// yellow dot on one card and a grey one on another read as three different things.
+        /// </summary>
+        public static Image CoinIcon(Transform parent, string name, Vector2 anchoredPos, float diameter)
+        {
+            var theme = HudTheme.Load();
+            var disc = CircleImage(parent, name, theme.Coin, anchoredPos, diameter);
+            CircleImage(disc.transform, "Inner", theme.CoinInner, Vector2.zero, diameter * 0.63f);
+            return disc;
+        }
+
+        /// <summary>
+        /// A Heritage seed: a leaning almond with a light sheen. The atlas has no seed, and the bare disc that stood in for
+        /// it read as a blank button or a second coin. The returned image is an empty square holder, sized like an icon.
+        /// </summary>
+        public static Image SeedIcon(Transform parent, string name, Color color, Vector2 anchoredPos, float size)
+        {
+            var holder = Panel(parent, name, new Color(color.r, color.g, color.b, 0f), false, false);
+            Box(holder.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), anchoredPos, new Vector2(size, size));
+            var body = CircleImage(holder.transform, "Body", color, Vector2.zero, size);
+            body.rectTransform.sizeDelta = new Vector2(size * 0.62f, size);
+            body.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -32f);
+            var sheen = CircleImage(body.transform, "Sheen", Color.Lerp(color, Color.white, 0.55f), new Vector2(-size * 0.08f, size * 0.16f), size * 0.2f);
+            sheen.rectTransform.sizeDelta = new Vector2(size * 0.14f, size * 0.3f);
+            return holder;
+        }
+
         public static TMP_Text Label(Transform parent, string name, string text, int size, Color color, TextAnchor anchor = TextAnchor.MiddleCenter, FontStyle style = FontStyle.Normal)
         {
             var rt = Rect(name, parent);
@@ -267,16 +295,17 @@ namespace TillWinter.Unity
         public static Image ButtonCaption(Button button, string iconKey, string caption)
         {
             var icon = ButtonIcon(button, iconKey);
-            Box(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -36f), Vector2.one * 40f);
+            // Icon and word fill the corner button: at 40 and 22 they sat small in a mostly empty 170 x 110 face.
+            Box(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -32f), Vector2.one * 46f);
             var label = ButtonLabel(button);
             label.gameObject.SetActive(false); // a captioned button speaks through its caption
-            var text = Label(icon.transform.parent, "Caption", caption, 22, label.color, TextAnchor.LowerCenter);
-            Box(text.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(150f, 30f));
+            var text = Label(icon.transform.parent, "Caption", caption, UiType.Caption, label.color, TextAnchor.LowerCenter, FontStyle.Bold);
+            Box(text.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 12f), new Vector2(156f, 34f));
             text.raycastTarget = false;
             text.enableWordWrapping = false;
             text.enableAutoSizing = true;
-            text.fontSizeMin = 14f;
-            text.fontSizeMax = 22f;
+            text.fontSizeMin = 16f;
+            text.fontSizeMax = text.fontSize;
             return icon;
         }
 
@@ -309,6 +338,14 @@ namespace TillWinter.Unity
         }
 
         public static TMP_Text ButtonLabel(Button b) => b.GetComponentInChildren<TMP_Text>(true);
+
+        /// <summary>Repaints a <see cref="Button(Transform, string, string, int, Color, Color, UnityAction)"/>: its face and the lip under it together.</summary>
+        public static void Paint(Button b, Color face)
+        {
+            if (b.targetGraphic != null) b.targetGraphic.color = face;
+            var lip = b.GetComponent<Image>();
+            if (lip != null && lip != b.targetGraphic) lip.color = LipColor(face);
+        }
 
         /// <summary>The word under a <see cref="ButtonCaption"/> icon, for buttons whose caption carries a value.</summary>
         public static TMP_Text CaptionLabel(Button b)
@@ -358,6 +395,9 @@ namespace TillWinter.Unity
         /// A vertical scroll view. With <paramref name="bar"/> it also gets a thin scrollbar on its right edge that
         /// appears only when the content is taller than the view: the one honest sign that there is more below.
         /// </summary>
+        /// <summary>How far, in pixels, a scroll view's content fades out at its top and bottom edges.</summary>
+        public const int ScrollFade = 36;
+
         public static ScrollRect ScrollView(Transform parent, string name, out RectTransform content, Color? bar = null)
         {
             var viewport = Rect(name, parent);
@@ -367,7 +407,8 @@ namespace TillWinter.Unity
                 scroll.verticalScrollbar = VerticalBar(viewport, bar.Value);
                 scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
             }
-            viewport.gameObject.AddComponent<RectMask2D>();
+            // Soft top and bottom edges: a row cut straight across by the mask read as a broken button, not as "more below".
+            viewport.gameObject.AddComponent<RectMask2D>().softness = new Vector2Int(0, ScrollFade);
             var blocker = viewport.gameObject.AddComponent<Image>();
             blocker.color = new Color(0f, 0f, 0f, 0.002f); // catches the drag without showing
             content = Rect("Content", viewport);

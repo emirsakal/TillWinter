@@ -8,7 +8,7 @@ namespace TillWinter.Unity
     public sealed class HudTheme : ScriptableObject
     {
         /// <summary>Bumped when the look changes; UiSetup restyles an older asset in place (round three: one palette).</summary>
-        public const int CurrentStyle = 4;
+        public const int CurrentStyle = 5;
         public int StyleVersion;
 
         /// <summary>Cards that sit over the field (the away card).</summary>
@@ -92,6 +92,8 @@ namespace TillWinter.Unity
         public float StaminaY = 600f;
         public float StaminaWidth = 600f;
         public float StaminaHeight = 18f;
+        /// <summary>The stamina bar's empty track: dark ink, since the sky's black-at-35% track all but vanished on the pale bottom band.</summary>
+        public Color StaminaTrack = new Color(0.18f, 0.14f, 0.105f, 0.28f);
         /// <summary>v3.6: one size for every corner button (barn, seeds, tractor, scarecrow, end year, inspect), so the stacks line up.</summary>
         public float SideButtonWidth = 170f;
         public float SideButtonHeight = 110f;
@@ -142,6 +144,7 @@ namespace TillWinter.Unity
             t.SeasonBandY = 540f;
             t.BarYInBand = -40f;
             t.SeasonNameYInBand = -76f;
+            // Style 5 (the UI review): firmer muted ink on the sheets comes with UiPalette.InkMuted above.
             t.StyleVersion = CurrentStyle;
         }
 
@@ -150,6 +153,7 @@ namespace TillWinter.Unity
             if (_loaded != null) return _loaded;
             _loaded = Resources.Load<HudTheme>("HudTheme");
             if (_loaded == null) _loaded = CreateInstance<HudTheme>();
+            else if (_loaded.StyleVersion < CurrentStyle) ApplyPalette(_loaded); // an older asset: restyle the loaded copy, as TreeTheme does
             return _loaded;
         }
     }

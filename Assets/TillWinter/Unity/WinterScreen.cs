@@ -46,6 +46,8 @@ namespace TillWinter.Unity
         private readonly char[] _coinChars = new char[64];
         private bool _coinsTextHeritage;
         private long _infoKey = -2;
+        /// <summary>The seed count the pass-on link shows: the confirm reads the live value, so the link must not lag it.</summary>
+        private int _retireSeedsShown = -1;
         private int _hintKey = -2;
         private Vector2 _sheetHome;
         private double _coinsShown;
@@ -94,14 +96,15 @@ namespace TillWinter.Unity
             _coinRich = new RichNumber(0.62f, _theme.InkMuted);
             _seedRich = new RichNumber(0.62f, _heritageTheme.InkMuted);
 
-            // The field: fitted whole to this canvas, no panning.
+            // The field: fitted whole to this canvas, no panning. It starts just under the top line: a 200-unit empty band
+            // sat between the two and the beds came out smaller than they had to.
             var almanacRt = UiKit.Rect("AlmanacTree", _safe);
-            UiKit.Stretch(almanacRt, Vector2.zero, Vector2.one, new Vector2(34f, 660f), new Vector2(-34f, -270f));
+            UiKit.Stretch(almanacRt, Vector2.zero, Vector2.one, new Vector2(34f, 660f), new Vector2(-34f, -160f));
             _almanac = almanacRt.gameObject.AddComponent<SkillTreeView>();
             _almanac.Init(game, game.Sim.Almanac, _theme, SkillTreeLayout.Compute(game.Sim.Almanac.Nodes));
             _almanac.Selected += OnSelected;
             var heritageRt = UiKit.Rect("HeritageTree", _safe);
-            UiKit.Stretch(heritageRt, Vector2.zero, Vector2.one, new Vector2(34f, 660f), new Vector2(-34f, -270f));
+            UiKit.Stretch(heritageRt, Vector2.zero, Vector2.one, new Vector2(34f, 660f), new Vector2(-34f, -160f));
             _heritage = heritageRt.gameObject.AddComponent<SkillTreeView>();
             _heritage.Init(game, game.Sim.Heritage, _heritageTheme, SkillTreeLayout.Compute(game.Sim.Heritage.Nodes));
             _heritage.Selected += OnSelected;
@@ -126,7 +129,8 @@ namespace TillWinter.Unity
 
             // Two text links and one button.
             var links = UiKit.Rect("Links", _safe);
-            UiKit.Stretch(links, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(44f, 300f), new Vector2(-44f, 364f));
+            // Rows under the field keep the phone's width on a wider canvas (16:9 fits by height), in line with the field.
+            UiKit.Box(links, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 300f), new Vector2(RowWidth - 20f, 64f));
             _treeToggle = TextLink(links, "TreeToggle", Strings.Get("ui.heritage") + "  »", _theme.Link, TextAnchor.MiddleLeft, ToggleTree);
             UiKit.Stretch(_treeToggle.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0.45f, 1f), Vector2.zero, Vector2.zero);
             _heirLink = TextLink(links, "HeirLink", "", _theme.Link, TextAnchor.MiddleLeft, () => _card.ShowHeirs(OnCardClosed));
@@ -157,6 +161,9 @@ namespace TillWinter.Unity
             _game.Sim.Purchased += OnPurchased;
             _game.Sim.Retired += OnRetired;
         }
+
+        /// <summary>The width of every row under the field: the reference canvas less its margins.</summary>
+        private const float RowWidth = 1012f;
 
         /// <summary>A line of text that is a button: the links under the field.</summary>
         private static Button TextLink(Transform parent, string name, string text, Color color, TextAnchor anchor, UnityEngine.Events.UnityAction onClick)
@@ -194,7 +201,7 @@ namespace TillWinter.Unity
         private void BuildSheet()
         {
             _sheet = UiKit.Rect("Sheet", _safe);
-            UiKit.Stretch(_sheet, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(34f, 222f), new Vector2(-34f, 658f));
+            UiKit.Box(_sheet, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 222f), new Vector2(RowWidth, 436f));
             UiKit.Card(_sheet, "Bg", _theme.Card);
 
             _sheetName = UiKit.Label(_sheet, "Name", "", UiType.Title, _theme.Ink, TextAnchor.MiddleLeft);
@@ -510,6 +517,7 @@ namespace TillWinter.Unity
                     ? Strings.Get("ui.pass_on") + "  ·  " + Strings.Format("ui.pass_on_seeds", ("seeds", _game.Sim.SeedsIfRetiredNow))
                     : Strings.Get("ui.pass_on") + "  ·  " + Strings.Format("ui.pass_on_need", ("coins", NumberFormat.Short(_game.Sim.Config.HeritageThreshold - s.Generation.LifetimeCoinsThisGeneration)));
                 label.color = can ? t.Seed : t.InkMuted;
+                _retireSeedsShown = can ? _game.Sim.SeedsIfRetiredNow : -1;
             }
             _infoKey = -2;
             _hintKey = -2;
@@ -565,6 +573,10 @@ namespace TillWinter.Unity
             _sheetNote.text = note;
             _sheetNote.color = noteColor;
             _buy.interactable = can;
+            // Green for the Almanac, lilac for Heritage: the warm yellow belongs to Next Year alone, and two yellow bars
+            // stacked under the field left the eye to guess which one moves the game on.
+            UiKit.Paint(_buy, heritage ? t.Seed : t.BedGrown);
+            UiKit.ButtonLabel(_buy).color = t.Card;
             UiKit.ButtonLabel(_buy).text = maxed ? Strings.Get("ui.maxed")
                 : !available ? Strings.Get("ui.locked")
                 : Strings.Get("ui.buy") + "  ·  " + NumberFormat.Short(sim.CostOf(_selectedId)) + " " + Strings.Get(heritage ? "ui.seeds" : "ui.coins");
@@ -606,18 +618,19 @@ namespace TillWinter.Unity
         private void BuildBarnStrip()
         {
             _barnStrip = UiKit.Rect("BarnStrip", _safe);
-            UiKit.Stretch(_barnStrip, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(34f, 440f), new Vector2(-34f, 530f));
+            UiKit.Box(_barnStrip, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 440f), new Vector2(RowWidth, 90f));
             _barnLine = UiKit.Label(_barnStrip, "Barn", "", UiType.Caption, _theme.Ink, TextAnchor.MiddleLeft);
-            UiKit.Box(_barnLine.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), new Vector2(330f, 92f));
+            UiKit.Box(_barnLine.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), new Vector2(300f, 92f));
             _sell = UiKit.Button(_barnStrip, "SellBarn", "", UiType.Caption, _theme.Accent, _theme.Ink, () => { if (_game.Sim.SellBarn()) { Haptics.Play(HapticKind.Medium); _audio?.Play(SfxId.MarketSale); _barnKey = -1; } });
-            UiKit.Box(_sell.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(350f, 0f), new Vector2(200f, 84f));
+            UiKit.Box(_sell.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(322f, 0f), new Vector2(180f, 84f));
             _preserve = UiKit.Button(_barnStrip, "Preserves", "", UiType.Caption, _theme.Seed, _theme.Card, () => { if (_game.Sim.MakePreserves()) { Haptics.Play(HapticKind.Medium); _barnKey = -1; } });
-            UiKit.Box(_preserve.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(562f, 0f), new Vector2(210f, 84f));
+            UiKit.Box(_preserve.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(514f, 0f), new Vector2(220f, 84f));
             _respec = UiKit.Button(_barnStrip, "Respec", "", UiType.Caption, _theme.Paper, _theme.Ink, () =>
             {
                 if (_game.Sim.RespecAlmanac()) { Haptics.Play(HapticKind.Heavy); _barnKey = -1; _suggestKey = -1; RefreshAll(); }
             });
-            UiKit.Box(_respec.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-10f, 0f), new Vector2(210f, 84f));
+            // Widths from the longest label in either language, so none of the three shrinks below the others.
+            UiKit.Box(_respec.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-10f, 0f), new Vector2(256f, 84f));
             _barnStrip.gameObject.SetActive(false);
         }
 
@@ -711,6 +724,7 @@ namespace TillWinter.Unity
 
             RefreshBarnStrip(s);
             RefreshSuggestion(s);
+            if (s.Phase == Phase.Winter && _game.Sim.CanRetire && _game.Sim.SeedsIfRetiredNow != _retireSeedsShown) RefreshAll();
 
             // The lines under the field. Winter: what the year brought and how it was graded; Heritage: how far the tree is.
             bool winter = s.Phase == Phase.Winter;
@@ -729,7 +743,7 @@ namespace TillWinter.Unity
                     if (s.LastGrade > 0)
                     {
                         grade = Strings.Format("ui.grade_stars", ("stars", s.LastGrade));
-                        if (s.LastGradeBonus > 0) grade += "  " + Strings.Format("ui.grade_bonus", ("coins", NumberFormat.Short(s.LastGradeBonus)));
+                        if (s.LastGradeBonus > 0) grade += "  ·  " + Strings.Format("ui.grade_bonus", ("coins", NumberFormat.Short(s.LastGradeBonus)));
                         if (s.Goal.Active) grade += "  ·  " + Strings.Get(s.Goal.Done ? "ui.goal_result_met" : "ui.goal_result_missed");
                     }
                     if (gh) grade += (grade.Length > 0 ? "  ·  " : "") + Strings.Format("ui.greenhouse", ("coins", NumberFormat.Short(s.Greenhouse.CoinsThisWinter)), ("seconds", ghSeconds));

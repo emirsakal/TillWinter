@@ -114,12 +114,18 @@ namespace TillWinter.Unity
             _unit = Mathf.Min((size.x - 2f * pad) / SkillTreeLayout.Width, (size.y - 2f * pad) / SkillTreeLayout.Height);
             _fieldSize = new Vector2(SkillTreeLayout.Width, SkillTreeLayout.Height) * _unit;
             var snowRt = _snow.rectTransform;
-            // Hangs from the top of its canvas: the room a taller screen has goes under the field, where the text lines are.
-            snowRt.anchorMin = snowRt.anchorMax = new Vector2(0.5f, 1f);
-            snowRt.pivot = new Vector2(0.5f, 1f);
+            // Centred in its canvas: hung from the top, the spare height of a tall screen pooled as one empty band
+            // between the field and the lines under it.
+            snowRt.anchorMin = snowRt.anchorMax = new Vector2(0.5f, 0.5f);
+            snowRt.pivot = new Vector2(0.5f, 0.5f);
             snowRt.sizeDelta = _fieldSize + Vector2.one * (2f * _theme.SnowRim);
-            snowRt.anchoredPosition = new Vector2(0f, -_theme.FieldPadding);
-            if (_built) _content.localScale = Vector3.one * (_unit / Mathf.Max(0.001f, _builtUnit));
+            snowRt.anchoredPosition = Vector2.zero;
+            if (!_built) return;
+            float scale = _unit / Mathf.Max(0.001f, _builtUnit);
+            _content.localScale = Vector3.one * scale;
+            // The beds scale with the field, the words on it do not: built before the first layout pass on a short
+            // screen, the field grows by half again and the branch names grew with it until they ran off the soil.
+            foreach (var label in _labels) label.transform.localScale = Vector3.one / Mathf.Max(0.001f, scale);
         }
 
         private void BuildLabels()
@@ -196,7 +202,9 @@ namespace TillWinter.Unity
                 pillText.enableWordWrapping = false;
                 pillText.enableAutoSizing = true;
                 pillText.fontSizeMax = pillText.fontSize;
-                pillText.fontSizeMin = 12f;
+                // No floor: the pill is built at the first fit's scale and grows with the field, so a floor overflowed it
+                // when that fit was small (a 16:9 screen before its canvas scaler ran) and the word spilled over "SOIL".
+                pillText.fontSizeMin = 1f;
                 UiKit.Stretch(pillText.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
                 nv.SuggestPill.gameObject.SetActive(false);
 

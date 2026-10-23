@@ -264,7 +264,7 @@ namespace TillWinter.Unity
             float leaves = (_fromSeason == Season.Autumn ? wFrom : 0f) + (_toSeason == Season.Autumn ? wTo : 0f);
             bool year = state.Phase == Phase.Year;
             bool golden = state.GoldenYearActive;
-            _fx.SetRate(VfxId.Petals, year && !golden ? 5f * petals : 0f);
+            _fx.SetRate(VfxId.Petals, year && !golden ? 3f * petals : 0f); // fewer: at 5 a second the specks read as dirt on the screen
             _fx.SetRate(VfxId.GoldMotes, year && golden ? 14f : 0f);
             _fx.SetRate(VfxId.Leaves, year ? 9f * leaves : 0f);
             // Winter snows at once; the season blend only ever mattered on the way out of Winter, where it kept snowing

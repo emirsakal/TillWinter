@@ -20,14 +20,25 @@ namespace TillWinter.Unity
         public const string Golden = "trophy";
         public const string Combo = "leaderboardsSimple";
         public const string Time = "fastForward";
+        public const string Heirloom = "medal1";
+        public const string Goal = "checkmark";
+        public const string Pest = "exclamation";
+        public const string Frost = "contrast";
+        public const string Grade = "medal2";
+        public const string Strike = "power";
+        public const string Crit = "plus";
+        public const string Layers = "menuGrid";
+        public const string Deep = "import";
+        /// <summary>Drawn, not from the atlas (it has no seed): see <see cref="UiKit.SeedIcon"/>.</summary>
+        public const string Seed = "#seed";
 
         /// <summary>An icon image sized to <paramref name="size"/>, anchored left-middle at <paramref name="x"/>.</summary>
         public static Image Row(Transform parent, string icon, Color color, float x, float size)
         {
             // Coins are a gold disc everywhere else in the game (the HUD counter, the coin flight); the atlas has no
             // coin, and a star here made the same idea read as two different things.
-            var img = icon == Coin
-                ? UiKit.CircleImage(parent, "Coin", color, Vector2.zero, size)
+            var img = icon == Coin ? UiKit.CoinIcon(parent, "Coin", Vector2.zero, size)
+                : icon == Seed ? UiKit.SeedIcon(parent, "Seed", HudTheme.Load().Seed, Vector2.zero, size)
                 : NodeIcons.Image(parent, icon, color);
             UiKit.Box(img.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(size, size));
             return img;

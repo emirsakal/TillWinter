@@ -42,6 +42,10 @@ namespace TillWinter.Unity
         private const float CoinIconDiameter = 76f;
         /// <summary>The counter is centred this far right of the coin group's middle; the icon sits to its left.</summary>
         private const float CoinTextOffset = 50f;
+        private const float ChecklistWidth = 300f;
+        private const float ChecklistInset = 24f;
+        /// <summary>The right edge of the coin number from the coin row's centre, kept for the checklist's sake.</summary>
+        private float _coinRight;
         // The "this year" card: numbers are written into char buffers so nothing is allocated when they change.
         private CanvasGroup _yearGroup;
         private TMP_Text _yearLine, _nextGenLabel;
@@ -121,9 +125,7 @@ namespace TillWinter.Unity
             // edge, so a short "0" no longer sat far from its coin.
             _coinGlow = UiKit.CircleImage(_coinGroup, "Glow", _theme.Coin, Vector2.zero, 170f);
             _coinGlow.sprite = GlowSprite;
-            var icon = UiKit.CircleImage(_coinGroup, "Icon", _theme.Coin, Vector2.zero, CoinIconDiameter);
-            _coinIcon = icon.rectTransform;
-            UiKit.CircleImage(icon.transform, "Inner", _theme.CoinInner, Vector2.zero, 48f);
+            _coinIcon = UiKit.CoinIcon(_coinGroup, "Icon", Vector2.zero, CoinIconDiameter).rectTransform;
             _coinText = UiKit.Label(_coinGroup, "Value", "0", (int)_theme.CoinFontSize, _theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             // TMP grows its character arrays the first time a longer string arrives, an allocation in the middle of
             // play. The longest coin string (rich-text suffix included) is set once here instead.
@@ -138,9 +140,10 @@ namespace TillWinter.Unity
             _coinText.ForceMeshUpdate(true);
             _coinText.SetText("0");
 
-            _subText = UiKit.Label(top, "Sub", "", (int)_theme.SubFontSize, _theme.TextMuted, TextAnchor.MiddleCenter);
+            // Full cream on a shadow: at 80% on the pale spring sky "Year 3 · Gen 2" all but vanished.
+            _subText = UiKit.Label(top, "Sub", "", (int)_theme.SubFontSize, _theme.Text, TextAnchor.MiddleCenter);
             UiKit.Box(_subText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 236f), new Vector2(800f, 50f)); // below the coin row: it used to start 30 units inside it
-            UiKit.Outline(_subText, 0.12f);
+            UiKit.OutlineStrong(_subText, 0.16f);
 
             _combo = UiKit.Label(top, "Combo", "", UiType.Heading, _theme.Combo, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Box(_combo.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, 0.5f), new Vector2(260f, -_theme.TopPadding - 90f), new Vector2(300f, 60f));
@@ -150,12 +153,13 @@ namespace TillWinter.Unity
             // into thumb reach, and hangs off the safe area rather than the fading top band.
             var chip = UiKit.Panel(_safe, "SeedChip", UiKit.LipColor(_theme.SeedChip), true, false);
             _seedChipRt = chip.rectTransform;
-            UiKit.Box(_seedChipRt, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 54f), new Vector2(300f, 88f));
+            // As tall as the corner buttons beside it, so the bottom row lines up.
+            UiKit.Box(_seedChipRt, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 54f), new Vector2(300f, _theme.SideButtonHeight));
             _seedChipFace = UiKit.Panel(_seedChipRt, "Face", _theme.SeedChip, true, false);
             UiKit.Stretch(_seedChipFace.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 7f), Vector2.zero);
             _seedGlow = UiKit.CircleImage(_seedChipFace.transform, "Glow", _theme.Seed, new Vector2(-104f, 0f), 96f);
             _seedGlow.sprite = GlowSprite;
-            UiKit.CircleImage(_seedChipFace.transform, "Seed", _theme.Seed, new Vector2(-104f, 0f), 44f);
+            UiKit.SeedIcon(_seedChipFace.transform, "Seed", _theme.Seed, new Vector2(-104f, 0f), 50f);
             // Light text on a pale sky needs a plate behind it: the goal line sits on a soft dark pill sized to its text.
             _goalPlate = UiKit.Panel(top, "GoalPlate", _theme.BarBackground, true, false);
             _goalPlateRt = _goalPlate.rectTransform;
@@ -167,14 +171,14 @@ namespace TillWinter.Unity
             _goalLine.gameObject.SetActive(false);
             _rate = UiKit.Label(top, "Rate", "", UiType.Caption, _theme.TextMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_rate.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_theme.TopPadding - 290f), new Vector2(500f, 40f)); // under the Year line: beside the counter a long number ran into it
-            UiKit.Outline(_rate, 0.12f);
+            UiKit.OutlineStrong(_rate, 0.16f);
             _seedChip = UiKit.Label(_seedChipFace.transform, "Text", "", UiType.Label, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Stretch(_seedChip.rectTransform, Vector2.zero, Vector2.one, new Vector2(78f, 0f), new Vector2(-10f, 0f));
             _seedChipRt.gameObject.SetActive(false);
 
             // The bottom of the screen: what this year has brought, and how far the farm is from the next generation.
             var yearCard = UiKit.Card(_safe, "YearCard", _theme.YearCard, false);
-            UiKit.Box(yearCard.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 196f), new Vector2(620f, 136f));
+            UiKit.Box(yearCard.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 204f), new Vector2(620f, 136f)); // a clear gap over End year
             _yearGroup = yearCard.gameObject.AddComponent<CanvasGroup>();
             _yearGroup.blocksRaycasts = false;
             _yearLine = UiKit.Label(yearCard.transform, "Line", "", UiType.Label, _theme.YearCardText, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -212,6 +216,12 @@ namespace TillWinter.Unity
             UiKit.ButtonCaption(endYear, UiIcons.Time, Strings.Get("ui.end_year")); // beside Inspect, the same shape as its neighbours
 
             // A long streak pays out: the milestone says so over the ring.
+            // A dark plate under the banner, like the goal line's: bare yellow words over the fence and the beds
+            // ("Locusts! Strike inside the swarm…") were hard to read and wrapped across the field.
+            _bannerPlate = UiKit.Panel(_safe, "BannerPlate", _theme.HintBackground, true, false);
+            UiKit.Box(_bannerPlate.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 120f), new Vector2(900f, 80f));
+            _bannerAlpha = _theme.HintBackground.a;
+            _bannerPlate.gameObject.SetActive(false);
             _milestone = UiKit.Label(_safe, "ComboMilestone", "", UiType.Heading, _theme.Combo, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_milestone.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 120f), new Vector2(900f, 80f));
             UiKit.OutlineStrong(_milestone);
@@ -239,7 +249,8 @@ namespace TillWinter.Unity
             _frostEdge.sprite = Prims.EdgeFadeSprite(256, 0.45f);
             _frostEdge.type = Image.Type.Simple;
             UiKit.Stretch(_frostEdge.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            _frostEdge.transform.SetSiblingIndex(_fxLayer.GetSiblingIndex());
+            // Behind every HUD control: it frosts the farm, not the buttons (over them it washed the corner stacks out in late autumn).
+            _frostEdge.transform.SetAsFirstSibling();
             _flash = UiKit.Panel(canvas, "Flash", Transparent(_theme.Flash), false, false);
             UiKit.Stretch(_flash.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
@@ -314,7 +325,7 @@ namespace TillWinter.Unity
         {
             _scarecrowButton = UiKit.Button(_safe, "Scarecrow", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, ToggleScarecrowMode);
             UiKit.Box(_scarecrowButton.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 300f), SideButton);
-            UiKit.ButtonCaption(_scarecrowButton, "warning", Strings.Get("hud.cap_scarecrow"));
+            UiKit.ButtonCaption(_scarecrowButton, "singleplayer", Strings.Get("hud.cap_scarecrow")); // a figure in the field; the warning sign read as an alarm
             _scarecrowButton.gameObject.SetActive(false);
 
             _tractorButton = UiKit.Button(_safe, "TractorGo", "", UiType.Label, _theme.SheetIdle, _theme.SheetButtonText, SendTractor);
@@ -332,7 +343,7 @@ namespace TillWinter.Unity
         {
             _placingScarecrow = !_placingScarecrow;
             _game.FieldTapOverride = _placingScarecrow ? (System.Func<Vector2, bool>)PlaceScarecrow : null;
-            _scarecrowButton.targetGraphic.color = _placingScarecrow ? _theme.SheetButton : _theme.SheetIdle;
+            UiKit.Paint(_scarecrowButton, _placingScarecrow ? _theme.SheetButton : _theme.SheetIdle);
             if (_placingScarecrow)
             {
                 CloseSeedBag();
@@ -360,7 +371,7 @@ namespace TillWinter.Unity
             }
             _placingScarecrow = false;
             _game.FieldTapOverride = null;
-            _scarecrowButton.targetGraphic.color = _theme.SheetIdle;
+            UiKit.Paint(_scarecrowButton, _theme.SheetIdle);
             return true;
         }
 
@@ -394,7 +405,7 @@ namespace TillWinter.Unity
             // The trader's card: two offers and how long it stays.
             var card = UiKit.Card(_safe, "TraderCard", _theme.YearCard, false);
             _traderCard = card.gameObject;
-            UiKit.Box(card.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 345f), new Vector2(640f, 200f));
+            UiKit.Box(card.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 364f), new Vector2(640f, 200f)); // off the year card's top edge
             var title = UiKit.Label(card.transform, "Title", Strings.Get("trader.title"), UiType.Label, _theme.YearCardText, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(600f, 44f));
             _traderSeed = UiKit.Button(card.transform, "TraderSeed", "", UiType.Caption, _theme.Seed, _theme.SheetButtonText, () => BuyFromTrader(TraderOffer.Seed));
@@ -499,7 +510,7 @@ namespace TillWinter.Unity
             _inspecting = !_inspecting;
             CloseSeedBag();
             _game.PlotTapOverride = _inspecting ? (System.Func<GridPos, bool>)InspectAt : null;
-            _inspectButton.targetGraphic.color = _inspecting ? _theme.SheetButton : _theme.SheetIdle;
+            UiKit.Paint(_inspectButton, _inspecting ? _theme.SheetButton : _theme.SheetIdle);
             if (_inspecting) Banner(Strings.Get("plot.pick"));
             Haptics.Play(HapticKind.Selection);
         }
@@ -508,7 +519,7 @@ namespace TillWinter.Unity
         {
             if (_inspectCard.activeSelf) _inspectCard.SetActive(false);
             _inspecting = false;
-            _inspectButton.targetGraphic.color = _theme.SheetIdle;
+            UiKit.Paint(_inspectButton, _theme.SheetIdle);
             if (_game.PlotTapOverride == (System.Func<GridPos, bool>)InspectAt) _game.PlotTapOverride = null;
         }
 
@@ -557,7 +568,7 @@ namespace TillWinter.Unity
             _inspectCard.SetActive(true);
             _inspectCard.transform.SetAsLastSibling();
             _inspecting = false;
-            _inspectButton.targetGraphic.color = _theme.SheetIdle;
+            UiKit.Paint(_inspectButton, _theme.SheetIdle);
             _game.PlotTapOverride = null;
             Haptics.Play(HapticKind.Light);
             return true;
@@ -597,7 +608,7 @@ namespace TillWinter.Unity
             if (share == _storeShown) return;
             _storeShown = share;
             UiKit.CaptionLabel(_storeButton).text = Strings.Format("hud.cap_barn", ("percent", Mathf.RoundToInt(share * 100f)));
-            _storeButton.targetGraphic.color = share > 0f ? _theme.SheetButton : _theme.SheetIdle;
+            UiKit.Paint(_storeButton, share > 0f ? _theme.SheetButton : _theme.SheetIdle);
         }
 
         private void OnPestArrived(PestKind kind, GridPos pos)
@@ -649,7 +660,7 @@ namespace TillWinter.Unity
             var card = UiKit.Panel(_safe, "Checklist", _theme.HintBackground, true, false);
             _checklist = card.rectTransform;
             // Top right under the pause button, in the sky: at the top left it lay across the island's corner.
-            UiKit.Box(_checklist, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -136f), new Vector2(300f, 226f)); // narrow: the coin counter is centred and wide
+            UiKit.Box(_checklist, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-ChecklistInset, -136f), new Vector2(ChecklistWidth, 226f)); // narrow: the coin counter is centred and wide
             var title = UiKit.Label(_checklist, "Title", Strings.Get("check.title"), UiType.Label, _theme.HintAccent, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Box(title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -8f), new Vector2(270f, 40f));
             for (int i = 0; i < FarmSim.ChecklistSteps; i++)
@@ -725,7 +736,7 @@ namespace TillWinter.Unity
                 {
                     _placingScarecrow = false;
                     _game.FieldTapOverride = null;
-                    _scarecrowButton.targetGraphic.color = _theme.SheetIdle;
+                    UiKit.Paint(_scarecrowButton, _theme.SheetIdle);
                 }
             }
             // The open seed bag's last chip sits where the tractor button is: the bag wins while it is open.
@@ -737,7 +748,7 @@ namespace TillWinter.Unity
                 _tractorFill.anchorMax = new Vector2(charge, 1f);
                 bool ready = charge >= _game.Sim.Config.TractorManualReady;
                 var face = ready ? _theme.SheetButton : _theme.SheetIdle;
-                if (_tractorButton.targetGraphic.color != face) _tractorButton.targetGraphic.color = face;
+                if (_tractorButton.targetGraphic.color != face) UiKit.Paint(_tractorButton, face);
             }
         }
 
@@ -746,6 +757,10 @@ namespace TillWinter.Unity
         {
             _milestone.text = text;
             _milestoneLeft = 1.6f;
+            // Sized once per banner (an event, not a frame): the text's own lines inside the 900-wide box.
+            var size = _milestone.GetPreferredValues(text, BannerWidth, 0f);
+            _bannerPlate.rectTransform.sizeDelta = new Vector2(Mathf.Min(size.x, BannerWidth) + 56f, size.y + 22f);
+            _bannerPlate.gameObject.SetActive(true);
         }
 
         // ------------------------------------------------------------------ yearly goal line (GDD §3.3 v1.9)
@@ -876,7 +891,10 @@ namespace TillWinter.Unity
             rt.anchorMin = rt.anchorMax = new Vector2((from + to) * 0.5f, 1f);
             rt.pivot = new Vector2(0.5f, 0f);
             rt.anchoredPosition = new Vector2(0f, 10f);
-            rt.sizeDelta = new Vector2(34f, 34f); // big enough to read at a glance on a phone
+            rt.sizeDelta = new Vector2(40f, 40f); // 34 read as specks on the pale sky
+            var shadow = glyph.gameObject.AddComponent<UnityEngine.UI.Shadow>();
+            shadow.effectColor = _theme.BarBackground;
+            shadow.effectDistance = new Vector2(2f, -2f);
         }
 
         private void OnDestroy()
@@ -989,6 +1007,9 @@ namespace TillWinter.Unity
         private GameObject _endYearConfirm;
         private TMP_Text _milestone;
         private float _milestoneLeft;
+        private Image _bannerPlate;
+        private float _bannerAlpha;
+        private const float BannerWidth = 900f;
         // ------------------------------------------------------------------ the depot and the damage numbers (GDD §2v3.4–5)
 
         private sealed class Number
@@ -1016,7 +1037,7 @@ namespace TillWinter.Unity
         /// </summary>
         private void BuildStamina()
         {
-            _staminaTrackImage = UiKit.Panel(_safe, "StaminaTrack", _theme.BarBackground, true, false);
+            _staminaTrackImage = UiKit.Panel(_safe, "StaminaTrack", _theme.StaminaTrack, true, false);
             _staminaTrack = _staminaTrackImage.rectTransform;
             UiKit.Box(_staminaTrack, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(24f, _theme.StaminaY), new Vector2(_theme.StaminaWidth, _theme.StaminaHeight));
             _staminaFillImage = UiKit.Panel(_staminaTrack, "Fill", _theme.Seed, true, false);
@@ -1116,10 +1137,12 @@ namespace TillWinter.Unity
             _bagButton.gameObject.SetActive(false);
 
             _bagRow = UiKit.Rect("SeedRow", _safe);
-            UiKit.Box(_bagRow, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 420f), new Vector2(1000f, 170f));
-            // It sits on the pale bottom band, not on the sky: dark ink, like the cards there.
+            UiKit.Box(_bagRow, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 428f), new Vector2(1000f, 166f));
+            // On a tray like the trader's card: bare chips floated over the sky islets and read as part of the scenery.
+            var tray = UiKit.Card(_bagRow, "Tray", _theme.YearCard, false);
+            UiKit.Stretch(tray.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _bagHint = UiKit.Label(_bagRow, "Hint", Strings.Get("ui.seed_hint"), UiType.Caption, _theme.YearCardText, TextAnchor.MiddleLeft);
-            UiKit.Box(_bagHint.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(4f, 0f), new Vector2(990f, 44f));
+            UiKit.Box(_bagHint.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(18f, -4f), new Vector2(960f, 44f));
 
             int count = _game.Sim.Config.Crops.Length + 1; // "best" first, then every crop
             _seedChips = new Button[count];
@@ -1128,7 +1151,7 @@ namespace TillWinter.Unity
             {
                 int tier = i - 1;
                 var chip = UiKit.Button(_bagRow, "Seed" + i, "", UiType.Caption, _theme.SheetIdle, _theme.SheetButtonText, () => PickSeed(tier));
-                UiKit.Box(chip.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(i * 141f, 0f), new Vector2(133f, 116f));
+                UiKit.Box(chip.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(12f + i * 141f, 12f), new Vector2(133f, 104f));
                 var label = UiKit.ButtonLabel(chip);
                 label.richText = true;
                 label.enableWordWrapping = true; // crop name over its season
@@ -1204,12 +1227,15 @@ namespace TillWinter.Unity
                 string season = Strings.Get("season." + likes);
                 _seedChipText[i].text = Strings.Get(crops[tier].Key) + "\n<size=72%><color=#" + hex + ">" + (now ? "<b>" + season + "</b>" : season) + "</color></size>";
             }
+            // The tray hugs the chips it holds, never narrower than its hint.
+            int chips = Mathf.Min(_seedChips.Length, tiers + 2);
+            _bagRow.sizeDelta = new Vector2(Mathf.Max(600f, chips * 141f + 16f), _bagRow.sizeDelta.y);
         }
 
         private void PaintSeedChips()
         {
             for (int i = 0; i < _seedChips.Length; i++)
-                _seedChips[i].targetGraphic.color = i - 1 == _bagTier ? _theme.SheetButton : _theme.SheetIdle;
+                UiKit.Paint(_seedChips[i], i - 1 == _bagTier ? _theme.SheetButton : _theme.SheetIdle);
         }
 
         private void OnComboMilestone(int combo, double coins)
@@ -1361,10 +1387,21 @@ namespace TillWinter.Unity
                 // moves that edge; its width comes from the font's own glyph advances (preferredWidth would force a
                 // text generation, and an allocation, on every change). A count of characters guessed too narrow
                 // for the display font's wide digits and let the coin sit on the first one.
-                float left = CoinTextOffset - CoinTextWidth(_coinChars, len) * 0.5f;
+                float textWidth = CoinTextWidth(_coinChars, len);
+                float left = CoinTextOffset - textWidth * 0.5f;
+                _coinRight = CoinTextOffset + textWidth * 0.5f;
                 _coinIcon.anchoredPosition = new Vector2(left - _theme.CoinIconGap - CoinIconDiameter * 0.5f, 0f);
                 _coinGlow.rectTransform.anchoredPosition = _coinIcon.anchoredPosition;
             }
+            // The checklist card shares the coin row at the right: a wide number slides left to keep clear of it.
+            float coinShift = 0f;
+            if (_checklist.gameObject.activeSelf)
+            {
+                float room = ((RectTransform)_coinGroup.parent).rect.width * 0.5f - ChecklistInset - ChecklistWidth - 20f;
+                coinShift = Mathf.Min(0f, room - _coinRight);
+            }
+            var coinPos = _coinGroup.anchoredPosition;
+            if (coinPos.x != coinShift) { coinPos.x = coinShift; _coinGroup.anchoredPosition = coinPos; }
             _counterPunch = Mathf.Max(0f, _counterPunch - dt * 5f);
             _coinGroup.localScale = Vector3.one * (1f + 0.22f * Prims.EaseOutQuad(_counterPunch));
             var glow = _theme.Coin;
@@ -1410,8 +1447,12 @@ namespace TillWinter.Unity
                 float k = Mathf.Clamp01(_milestoneLeft / 1.6f);
                 _milestone.alpha = Mathf.Min(1f, k * 3f);
                 _milestone.rectTransform.anchoredPosition = new Vector2(0f, 120f + (1f - k) * 60f);
+                var plate = _bannerPlate.color;
+                plate.a = _bannerAlpha * _milestone.alpha;
+                _bannerPlate.color = plate;
+                _bannerPlate.rectTransform.anchoredPosition = _milestone.rectTransform.anchoredPosition;
             }
-            else if (_milestone.alpha > 0f) _milestone.alpha = 0f;
+            else if (_milestone.alpha > 0f) { _milestone.alpha = 0f; _bannerPlate.gameObject.SetActive(false); }
             RefreshStamina(state, dt);
             TickNumbers(dt);
             RefreshGoalLine(state);

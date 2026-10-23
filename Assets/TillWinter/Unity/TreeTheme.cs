@@ -12,7 +12,7 @@ namespace TillWinter.Unity
     public sealed class TreeTheme : ScriptableObject
     {
         /// <summary>Bumped when the page look changes; UiSetup restyles an older asset in place.</summary>
-        public const int CurrentStyle = 8;
+        public const int CurrentStyle = 9; // 9: firmer muted ink, links and branch names (the UI review)
         public int StyleVersion;
 
         [Header("Page")]
@@ -21,7 +21,7 @@ namespace TillWinter.Unity
         /// <summary>Card faces (the node sheet, the confirm box) on the page.</summary>
         public Color Card = new Color(0.984f, 0.973f, 0.945f, 1f);
         public Color Ink = new Color(0.18f, 0.165f, 0.22f);
-        public Color InkMuted = new Color(0.18f, 0.165f, 0.22f, 0.6f);
+        public Color InkMuted = new Color(0.18f, 0.165f, 0.22f, 0.74f);
         public Color Overlay = new Color(0.933f, 0.941f, 0.957f, 1f);
         public Color Accent = new Color(0.894f, 0.663f, 0.235f); // the warm button
         public Color Danger = new Color(0.74f, 0.32f, 0.24f);
@@ -29,7 +29,7 @@ namespace TillWinter.Unity
         public Color Coin = new Color(1f, 0.82f, 0.2f);
         public Color Seed = new Color(0.557f, 0.435f, 0.851f); // the lilac of the seed currency
         /// <summary>Text links (Heritage, hand the farm on) under the field.</summary>
-        public Color Link = new Color(0.18f, 0.165f, 0.22f, 0.7f);
+        public Color Link = new Color(0.18f, 0.165f, 0.22f, 0.8f);
 
         [Header("Field")]
         /// <summary>The soil of the field and the snow rim around it.</summary>
@@ -48,7 +48,7 @@ namespace TillWinter.Unity
         public Color BedHard = new Color(0.655f, 0.529f, 0.396f, 0.95f);
         public Color Crack = new Color(0.545f, 0.424f, 0.306f);
         /// <summary>The branch names written on the field.</summary>
-        public Color BranchLabel = new Color(0.984f, 0.922f, 0.824f, 0.6f);
+        public Color BranchLabel = new Color(0.984f, 0.922f, 0.824f, 0.82f);
         /// <summary>The outline around the selected bed and the flash a bought bed makes.</summary>
         public Color Highlight = new Color(0.984f, 0.953f, 0.902f);
 
@@ -147,7 +147,7 @@ namespace TillWinter.Unity
             t.SeedDot = new Color(0.788f, 0.706f, 0.961f);
             t.BedHard = new Color(0.616f, 0.518f, 0.467f, 0.95f);
             t.Crack = new Color(0.518f, 0.412f, 0.369f);
-            t.BranchLabel = new Color(0.953f, 0.902f, 0.941f, 0.6f);
+            t.BranchLabel = new Color(0.953f, 0.902f, 0.941f, 0.82f);
             t.Coin = new Color(0.557f, 0.435f, 0.851f);
             // Branch colours a shade deeper than the Almanac's: the two trees must never be told apart by the page alone.
             t.Hand = new Color(0.75f, 0.42f, 0.14f);

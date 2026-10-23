@@ -176,8 +176,9 @@ namespace TillWinter.Unity
             for (int i = 0; i < 3; i++)
             {
                 int choice = i - 1;
-                _quality[i] = Btn(p, q[i], () => { QualityTiers.ApplyChoice(choice); RefreshSettings(); }, y, 120f, 101f + i * 134f); // same right edge as the switches, 14 px apart
-                UiKit.ButtonLabel(_quality[i]).fontSizeMax = UiType.Size(26);
+                // Wide enough for "Otomatik" at the row's own size: at 120 px the three shrank to three different sizes.
+                _quality[i] = Btn(p, q[i], () => { QualityTiers.ApplyChoice(choice); RefreshSettings(); }, y, 170f, -19f + i * 182f); // same right edge as the language pair, 12 px apart
+                UiKit.ButtonLabel(_quality[i]).fontSizeMax = UiType.Size(UiType.Label);
             }
             y -= RowHeight + 20f;
 
@@ -365,7 +366,7 @@ namespace TillWinter.Unity
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             layout.spacing = 14f;
-            layout.padding = new RectOffset(12, 12, 8, 28);
+            layout.padding = new RectOffset(12, 36, 8, 28); // clear of the scrollbar on the right: the text ran into it
             var fitter = _helpRows.gameObject.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
@@ -435,9 +436,10 @@ namespace TillWinter.Unity
                 var r = UiKit.Rect("Page " + e.Generation, _albumRows);
                 UiKit.Box(r, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -i * row), new Vector2(820f, row));
                 // A stamped seal per page, like the generation card's: the album read as a list of numbers.
-                var seal = UiKit.CircleImage(r, "Seal", new Color(_theme.Gold.r, _theme.Gold.g, _theme.Gold.b, 0.18f), Vector2.zero, 92f);
+                // Honey, not the HUD's pale gold: on the cream page the seal's number and the stars were near invisible.
+                var seal = UiKit.CircleImage(r, "Seal", new Color(_theme.HintAccent.r, _theme.HintAccent.g, _theme.HintAccent.b, 0.22f), Vector2.zero, 92f);
                 UiKit.Box(seal.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(8f, -12f), new Vector2(92f, 92f));
-                var sealNumber = UiKit.Label(seal.transform, "Number", NumberFormat.Whole(e.Generation), UiType.Heading, _theme.Gold, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var sealNumber = UiKit.Label(seal.transform, "Number", NumberFormat.Whole(e.Generation), UiType.Heading, _theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
                 UiKit.Stretch(sealNumber.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 var rule = UiKit.Panel(r, "Rule", new Color(_theme.SheetMuted.r, _theme.SheetMuted.g, _theme.SheetMuted.b, 0.25f), false, false);
                 UiKit.Box(rule.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 12f), new Vector2(780f, 2f));
@@ -445,6 +447,11 @@ namespace TillWinter.Unity
                 string round = e.NgPlus > 0 ? "  ·  " + Strings.Format("album.ng_plus", ("n", e.NgPlus)) : "";
                 var title = UiKit.Label(r, "Title", Strings.Format("album.generation", ("n", e.Generation)) + heir + round, UiType.Heading, _theme.SheetInk, TextAnchor.UpperLeft, FontStyle.Bold);
                 UiKit.Stretch(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -64f), new Vector2(-150f, -8f));
+                // One line, shrunk to fit: an heir's name wrapped onto the stats line under it.
+                title.enableWordWrapping = false;
+                title.enableAutoSizing = true;
+                title.fontSizeMin = 24f;
+                title.fontSizeMax = title.fontSize;
                 var line = UiKit.Label(r, "Line", Strings.Format("album.line", ("years", e.Years), ("coins", NumberFormat.Short(e.Coins)), ("seeds", e.Seeds), ("harvests", e.Harvests)), UiType.Body, _theme.SheetInk, TextAnchor.UpperLeft);
                 UiKit.Stretch(line.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -116f), new Vector2(0f, -66f));
                 // Two tellings per story, by the generation's parity: with six traits the sixth page repeated the first.
@@ -454,7 +461,7 @@ namespace TillWinter.Unity
                 UiKit.Stretch(story.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(112f, -176f), new Vector2(0f, -118f));
                 for (int s = 0; s < 3; s++)
                 {
-                    var star = NodeIcons.Image(r, "star", s < e.BestGrade ? _theme.Gold : new Color(_theme.SheetMuted.r, _theme.SheetMuted.g, _theme.SheetMuted.b, 0.3f));
+                    var star = NodeIcons.Image(r, "star", s < e.BestGrade ? _theme.HintAccent : new Color(_theme.SheetMuted.r, _theme.SheetMuted.g, _theme.SheetMuted.b, 0.3f));
                     UiKit.Box(star.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-s * 46f, -14f), new Vector2(40f, 40f));
                 }
             }
@@ -579,6 +586,9 @@ namespace TillWinter.Unity
 
         private void Update()
         {
+            // Under an open sheet the pause button greys out and takes no taps: it stayed bright on top of the dim.
+            bool covered = IsOpen;
+            if (_pauseButton.interactable == covered) _pauseButton.interactable = !covered;
             // The Android back button (and Escape on a desk) walks back the way in, sheet by sheet, and opens pause from play.
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.escapeKey.wasPressedThisFrame) HandleBack();
@@ -763,7 +773,7 @@ namespace TillWinter.Unity
 
         private void Tint(Button b, bool on)
         {
-            if (b != null && b.targetGraphic != null) b.targetGraphic.color = on ? _theme.SheetButton : _theme.SheetIdle;
+            if (b != null) UiKit.Paint(b, on ? _theme.SheetButton : _theme.SheetIdle);
         }
 
         private const float StatRow = 86f;
@@ -783,9 +793,10 @@ namespace TillWinter.Unity
         {
             UiIcons.Generation, UiIcons.Year, UiIcons.Coin, UiIcons.Harvest, UiIcons.Ring, UiIcons.Apprentice,
             UiIcons.Tractor, UiIcons.Crow, UiIcons.Golden, UiIcons.Combo, UiIcons.Time,
-            UiIcons.Golden, UiIcons.Generation,
-            UiIcons.Ring, UiIcons.Crow, UiIcons.Year, UiIcons.Coin, UiIcons.Generation,
-            UiIcons.Ring, UiIcons.Combo, UiIcons.Harvest, UiIcons.Tractor,
+            UiIcons.Heirloom, UiIcons.Generation,
+            // One icon per idea: the same trophy, target and grey disc stood for three different counts each.
+            UiIcons.Goal, UiIcons.Pest, UiIcons.Frost, UiIcons.Grade, UiIcons.Seed,
+            UiIcons.Strike, UiIcons.Crit, UiIcons.Layers, UiIcons.Deep,
         };
 
         private static int HeirloomCount(int bits)
@@ -804,11 +815,11 @@ namespace TillWinter.Unity
                 NumberFormat.Whole(g.Generation), NumberFormat.Whole(g.YearsTotal), NumberFormat.Short(g.LifetimeCoinsTotal),
                 NumberFormat.Whole(g.Harvests), NumberFormat.Whole(g.HarvestsHand), NumberFormat.Whole(g.HarvestsApprentice),
                 NumberFormat.Whole(g.HarvestsTractor), NumberFormat.Whole(g.CrowsScared), NumberFormat.Whole(g.GoldenHarvests),
-                NumberFormat.Whole(g.BestCombo), Strings.Format("stats.time_value", ("hours", minutes / 60), ("minutes", minutes % 60)),
+                NumberFormat.Whole(g.BestCombo), Strings.Duration(minutes),
                 HeirloomCount(g.Achievements) + " / " + TillWinter.Core.Legacy.AchievementCount,
                 Strings.Get("heir." + g.Trait),
                 NumberFormat.Whole(g.GoalsMet), NumberFormat.Whole(g.PestsStopped), NumberFormat.Whole(g.HarvestsLateFrost),
-                NumberFormat.Whole(g.BestGradeThisGeneration) + " / 3", NumberFormat.Whole(g.SeedsEarnedTotal),
+                Strings.Format("ui.grade_stars", ("stars", g.BestGradeThisGeneration)), NumberFormat.Whole(g.SeedsEarnedTotal),
                 NumberFormat.Whole(g.Strikes), NumberFormat.Whole(g.Crits), NumberFormat.Whole(g.Breaks), NumberFormat.Whole(g.DeepestLayer + 1),
             };
             for (int i = 0; i < _statValues.Length && i < values.Length; i++) _statValues[i].text = values[i];
