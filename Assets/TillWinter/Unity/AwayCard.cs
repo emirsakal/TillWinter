@@ -37,26 +37,27 @@ namespace TillWinter.Unity
             var anywhere = _panel.AddComponent<Button>();
             anywhere.transition = Selectable.Transition.None;
             anywhere.onClick.AddListener(Apply);
-            var box = UiKit.Card(dim.transform, "Box", theme.CardDark); // was a navy outside the palette
+            // The same cream page as every other sheet: a dark card here was the one sheet in the game built differently.
+            var box = UiKit.Card(dim.transform, "Box", theme.SheetPaper);
             UiKit.Box(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 640f));
             UiKit.SheetDecor(box, 162f);
-            var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.away_title"), UiType.Title, theme.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var title = UiKit.Label(box.transform, "Title", Strings.Get("ui.away_title"), UiType.Title, theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(860f, 70f));
-            _duration = UiKit.Label(box.transform, "Duration", "", UiType.Body, theme.TextMuted, TextAnchor.MiddleCenter);
+            _duration = UiKit.Label(box.transform, "Duration", "", UiType.Body, theme.SheetMuted, TextAnchor.MiddleCenter);
             UiKit.Box(_duration.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -100f), new Vector2(860f, 44f));
-            UiKit.CircleImage(box.transform, "CoinIcon", theme.Coin, new Vector2(-150f, 40f), 56f);
-            _coins = UiKit.Label(box.transform, "Coins", "", UiType.Big, theme.Coin, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.CoinIcon(box.transform, "CoinIcon", new Vector2(-150f, 40f), 64f);
+            _coins = UiKit.Label(box.transform, "Coins", "", UiType.Big, theme.SheetInk, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Box(_coins.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40f, 40f), new Vector2(400f, 80f));
             for (int i = 0; i < _sourceLines.Length; i++)
             {
-                _sourceLines[i] = UiKit.Label(box.transform, "Source" + i, "", UiType.Label, theme.TextMuted, TextAnchor.MiddleCenter);
+                _sourceLines[i] = UiKit.Label(box.transform, "Source" + i, "", UiType.Label, theme.SheetMuted, TextAnchor.MiddleCenter);
                 UiKit.Box(_sourceLines[i].rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f), new Vector2(0f, -20f - i * 44f), new Vector2(800f, 42f));
                 _sourceGroups[i] = _sourceLines[i].gameObject.AddComponent<CanvasGroup>();
                 _sourceGroups[i].alpha = 0f;
             }
             _capped = UiKit.Label(box.transform, "Capped", "", UiType.Caption, theme.HintAccent, TextAnchor.MiddleCenter);
             UiKit.Box(_capped.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 170f), new Vector2(800f, 34f));
-            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("ui.ok"), UiType.Heading, theme.HintAccent, theme.YearCardText, Apply);
+            var ok = UiKit.Button(box.transform, "Ok", Strings.Get("ui.ok"), UiType.Heading, theme.SheetButton, theme.SheetButtonText, Apply);
             UiKit.Box(ok.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(400f, 110f));
             _panel.AddComponent<SheetTransition>().Page = box.rectTransform;
             _panel.SetActive(false);
@@ -72,7 +73,7 @@ namespace TillWinter.Unity
                     _shown.HeirloomsFound + report.HeirloomsFound);
             _shown = report;
             int minutes = Mathf.RoundToInt((float)report.SecondsSimulated / 60f);
-            _duration.text = Strings.Format("away.duration", ("hours", minutes / 60), ("minutes", minutes % 60));
+            _duration.text = Strings.Duration(minutes);
             _coins.text = "+" + NumberFormat.Short(report.CoinsEarned);
             _sourceCount = 0;
             if (report.HarvestsApprentice > 0) SetSource(Strings.Format("away.apprentices", ("count", report.HarvestsApprentice)));

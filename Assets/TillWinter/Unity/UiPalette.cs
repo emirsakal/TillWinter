@@ -11,7 +11,7 @@ namespace TillWinter.Unity
     {
         /// <summary>Body text on paper; also the darkest line work.</summary>
         public static readonly Color Ink = new Color(0.18f, 0.14f, 0.105f);
-        public static readonly Color InkMuted = new Color(0.18f, 0.14f, 0.105f, 0.65f);
+        public static readonly Color InkMuted = new Color(0.18f, 0.14f, 0.105f, 0.78f); // 0.65 left grey body text faint on the cream sheets
         /// <summary>Sheets and dialogs: the farm notebook.</summary>
         public static readonly Color Paper = new Color(0.965f, 0.92f, 0.84f);
         /// <summary>Text on dark or coloured surfaces.</summary>
