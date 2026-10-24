@@ -75,6 +75,9 @@ namespace TillWinter.Unity
         }
 
         /// <summary>Once per frame: fires merged Light taps as one slightly stronger tap.</summary>
+        /// <summary>The editor's stand-in log for a buzz allocates; the smoke test's allocation check turns it off.</summary>
+        public static bool QuietInEditor;
+
         public static void Poll()
         {
             if (!_lightPending) return;
@@ -96,8 +99,11 @@ namespace TillWinter.Unity
                 case HapticKind.Heavy: AndroidVibrate(45, 255); break;
                 default: AndroidVibrate(8, 60); break;
             }
+#elif UNITY_WEBGL && !UNITY_EDITOR
+            // The browser's buzz where it has one (Android Chrome); nothing on iOS Safari or a desktop.
+            WebBridge.Vibrate(kind == HapticKind.Light ? 12 : kind == HapticKind.Medium ? 25 : kind == HapticKind.Heavy ? 45 : 8);
 #else
-            Debug.Log("[Haptics] " + kind + (intensity > 1.01f ? " x" + intensity.ToString("0.0") : ""));
+            if (!QuietInEditor) Debug.Log("[Haptics] " + kind + (intensity > 1.01f ? " x" + intensity.ToString("0.0") : ""));
 #endif
         }
     }

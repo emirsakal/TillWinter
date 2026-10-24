@@ -89,6 +89,7 @@ namespace TillWinter.Unity
                     File.Move(path, bak);
                 }
                 File.Move(tmp, path);
+                WebBridge.SyncFiles();
             }
             catch (Exception e)
             {

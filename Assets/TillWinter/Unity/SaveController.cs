@@ -96,6 +96,7 @@ namespace TillWinter.Unity
                 File.Move(path, bak);
             }
             File.Move(tmp, path);
+            WebBridge.SyncFiles(); // the web build: from the browser's memory into its storage, so a closed tab keeps the farm
         }
 
         /// <summary>Loads the save, falling back to .bak; corrupt files are renamed and null is returned (start fresh).</summary>

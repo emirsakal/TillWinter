@@ -138,11 +138,15 @@ namespace TillWinter.Unity
             _hapticsSwitch = SwitchRow(p, "Haptics", s.HapticsEnabled, on => { SettingsStore.Current.HapticsEnabled = on; if (on) Haptics.Play(HapticKind.Medium); }, y);
             y -= RowHeight;
             // A local reminder, opt-in: the switch asks the system for permission the first time it is turned on.
-            RowLabel(p, "settings.reminders", y);
-            _remindersSwitch = SwitchRow(p, "Reminders", s.Reminders, on => { SettingsStore.Current.Reminders = on; if (on) Reminders.RequestPermission(); }, y);
-            y -= RowHeight - 10f;
-            Text(p, "RemindersHint", Strings.Get("settings.reminders_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
-            y -= HintGap;
+            // A browser tab has no notifications to book, so the web build leaves the row out.
+            if (!WebBridge.IsWeb)
+            {
+                RowLabel(p, "settings.reminders", y);
+                _remindersSwitch = SwitchRow(p, "Reminders", s.Reminders, on => { SettingsStore.Current.Reminders = on; if (on) Reminders.RequestPermission(); }, y);
+                y -= RowHeight - 10f;
+                Text(p, "RemindersHint", Strings.Get("settings.reminders_hint"), y, UiType.Label, _theme.SheetMuted, TextAnchor.UpperLeft, HintHeight);
+                y -= HintGap;
+            }
 
             Section(p, "settings.section.sound", ref y);
             RowLabel(p, "settings.music", y);
@@ -637,7 +641,7 @@ namespace TillWinter.Unity
                 Status("settings.transfer_none");
                 return;
             }
-            GUIUtility.systemCopyBuffer = SaveTransfer.Encode(json);
+            WebBridge.Copy(SaveTransfer.Encode(json), Strings.Get("settings.copy_show"));
             Status("settings.transfer_copied");
             Haptics.Play(HapticKind.Light);
         }
@@ -645,7 +649,11 @@ namespace TillWinter.Unity
         /// <summary>First tap reads the clipboard and says what is in it; the second one overwrites this farm.</summary>
         private void PasteSave()
         {
-            if (!SaveTransfer.TryDecode(GUIUtility.systemCopyBuffer, out var json))
+            // The second tap confirms the code the first one read: in a browser the code is typed into a prompt, and
+            // asking for it twice would be one prompt too many.
+            bool confirming = _pasteArmed > 0f && Time.unscaledTime <= _pasteArmed && _pastedCode != null;
+            string code = confirming ? _pastedCode : WebBridge.ReadCode(Strings.Get("settings.paste_prompt"));
+            if (!SaveTransfer.TryDecode(code, out var json))
             {
                 ResetPasteLabel();
                 Status("settings.transfer_bad");
@@ -661,6 +669,7 @@ namespace TillWinter.Unity
             if (_pasteArmed <= 0f || Time.unscaledTime > _pasteArmed)
             {
                 _pasteArmed = Time.unscaledTime + 4f; // same window as the New Game+ confirmation
+                _pastedCode = code;
                 UiKit.ButtonLabel(_pasteSave).text = Strings.Get("settings.paste_confirm");
                 _transferStatus.text = Strings.Format("settings.transfer_ready", ("gen", data.Generation), ("year", data.Year));
                 return;
@@ -680,9 +689,12 @@ namespace TillWinter.Unity
             Reload(false); // the farm on screen is not this one any more
         }
 
+        private string _pastedCode;
+
         private void ResetPasteLabel()
         {
             _pasteArmed = 0f;
+            _pastedCode = null;
             if (_pasteSave != null) UiKit.ButtonLabel(_pasteSave).text = Strings.Get("settings.paste_save");
         }
 
@@ -757,7 +769,7 @@ namespace TillWinter.Unity
             var s = SettingsStore.Current;
             _hapticsSwitch.Set(s.HapticsEnabled);
             _motionSwitch.Set(s.ReduceMotion);
-            _remindersSwitch.Set(s.Reminders);
+            _remindersSwitch?.Set(s.Reminders);
             _largeTextSwitch.Set(s.LargeText);
             _musicValue.text = Mathf.RoundToInt(s.MusicVolume * 100f) + "%";
             _sfxValue.text = Mathf.RoundToInt(s.SfxVolume * 100f) + "%";

@@ -322,6 +322,8 @@
   "settings.transfer_bad": "No whole farm code on the clipboard.",
   "settings.transfer_none": "No saved farm to copy yet.",
   "settings.transfer_failed": "The farm could not be written.",
+  "settings.paste_prompt": "Paste your farm code",
+  "settings.copy_show": "Your farm code (select it and copy)",
   "settings.reset": "Reset save",
   "settings.reset_hold": "Hold for 3 seconds to erase the farm.",
   "settings.reset_done": "The farm was erased.",

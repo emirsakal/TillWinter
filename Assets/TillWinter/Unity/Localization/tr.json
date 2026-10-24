@@ -322,6 +322,8 @@
   "settings.transfer_bad": "Panoda eksiksiz bir çiftlik kodu yok.",
   "settings.transfer_none": "Henüz kopyalanacak kayıtlı çiftlik yok.",
   "settings.transfer_failed": "Çiftlik yazılamadı.",
+  "settings.paste_prompt": "Çiftlik kodunu yapıştır",
+  "settings.copy_show": "Çiftlik kodun (seçip kopyala)",
   "settings.reset": "Kaydı sıfırla",
   "settings.reset_hold": "Çiftliği silmek için 3 saniye basılı tut.",
   "settings.reset_done": "Çiftlik silindi.",

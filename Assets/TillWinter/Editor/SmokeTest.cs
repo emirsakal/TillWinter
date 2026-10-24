@@ -473,7 +473,8 @@ namespace TillWinter.EditorTools
                     if (_sub % 20 == 0) { _game.Sim.DebugForceRipeAll(); _game.Sim.DebugForceTractorSweep(); _game.Sim.ReapAll(); }
                     _burstMaxSystems = Mathf.Max(_burstMaxSystems, vfx.ActiveSystems);
                     _burstMaxVoices = Mathf.Max(_burstMaxVoices, audio.ActiveVoices);
-                    if (inPhase > 2.5 && !_burstShot) { _burstShot = true; Shot("14b-feel-burst"); FrameAlloc.Reset(); ProfilerStart(); }
+                    // The editor's haptic stand-in is a Debug.Log, which allocates; a phone's buzz does not. Off while measured.
+                    if (inPhase > 2.5 && !_burstShot) { _burstShot = true; Shot("14b-feel-burst"); Haptics.QuietInEditor = true; FrameAlloc.Reset(); ProfilerStart(); }
                     if (inPhase > 5.0)
                     {
                         _game.DebugPointerScreen = null;
@@ -697,6 +698,7 @@ namespace TillWinter.EditorTools
             EditorApplication.update -= Tick;
             Application.logMessageReceived -= OnLog;
             int code = _errors == 0 ? 0 : 1;
+            Haptics.QuietInEditor = false;
             EditorApplication.isPlaying = false;
             SessionState.SetInt(ExitKey, code);
             EditorApplication.update += WaitThenExit;

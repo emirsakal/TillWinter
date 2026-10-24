@@ -122,6 +122,56 @@ namespace TillWinter.EditorTools.Build
             ConfigureIosPlugin();
         }
 
+        /// <summary>
+        /// The browser build for GitHub Pages. Pages serves files as they are, with no Content-Encoding header, so the
+        /// build is gzip-compressed with Unity's decompression fallback (the loader unpacks it in JavaScript). The page
+        /// is the project's own template (Assets/WebGLTemplates/TillWinter): a phone-shaped frame on a desktop, the
+        /// whole screen on a phone.
+        /// </summary>
+        public static void ApplyWebSettings()
+        {
+            ApplyCommonSettings();
+            var t = NamedBuildTarget.WebGL;
+            PlayerSettings.SetScriptingBackend(t, ScriptingImplementation.IL2CPP);
+            PlayerSettings.SetApiCompatibilityLevel(t, ApiCompatibilityLevel.NET_Standard);
+            PlayerSettings.SetManagedStrippingLevel(t, ManagedStrippingLevel.Medium);
+            var defines = PlayerSettings.GetScriptingDefineSymbols(t).Split(';').Where(d => d.Length > 0 && d != DebugDefine).ToArray();
+            string joined = string.Join(";", defines);
+            if (joined != PlayerSettings.GetScriptingDefineSymbols(t)) PlayerSettings.SetScriptingDefineSymbols(t, joined);
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+            PlayerSettings.WebGL.decompressionFallback = true;
+            PlayerSettings.WebGL.dataCaching = true;
+            PlayerSettings.WebGL.nameFilesAsHashes = false;
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.None;
+            PlayerSettings.WebGL.template = "PROJECT:" + WebTemplate;
+            PlayerSettings.runInBackground = false; // a hidden tab pauses the farm, as a phone in a pocket does
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.WebGL, false);
+            PlayerSettings.SetGraphicsAPIs(BuildTarget.WebGL, new[] { GraphicsDeviceType.OpenGLES3 });
+            ApplyWebTextures();
+        }
+
+        /// <summary>
+        /// The splash logo is a 4 MB uncompressed texture; the browser build takes a smaller, compressed copy of it (a
+        /// WebGL override, so the phone builds keep theirs). Unity's web player takes no per-platform audio settings,
+        /// so the music stays as it is (most of the download).
+        /// </summary>
+        private static void ApplyWebTextures()
+        {
+            const string logo = "Assets/Art/Icon/SplashLogo.png";
+            if (!(AssetImporter.GetAtPath(logo) is TextureImporter imp)) return;
+            var want = imp.GetPlatformTextureSettings("WebGL");
+            if (want.overridden && want.maxTextureSize == 512 && want.textureCompression == TextureImporterCompression.Compressed) return;
+            want.overridden = true;
+            want.maxTextureSize = 512;
+            want.textureCompression = TextureImporterCompression.Compressed;
+            want.format = TextureImporterFormat.Automatic;
+            imp.SetPlatformTextureSettings(want);
+            imp.SaveAndReimport();
+            Log("web: splash logo override (512, compressed)");
+        }
+
+        public const string WebTemplate = "TillWinter";
+
         /// <summary>The Objective-C++ haptics bridge compiles only into the iOS player.</summary>
         private static void ConfigureIosPlugin()
         {
@@ -159,6 +209,7 @@ namespace TillWinter.EditorTools.Build
 
         public static void BuildAndroid() => Exit(() => BuildAndroidPlayers(HasArg("-twDev")));
         public static void BuildIos() => Exit(() => BuildIosProject(HasArg("-twDev")));
+        public static void BuildWeb() => Exit(() => BuildWebPlayer(HasArg("-twDev")));
         public static void CompileReleaseCheck() => Exit(CompileRelease);
 
         private static void Exit(Func<bool> body)
@@ -237,6 +288,26 @@ namespace TillWinter.EditorTools.Build
             return ok;
         }
 
+        /// <summary>
+        /// The browser build -> Builds/Web/&lt;version&gt;-&lt;build&gt;/ (index.html at its root). It has no store build
+        /// number of its own: it carries the Android version code it was built beside, and moves no number.
+        /// </summary>
+        public static bool BuildWebPlayer(bool dev)
+        {
+            ApplyWebSettings();
+            int build = Math.Max(1, PlayerSettings.Android.bundleVersionCode);
+            WriteBuildInfo("Web", build, dev);
+            string dir = OutputDir("Web", build);
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            bool ok = BuildOne(BuildTarget.WebGL, dir, dev, false);
+            if (ok)
+            {
+                File.WriteAllText(Path.Combine(dir, ".nojekyll"), ""); // Pages must not run the folder through Jekyll
+                Log("Web build -> " + dir + "  (publish with publish-web.bat)");
+            }
+            return ok;
+        }
+
         private static bool BuildOne(BuildTarget target, string path, bool dev, bool appBundle)
         {
             if (target == BuildTarget.Android) EditorUserBuildSettings.buildAppBundle = appBundle;
@@ -256,6 +327,10 @@ namespace TillWinter.EditorTools.Build
                 : Directory.Exists(path) ? new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length) : 0;
             Log(target + " " + Path.GetFileName(path) + ": " + s.result + ", " + (bytes / (1024.0 * 1024.0)).ToString("0.0") + " MB on disk, "
                 + s.totalTime.TotalSeconds.ToString("0") + " s, " + s.totalErrors + " errors");
+            // Where the size goes: the heaviest assets packed into the build, so trimming starts in the right place.
+            var heaviest = report.packedAssets.SelectMany(p => p.contents).GroupBy(c => c.sourceAssetPath)
+                .Select(g => (path: g.Key, bytes: g.Sum(c => (long)c.packedSize))).OrderByDescending(x => x.bytes).Take(12);
+            foreach (var (assetPath, size) in heaviest) Log("  " + (size / 1024.0).ToString("0") + " KB  " + assetPath);
             if (s.result != BuildResult.Succeeded)
                 foreach (var step in report.steps)
                 foreach (var m in step.messages)
@@ -268,7 +343,7 @@ namespace TillWinter.EditorTools.Build
         private static bool CompileRelease()
         {
             bool ok = true;
-            foreach (var target in new[] { BuildTarget.Android, BuildTarget.iOS })
+            foreach (var target in new[] { BuildTarget.Android, BuildTarget.iOS, BuildTarget.WebGL })
             {
                 var settings = new ScriptCompilationSettings
                 {

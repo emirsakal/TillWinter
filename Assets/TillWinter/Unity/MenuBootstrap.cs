@@ -301,7 +301,8 @@ namespace TillWinter.Unity
             entries.Add(("menu.daily", StartDaily, false, dailySub));
             entries.Add(("menu.settings", () => _sheets.OpenSettingsFrom(null), false, null));
             entries.Add(("menu.credits", () => _sheets.OpenCreditsFrom(null), false, null));
-            if (Application.platform != RuntimePlatform.IPhonePlayer) entries.Add(("menu.quit", Application.Quit, false, null)); // iOS apps never quit themselves
+            // iOS apps never quit themselves, and a browser tab is closed by its own ×.
+            if (Application.platform != RuntimePlatform.IPhonePlayer && !WebBridge.IsWeb) entries.Add(("menu.quit", Application.Quit, false, null));
             for (int i = 0; i < entries.Count; i++)
             {
                 var (key, action, primary, sub) = entries[i];
