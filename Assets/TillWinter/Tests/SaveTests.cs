@@ -366,7 +366,9 @@ namespace TillWinter.Tests
             var direct = Make(cfgLong);
             double before = direct.State.Coins;
             for (int i = 0; i < 600; i++) direct.Tick(1f);
-            Assert.That(report.CoinsEarned, Is.EqualTo(direct.State.Coins - before).Within(1e-6));
+            // v3.7: away, a picker or waterer with nothing left to do digs hard ground, which it never does in play, so
+            // the time away pays at least what the same helpers earn in play (it used to equal it, and stalled on hard ground).
+            Assert.That(report.CoinsEarned, Is.GreaterThanOrEqualTo(direct.State.Coins - before - 1e-6));
         }
 
         [Test]

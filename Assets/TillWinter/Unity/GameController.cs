@@ -171,13 +171,17 @@ namespace TillWinter.Unity
             _pressPlot = null;
             PressedPlot = null;
             // Things that take the whole press: the cloud, a placing or picking mode, the dog off the field, and an
-            // apprentice when the finger is nearer to it than to the bed under it. An apprentice's finger-sized hit area
-            // covers the bed it works and its neighbours, and used to swallow every tap there as a role change, so the
-            // field went dead the year after the first apprentice was bought. They act on release.
+            // apprentice off the field. They act on release.
+            // v3.7: over the field a bed with work for the finger (hard ground, a ripe crop, a crow, a pest) always takes
+            // the press, even under an apprentice: "nearer its body than the bed's centre" still gave the apprentice
+            // the bed's corners whenever one stood close, and those strikes became silent role changes. Over a growing
+            // bed the press still goes to the bed (a hold waters it); a short tap there, where the bed has nothing to
+            // do, switches the apprentice nearest the finger (see OnRelease).
             bool overPlot = TryScreenToCell(screen, out var cell);
             _pressApprentice = ApprenticeHitTest != null ? ApprenticeHitTest(screen) : -1;
-            if (_pressApprentice >= 0 && overPlot && !NearerThanPlot(screen, _pressApprentice, cell)) _pressApprentice = -1;
-            if ((CloudHitTest != null && CloudHitTest(screen)) || FieldTapOverride != null || _pressApprentice >= 0
+            if (_pressApprentice >= 0 && overPlot && (BedWantsFinger(cell) || PlotTapOverride != null || !NearerThanPlot(screen, _pressApprentice, cell)))
+                _pressApprentice = -1;
+            if ((CloudHitTest != null && CloudHitTest(screen)) || FieldTapOverride != null || (_pressApprentice >= 0 && !overPlot)
                 || (!overPlot && DogHitTest != null && DogHitTest(screen)))
             {
                 _pressHandled = true;
@@ -242,7 +246,9 @@ namespace TillWinter.Unity
             }
             else if (tap && _pressPlot.HasValue && !_watering && State.GetPlot(_pressPlot.Value).IsGrowing)
             {
-                TappedGrowing?.Invoke(_pressPlot.Value);
+                // A tap on a growing bed does nothing by rule: if it landed on an apprentice, it was for the apprentice.
+                if (_pressApprentice >= 0) ToggleApprenticeRole(_pressApprentice);
+                else TappedGrowing?.Invoke(_pressPlot.Value);
             }
             EndPress();
         }
@@ -253,16 +259,28 @@ namespace TillWinter.Unity
             if (CloudHitTest != null && CloudHitTest(screen) && Sim.TapCloud()) return;
             bool overPlot = TryScreenToCell(screen, out _);
             if (!overPlot && DogHitTest != null && DogHitTest(screen)) return; // the dog swallows its own tap: petting it never strikes the plot behind it
-            if (_pressApprentice >= 0 && _pressApprentice < State.Apprentices.Count)
+            if (_pressApprentice >= 0)
             {
-                // Picker → waterer → digger → picker. The one the press landed on, not whoever walked under the finger since.
-                int index = _pressApprentice;
-                var role = (ApprenticeRole)(((int)State.Apprentices[index].Role + 1) % 3);
-                if (Sim.SetApprenticeRole(index, role)) ApprenticeRoleToggled?.Invoke(index);
+                ToggleApprenticeRole(_pressApprentice);
                 return;
             }
             if (FieldTapOverride != null && TryScreenToPlot(screen, out var fp) && FieldTapOverride(new Vector2(fp.x, fp.y))) return;
             if (PlotTapOverride != null && TryScreenToCell(screen, out var cell)) PlotTapOverride(cell);
+        }
+
+        /// <summary>Picker → waterer → digger → picker. The one the press landed on, not whoever walked under the finger since.</summary>
+        private void ToggleApprenticeRole(int index)
+        {
+            if (index < 0 || index >= State.Apprentices.Count) return;
+            var role = (ApprenticeRole)(((int)State.Apprentices[index].Role + 1) % 3);
+            if (Sim.SetApprenticeRole(index, role)) ApprenticeRoleToggled?.Invoke(index);
+        }
+
+        /// <summary>Does the bed have something for a finger to do right now: break it, reap it, scare its crow or pest?</summary>
+        private bool BedWantsFinger(GridPos cell)
+        {
+            var plot = State.GetPlot(cell);
+            return plot.IsHard || plot.IsRipe || plot.HasCrow || (State.Pest.Kind != PestKind.None && State.Pest.Pos == cell);
         }
 
         /// <summary>Is the finger nearer the apprentice's body than the centre of the bed under it? Then the tap was for the apprentice.</summary>
