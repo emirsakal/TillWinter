@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#8fc8e8">
+  <meta name="description" content="Till Winter — a cozy farming game about a family farm, one generation after another.">
+  <title>Till Winter</title>
+  <style>
+    /* A desktop gets a phone-shaped frame on a morning sky; a phone gets the whole screen. */
+    html, body { margin: 0; height: 100%; overflow: hidden; background: linear-gradient(180deg, #8fc8e8 0%, #cfe8f2 55%, #e4f1d6 100%); }
+    body { display: flex; align-items: center; justify-content: center; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    #frame { position: relative; height: calc(100vh - 40px); aspect-ratio: 9 / 19.5; max-width: calc(100vw - 40px);
+             border-radius: 28px; overflow: hidden; background: #f6ead2; box-shadow: 0 18px 50px rgba(40, 60, 40, 0.28); }
+    #unity-canvas { width: 100%; height: 100%; display: block; background: #f6ead2; touch-action: none; outline: none; }
+    #loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #4a3a28; background: #f6ead2; }
+    #loading h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; }
+    #bar { width: 60%; height: 10px; border-radius: 6px; background: rgba(74, 58, 40, 0.15); overflow: hidden; }
+    #fill { width: 0%; height: 100%; background: #6b9a4f; transition: width 0.2s; }
+    #note { font-size: 13px; opacity: 0.7; padding: 0 24px; text-align: center; }
+    #error { display: none; position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 10px 12px; border-radius: 10px; background: #b8473a; color: #fff; font-size: 13px; }
+    @media (max-width: 600px), (pointer: coarse) and (orientation: portrait) {
+      body { background: #f6ead2; }
+      #frame { height: 100%; width: 100%; max-width: none; aspect-ratio: auto; border-radius: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="frame">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="loading">
+      <h1>Till Winter</h1>
+      <div id="bar"><div id="fill"></div></div>
+      <div id="note">Your farm is kept in this browser.</div>
+    </div>
+    <div id="error"></div>
+  </div>
+  <script>
+    var canvas = document.querySelector("#unity-canvas");
+    var fill = document.querySelector("#fill");
+    var loading = document.querySelector("#loading");
+    var error = document.querySelector("#error");
+    function showError(message, type) {
+      if (type !== "error") return;
+      error.textContent = message;
+      error.style.display = "block";
+    }
+    var config = {
+      dataUrl: "Build/1.0.0-2.data.unityweb",
+      frameworkUrl: "Build/1.0.0-2.framework.js.unityweb",
+      codeUrl: "Build/1.0.0-2.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "EFS Games",
+      productName: "Till Winter",
+      productVersion: "1.0.0",
+      showBanner: showError,
+      // Sharp on a phone, but no more than twice the CSS size: a 3x screen would triple the work for little to see.
+      devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+    };
+    var script = document.createElement("script");
+    script.src = "Build/1.0.0-2.loader.js";
+    script.onload = function () {
+      createUnityInstance(canvas, config, function (progress) {
+        fill.style.width = Math.round(progress * 100) + "%";
+      }).then(function () {
+        loading.style.display = "none";
+        canvas.focus();
+      }).catch(function (message) {
+        showError(String(message), "error");
+      });
+    };
+    document.body.appendChild(script);
+    // No page scroll, pinch or long-press menu fighting the swipe that reaps a row.
+    document.addEventListener("touchmove", function (e) { if (e.target === canvas) e.preventDefault(); }, { passive: false });
+    canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  </script>
+</body>
+</html>
