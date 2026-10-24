@@ -138,6 +138,13 @@ namespace TillWinter.Unity
             // Size TMP's buffers for the longest counter once, so growing numbers never resize them mid-play.
             _coinText.SetText("-999.9Qi");
             _coinText.ForceMeshUpdate(true);
+            // And the same number as the counter really writes it, suffix tags and all: the plain string sized TMP's
+            // arrays shorter than the rich one, which grew them in the middle of a harvest burst.
+            const string longest = "-999.9Qi";
+            for (int i = 0; i < longest.Length; i++) _coinChars[i] = longest[i];
+            int primed = _coinRich.Write(_coinChars, longest.Length);
+            _coinText.SetText(_coinRich.Buffer, 0, primed);
+            _coinText.ForceMeshUpdate(true);
             // Every character a counter can show, through the font once, then their advances cached for the icon's gap.
             _coinText.SetText("0123456789.,-KMBTQaidecx");
             _coinText.ForceMeshUpdate(true);
@@ -178,6 +185,9 @@ namespace TillWinter.Unity
             UiKit.OutlineStrong(_rate, 0.16f);
             _seedChip = UiKit.Label(_seedChipFace.transform, "Text", "", UiType.Label, _theme.Text, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.Stretch(_seedChip.rectTransform, Vector2.zero, Vector2.one, new Vector2(78f, 0f), new Vector2(-10f, 0f));
+            // The chip's text sized once for the largest count, before it is first shown mid-year.
+            _seedChip.SetText(_retireFormat, 9999999);
+            _seedChip.ForceMeshUpdate(true);
             _seedChipRt.gameObject.SetActive(false);
 
             // The bottom of the screen: what this year has brought, and how far the farm is from the next generation.

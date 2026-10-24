@@ -8,6 +8,8 @@ hours to the ending — then it ends, on purpose.
 Unity 6000.3.22f1 · portrait mobile (iOS + Android) · English & Turkish · no ads, no in-app
 purchases, no analytics, no network · 322 automated tests
 
+**[▶ Play it in your browser](https://emirsakal.github.io/TillWinter/)** — the same game, built for the web (about 47 MB on first load; your farm stays in that browser).
+
 | The field | Winter: the Almanac | Heritage: rebirth |
 |---|---|---|
 | ![The field](docs/screenshots/readme-1-field.png) | ![Almanac](docs/screenshots/readme-2-almanac.png) | ![Heritage](docs/screenshots/readme-3-heritage.png) |
@@ -129,7 +131,8 @@ setting, safe-area aware layout, and two quality tiers picked from the device.
 Builds: `build-android.bat [-dev]` writes to `Builds\Android\…`; `build-ios.bat [-dev]` writes an
 Xcode project for signing on a Mac. Android signing comes from four environment variables
 (`TW_KEYSTORE_PATH`, `TW_KEYSTORE_PASS`, `TW_KEY_ALIAS`, `TW_KEY_PASS`) read for one build only —
-no keystore, password or alias is ever committed.
+no keystore, password or alias is ever committed. `build-web.bat [-dev]` writes the browser build to
+`Builds\Web\…`, and `publish-web.bat` force-pushes the newest one to the `gh-pages` branch that GitHub Pages serves.
 
 Saves live in the app's `persistentDataPath`: `tillwinter.json` (+ `.bak`) for the farm and
 `settings.json` for preferences, so resetting one never touches the other.
