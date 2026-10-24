@@ -26,6 +26,9 @@ namespace TillWinter.EditorTools
     {
         private const string ActiveKey = "TillWinter.SmokeTest.Active";
         private const string StepKey = "TillWinter.SmokeTest.Step";
+        private const string ExitKey = "TillWinter.SmokeTest.Exit";
+        /// <summary>The developer's save is set aside under this suffix for the run and put back after it.</summary>
+        private const string BackupSuffix = ".smoke-bak";
         private static readonly string OutDir = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "TestResults", "smoke");
 
         private static double _t0;
@@ -45,6 +48,8 @@ namespace TillWinter.EditorTools
         {
             if (SessionState.GetBool(ActiveKey, false))
                 EditorApplication.update += Tick;
+            // Leaving play mode reloads the domain: the exit step re-registers itself here.
+            if (SessionState.GetInt(ExitKey, -1) >= 0) EditorApplication.update += WaitThenExit;
         }
 
         /// <summary>Entry point for -executeMethod.</summary>
@@ -53,9 +58,14 @@ namespace TillWinter.EditorTools
             Directory.CreateDirectory(OutDir);
             foreach (var f in Directory.GetFiles(OutDir))
                 if (f.EndsWith(".png") || f.EndsWith("report.txt")) File.Delete(f);
+            // The run starts a fresh farm. The developer's save (and its .bak) is set aside first and put back at the end:
+            // deleting it outright lost a real farm once.
             var savePath = Path.Combine(Application.persistentDataPath, SaveController.FileName);
+            foreach (var f in new[] { savePath, savePath + ".bak" })
+                if (File.Exists(f)) File.Copy(f, f + BackupSuffix, true);
             foreach (var f in new[] { savePath, savePath + ".bak", savePath + ".tmp" })
                 if (File.Exists(f)) File.Delete(f);
+            SessionState.SetInt(ExitKey, -1);
             SessionState.SetBool(ActiveKey, true);
             SessionState.SetInt(StepKey, 0);
             EditorApplication.update += Tick;
@@ -91,6 +101,9 @@ namespace TillWinter.EditorTools
             }
 
             if (!EditorApplication.isPlaying) return;
+            // As the UI tour does: without it the player loop stops whenever the editor window loses focus, and every
+            // tap of the run "misses".
+            if (!Application.runInBackground) Application.runInBackground = true;
             if (step == 1)
             {
                 SessionState.SetInt(StepKey, 2);
@@ -685,7 +698,25 @@ namespace TillWinter.EditorTools
             Application.logMessageReceived -= OnLog;
             int code = _errors == 0 ? 0 : 1;
             EditorApplication.isPlaying = false;
-            EditorApplication.delayCall += () => EditorApplication.delayCall += () => EditorApplication.Exit(code);
+            SessionState.SetInt(ExitKey, code);
+            EditorApplication.update += WaitThenExit;
+        }
+
+        /// <summary>After play mode has fully stopped (and the game has written its own save), the developer's save goes back.</summary>
+        private static void WaitThenExit()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+            EditorApplication.update -= WaitThenExit;
+            var savePath = Path.Combine(Application.persistentDataPath, SaveController.FileName);
+            if (File.Exists(savePath + BackupSuffix) || File.Exists(savePath + ".bak" + BackupSuffix))
+            {
+                SaveController.DeleteFiles(savePath);
+                foreach (var f in new[] { savePath, savePath + ".bak" })
+                    if (File.Exists(f + BackupSuffix)) File.Move(f + BackupSuffix, f);
+            }
+            int code = SessionState.GetInt(ExitKey, 1);
+            SessionState.SetInt(ExitKey, -1);
+            EditorApplication.Exit(code);
         }
     }
 }

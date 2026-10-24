@@ -138,6 +138,10 @@ namespace TillWinter.Unity
             // Size TMP's buffers for the longest counter once, so growing numbers never resize them mid-play.
             _coinText.SetText("-999.9Qi");
             _coinText.ForceMeshUpdate(true);
+            // Every character a counter can show, through the font once, then their advances cached for the icon's gap.
+            _coinText.SetText("0123456789.,-KMBTQaidecx");
+            _coinText.ForceMeshUpdate(true);
+            CacheCoinAdvances();
             _coinText.SetText("0");
 
             // Full cream on a shadow: at 80% on the pale spring sky "Year 3 · Gen 2" all but vanished.
@@ -927,25 +931,40 @@ namespace TillWinter.Unity
         private float CoinTextWidth(char[] chars, int len)
         {
             float size = _coinText.fontSize;
-            var font = _coinText.font;
-            if (font == null || font.characterLookupTable == null) return len * size * 0.62f;
-            var face = font.faceInfo;
-            float em = size / Mathf.Max(1f, face.pointSize) * (face.scale > 0f ? face.scale : 1f);
+            if (_coinAdvances == null) CacheCoinAdvances();
             float spacing = _coinText.characterSpacing * 0.01f * size;
             int digitsEnd = len;
             while (digitsEnd > 0 && char.IsLetter(chars[digitsEnd - 1])) digitsEnd--;
-            var table = font.characterLookupTable;
             float width = 0f;
             for (int i = 0; i < len; i++)
             {
                 float scale = i >= digitsEnd ? CoinSuffixScale : 1f;
-                float advance = table.TryGetValue(chars[i], out var ch) && ch.glyph != null
-                    ? ch.glyph.metrics.horizontalAdvance * em
-                    : size * 0.62f;
+                char c = chars[i];
+                float advance = (c < _coinAdvances.Length ? _coinAdvances[c] : 0.62f) * size;
                 width += (advance + (i < len - 1 ? spacing : 0f)) * scale;
             }
             return width;
         }
+
+        /// <summary>
+        /// The display font's advance for every ASCII character, per unit of font size, read once: looking glyphs up in
+        /// the font asset while the counter ran allocated a few KB a frame in the harvest burst (smoke "no per-frame
+        /// allocations").
+        /// </summary>
+        private void CacheCoinAdvances()
+        {
+            _coinAdvances = new float[128];
+            for (int i = 0; i < _coinAdvances.Length; i++) _coinAdvances[i] = 0.62f;
+            var font = _coinText.font;
+            if (font == null || font.characterLookupTable == null) return;
+            var face = font.faceInfo;
+            float em = 1f / Mathf.Max(1f, face.pointSize) * (face.scale > 0f ? face.scale : 1f);
+            var table = font.characterLookupTable;
+            for (int c = 32; c < _coinAdvances.Length; c++)
+                if (table.TryGetValue((uint)c, out var ch) && ch.glyph != null) _coinAdvances[c] = ch.glyph.metrics.horizontalAdvance * em;
+        }
+
+        private float[] _coinAdvances;
 
         /// <summary>A tap on a growing crop does nothing by rule (a held finger waters it); after a winter the field is
         /// full of them and a silent tap reads as a dead screen, so the banner says what the crop wants, a few seconds apart.</summary>

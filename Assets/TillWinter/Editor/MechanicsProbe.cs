@@ -54,6 +54,7 @@ namespace TillWinter.EditorTools
             // The developer's save is set aside for the run and put back at the end (the probe starts a fresh farm).
             var savePath = Path.Combine(Application.persistentDataPath, SaveController.FileName);
             if (File.Exists(savePath)) File.Copy(savePath, savePath + BackupSuffix, true);
+            if (File.Exists(savePath + ".bak")) File.Copy(savePath + ".bak", savePath + ".bak" + BackupSuffix, true);
             SaveController.DeleteFiles(savePath);
             SessionState.SetBool(ActiveKey, true);
             SessionState.SetInt(ExitKey, -1);
@@ -84,6 +85,8 @@ namespace TillWinter.EditorTools
                 return;
             }
             if (!EditorApplication.isPlaying) return;
+            // As the UI tour does: without it the player loop stops whenever the editor window loses focus.
+            if (!Application.runInBackground) Application.runInBackground = true;
             if (step == 1)
             {
                 SessionState.SetInt(StepKey, 2);
@@ -367,6 +370,7 @@ namespace TillWinter.EditorTools
             {
                 SaveController.DeleteFiles(savePath);
                 File.Move(savePath + BackupSuffix, savePath);
+                if (File.Exists(savePath + ".bak" + BackupSuffix)) File.Move(savePath + ".bak" + BackupSuffix, savePath + ".bak");
             }
             int code = SessionState.GetInt(ExitKey, 1);
             SessionState.SetInt(ExitKey, -1);

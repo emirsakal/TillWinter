@@ -1750,6 +1750,12 @@ namespace TillWinter.Core
             if (!CanRespec) return false;
             var g = State.Generation;
             double refund = g.AlmanacSpent;
+            // v3.7: the field this generation started on. Every expand_field level added exactly one row, so it is the
+            // field less those levels. The resolved start can be larger by now (a Heritage start field bought in a
+            // winter applies from the next generation), and shrinking to it handed out a free row.
+            int expandLevels = 0;
+            foreach (var n in Almanac.Nodes) if (n.Effect == EffectType.ExpandField) expandLevels += Almanac.GetLevel(n.Id);
+            int startedOn = Math.Max(Config.StartGridSize, State.GridSize - expandLevels);
             Almanac.Reset();
             GrantHeritageStarts(); // a respec does not take back what the family starts with
             foreach (var p in State.PlotArray)
@@ -1758,9 +1764,10 @@ namespace TillWinter.Core
                 p.Choice = -1;
             }
             ResolveStats();
-            if (State.GridSize > State.Stats.TargetGridSize)
+            int shrinkTo = Math.Min(State.Stats.TargetGridSize, startedOn);
+            if (State.GridSize > shrinkTo)
             {
-                BuildField(State.Stats.TargetGridSize);
+                BuildField(shrinkTo);
                 ResolveStats();
                 FieldExpanded?.Invoke();
             }
@@ -1992,7 +1999,7 @@ namespace TillWinter.Core
             var st = State.Stats;
             foreach (var a in State.ApprenticeList)
             {
-                if (a.HasTarget && !Wants(a, State.GetPlot(a.Target)))
+                if (a.HasTarget && !Wants(a, State.GetPlot(a.Target)) && !LendsAHand(a, State.GetPlot(a.Target)))
                 {
                     a.HasTarget = false;
                     a.IsWorking = false;
@@ -2014,6 +2021,22 @@ namespace TillWinter.Core
                             best = p;
                         }
                     }
+                    // v3.7: while the player is away, a helper whose own job has run out digs. With nobody digging the
+                    // field turns to hard ground within a cycle and stops: an hour away earned nothing (GDD §2v3.10).
+                    if (best == null && _offline)
+                    {
+                        foreach (var p in State.PlotArray)
+                        {
+                            if (!LendsAHand(a, p) || IsTargetedByOther(p.Pos, a)) continue;
+                            float dx = p.Pos.X - a.X, dy = p.Pos.Y - a.Y;
+                            float d = dx * dx + dy * dy;
+                            if (d < bestDist)
+                            {
+                                bestDist = d;
+                                best = p;
+                            }
+                        }
+                    }
                     if (best != null)
                     {
                         a.Target = best.Pos;
@@ -2029,7 +2052,9 @@ namespace TillWinter.Core
                     if (a.WorkProgress >= 1f)
                     {
                         var worked = State.GetPlot(a.Target);
-                        switch (a.Role)
+                        // Away, a helper lending a hand on hard ground digs whatever its own role.
+                        var role = !Wants(a, worked) && LendsAHand(a, worked) ? ApprenticeRole.Digger : a.Role;
+                        switch (role)
                         {
                             case ApprenticeRole.Waterer:
                                 Water(worked, Config.ApprenticeWaterBoost);
@@ -2084,6 +2109,9 @@ namespace TillWinter.Core
                 default: return p.IsRipe;
             }
         }
+
+        /// <summary>Only while away (<see cref="SimulateOffline"/>): a picker or waterer may dig hard ground when its own job has run out.</summary>
+        private bool LendsAHand(ApprenticeState a, Plot p) => _offline && a.Role != ApprenticeRole.Digger && p.IsHard;
 
         /// <summary>Switches an apprentice's role; it drops whatever it was doing.</summary>
         public bool SetApprenticeRole(int index, ApprenticeRole role)

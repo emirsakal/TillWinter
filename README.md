@@ -6,7 +6,7 @@ skill tree, and when a farm has given all it can you hand it to the next generat
 hours to the ending — then it ends, on purpose.
 
 Unity 6000.3.22f1 · portrait mobile (iOS + Android) · English & Turkish · no ads, no in-app
-purchases, no analytics, no network · 319 automated tests
+purchases, no analytics, no network · 322 automated tests
 
 | The field | Winter: the Almanac | Heritage: rebirth |
 |---|---|---|
@@ -67,7 +67,7 @@ heard of Unity.**
 |---|---|---|
 | `TillWinter.Core` | 22 files, ~6.7k lines | Pure C#, `noEngineReferences`. State, economy, timers, save format. Deterministic for a fixed `dt` and seed. Holds no user-facing strings, only keys. |
 | `TillWinter.Unity` | 71 files, ~13.3k lines | Presentation and input only. Reads `FarmState`, plays VFX and sound, forwards taps. No game rules. |
-| `TillWinter.Tests` | 42 files, ~6.7k lines | EditMode NUnit against Core alone. 319 tests. |
+| `TillWinter.Tests` | 42 files, ~6.7k lines | EditMode NUnit against Core alone. 322 tests. |
 
 What that buys, and what it costs, is written down in [`CLAUDE.md`](CLAUDE.md) (the rules every
 change must keep) and [`DECISIONS.md`](DECISIONS.md) (every choice the design left open, with the
@@ -98,11 +98,12 @@ tuning change that breaks one fails the suite.
 
 | Gate | What it does |
 |---|---|
-| `run-tests.bat` | 319 EditMode tests against Core |
+| `run-tests.bat` | 322 EditMode tests against Core |
 | `balance-sim.bat` | Headless full playthrough; prints the year table and the target summary |
 | `smoke-test.bat` | Drives the real game in play mode with a virtual mouse: a full year, purchases, year two, a crow, the ending; checks draw calls, triangles and per-frame allocations |
 | `ui-tour.bat <folder>` | Opens all 40-odd screens and sheets through their own buttons and writes a screenshot of each (the images above came from it) |
 | `mechanics-probe.bat <folder>` | Plays the mechanics through the real input path — strike, water, reap, winter purchases, next year, expansion, retire, the album page, Heritage, a new generation — and reports whether a tap on the field still lands after every screen change, and what sits under the finger when it does not |
+| `field-tap-probe.bat <folder> [preset]` | Taps every plot centre and its four visible corners at every field size and after every screen change, and reports any tap that lands on the wrong thing |
 
 Plus `release-compile-check.bat`, which fails if debug-only code leaks into a release build. Outside
 the repo, an invariant fuzz plays Core at random through its public API for hundreds of farm years and
@@ -168,7 +169,7 @@ birlikte geliyor.
 
 Kod tarafında dikkat çeken şey ayrım: **bütün kurallar Unity'yi hiç tanımayan saf bir C# kütüphanesinde.**
 Bu sayede oyun sabit bir adım ve tohumla her seferinde aynı şekilde işliyor; denge bir simülasyonla
-ölçülüyor, kayıt dosyasının her sürümü eski kayıtlarla test ediliyor ve 319 test yalnızca kuralları
+ölçülüyor, kayıt dosyasının her sürümü eski kayıtlarla test ediliyor ve 322 test yalnızca kuralları
 sınıyor. Tasarım `docs/GDD.md`'de, mimari kuralları `CLAUDE.md`'de, açık bırakılan her karar
 `DECISIONS.md`'de yazılı. Kış ekranı bir ağaç değil, yukarıdan görülen bir tarla: yeşermiş, sürülmüş ya da
 hâlâ sert 39 yatak. Mağaza paketi `docs/STORE.md`'de, sürüm çıkarma adımları

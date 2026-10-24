@@ -1581,3 +1581,30 @@ Each entry: what was open, what was chosen, why. Balance-affecting ones are expo
 - **One size for every corner button.** The barn button was 170 wide and the seed bag under it 130; all
   six (barn, seeds, tractor, scarecrow, end year, inspect) now take `HudTheme.SideButtonWidth/Height`
   (170 × 110), and End year steps left to stay clear of the wider Inspect.
+
+---
+
+# Session 16 — full test pass and fixes (2026-10-24)
+
+- **A bed with work for the finger always beats an apprentice (GDD v3.7).** Open: the v3.5 rule ("the
+  finger is nearer the apprentice's body than the bed centre") still gave apprentices 2–7% of taps at bed
+  corners, sometimes centres, as silent role changes; the new `field-tap-probe` measured it on phone, 16:9
+  and tablet. Chosen: a bed with work for the finger (hard, ripe, crow, pest) always takes the press; an
+  apprentice is switched only by a short tap over a growing bed or off the field.
+- **Away helpers lend a hand (GDD v3.7).** Open: with the default all-picker helpers, an hour away on hard
+  ground earned 0–2 coins. Chosen: while offline, a picker or waterer whose own job has run out digs hard
+  ground; 3 helpers now earn about 130 harvests per hour. The `SaveTests` offline test asserts offline >=
+  in-play instead of equality.
+- **Respec returns the field to the size this generation started on.** Open: which size a respec
+  restores. Chosen: `GridSize` minus the `expand_field` levels, not the resolved start size — a Heritage
+  start field bought in a winter applies next generation, and the old respec handed out a free row.
+- **The HUD coin counter caches the display font's per-character advances once at build.** Looking glyphs
+  up per frame allocated a few KB per frame in the smoke harvest burst.
+- **Test tooling.** `SmokeTest` and `MechanicsProbe` set `Application.runInBackground` (without it the
+  player loop stalls when the editor is unfocused and every tap "misses") and back up the developer save
+  and its `.bak`, restoring them after play mode (`SmokeTest` used to delete the save outright and wiped a
+  real farm). New `FieldTapProbe` / `field-tap-probe.bat [out] [preset]` taps every plot centre and its four
+  visible corners at 3x3..6x6 after winter/Next year, mid-year expansion, retire, seed bag, magnifier,
+  pause, trader, seasons and weather; 18/18 scenarios clean.
+- **Not changed: the beat pulse and the last strike position are not saved.** A restart restarts the
+  rhythm. Cosmetic, and fixing it would need a save schema bump.
